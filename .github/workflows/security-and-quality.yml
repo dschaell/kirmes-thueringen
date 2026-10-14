@@ -178,21 +178,34 @@ jobs:
       - name: OWASP Dependency-Check (CVSS ≥ 4.0 = Medium bricht ab)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        # Die NVD-API fällt zeitweise aus (HTTP 503). Bis zu drei Anläufe; jeder setzt auf den bereits
+        # geladenen Daten im Cache-Verzeichnis auf. Ein echter Fund (CVSS ≥ 4, Exit-Code 1) bricht sofort ab.
         run: |
           mkdir -p ~/.dependency-check-data reports
-          # Gleiche Benutzer-ID wie der Runner, sonst darf der Container den Cache nicht beschreiben (H2-Lock)
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -e NVD_API_KEY \
-            -v "$PWD:/src:ro" -v ~/.dependency-check-data:/usr/share/dependency-check/data \
-            -v "$PWD/reports:/report" \
-            "$DEPENDENCY_CHECK_IMAGE" \
-            --scan /src/package-lock.json \
-            --project kirmes-thueringen \
-            --format SARIF --format HTML \
-            --out /report \
-            --nvdApiKey "$NVD_API_KEY" \
-            --disableYarnAudit --disablePnpmAudit \
-            --failOnCVSS 4.0
+          for versuch in 1 2 3; do
+            set +e
+            # Gleiche Benutzer-ID wie der Runner, sonst darf der Container den Cache nicht beschreiben (H2-Lock)
+            docker run --rm --user "$(id -u):$(id -g)" \
+              -e NVD_API_KEY \
+              -v "$PWD:/src:ro" -v ~/.dependency-check-data:/usr/share/dependency-check/data \
+              -v "$PWD/reports:/report" \
+              "$DEPENDENCY_CHECK_IMAGE" \
+              --scan /src/package-lock.json \
+              --project kirmes-thueringen \
+              --format SARIF --format HTML \
+              --out /report \
+              --nvdApiKey "$NVD_API_KEY" \
+              --nvdApiDelay 3000 \
+              --disableYarnAudit --disablePnpmAudit \
+              --failOnCVSS 4.0
+            code=$?
+            set -e
+            [ $code -eq 0 ] && exit 0
+            # Exit-Code 1 = Schwachstelle gefunden → nicht wiederholen, sofort scheitern
+            if [ $code -eq 1 ] || [ $versuch -eq 3 ]; then exit $code; fi
+            echo "::warning::Dependency-Check Versuch $versuch fehlgeschlagen (Exit $code, meist NVD-Ausfall) – neuer Anlauf in 60 s"
+            sleep 60
+          done
       - name: NVD-Datenbank cachen (auch bei Fehlschlag, damit der nächste Lauf nicht neu lädt)
         if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
