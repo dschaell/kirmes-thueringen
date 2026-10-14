@@ -71,6 +71,8 @@ export const RECHERCHE_SPALTEN = [
   'kategorie',
   'bestaetigt',
   'quelle',
+  'band',
+  'hinweise',
 ] as const;
 
 export interface RechercheZeile {
@@ -83,6 +85,8 @@ export interface RechercheZeile {
   kategorie: string;
   bestaetigt: boolean;
   quelle: string | null;
+  band: string | null;
+  info: string | null;
 }
 
 const normSpalte = (s: string) =>
@@ -154,6 +158,8 @@ export function leseRecherche(
           kategorie: kategorie || erkenneKategorie(bereinigeTitel(titel)),
           bestaetigt: JA.test(wert(z, 'bestaetigt')),
           quelle: wert(z, 'quelle') || null,
+          band: wert(z, 'band') || null,
+          info: wert(z, 'hinweise') || null,
         },
       };
     }),

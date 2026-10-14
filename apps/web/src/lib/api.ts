@@ -30,6 +30,10 @@ export interface TerminDto {
   ort: OrtDto;
   /** Von der Kirmesgesellschaft hinterlegter Festplatz */
   festplatz: { lat: number; lon: number } | null;
+  /** Band oder DJ des Abends */
+  band: string | null;
+  /** Hinweise der Kirmesgesellschaft (Eintritt, Programm, Einlass …) */
+  info: string | null;
 }
 
 export interface TerminSeite {

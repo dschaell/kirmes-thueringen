@@ -35,7 +35,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 <Base
   title={`${t.titel} in ${t.ort.name} am ${datum} – Kirmeskalender Thüringen`}
-  description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}. Mit Anfahrt und Kalendereintrag.`}
+  description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}${t.band ? `, mit ${t.band}` : ''}. Mit Anfahrt und Kalendereintrag.`}
   jsonLd={[eventJsonLd(t, Astro.site!)]}
 >
   <p class="brotkrumen">
@@ -59,6 +59,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         {t.veranstaltungsort && <>{t.veranstaltungsort}, </>}
         <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
       </dd>
+      {
+        t.band && (
+          <>
+            <dt>
+              <Icon name="musik" />
+              <span class="sr-only">Musik</span>
+            </dt>
+            <dd>{t.band}</dd>
+          </>
+        )
+      }
       <dt><Icon name="zelt" /><span class="sr-only">Art</span></dt>
       <dd>
         {KATEGORIEN[t.kategorie].label}
@@ -77,6 +88,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         }
       </dd>
     </dl>
+    {
+      t.info && (
+        <p class="hinweise">
+          <Icon name="info" />
+          <span>{t.info}</span>
+        </p>
+      )
+    }
 
     <h2 class="sr-only">Anfahrt und Teilen</h2>
     <div class="knopfreihe">

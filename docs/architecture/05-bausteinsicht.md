@@ -98,20 +98,20 @@ werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treibe
 
 ### HTTP-Schnittstelle (v1)
 
-| Methode & Pfad                                  | Beschreibung                                                                                | Antworten                            |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `GET /api/v1/termine`                           | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset`         | 200 JSON · 400 Problem Details · 503 |
-| `GET /api/v1/landkreise`                        | Alle 23 Landkreise                                                                          | 200                                  |
-| `GET /api/v1/orte`                              | Alle Orte mit Anzahl kommender Termine                                                      | 200                                  |
-| `GET /api/v1/orte/:slug`                        | Ein Ort                                                                                     | 200 · 404                            |
-| `GET /api/v1/termine/:id`                       | Ein Termin (teilbare Terminseite)                                                           | 200 · 404                            |
-| `GET/PUT/DELETE /api/v1/verwaltung/festplaetze` | Festplätze des eigenen Ortes (Header `Authorization: Bearer <Link-Token>`)                  | 200 · 204 · 400 · 401                |
-| `…/api/v1/verwaltung/termine`                   | Termine des eigenen Ortes (Bearbeitungslink)                                                | 200 · 201 · 204 · 400 · 401 · 404    |
-| `GET /api/v1/mitteilungen/aktuell`              | Neueste veröffentlichte Mitteilung                                                          | 200 · 404                            |
-| `POST /api/v1/admin/anmelden`                   | Redaktion: E-Mail + Passwort + Einmalcode → Sitzung                                         | 200 · 401 · 429                      |
-| `…/api/v1/admin/*`                              | Redaktion: Mitteilungen, Orte, Termine aller Orte, Links (`Authorization: Sitzung <token>`) | 200 · 201 · 204 · 400 · 401 · 404    |
-| `GET /health/live`                              | Prozess lebt                                                                                | 200                                  |
-| `GET /health/ready`                             | DB erreichbar                                                                               | 200 · 503                            |
+| Methode & Pfad                                  | Beschreibung                                                                                                            | Antworten                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `GET /api/v1/termine`                           | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset`                                     | 200 JSON · 400 Problem Details · 503 |
+| `GET /api/v1/landkreise`                        | Alle 23 Landkreise                                                                                                      | 200                                  |
+| `GET /api/v1/orte`                              | Alle Orte mit Anzahl kommender Termine                                                                                  | 200                                  |
+| `GET /api/v1/orte/:slug`                        | Ein Ort                                                                                                                 | 200 · 404                            |
+| `GET /api/v1/termine/:id`                       | Ein Termin (teilbare Terminseite)                                                                                       | 200 · 404                            |
+| `GET/PUT/DELETE /api/v1/verwaltung/festplaetze` | Festplätze des eigenen Ortes (Header `Authorization: Bearer <Link-Token>`)                                              | 200 · 204 · 400 · 401                |
+| `…/api/v1/verwaltung/termine`                   | Termine des eigenen Ortes (Bearbeitungslink); `POST …/wochenende` legt bis zu 20 auf einmal an                          | 200 · 201 · 204 · 400 · 401 · 404    |
+| `GET /api/v1/mitteilungen/aktuell`              | Neueste veröffentlichte Mitteilung                                                                                      | 200 · 404                            |
+| `POST /api/v1/admin/anmelden`                   | Redaktion: E-Mail + Passwort + Einmalcode → Sitzung                                                                     | 200 · 401 · 429                      |
+| `…/api/v1/admin/*`                              | Redaktion: Mitteilungen, Orte, Termine aller Orte (auch `termine/wochenende`), Links (`Authorization: Sitzung <token>`) | 200 · 201 · 204 · 400 · 401 · 404    |
+| `GET /health/live`                              | Prozess lebt                                                                                                            | 200                                  |
+| `GET /health/ready`                             | DB erreichbar                                                                                                           | 200 · 503                            |
 
 ## 5.3 Ebene 2 – Data-Tier (PostgreSQL)
 
@@ -130,7 +130,7 @@ erDiagram
   festplatz { bigint id PK bigint ort_id FK text name "= termin.veranstaltungsort, '' = Standard" geography lage "Point 4326" }
   bearbeitungslink { bigint id PK bytea token_hash UK "SHA-256" text bezeichnung timestamptz gesperrt_am }
   aenderungsprotokoll { bigint id PK bigint link_id FK text aktion jsonb details }
-  termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text kategorie "CHECK" boolean bestaetigt text quelle "intern" bigint eingetragen_durch FK }
+  termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text band "≤ 120" text info "≤ 500, öffentlich" text kategorie "CHECK" boolean bestaetigt text quelle "intern" bigint eingetragen_durch FK }
 ```
 
 | Index / Constraint                      | Zweck                                                     |

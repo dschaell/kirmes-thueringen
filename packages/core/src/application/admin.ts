@@ -15,7 +15,7 @@ import {
 import { validiereTermin, type Hinweis, type Ort, type Termin } from '../domain/termin.js';
 import type { Berechtigung } from './festplaetze.js';
 import { erkenneKategorie } from './recherche.js';
-import type { TerminFormular, TerminVerwaltung } from './termine-verwalten.js';
+import { validiereAlle, type TerminFormular, type TerminVerwaltung } from './termine-verwalten.js';
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
 export interface AdminKonto {
@@ -183,6 +183,23 @@ export class Redaktion {
     return ok({ termin: await this.termine.lege(v.value.termin, b), hinweise: v.value.hinweise });
   }
 
+  /** Ganzes Kirmeswochenende: mehrere Veranstaltungen eines Ortes in einer Transaktion. */
+  async legeWochenende(
+    ortSlug: string,
+    zeilen: Omit<AdminTerminFormular, 'ortSlug'>[],
+    adminId: string,
+  ): Promise<Result<{ termine: Termin[]; hinweise: Hinweis[] }, Validierungsfehler[]>> {
+    const b = await this.berechtigungFuer(ortSlug, adminId);
+    if (!b)
+      return err([{ feld: 'ortSlug', code: 'ORT_UNBEKANNT', meldung: 'Ort nicht gefunden.' }]);
+    const v = validiereAlle(zeilen, (z) => this.validiere({ ...z, ortSlug }, b));
+    if (!v.ok) return v;
+    return ok({
+      termine: await this.termine.legeAlle(v.value.termine, b),
+      hinweise: v.value.hinweise,
+    });
+  }
+
   async aendereTermin(
     id: string,
     f: AdminTerminFormular,
@@ -248,6 +265,8 @@ export class Redaktion {
       veranstaltungsort: f.veranstaltungsort ?? null,
       kategorie: f.kategorie || erkenneKategorie(f.titel),
       bestaetigt: f.bestaetigt ?? false,
+      band: f.band ?? null,
+      info: f.info ?? null,
     });
   }
 }

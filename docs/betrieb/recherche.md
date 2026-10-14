@@ -24,10 +24,12 @@ befüllen, als CSV exportieren (Excel: „CSV UTF-8 (Trennzeichen-getrennt)“).
 | Landkreis         | nein      | `GTH`                                 | Kfz-Kennzeichen; nötig bei mehrdeutigen Ortsnamen                                                                                    |
 | Datum             | ja        | `18.10.2026`                          | auch `2026-10-18`                                                                                                                    |
 | Beginn            | nein      | `20:00`                               | auch `20 Uhr`, `20.00`                                                                                                               |
-| Titel             | ja        | `Kirmestanz mit "Bandname"`           | Anführungszeichen werden automatisch zu „…“                                                                                          |
+| Titel             | ja        | `Kirmestanz`                          | Band nicht in den Titel – dafür gibt es die Spalte _Band_                                                                            |
+| Band              | nein      | `Belconda`                            | Band oder DJ des Abends; wird angezeigt und ist durchsuchbar                                                                         |
 | Veranstaltungsort | nein      | `Festzelt`                            | gleiche Schreibweise wie der Festplatz der Gesellschaft                                                                              |
 | Kategorie         | nein      | `kinder`                              | leer = automatisch aus dem Titel                                                                                                     |
 | Bestätigt         | nein      | `ja`                                  | nur, wenn die Gesellschaft den Termin selbst bestätigt hat                                                                           |
+| Hinweise          | nein      | `Eintritt 8 €, Einlass ab 16`         | wird **öffentlich** am Termin angezeigt (max. 500 Zeichen)                                                                           |
 | Quelle            | empfohlen | Link zum Post, „Telefonat KG, 12.10.“ | wird nicht veröffentlicht – dient als Nachweis der eigenen Recherche                                                                 |
 
 ```bash
@@ -40,6 +42,15 @@ Tabelle aktualisiert vorhandene Termine (gleicher Ort, Datum und Titel), statt s
 
 Recherche-Tabellen gehören nicht ins Repository: Ordner `recherche/` und Dateien `*.recherche.csv`
 sind von Git ausgeschlossen.
+
+## Ein ganzes Kirmeswochenende auf einmal
+
+In der Redaktion unter **Termine → Ort wählen → „Ganzes Kirmeswochenende“**: ersten Kirmestag
+wählen, „Vorlage laden“ – es erscheint ein typisches Wochenende (Disco, Tanz, Frühschoppen,
+Umzug, Ausklang). Jede Zeile ist eine Veranstaltung mit eigener Uhrzeit, Band und Hinweisen;
+mehrere Zeilen pro Tag sind möglich, Zeilen ohne Veranstaltung werden ignoriert. Gespeichert
+wird alles zusammen oder – bei einem Fehler, z. B. fehlendem Datum in Zeile 4 – gar nichts;
+die Eingaben bleiben dann stehen und die Zeile ist rot markiert.
 
 ## Was ihr übernehmen dürft – und was nicht
 

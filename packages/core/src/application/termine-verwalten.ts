@@ -8,6 +8,8 @@ import { erkenneKategorie } from './recherche.js';
 /** Driven Port: Termine einer Kirmesgesellschaft schreiben – immer mit Protokolleintrag. */
 export interface TerminVerwaltung {
   lege(t: NeuerTermin, durch: Berechtigung): Promise<Termin>;
+  /** Mehrere Termine in EINER Transaktion – alle oder keiner */
+  legeAlle(t: NeuerTermin[], durch: Berechtigung): Promise<Termin[]>;
   /** false, wenn der Termin nicht existiert oder zu einem anderen Ort gehört */
   aendere(id: string, t: NeuerTermin, durch: Berechtigung): Promise<boolean>;
   bestaetige(id: string, durch: Berechtigung): Promise<boolean>;
@@ -21,6 +23,61 @@ export interface TerminFormular {
   titel: string;
   veranstaltungsort?: string | null;
   kategorie?: string | null;
+  band?: string | null;
+  info?: string | null;
+}
+
+/** Höchstzahl Veranstaltungen, die auf einmal angelegt werden (ein langes Kirmeswochenende). */
+export const MAX_VERANSTALTUNGEN = 20;
+
+/**
+ * Validiert mehrere Termine; Fehler tragen die Zeilennummer im Feldnamen („zeile3.datum“)
+ * und in der Meldung, damit die Oberfläche die richtige Zeile markieren kann.
+ */
+export function validiereAlle<T>(
+  eintraege: T[],
+  einzeln: (e: T) => Result<{ termin: NeuerTermin; hinweise: Hinweis[] }, Validierungsfehler[]>,
+): Result<{ termine: NeuerTermin[]; hinweise: Hinweis[] }, Validierungsfehler[]> {
+  if (eintraege.length === 0 || eintraege.length > MAX_VERANSTALTUNGEN) {
+    return err([
+      {
+        feld: 'zeilen',
+        code: 'ANZAHL_UNGUELTIG',
+        meldung: `1–${MAX_VERANSTALTUNGEN} Veranstaltungen auf einmal.`,
+      },
+    ]);
+  }
+  const fehler: Validierungsfehler[] = [];
+  const termine: NeuerTermin[] = [];
+  const hinweise: Hinweis[] = [];
+  eintraege.forEach((e, i) => {
+    const v = einzeln(e);
+    if (v.ok) {
+      termine.push(v.value.termin);
+      hinweise.push(
+        ...v.value.hinweise.map((h) => ({ ...h, meldung: `Zeile ${i + 1}: ${h.meldung}` })),
+      );
+    } else {
+      fehler.push(
+        ...v.error.map((f) => ({
+          ...f,
+          feld: `zeile${i + 1}.${f.feld}`,
+          meldung: `Zeile ${i + 1}: ${f.meldung}`,
+        })),
+      );
+    }
+  });
+  const doppelt = termine.findIndex(
+    (t, i) => termine.findIndex((u) => u.datum === t.datum && u.titel === t.titel) !== i,
+  );
+  if (doppelt >= 0) {
+    fehler.push({
+      feld: `zeile${doppelt + 1}.titel`,
+      code: 'DOPPELT',
+      meldung: `Zeile ${doppelt + 1}: Gleicher Titel am gleichen Tag kommt doppelt vor.`,
+    });
+  }
+  return fehler.length ? err(fehler) : ok({ termine, hinweise });
 }
 
 const VERWEIGERT: Verweigert = { code: 'NICHT_BERECHTIGT' };
@@ -68,6 +125,23 @@ export class VerwalteTermine {
     return ok({ termin, hinweise: v.value.hinweise });
   }
 
+  /** Mehrere Veranstaltungen (z. B. ein ganzes Kirmeswochenende) in einem Schritt. */
+  async legeMehrere(
+    token: string,
+    formulare: TerminFormular[],
+  ): Promise<
+    Result<{ termine: Termin[]; hinweise: Hinweis[] }, Verweigert | Validierungsfehler[]>
+  > {
+    const b = await this.links.pruefe(token);
+    if (!b) return err(VERWEIGERT);
+    const v = validiereAlle(formulare, (f) => this.validiere(f, b));
+    if (!v.ok) return v;
+    return ok({
+      termine: await this.verwaltung.legeAlle(v.value.termine, b),
+      hinweise: v.value.hinweise,
+    });
+  }
+
   async aendere(
     token: string,
     id: string,
@@ -107,6 +181,8 @@ export class VerwalteTermine {
       veranstaltungsort: f.veranstaltungsort ?? null,
       kategorie: f.kategorie || erkenneKategorie(f.titel),
       bestaetigt: true,
+      band: f.band ?? null,
+      info: f.info ?? null,
     });
   }
 }

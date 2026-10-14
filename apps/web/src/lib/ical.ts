@@ -28,7 +28,15 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
       `SUMMARY:${esc(`${t.titel} – ${t.ort.name}`)}`,
       `LOCATION:${esc([t.veranstaltungsort, t.ort.name, 'Thüringen'].filter(Boolean).join(', '))}`,
       ...(geo ? [`GEO:${geo.lat};${geo.lon}`] : []),
-      `DESCRIPTION:${esc((t.bestaetigt ? '' : 'Noch nicht vom Veranstalter bestätigt. ') + 'Angaben ohne Gewähr.')}`,
+      `DESCRIPTION:${esc(
+        [
+          t.band && `Musik: ${t.band}`,
+          t.info,
+          (t.bestaetigt ? '' : 'Noch nicht vom Veranstalter bestätigt. ') + 'Angaben ohne Gewähr.',
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      )}`,
       `URL:${new URL(`/termin/${t.id}`, site ?? 'http://localhost').href}`,
       'END:VEVENT',
     );

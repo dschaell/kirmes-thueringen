@@ -290,6 +290,58 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     ]);
   });
 
+  it('Kirmeswochenende: alle Abende mit Band und Hinweisen – oder gar keiner', async () => {
+    const durch = {
+      linkId: null,
+      adminId: undefined,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT',
+    };
+    const abend = (
+      datum: string,
+      titel: string,
+      band: string | null,
+      info: string | null = null,
+    ) => ({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d(datum),
+      beginn: '20:00',
+      titel,
+      veranstaltungsort: 'Saal',
+      kategorie: 'kirmes' as const,
+      bestaetigt: true,
+      band,
+      info,
+    });
+    const v = new PgTerminVerwaltung(pool);
+    const angelegt = await v.legeAlle(
+      [
+        abend('2026-10-16', 'ZZWE Disco', 'DJ Wirbelwind'),
+        abend('2026-10-17', 'ZZWE Tanz', 'Belconda', 'Eintritt 8 €'),
+      ],
+      durch,
+    );
+    expect(angelegt.map((t) => t.ort.name)).toEqual(['IT-Ulla', 'IT-Ulla']);
+    const gefunden = await repo.suche({ ...basis, suchtext: 'Belconda', ortSlug: 'it-ulla' });
+    expect(gefunden.eintraege.map((t) => [t.titel, t.band, t.info])).toEqual([
+      ['ZZWE Tanz', 'Belconda', 'Eintritt 8 €'],
+    ]);
+
+    // zweiter Abend scheitert (unbekannter Ort) → auch der erste wird nicht gespeichert
+    await expect(
+      v.legeAlle(
+        [
+          abend('2026-10-18', 'ZZWE Frühschoppen', null),
+          { ...abend('2026-10-18', 'x', null), ortSlug: 'it-gibtsnicht' },
+        ],
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    expect((await repo.suche({ ...basis, suchtext: 'ZZWE Frühschoppen' })).gesamt).toBe(0);
+  });
+
   it('reicht SQL-Fehler unverändert durch (nur Verbindungsfehler werden übersetzt)', async () => {
     const { abfrage } = await import('../src/infrastructure/postgres/pool.js');
     await expect(abfrage(pool, 'SELECT * FROM gibt_es_nicht', [])).rejects.toMatchObject({

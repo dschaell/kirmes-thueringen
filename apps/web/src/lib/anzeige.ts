@@ -134,6 +134,8 @@ export function eventJsonLd(t: TerminDto, site: URL) {
       },
       ...(geo && { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lon } }),
     },
+    ...(t.band && { performer: { '@type': 'MusicGroup', name: t.band } }),
+    ...(t.info && { description: t.info }),
     url: new URL(`/termin/${t.id}`, site).href,
   };
 }

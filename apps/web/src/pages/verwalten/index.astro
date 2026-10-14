@@ -33,7 +33,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
       <p class="leer" id="keine-termine" hidden>Noch keine Termine eingetragen.</p>
 
       <h3 id="formular-titel">Termin hinzufügen</h3>
-      <form class="melden" id="terminformular">
+      <form class="melden" id="terminformular" method="post">
         <div class="zwei">
           <label>Datum *<input name="datum" type="date" required /></label>
           <label>Beginn<input name="beginn" type="time" /></label>
@@ -43,7 +43,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
             name="titel"
             required
             maxlength="200"
-            placeholder="z. B. Kirmestanz mit „Bandname“"
+            placeholder="z. B. Kirmestanz"
           /></label
         >
         <div class="zwei">
@@ -62,6 +62,16 @@ import { KATEGORIEN } from '../../lib/anzeige';
               {Object.entries(KATEGORIEN).map(([k, v]) => <option value={k}>{v.label}</option>)}
             </select>
           </label>
+        </div>
+        <div class="zwei">
+          <label>Band / DJ<input name="band" maxlength="120" placeholder="z. B. Belconda" /></label>
+          <label
+            >Hinweise<input
+              name="info"
+              maxlength="500"
+              placeholder="z. B. Eintritt 8 €, Einlass ab 16"
+            /></label
+          >
         </div>
         <datalist id="orte-liste"></datalist>
         <div class="knopfreihe">
@@ -143,6 +153,8 @@ import { KATEGORIEN } from '../../lib/anzeige';
     veranstaltungsort: string | null;
     kategorie: string;
     bestaetigt: boolean;
+    band: string | null;
+    info: string | null;
   };
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -233,7 +245,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
         const wo = el(
           'div',
           'wo',
-          `${datumText(t.datum)}${t.veranstaltungsort ? ' · ' + t.veranstaltungsort : ''}${t.datum < heute ? ' · vorbei' : ''}`,
+          `${datumText(t.datum)}${t.veranstaltungsort ? ' · ' + t.veranstaltungsort : ''}${t.band ? ' · ' + t.band : ''}${t.datum < heute ? ' · vorbei' : ''}`,
         );
         const status = el(
           'span',
@@ -279,6 +291,8 @@ import { KATEGORIEN } from '../../lib/anzeige';
     feld('titel').value = t.titel;
     feld('veranstaltungsort').value = t.veranstaltungsort ?? '';
     feld('kategorie').value = t.kategorie;
+    feld('band').value = t.band ?? '';
+    feld('info').value = t.info ?? '';
     $('formular-titel').textContent = 'Termin ändern';
     $('termin-abbrechen').hidden = false;
     formular.scrollIntoView({ behavior: 'smooth' });
@@ -300,6 +314,8 @@ import { KATEGORIEN } from '../../lib/anzeige';
       titel: feld('titel').value,
       veranstaltungsort: feld('veranstaltungsort').value || null,
       kategorie: feld('kategorie').value || null,
+      band: feld('band').value || null,
+      info: feld('info').value || null,
     });
     const res = bearbeiteteId
       ? await api(`termine/${bearbeiteteId}`, { method: 'PUT', body })

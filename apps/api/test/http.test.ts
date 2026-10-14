@@ -30,6 +30,8 @@ const termin: Termin = {
   kategorie: 'kirmes',
   bestaetigt: true,
   festplatz: { lat: 50.87, lon: 10.82 },
+  band: 'Belconda',
+  info: null,
 };
 
 class FakeRepo implements TerminRepository {
@@ -76,6 +78,8 @@ const verwalte = new VerwalteFestplaetze(
 const geaendert: string[] = [];
 const terminVerwaltung: TerminVerwaltung = {
   lege: async (t) => ({ ...termin, titel: t.titel, datum: t.datum }),
+  legeAlle: async (ts) =>
+    ts.map((t) => ({ ...termin, titel: t.titel, datum: t.datum, band: t.band, info: t.info })),
   aendere: async (id) => (geaendert.push(`aendere:${id}`), id === termin.id),
   bestaetige: async (id) => id === termin.id,
   loesche: async (id) => id === termin.id,
@@ -395,6 +399,52 @@ describe('Termine der Kirmesgesellschaft', () => {
       401,
     );
   });
+
+  it('legt ein ganzes Kirmeswochenende an – mit Band und Hinweisen je Abend', async () => {
+    await setup();
+    const res = await app.inject({
+      method: 'POST',
+      url: `${url}/wochenende`,
+      headers: auth,
+      payload: {
+        zeilen: [
+          { datum: '2026-10-16', beginn: '20:00', titel: 'Kirmesdisco', band: 'DJ X' },
+          { datum: '2026-10-17', titel: 'Kirmestanz', band: 'Belconda', info: 'Eintritt 8 €' },
+          { datum: '2026-10-18', titel: 'Frühschoppen' },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().termine.map((t: { band: string | null }) => t.band)).toEqual([
+      'DJ X',
+      'Belconda',
+      null,
+    ]);
+    const fehler = await app.inject({
+      method: 'POST',
+      url: `${url}/wochenende`,
+      headers: auth,
+      payload: { zeilen: [{ datum: '2026-10-17', titel: '' }] },
+    });
+    expect(fehler.statusCode).toBe(400);
+    expect(fehler.json().fehler[0].feld).toBe('zeile1.titel');
+    const leer = await app.inject({
+      method: 'POST',
+      url: `${url}/wochenende`,
+      headers: auth,
+      payload: { zeilen: [] },
+    });
+    expect(leer.statusCode).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `${url}/wochenende`,
+          payload: { zeilen: [{ datum: '2026-10-17', titel: 'x' }] },
+        })
+      ).statusCode,
+    ).toBe(401);
+  });
 });
 
 describe('Mitteilungen (öffentlich)', () => {
@@ -449,6 +499,7 @@ describe('Admin-Bereich', () => {
       ['POST', '/api/v1/admin/mitteilungen'],
       ['POST', '/api/v1/admin/orte'],
       ['POST', '/api/v1/admin/termine'],
+      ['POST', '/api/v1/admin/termine/wochenende'],
       ['GET', '/api/v1/admin/links'],
       ['POST', '/api/v1/admin/links/1/sperren'],
     ];
@@ -504,6 +555,40 @@ describe('Admin-Bereich', () => {
       payload: { ortSlug: 'nirgendwo', datum: '2026-10-18', titel: 'x' },
     });
     expect(unbekannt.statusCode).toBe(400);
+    const we = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine/wochenende',
+      headers: auth,
+      payload: {
+        ortSlug: 'muehlberg',
+        zeilen: [
+          { datum: '2026-10-17', titel: 'Kirmestanz', band: 'Belconda', bestaetigt: true },
+          { datum: '2026-10-18', titel: 'Kirmestanz', band: 'Excite' },
+        ],
+      },
+    });
+    expect(we.statusCode).toBe(201);
+    expect(we.json().termine).toHaveLength(2);
+    const weDoppelt = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine/wochenende',
+      headers: auth,
+      payload: {
+        ortSlug: 'muehlberg',
+        zeilen: [
+          { datum: '2026-10-17', titel: 'Kirmestanz' },
+          { datum: '2026-10-17', titel: 'Kirmestanz' },
+        ],
+      },
+    });
+    expect(weDoppelt.statusCode).toBe(400);
+    const weOrt = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine/wochenende',
+      headers: auth,
+      payload: { ortSlug: 'nirgendwo', zeilen: [{ datum: '2026-10-17', titel: 'x' }] },
+    });
+    expect(weOrt.statusCode).toBe(400);
     expect(
       (
         await app.inject({

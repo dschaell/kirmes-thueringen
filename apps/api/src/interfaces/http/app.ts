@@ -107,6 +107,8 @@ const terminDto = (t: Termin) => ({
   bestaetigt: t.bestaetigt,
   ort: t.ort,
   festplatz: t.festplatz,
+  band: t.band,
+  info: t.info,
 });
 
 /** „Authorization: Bearer <token>“ → token */
@@ -123,7 +125,16 @@ const terminFormularSchema = {
     titel: { type: 'string', maxLength: 200 },
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     kategorie: { type: ['string', 'null'], maxLength: 20 },
+    band: { type: ['string', 'null'], maxLength: 200 },
+    info: { type: ['string', 'null'], maxLength: 1000 },
   },
+} as const;
+
+const wochenendeSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['zeilen'],
+  properties: { zeilen: { type: 'array', minItems: 1, maxItems: 20, items: terminFormularSchema } },
 } as const;
 
 const idSchema = {
@@ -343,6 +354,23 @@ export async function baueApp(d: AppAbhaengigkeiten) {
         return reply
           .status(201)
           .send({ termin: terminDto(r.value.termin), hinweise: r.value.hinweise });
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.post<{ Body: { zeilen: TerminFormular[] } }>(
+    '/api/v1/verwaltung/termine/wochenende',
+    { schema: { body: wochenendeSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.legeMehrere(
+        bearer(req.headers.authorization),
+        req.body.zeilen,
+      );
+      if (r.ok) {
+        return reply
+          .status(201)
+          .send({ termine: r.value.termine.map(terminDto), hinweise: r.value.hinweise });
+      }
       return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
     },
   );

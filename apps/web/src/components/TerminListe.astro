@@ -86,6 +86,13 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
                       {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
                     </div>
+                    {t.band && (
+                      <div class="band">
+                        <Icon name="musik" groesse={14} />
+                        <span class="sr-only">Musik: </span>
+                        {t.band}
+                      </div>
+                    )}
                   </div>
                   <a
                     class="route"

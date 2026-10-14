@@ -441,6 +441,17 @@ legend {
   color: var(--grau);
   margin-top: 3px;
 }
+.eintrag .band {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  color: var(--tinte);
+}
+.eintrag .band .icon {
+  color: var(--rot);
+}
 .eintrag .wo a {
   color: var(--tinte);
   font-weight: 600;
@@ -678,6 +689,18 @@ legend {
 }
 .fakten dd {
   margin: 0;
+}
+.hinweise {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: -10px 0 24px;
+  white-space: pre-line;
+}
+.hinweise .icon {
+  flex: none;
+  color: var(--grau);
+  margin-top: 2px;
 }
 .genau {
   font-size: 0.85rem;

@@ -21,7 +21,7 @@ export function parseDatum(
   return err({
     feld,
     code: 'DATUM_UNGUELTIG',
-    meldung: `„${wert}“ ist kein gültiges Datum (YYYY-MM-DD).`,
+    meldung: wert.trim() ? `„${wert}“ ist kein gültiges Datum (YYYY-MM-DD).` : 'Datum fehlt.',
   });
 }
 

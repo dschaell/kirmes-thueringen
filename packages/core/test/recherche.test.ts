@@ -90,6 +90,8 @@ describe('leseRecherche', () => {
             kategorie: 'kirmes',
             bestaetigt: true,
             quelle: 'instagram.com/p/…',
+            band: null,
+            info: null,
           },
         },
         {
@@ -104,6 +106,8 @@ describe('leseRecherche', () => {
             kategorie: 'kinder',
             bestaetigt: false,
             quelle: null,
+            band: null,
+            info: null,
           },
         },
       ],
@@ -113,5 +117,13 @@ describe('leseRecherche', () => {
   it('meldet fehlende Pflichtspalten und leere Tabellen', () => {
     expect(leseRecherche([['Ort', 'Titel']]).ok).toBe(false);
     expect(leseRecherche([]).ok).toBe(false);
+  });
+
+  it('liest die optionalen Spalten Band und Hinweise', () => {
+    const r = leseRecherche([
+      ['Ort', 'Datum', 'Titel', 'Band', 'Hinweise'],
+      ['Ulla', '2026-11-07', 'Kirmestanz', 'Belconda', 'Eintritt 8 €'],
+    ]);
+    expect(r.ok && r.value[0]?.daten).toMatchObject({ band: 'Belconda', info: 'Eintritt 8 €' });
   });
 });

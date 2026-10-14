@@ -46,9 +46,30 @@ sequenceDiagram
 
 ## 6.4 Termin anlegen (Verwaltung)
 
-`LegeTerminAn` validiert über `validiereTermin` (harte Regeln → Fehler, Auffälligkeiten →
-Hinweise, z. B. `KIRMES_AUSSERHALB_HERBST`) und speichert erst danach. Der HTTP-Endpunkt ist
-noch nicht freigeschaltet, da die Authentifizierung fehlt (Kapitel 11, Issue „AuthN/AuthZ“).
+`VerwalteTermine` (Bearbeitungslink) bzw. `Redaktion` (Admin) validieren über `validiereTermin`
+(harte Regeln → Fehler, Auffälligkeiten → Hinweise, z. B. `KIRMES_AUSSERHALB_HERBST`) und
+speichern erst danach über den Port `TerminVerwaltung`; jede Änderung wird protokolliert.
+
+### Kirmeswochenende (mehrere Veranstaltungen auf einmal)
+
+```mermaid
+sequenceDiagram
+  participant R as Redaktion (Browser)
+  participant W as Website /admin/termine
+  participant A as API
+  participant C as Core (validiereAlle)
+  participant D as PostgreSQL
+  R->>W: POST Formular (Zeilen: Datum, Beginn, Titel, Band, Hinweise) + CSRF
+  W->>A: POST /api/v1/admin/termine/wochenende {ortSlug, zeilen[]}
+  A->>C: legeWochenende
+  C-->>A: Fehler „Zeile n: …“ (+ DOPPELT) → 400, nichts gespeichert
+  C->>D: legeAlle – BEGIN · INSERT … je Zeile · Protokoll · COMMIT
+  D-->>C: bei Fehler ROLLBACK (alle oder keiner)
+  A-->>W: 201 {termine, hinweise}
+```
+
+Höchstens 20 Veranstaltungen je Aufruf. Kirmesgesellschaften haben denselben Ablauf über
+`POST /api/v1/verwaltung/termine/wochenende`.
 
 ## 6.5 Kirmesgesellschaft trägt ihren Festplatz ein
 

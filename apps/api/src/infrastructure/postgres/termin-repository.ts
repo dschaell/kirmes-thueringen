@@ -18,7 +18,7 @@ import { abfrage } from './pool.js';
  */
 const SQL_TERMIN_BASIS = `
 SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
-       t.veranstaltungsort, t.kategorie, t.bestaetigt,
+       t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.info,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
        ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon,
@@ -40,7 +40,8 @@ const SQL_SUCHE = `${SQL_TERMIN_BASIS} WHERE t.datum BETWEEN $1::date AND $2::da
    AND ($5::text IS NULL
         OR t.titel ILIKE $5 ESCAPE '\\'
         OR o.name ILIKE $5 ESCAPE '\\'
-        OR t.veranstaltungsort ILIKE $5 ESCAPE '\\')
+        OR t.veranstaltungsort ILIKE $5 ESCAPE '\\'
+        OR t.band ILIKE $5 ESCAPE '\\')
    AND (NOT $6::boolean OR t.bestaetigt)
    AND ($9::text IS NULL OR o.slug = $9)
  ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
@@ -51,8 +52,8 @@ const SQL_FINDE = `${SQL_TERMIN_BASIS} WHERE t.id = $1::uuid`;
 const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`;
 
 const SQL_EINFUEGEN = `
-INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt)
-VALUES ($1, $2::date, $3::time, $4, $5, $6, $7)
+INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, band, info)
+VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9)
 RETURNING id`;
 
 interface Zeile {
@@ -63,6 +64,8 @@ interface Zeile {
   veranstaltungsort: string | null;
   kategorie: Kategorie;
   bestaetigt: boolean;
+  band: string | null;
+  info: string | null;
   ort_slug: string;
   ort_name: string;
   landkreis: LandkreisKuerzel;
@@ -90,6 +93,8 @@ const zuTermin = (z: Zeile): Termin => ({
   veranstaltungsort: z.veranstaltungsort,
   kategorie: z.kategorie,
   bestaetigt: z.bestaetigt,
+  band: z.band,
+  info: z.info,
   festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,
 });
 
@@ -142,6 +147,8 @@ export class PgTerminRepository implements TerminRepository {
       t.veranstaltungsort,
       t.kategorie,
       t.bestaetigt,
+      t.band,
+      t.info,
     ]);
     const neu = rows[0];
     if (!neu) throw new Error('INSERT lieferte keine ID');
@@ -155,6 +162,8 @@ export class PgTerminRepository implements TerminRepository {
       kategorie: t.kategorie,
       bestaetigt: t.bestaetigt,
       festplatz: null,
+      band: t.band,
+      info: t.info,
     };
   }
 }

@@ -36,6 +36,10 @@ export interface Termin {
   readonly bestaetigt: boolean;
   /** Von der Kirmesgesellschaft hinterlegter Festplatz (passend zum Veranstaltungsort oder Standard) */
   readonly festplatz: Koordinate | null;
+  /** Band oder DJ – eigenes Feld, damit man nach Bands suchen kann */
+  readonly band: string | null;
+  /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
+  readonly info: string | null;
 }
 
 export interface TerminEingabe {
@@ -47,6 +51,8 @@ export interface TerminEingabe {
   veranstaltungsort?: string | null;
   kategorie: string;
   bestaetigt?: boolean;
+  band?: string | null;
+  info?: string | null;
 }
 
 /** Validierte Eingabe, bereit zum Speichern. */
@@ -59,6 +65,8 @@ export interface NeuerTermin {
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
   readonly bestaetigt: boolean;
+  readonly band: string | null;
+  readonly info: string | null;
 }
 
 export interface Hinweis {
@@ -69,6 +77,15 @@ export interface Hinweis {
 const UHRZEIT = /^([01]\d|2[0-3]):[0-5]\d$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TITEL_MAX = 200;
+const BAND_MAX = 120;
+const INFO_MAX = 500;
+
+/** Anführungszeichen um den Bandnamen sind überflüssig (Apostrophe wie in „Sethi's“ bleiben). */
+const bereinigeBand = (b: string | null | undefined) =>
+  b
+    ?.replace(/["„“”]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
 
 /** Herbst = traditionelle Kirmeszeit in Thüringen (Kirchweih nach der Ernte). */
 export const HERBST_MONATE = [9, 10, 11] as const;
@@ -111,6 +128,18 @@ export function validiereTermin(
       meldung: `Titel muss 1–${TITEL_MAX} Zeichen lang sein.`,
     });
   }
+  const band = bereinigeBand(e.band);
+  if (band && band.length > BAND_MAX) {
+    fehler.push({ feld: 'band', code: 'BAND_LAENGE', meldung: `Band: max. ${BAND_MAX} Zeichen.` });
+  }
+  const info = e.info?.trim().replace(/\r\n/g, '\n') || null;
+  if (info && info.length > INFO_MAX) {
+    fehler.push({
+      feld: 'info',
+      code: 'INFO_LAENGE',
+      meldung: `Hinweise: max. ${INFO_MAX} Zeichen.`,
+    });
+  }
   if (e.beginn != null && !UHRZEIT.test(e.beginn)) {
     fehler.push({ feld: 'beginn', code: 'UHRZEIT_UNGUELTIG', meldung: 'Uhrzeit im Format HH:MM.' });
   }
@@ -135,6 +164,8 @@ export function validiereTermin(
     veranstaltungsort: e.veranstaltungsort?.trim() || null,
     kategorie: e.kategorie,
     bestaetigt: e.bestaetigt ?? false,
+    band,
+    info,
   };
   const hinweise: Hinweis[] = [];
   if (termin.kategorie === 'kirmes' && !istHerbstKirmes(termin.datum)) {

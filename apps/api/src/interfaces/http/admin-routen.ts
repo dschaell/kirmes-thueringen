@@ -57,7 +57,16 @@ const terminSchema = objekt(['ortSlug', 'datum', 'titel'], {
   veranstaltungsort: OPT_TEXT(120),
   kategorie: OPT_TEXT(20),
   bestaetigt: { type: 'boolean' },
+  band: OPT_TEXT(200),
+  info: OPT_TEXT(1000),
 });
+const zeileSchema = {
+  ...terminSchema,
+  required: ['datum', 'titel'],
+  properties: Object.fromEntries(
+    Object.entries(terminSchema.properties).filter(([k]) => k !== 'ortSlug'),
+  ),
+};
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -177,6 +186,25 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           ? reply
               .status(201)
               .send({ termin: d.terminDto(t.value.termin), hinweise: t.value.hinweise })
+          : ungueltig(reply, t.error);
+      },
+    );
+    r.post<{ Body: { ortSlug: string; zeilen: Omit<AdminTerminFormular, 'ortSlug'>[] } }>(
+      '/api/v1/admin/termine/wochenende',
+      {
+        schema: {
+          body: objekt(['ortSlug', 'zeilen'], {
+            ortSlug: TEXT(120),
+            zeilen: { type: 'array', minItems: 1, maxItems: 20, items: zeileSchema },
+          }),
+        },
+      },
+      async (req, reply) => {
+        const t = await d.redaktion.legeWochenende(req.body.ortSlug, req.body.zeilen, admin(req));
+        return t.ok
+          ? reply
+              .status(201)
+              .send({ termine: t.value.termine.map(d.terminDto), hinweise: t.value.hinweise })
           : ungueltig(reply, t.error);
       },
     );
