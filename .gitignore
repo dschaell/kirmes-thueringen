@@ -7,3 +7,12 @@ dist/
 scripts/quelle-*.html
 src/data/termine.json
 db/seed/termine.json
+
+# Lokale Umgebung / Testartefakte
+.env
+.env.*
+!.env.example
+coverage/
+*.tsbuildinfo
+zap/
+reports/

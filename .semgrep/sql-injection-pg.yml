@@ -1,0 +1,46 @@
+rules:
+  - id: kirmes-pg-query-template-interpolation
+    message: >-
+      SQL wird per Template-String-Interpolation gebaut. Benutzereingaben müssen als Parameter
+      ($1, $2, …) übergeben werden, sonst droht SQL-Injection (OWASP A03, CWE-89).
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      cwe: 'CWE-89: SQL Injection'
+      owasp: 'A03:2021 - Injection'
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.query(`...${$X}...`)
+      - metavariable-regex:
+          metavariable: $DB
+          regex: (?i)(pool|client|db|this\.db|conn.*)
+
+  - id: kirmes-pg-query-string-concat
+    message: SQL wird per String-Verkettung gebaut – Platzhalter ($1) verwenden (CWE-89).
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      cwe: 'CWE-89: SQL Injection'
+      owasp: 'A03:2021 - Injection'
+      category: security
+    pattern-either:
+      - pattern: $DB.query("..." + $X, ...)
+      - pattern: $DB.query("..." + $X)
+      - pattern: $DB.query($A + $B, ...)
+      - pattern: |
+          const $SQL = "..." + $X;
+          ...
+          $DB.query($SQL, ...);
+
+  - id: kirmes-no-pg-in-core
+    message: Der Core (Domain/Use Cases) darf keine Datenbank-Treiber importieren (Dependency Inversion).
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: ['packages/core/src/**']
+    pattern-either:
+      - pattern: import $X from 'pg'
+      - pattern: import { ... } from 'pg'
+      - pattern: import * as $X from 'pg'

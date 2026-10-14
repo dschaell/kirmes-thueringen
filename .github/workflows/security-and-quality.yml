@@ -1,0 +1,248 @@
+# Security & Quality Gates für den Kirmeskalender Thüringen.
+# Jeder Job ist ein eigenes Gate; der Merge in main ist nur möglich, wenn "Quality Gate" grün ist
+# (Branch Protection, siehe scripts/setup-github.sh).
+#
+# Alle Actions sind auf Commit-SHAs gepinnt (Supply-Chain-Schutz); Dependabot hält sie aktuell.
+name: Security & Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 4 * * 1' # wöchentlich: neue CVEs in unveränderten Abhängigkeiten finden
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  SEMGREP_IMAGE: semgrep/semgrep:1.180.0
+  DEPENDENCY_CHECK_IMAGE: owasp/dependency-check:13.0.0
+  POSTGIS_IMAGE: postgis/postgis:17-3.5-alpine
+
+jobs:
+  # ──────────────────────────────────────────────────────────────── Secrets
+  secrets:
+    name: Secret Scanning (TruffleHog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      - name: TruffleHog (gesamte History, auch unverifizierte Treffer)
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
+        with:
+          extra_args: --results=verified,unknown --fail
+
+  # ──────────────────────────────────────────────────────────────── Lint & Types
+  lint:
+    name: Lint, Format, Typen, Schichtenregeln
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - name: ESLint + Prettier + dependency-cruiser (Clean-Architecture-Grenzen)
+        run: npm run lint
+      - name: TypeScript
+        run: npx tsc -b apps/api
+      - name: Web-Build (Beispieldaten)
+        run: npm run build -w @kirmes/web
+
+  # ──────────────────────────────────────────────────────────────── Tests & Coverage
+  test:
+    name: Tests & Coverage-Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5-alpine
+        env:
+          POSTGRES_DB: kirmes
+          POSTGRES_USER: kirmes
+          POSTGRES_PASSWORD: ci_only_not_secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kirmes -d kirmes" --health-interval 2s --health-retries 30
+    env:
+      DATABASE_URL: postgres://kirmes:ci_only_not_secret@localhost:5432/kirmes
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npm run build -w @kirmes/core
+      - run: npm run db:migrate && npm run db:seed
+      - name: Unit- und Integrationstests mit Mindestabdeckung (vitest thresholds)
+        run: npm run test:coverage
+      - name: Coverage-Ratchet – Abdeckung darf gegenüber dem Basis-Branch nicht sinken
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          cp coverage/coverage-summary.json /tmp/pr-coverage.json
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git worktree add /tmp/base "$BASE_SHA"
+          if [ -f /tmp/base/vitest.config.ts ]; then
+            (cd /tmp/base && npm ci && npm run build -w @kirmes/core && npx vitest run --coverage --coverage.reporter=json-summary --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0 --coverage.thresholds.statements=0)
+            node scripts/coverage-ratchet.mjs /tmp/base/coverage/coverage-summary.json /tmp/pr-coverage.json
+          else
+            echo "Basis-Branch hat noch keine Tests – Ratchet übersprungen."
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: coverage, path: coverage/, retention-days: 14 }
+
+  # ──────────────────────────────────────────────────────────────── SAST
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # SARIF ins GitHub Security-Tab
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Eigene Regeln testen (SQL-Injection / pg)
+        run: docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" semgrep --test --config .semgrep/sql-injection-pg.yml .semgrep/sql-injection-pg.ts
+      - name: Semgrep Vollscan
+        # Hinweis: "p/security-policy" existiert nicht in der Semgrep-Registry (404).
+        # Abgedeckt durch security-audit + sql-injection + owasp-top-ten + eigene pg-Regeln.
+        # Gate: WARNING (≈ Medium) und ERROR (≈ High) lassen den Build fehlschlagen.
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE" semgrep scan \
+            --config p/security-audit \
+            --config p/sql-injection \
+            --config p/owasp-top-ten \
+            --config p/typescript \
+            --config p/nodejs \
+            --config .semgrep/sql-injection-pg.yml \
+            --exclude .semgrep \
+            --severity WARNING --severity ERROR \
+            --metrics off \
+            --sarif-output semgrep.sarif \
+            --error
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always() && hashFiles('semgrep.sarif') != ''
+        with: { sarif_file: semgrep.sarif, category: semgrep }
+
+  # ──────────────────────────────────────────────────────────────── SCA
+  sca:
+    name: SCA (npm audit + OWASP Dependency-Check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - name: npm audit – Laufzeit-Abhängigkeiten ab Moderate
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: npm audit – Entwicklungs-Abhängigkeiten ab High
+        run: npm audit --audit-level=high
+      - name: NVD-Datenbank cachen
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.dependency-check-data
+          key: dependency-check-${{ github.run_id }}
+          restore-keys: dependency-check-
+      - name: OWASP Dependency-Check (CVSS ≥ 4.0 = Medium bricht ab)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mkdir -p ~/.dependency-check-data reports
+          docker run --rm \
+            -e NVD_API_KEY \
+            -v "$PWD:/src:ro" -v ~/.dependency-check-data:/usr/share/dependency-check/data \
+            -v "$PWD/reports:/report" \
+            "$DEPENDENCY_CHECK_IMAGE" \
+            --scan /src/package-lock.json \
+            --project kirmes-thueringen \
+            --format SARIF --format HTML \
+            --out /report \
+            --nvdApiKey "$NVD_API_KEY" \
+            --disableYarnAudit --disablePnpmAudit \
+            --failOnCVSS 4.0
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always() && hashFiles('reports/dependency-check-report.sarif') != ''
+        with: { sarif_file: reports/dependency-check-report.sarif, category: dependency-check }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: dependency-check, path: reports/, retention-days: 14 }
+
+  # ──────────────────────────────────────────────────────────────── DAST
+  dast:
+    name: DAST (OWASP ZAP Baseline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [lint]
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Stack starten (PostGIS + API + Web) mit Beispieldaten
+        env:
+          POSTGRES_PASSWORD: ci_only_not_secret
+        run: |
+          docker compose up -d --build --wait
+          docker compose exec -T api node apps/api/dist/infrastructure/postgres/migrate.js
+          docker compose exec -T api node apps/api/dist/infrastructure/postgres/seed.js
+      - name: ZAP Baseline – Web (Client-Tier)
+        run: |
+          mkdir -p zap && chmod 777 zap
+          docker run --rm --network host -v "$PWD/.zap:/zap/wrk/config:ro" -v "$PWD/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://localhost:8080 -c config/rules.tsv -J web.json -r web.html -I
+      - name: ZAP Baseline – API (Server-Tier)
+        run: |
+          docker run --rm --network host -v "$PWD/.zap:/zap/wrk/config:ro" -v "$PWD/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t "http://localhost:3000/api/v1/termine?landkreis=GTH" -c config/rules.tsv -J api.json -r api.html -I
+      - name: Gate – keine Alerts mit Risiko Medium oder High
+        run: node scripts/zap-gate.mjs zap/web.json zap/api.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: zap-reports, path: zap/, retention-days: 14 }
+      - name: Logs bei Fehler
+        if: failure()
+        run: docker compose logs --no-color | tail -200
+
+  # ──────────────────────────────────────────────────────────────── Gate
+  gate:
+    name: Quality Gate
+    if: always()
+    needs: [secrets, lint, test, sast, sca, dast]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alle Gates bestanden?
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE '"(failure|cancelled|skipped)"'; then exit 1; fi

@@ -1,0 +1,37 @@
+# Lokale Entwicklung und DAST in CI: PostgreSQL/PostGIS (Data), API (Server), Web (Client)
+name: kirmes
+services:
+  db:
+    image: postgis/postgis:17-3.5-alpine
+    platform: linux/amd64 # offizielles PostGIS-Image nur amd64; Apple Silicon emuliert
+    environment:
+      POSTGRES_DB: kirmes
+      POSTGRES_USER: kirmes
+      # Nur für lokale Entwicklung. Produktion: Secret aus dem Secret-Store, nie im Repo.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kirmes_dev_only}
+    ports: ['127.0.0.1:5432:5432']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kirmes -d kirmes']
+      interval: 2s
+      retries: 30
+    volumes: [db-daten:/var/lib/postgresql/data]
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    environment:
+      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
+      CORS_ORIGINS: http://localhost:8080
+    ports: ['127.0.0.1:3000:3000']
+    depends_on: { db: { condition: service_healthy } }
+    read_only: true
+    security_opt: ['no-new-privileges:true']
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    ports: ['127.0.0.1:8080:8080']
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ['no-new-privileges:true']
+
+volumes:
+  db-daten:

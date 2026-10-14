@@ -1,0 +1,27 @@
+{
+  "name": "@kirmes/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Server-Tier: HTTP-API (Fastify) und PostgreSQL-Adapter.",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "dev": "npm run build -w @kirmes/core && tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "migrate": "tsx src/infrastructure/postgres/migrate.ts",
+    "seed": "tsx src/infrastructure/postgres/seed.ts"
+  },
+  "dependencies": {
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^11.0.0",
+    "@kirmes/core": "0.1.0",
+    "fastify": "^5.6.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "tsx": "^4.20.0"
+  }
+}

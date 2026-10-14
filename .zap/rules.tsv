@@ -1,0 +1,5 @@
+# ZAP-Regelkonfiguration (Tab-getrennt): ID	Aktion	Begründung
+# Das eigentliche Gate (Medium/High) setzt scripts/zap-gate.mjs anhand des Risikos durch.
+# Hier nur bewusst akzeptierte Low/Info-Befunde mit Begründung stummschalten.
+10049	IGNORE	(Info) Cache-Steuerung: statische Seiten sind bewusst cachebar
+10104	IGNORE	(Info) User-Agent-Fuzzer: nur informativ

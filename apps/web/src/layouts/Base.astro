@@ -1,0 +1,83 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  jsonLd?: unknown[];
+}
+const { title, description, jsonLd = [] } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const pfad = Astro.url.pathname;
+const nav = [
+  ['/termine', 'Alle Termine'],
+  ['/orte', 'Orte A–Z'],
+  ['/kreise', 'Landkreise'],
+  ['/termin-melden', 'Termin melden'],
+  ['/ueber-die-kirmes', 'Über die Kirmes'],
+];
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="alternate"
+      type="text/calendar"
+      title="Kirmeskalender Thüringen (iCal)"
+      href="/kalender.ics"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:site_name" content="Kirmeskalender Thüringen" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="theme-color" content="#b3261e" />
+    {
+      jsonLd
+        .filter(Boolean)
+        .map((j) => <script type="application/ld+json" set:html={JSON.stringify(j)} />)
+    }
+  </head>
+  <body>
+    <header class="site-head">
+      <div class="wrap">
+        <a class="logo" href="/"><span aria-hidden="true">🎪</span> Kirmeskalender Thüringen</a>
+        <nav aria-label="Hauptnavigation">
+          {
+            nav.map(([href, label]) => (
+              <a href={href} aria-current={pfad.startsWith(href) ? 'page' : undefined}>
+                {label}
+              </a>
+            ))
+          }
+        </nav>
+      </div>
+    </header>
+    <div class="wimpel" aria-hidden="true"></div>
+    <main class="wrap">
+      <slot />
+    </main>
+    <footer class="site-foot">
+      <div class="wrap">
+        <div>
+          <strong>Kirmeskalender Thüringen</strong><br />
+          Alle Angaben ohne Gewähr. Termine bitte beim Veranstalter bestätigen.
+        </div>
+        <div>
+          <a href="/kalender.ics">Kalender abonnieren (iCal)</a> ·
+          <a href="/termin-melden">Termin melden</a> ·
+          <a href="/impressum">Impressum</a> ·
+          <a href="/datenschutz">Datenschutz</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

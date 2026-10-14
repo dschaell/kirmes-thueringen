@@ -1,0 +1,105 @@
+---
+import Base from '../../layouts/Base.astro';
+import TerminListe from '../../components/TerminListe.astro';
+import { orte, KREISE, kreisSlug, heute, eventJsonLd, type Ort } from '../../lib/data';
+
+export function getStaticPaths() {
+  return orte.map((ort) => ({ params: { slug: ort.slug }, props: { ort } }));
+}
+const { ort } = Astro.props as { ort: Ort };
+const h = heute();
+const jahr = h.slice(0, 4);
+const kommend = ort.termine.filter((t) => !t.datum || t.datum >= h);
+const vergangen = ort.termine.filter((t) => t.datum && t.datum < h).reverse();
+const kreisName = ort.kreis ? KREISE[ort.kreis] : null;
+const nachbarn = ort.kreis
+  ? orte.filter((o) => o.kreis === ort.kreis && o.slug !== ort.slug).slice(0, 24)
+  : [];
+const erster = kommend.find((t) => t.datum);
+---
+
+<Base
+  title={`Kirmes ${ort.name} ${jahr} – Termine${kreisName ? ` (${kreisName})` : ''}`}
+  description={`Kirmes in ${ort.name}${kreisName ? `, ${kreisName}` : ''}: alle Termine ${jahr} – ${ort.termine
+    .slice(0, 3)
+    .map((t) => t.titel)
+    .join(', ')}.`}
+  jsonLd={ort.termine.map((t) => eventJsonLd(t, Astro.site!))}
+>
+  <p class="small muted">
+    <a href="/orte">Orte</a>{
+      ort.kreis && (
+        <>
+          {' '}
+          › <a href={`/kreise/${kreisSlug(ort.kreis)}`}>{kreisName}</a>
+        </>
+      )
+    } › {ort.name}
+  </p>
+  <section class="hero">
+    <h1>Kirmes in {ort.name}</h1>
+    <p class="muted">
+      {
+        erster ? (
+          <>
+            Nächster Termin:{' '}
+            <strong>
+              {new Date(erster.datum!).toLocaleDateString('de-DE', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                timeZone: 'UTC',
+              })}
+            </strong>{' '}
+            – {erster.titel}
+          </>
+        ) : (
+          `Für ${jahr} sind keine weiteren Termine bekannt.`
+        )
+      }
+    </p>
+  </section>
+
+  {
+    kommend.length > 0 && (
+      <>
+        <>
+          <h2>Kommende Termine</h2>
+          <TerminListe termine={kommend} ortLinks={false} />
+        </>
+      </>
+    )
+  }
+  {
+    vergangen.length > 0 && (
+      <>
+        <>
+          <h2>Bereits vorbei ({jahr})</h2>
+          <TerminListe termine={vergangen} ortLinks={false} gruppieren={false} />
+        </>
+      </>
+    )
+  }
+
+  <div class="hinweis">
+    Du gehörst zur Kirmesgesellschaft {ort.name}? <a
+      href={`/termin-melden?ort=${encodeURIComponent(ort.name)}`}
+      >Termine bestätigen oder ergänzen</a
+    >.
+  </div>
+
+  {
+    nachbarn.length > 0 && (
+      <>
+        <h2>Weitere Kirmes im {kreisName}</h2>
+        <ul class="ortliste">
+          {nachbarn.map((o) => (
+            <li>
+              <a href={`/orte/${o.slug}`}>{o.name}</a>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</Base>

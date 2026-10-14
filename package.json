@@ -1,15 +1,36 @@
 {
   "name": "kirmes-thueringen",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint . && prettier --check . && depcruise packages apps/api/src --config .dependency-cruiser.cjs",
+    "format": "prettier --write .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "npm run migrate -w @kirmes/api",
+    "db:seed": "npm run seed -w @kirmes/api",
     "import:alt": "python3 scripts/import_alt.py scripts/quelle-2026.html 2026"
   },
-  "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "astro": "^5.18.2"
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "dependency-cruiser": "^17.0.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.6.0",
+    "prettier-plugin-astro": "^0.14.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^4.0.0"
   }
 }

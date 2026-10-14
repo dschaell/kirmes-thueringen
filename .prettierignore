@@ -1,0 +1,7 @@
+dist
+coverage
+.astro
+node_modules
+package-lock.json
+db/seed/*.json
+scripts/quelle-*.html

@@ -1,0 +1,68 @@
+---
+import { KATEGORIEN, KREISE, monatName, type Termin } from '../lib/data';
+
+interface Props {
+  termine: Termin[];
+  ortLinks?: boolean;
+  gruppieren?: boolean;
+}
+const { termine, ortLinks = true, gruppieren = true } = Astro.props;
+
+const gruppen = new Map<string, Termin[]>();
+for (const t of termine) {
+  const key = gruppieren ? (t.datum ? monatName(t.datum) : 'Datum noch offen') : '';
+  gruppen.set(key, [...(gruppen.get(key) ?? []), t]);
+}
+const wt = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', timeZone: 'UTC' });
+const mon = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { month: 'short', timeZone: 'UTC' });
+---
+
+{termine.length === 0 && <p class="leer">Keine Termine gefunden.</p>}
+{
+  [...gruppen].map(([monat, liste]) => (
+    <section>
+      {monat && <h2 class="monat">{monat}</h2>}
+      <ul class="liste">
+        {liste.map((t) => (
+          <li class="termin" id={t.id}>
+            {t.datum ? (
+              <div class="kal" aria-hidden="true">
+                <div class="wt">{wt(t.datum)}</div>
+                <div class="tag">{+t.datum.slice(8, 10)}</div>
+                <div class="mon">{mon(t.datum)}</div>
+              </div>
+            ) : (
+              <div class="kal offen" aria-hidden="true">
+                <div class="wt">offen</div>
+                <div class="tag">?</div>
+              </div>
+            )}
+            <div>
+              <h3>
+                {KATEGORIEN[t.kategorie].emoji} {t.titel}
+              </h3>
+              <div class="meta">
+                <span>
+                  📍 {ortLinks ? <a href={`/orte/${t.ortSlug}`}>{t.ort}</a> : t.ort}
+                  {t.kreis && <span title={KREISE[t.kreis]}> ({t.kreis})</span>}
+                </span>
+                {t.location && <span>🏛️ {t.location}</span>}
+                {t.zeit && <span>🕗 {t.zeit} Uhr</span>}
+                {!t.bestaetigt && (
+                  <span
+                    class="badge warn"
+                    title="Datum aus Vorjahren hochgerechnet – noch nicht vom Veranstalter bestätigt"
+                  >
+                    unbestätigt
+                  </span>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))
+}

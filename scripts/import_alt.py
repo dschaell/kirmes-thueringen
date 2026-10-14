@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Importiert die Termin-Tabelle der alten Seite (mauersberger-haarhausen.de/kirmes)
-in src/data/termine.json.
+in db/seed/termine.json.
 
 Aufruf: python3 scripts/import_alt.py <html-datei> [jahr]
 Nur Standardbibliothek, keine Abhängigkeiten.
@@ -146,7 +146,7 @@ def main(path, jahr):
         if n:
             e["id"] += f"-{n + 1}"
     out.sort(key=lambda e: (e["datum"] or "9999", e["zeit"] or "", e["ort"]))
-    dest = Path(__file__).resolve().parent.parent / "src" / "data" / "termine.json"
+    dest = Path(__file__).resolve().parent.parent / "db" / "seed" / "termine.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(out)} Termine -> {dest}")

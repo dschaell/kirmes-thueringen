@@ -1,0 +1,7 @@
+[
+ {"id": "beispiel-1", "datum": "2026-10-17", "bestaetigt": true, "zeit": "20:00", "ort": "Beispielhausen", "ortSlug": "beispielhausen", "kreis": "GTH", "location": "Festzelt", "titel": "Beispieltermin: Kirmestanz", "kategorie": "kirmes", "monatAlt": null},
+ {"id": "beispiel-2", "datum": "2026-10-18", "bestaetigt": true, "zeit": "14:30", "ort": "Beispielhausen", "ortSlug": "beispielhausen", "kreis": "GTH", "location": "Festzelt", "titel": "Beispieltermin: Kindertanz", "kategorie": "kinder", "monatAlt": null},
+ {"id": "beispiel-3", "datum": "2026-10-24", "bestaetigt": false, "zeit": "21:00", "ort": "Musterdorf", "ortSlug": "musterdorf", "kreis": "IK", "location": "Saal", "titel": "Beispieltermin: Kirmesdisco", "kategorie": "party", "monatAlt": null},
+ {"id": "beispiel-4", "datum": "2026-11-07", "bestaetigt": false, "zeit": null, "ort": "Testleben", "ortSlug": "testleben", "kreis": "WL", "location": null, "titel": "Beispieltermin: Kirmesumzug", "kategorie": "brauchtum", "monatAlt": null},
+ {"id": "beispiel-5", "datum": "2027-05-01", "bestaetigt": false, "zeit": "20:00", "ort": "Musterdorf", "ortSlug": "musterdorf", "kreis": "IK", "location": "Saal", "titel": "Beispieltermin: Maikirmes", "kategorie": "kirmes", "monatAlt": null}
+]

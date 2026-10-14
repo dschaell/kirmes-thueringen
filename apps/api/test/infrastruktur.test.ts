@@ -1,0 +1,27 @@
+import { describe, expect, it } from 'vitest';
+import { ladeKonfiguration } from '../src/config.js';
+import { SystemUhr } from '../src/infrastructure/system-uhr.js';
+
+describe('ladeKonfiguration', () => {
+  it('bricht ohne DATABASE_URL ab', () => {
+    expect(() => ladeKonfiguration({})).toThrow('DATABASE_URL fehlt');
+  });
+  it('liest Werte und setzt sichere Standards', () => {
+    expect(
+      ladeKonfiguration({ DATABASE_URL: 'postgres://x', CORS_ORIGINS: 'https://a,https://b' }),
+    ).toEqual({
+      port: 3000,
+      host: '0.0.0.0',
+      databaseUrl: 'postgres://x',
+      dbSsl: false,
+      erlaubteOrigins: ['https://a', 'https://b'],
+      logLevel: 'info',
+    });
+  });
+});
+
+describe('SystemUhr', () => {
+  it('liefert ein ISO-Kalenderdatum', () => {
+    expect(new SystemUhr().heute()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
