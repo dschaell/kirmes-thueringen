@@ -25,6 +25,7 @@ export interface TerminFormular {
   kategorie?: string | null;
   band?: string | null;
   info?: string | null;
+  muttizettel?: boolean;
 }
 
 /** Höchstzahl Veranstaltungen, die auf einmal angelegt werden (ein langes Kirmeswochenende). */
@@ -183,6 +184,7 @@ export class VerwalteTermine {
       bestaetigt: true,
       band: f.band ?? null,
       info: f.info ?? null,
+      muttizettel: f.muttizettel ?? false,
     });
   }
 }

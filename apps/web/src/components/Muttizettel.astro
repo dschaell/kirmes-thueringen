@@ -1,0 +1,267 @@
+---
+/**
+ * Druckvorlage „Erziehungsbeauftragung“ (Muttizettel) nach § 1 Abs. 1 Nr. 4 JuSchG.
+ * Mit Termin vorausgefüllt, sonst leer. Was man in die Felder tippt, bleibt im Browser –
+ * es gibt kein Absenden, nur Drucken bzw. „Als PDF sichern“.
+ */
+import Icon from './Icon.astro';
+import { datumLangJahr } from '../lib/anzeige';
+import type { TerminDto } from '../lib/api';
+
+interface Props {
+  termin?: TerminDto | null;
+}
+const { termin } = Astro.props;
+const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).join(', ') : '';
+---
+
+<div class="knopfreihe nicht-drucken">
+  <button class="knopf" type="button" id="drucken">
+    <Icon name="drucken" />
+    Drucken oder als PDF sichern
+  </button>
+  {
+    termin && (
+      <a class="knopf zweit" href={`/termin/${termin.id}`}>
+        Zurück zum Termin
+      </a>
+    )
+  }
+</div>
+<p class="leise klein nicht-drucken">
+  Ihr könnt die Felder hier ausfüllen und dann drucken – oder leer drucken und von Hand ausfüllen.
+  Eure Eingaben werden nirgendwohin gesendet.
+</p>
+
+<article class="muttizettel">
+  <header>
+    <h1>Erziehungs&shy;beauftragung</h1>
+    <p>nach § 1 Abs. 1 Nr. 4 Jugendschutzgesetz (JuSchG) – „Muttizettel“</p>
+  </header>
+
+  <h2>Veranstaltung</h2>
+  <div class="mz-raster">
+    <label class="breit">
+      Veranstaltung
+      <input value={termin?.titel ?? ''} />
+    </label>
+    <label class="breit">
+      Ort
+      <input value={wo} />
+    </label>
+    <label>
+      Datum
+      <input value={termin ? datumLangJahr(termin.datum) : ''} />
+    </label>
+    <label>
+      Beginn
+      <input value={termin?.beginn ? `${termin.beginn} Uhr` : ''} />
+    </label>
+  </div>
+
+  <h2>Personensorgeberechtigte Person (Mutter, Vater oder Vormund)</h2>
+  <div class="mz-raster">
+    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
+    <label class="breit">Anschrift<input autocomplete="off" /></label>
+    <label class="breit"
+      >Telefon (während der Veranstaltung erreichbar)<input autocomplete="off" /></label
+    >
+  </div>
+
+  <h2>Minderjährige Person</h2>
+  <div class="mz-raster">
+    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
+    <label>Geburtsdatum<input autocomplete="off" /></label>
+  </div>
+
+  <h2>Erziehungsbeauftragte Person (mindestens 18 Jahre)</h2>
+  <div class="mz-raster">
+    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
+    <label>Geburtsdatum<input autocomplete="off" /></label>
+    <label>Telefon<input autocomplete="off" /></label>
+  </div>
+
+  <h2>Erklärung</h2>
+  <p>
+    Ich übertrage für die oben genannte Veranstaltung erzieherische Aufgaben an die genannte
+    volljährige Person. Sie kennt mein Kind, genießt mein Vertrauen und kann ihm Grenzen setzen. Sie
+    achtet insbesondere auf die Einhaltung des Jugendschutzgesetzes (u. a. kein Alkohol und Tabak,
+    wo nicht erlaubt), bleibt während der gesamten Zeit vor Ort und verlässt die Veranstaltung
+    gemeinsam mit meinem Kind – spätestens um <span class="mz-luecke"
+      ><input aria-label="Uhrzeit" autocomplete="off" /></span
+    > Uhr.
+  </p>
+
+  <div class="mz-unterschriften">
+    <div>
+      <span class="mz-linie"></span>
+      Ort, Datum, Unterschrift der/des Personensorgeberechtigten
+    </div>
+    <div>
+      <span class="mz-linie"></span>
+      Unterschrift der erziehungsbeauftragten Person
+    </div>
+  </div>
+
+  <aside class="mz-hinweise">
+    <strong>Bitte mitbringen:</strong> Ausweise der Jugendlichen und der erziehungsbeauftragten Person.
+    Manche Veranstalter verlangen zusätzlich eine Kopie des Ausweises der Eltern – fragt im Zweifel bei
+    der Kirmesgesellschaft nach. Unter 16 Jahren ist eine Tanzveranstaltung nur mit Eltern oder erziehungsbeauftragter
+    Person erlaubt; ab 16 ohne Begleitung bis 24 Uhr. Muster ohne Gewähr – über den Einlass entscheidet
+    der Veranstalter.
+  </aside>
+</article>
+
+<script>
+  document.getElementById('drucken')?.addEventListener('click', () => window.print());
+</script>
+
+<style is:global>
+  .muttizettel {
+    max-width: 46em;
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 28px 32px;
+    margin: 18px 0 32px;
+    background: var(--flaeche);
+  }
+  .muttizettel header h1 {
+    margin: 0;
+  }
+  .muttizettel header p {
+    margin: 4px 0 0;
+    color: var(--grau);
+  }
+  .muttizettel h2 {
+    font-size: 1rem;
+    margin: 22px 0 8px;
+    text-transform: none;
+  }
+  .mz-raster {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+  }
+  .mz-raster label {
+    display: grid;
+    gap: 2px;
+    font-size: 0.8rem;
+    color: var(--grau);
+  }
+  .mz-raster .breit {
+    grid-column: 1 / -1;
+  }
+  .muttizettel input {
+    font-size: 1rem;
+    border: 0;
+    border-bottom: 1px solid var(--tinte);
+    border-radius: 0;
+    background: transparent;
+    padding: 6px 2px;
+    color: var(--tinte);
+  }
+  .mz-luecke input {
+    width: 5em;
+    padding: 0 2px;
+  }
+  .mz-unterschriften {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-top: 44px;
+    font-size: 0.8rem;
+    color: var(--grau);
+  }
+  .mz-linie {
+    display: block;
+    border-bottom: 1px solid var(--tinte);
+    height: 34px;
+    margin-bottom: 4px;
+  }
+  .mz-hinweise {
+    margin-top: 28px;
+    font-size: 0.8rem;
+    color: var(--grau);
+  }
+  @media (max-width: 560px) {
+    .muttizettel {
+      padding: 20px 16px;
+    }
+    .muttizettel header h1 {
+      font-size: 1.7rem;
+    }
+    .mz-raster,
+    .mz-unterschriften {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media print {
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+    .nicht-drucken,
+    .brotkrumen,
+    #mitteilung {
+      display: none !important;
+    }
+    body {
+      background: #fff;
+      color: #000;
+    }
+    .wrap {
+      padding: 0;
+      max-width: none;
+    }
+    .muttizettel {
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font-size: 10.5pt;
+      color: #000;
+      background: #fff;
+    }
+    .muttizettel *,
+    .muttizettel input {
+      color: #000 !important;
+      border-color: #000 !important;
+    }
+    .mz-raster,
+    .mz-unterschriften {
+      grid-template-columns: 1fr 1fr;
+    }
+    .muttizettel header h1 {
+      font-size: 20pt;
+    }
+    .muttizettel h2 {
+      font-size: 11pt;
+      margin: 12px 0 2px;
+    }
+    .mz-raster {
+      gap: 2px 18px;
+    }
+    .mz-raster label {
+      font-size: 7.5pt;
+      gap: 0;
+    }
+    .muttizettel input {
+      font-size: 10.5pt;
+      padding: 2px;
+      height: 22px;
+    }
+    .muttizettel p {
+      margin: 6px 0;
+    }
+    .mz-unterschriften {
+      margin-top: 22px;
+      font-size: 8pt;
+    }
+    .mz-linie {
+      height: 26px;
+    }
+    .mz-hinweise {
+      margin-top: 14px;
+      font-size: 8pt;
+    }
+  }
+</style>

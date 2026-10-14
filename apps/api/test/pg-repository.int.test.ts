@@ -314,6 +314,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       bestaetigt: true,
       band,
       info,
+      muttizettel: band !== null,
     });
     const v = new PgTerminVerwaltung(pool);
     const angelegt = await v.legeAlle(
@@ -325,8 +326,8 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     );
     expect(angelegt.map((t) => t.ort.name)).toEqual(['IT-Ulla', 'IT-Ulla']);
     const gefunden = await repo.suche({ ...basis, suchtext: 'Belconda', ortSlug: 'it-ulla' });
-    expect(gefunden.eintraege.map((t) => [t.titel, t.band, t.info])).toEqual([
-      ['ZZWE Tanz', 'Belconda', 'Eintritt 8 €'],
+    expect(gefunden.eintraege.map((t) => [t.titel, t.band, t.info, t.muttizettel])).toEqual([
+      ['ZZWE Tanz', 'Belconda', 'Eintritt 8 €', true],
     ]);
 
     // zweiter Abend scheitert (unbekannter Ort) → auch der erste wird nicht gespeichert

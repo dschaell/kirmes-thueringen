@@ -97,6 +97,21 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       )
     }
 
+    {
+      t.muttizettel && (
+        <div class="kasten muttizettel-hinweis">
+          <p>
+            <strong>Muttizettel nötig.</strong> Unter 16 – und mit 16 oder 17 nach Mitternacht – nur
+            mit Eltern oder einer erziehungsbeauftragten Person.
+          </p>
+          <a class="knopf zweit" href={`/termin/${t.id}/muttizettel`}>
+            <Icon name="dokument" />
+            Vorlage herunterladen
+          </a>
+        </div>
+      )
+    }
+
     <h2 class="sr-only">Anfahrt und Teilen</h2>
     <div class="knopfreihe">
       <a class="knopf" href={route.google} target="_blank" rel="noopener"

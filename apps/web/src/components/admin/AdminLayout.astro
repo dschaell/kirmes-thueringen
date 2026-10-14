@@ -103,6 +103,26 @@ const nav = [
   .admin-tabelle form {
     display: inline;
   }
+  /* Handy: jede Zeile als Block statt vier enger Spalten */
+  @media (max-width: 560px) {
+    .admin-tabelle thead {
+      display: none;
+    }
+    .admin-tabelle,
+    .admin-tabelle tbody,
+    .admin-tabelle tr,
+    .admin-tabelle td {
+      display: block;
+    }
+    .admin-tabelle tr {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--linie);
+    }
+    .admin-tabelle td {
+      border: 0;
+      padding: 2px 0;
+    }
+  }
   .admin-tabelle .knopf {
     padding: 6px 10px;
     font-size: 0.85rem;

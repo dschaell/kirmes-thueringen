@@ -76,6 +76,11 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     {t.kategorie !== 'kirmes' && (
                       <span class={`kat kat-${t.kategorie}`}>{KATEGORIEN[t.kategorie].kurz}</span>
                     )}
+                    {t.muttizettel && (
+                      <span class="kat kat-muttizettel" title="Unter 18 nur mit Muttizettel">
+                        Muttizettel
+                      </span>
+                    )}
                     {t.bestaetigt && (
                       <span class="bestaetigt" title="Vom Veranstalter bestätigt">
                         <Icon name="haken" groesse={14} />

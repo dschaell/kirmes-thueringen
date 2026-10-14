@@ -44,11 +44,14 @@ if (Astro.request.method === 'POST' && ort) {
     bestaetigt: f.get('bestaetigt') === 'ja',
     band: feld(f, 'band') || null,
     info: feld(f, 'info') || null,
+    muttizettel: f.get('muttizettel') === 'ja',
   };
   const spalte = (name: string) =>
     f.getAll(name).map((v) => (typeof v === 'string' ? v.trim() : ''));
   if (aktion === 'wochenende') {
     const titel = spalte('z-titel');
+    // Checkboxen senden nur angehakte Werte – daher trägt jede ihre Zeilennummer
+    const mutti = new Set(spalte('z-mutti'));
     const [datum, beginn, band, vo, info] = ['z-datum', 'z-beginn', 'z-band', 'z-vo', 'z-info'].map(
       spalte,
     );
@@ -59,6 +62,7 @@ if (Astro.request.method === 'POST' && ort) {
       band: band![i] ?? '',
       veranstaltungsort: vo![i] ?? '',
       info: info![i] ?? '',
+      muttizettel: mutti.has(String(i)),
     }));
     wochenendBestaetigt = f.get('bestaetigt') === 'ja';
   }
@@ -81,6 +85,7 @@ if (Astro.request.method === 'POST' && ort) {
                 veranstaltungsort: z.veranstaltungsort || null,
                 band: z.band || null,
                 info: z.info || null,
+                muttizettel: z.muttizettel,
                 bestaetigt: wochenendBestaetigt,
               })),
             },
@@ -298,6 +303,15 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
                         Hinweise (öffentlich)
                         <textarea name="z-info" maxlength="500" rows="2" set:text={z?.info ?? ''} />
                       </label>
+                      <label class="klein">
+                        <input
+                          type="checkbox"
+                          name="z-mutti"
+                          value={String(i)}
+                          checked={z?.muttizettel ?? false}
+                        />{' '}
+                        Unter 18 nur mit Muttizettel
+                      </label>
                     </li>
                   ))}
                 </ol>
@@ -388,11 +402,12 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
               </label>
               <label>
                 Hinweise (öffentlich)
-                <input
+                <textarea
                   name="info"
                   maxlength="500"
+                  rows="2"
                   placeholder="z. B. Eintritt 8 €, Einlass ab 18"
-                  value={zuBearbeiten?.info ?? ''}
+                  set:text={zuBearbeiten?.info ?? ''}
                 />
               </label>
             </div>
@@ -409,6 +424,15 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
                 checked={zuBearbeiten?.bestaetigt ?? false}
               />{' '}
               Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+            </label>
+            <label class="klein">
+              <input
+                type="checkbox"
+                name="muttizettel"
+                value="ja"
+                checked={zuBearbeiten?.muttizettel ?? false}
+              />{' '}
+              Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
             </label>
             <div class="knopfreihe">
               <button class="knopf" type="submit">

@@ -73,6 +73,7 @@ export const RECHERCHE_SPALTEN = [
   'quelle',
   'band',
   'hinweise',
+  'muttizettel',
 ] as const;
 
 export interface RechercheZeile {
@@ -87,6 +88,7 @@ export interface RechercheZeile {
   quelle: string | null;
   band: string | null;
   info: string | null;
+  muttizettel: boolean;
 }
 
 const normSpalte = (s: string) =>
@@ -160,6 +162,7 @@ export function leseRecherche(
           quelle: wert(z, 'quelle') || null,
           band: wert(z, 'band') || null,
           info: wert(z, 'hinweise') || null,
+          muttizettel: JA.test(wert(z, 'muttizettel')),
         },
       };
     }),

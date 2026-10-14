@@ -66,13 +66,17 @@ import { KATEGORIEN } from '../../lib/anzeige';
         <div class="zwei">
           <label>Band / DJ<input name="band" maxlength="120" placeholder="z. B. Belconda" /></label>
           <label
-            >Hinweise<input
+            >Hinweise<textarea
               name="info"
               maxlength="500"
-              placeholder="z. B. Eintritt 8 €, Einlass ab 16"
-            /></label
+              rows="2"
+              placeholder="z. B. Eintritt 8 €, Einlass ab 16"></textarea></label
           >
         </div>
+        <label class="klein"
+          ><input type="checkbox" name="muttizettel" value="ja" /> Unter 18 nur mit Muttizettel – wir
+          bieten am Termin eine Vorlage zum Drucken an</label
+        >
         <datalist id="orte-liste"></datalist>
         <div class="knopfreihe">
           <button class="knopf" type="submit" id="termin-speichern">Termin speichern</button>
@@ -155,6 +159,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     bestaetigt: boolean;
     band: string | null;
     info: string | null;
+    muttizettel: boolean;
   };
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -293,6 +298,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     feld('kategorie').value = t.kategorie;
     feld('band').value = t.band ?? '';
     feld('info').value = t.info ?? '';
+    (feld('muttizettel') as HTMLInputElement).checked = t.muttizettel;
     $('formular-titel').textContent = 'Termin ändern';
     $('termin-abbrechen').hidden = false;
     formular.scrollIntoView({ behavior: 'smooth' });
@@ -316,6 +322,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
       kategorie: feld('kategorie').value || null,
       band: feld('band').value || null,
       info: feld('info').value || null,
+      muttizettel: (feld('muttizettel') as HTMLInputElement).checked,
     });
     const res = bearbeiteteId
       ? await api(`termine/${bearbeiteteId}`, { method: 'PUT', body })

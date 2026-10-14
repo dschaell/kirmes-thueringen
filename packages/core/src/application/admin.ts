@@ -267,6 +267,7 @@ export class Redaktion {
       bestaetigt: f.bestaetigt ?? false,
       band: f.band ?? null,
       info: f.info ?? null,
+      muttizettel: f.muttizettel ?? false,
     });
   }
 }

@@ -34,6 +34,8 @@ export interface TerminDto {
   band: string | null;
   /** Hinweise der Kirmesgesellschaft (Eintritt, Programm, Einlass …) */
   info: string | null;
+  /** Minderjährige brauchen eine Erziehungsbeauftragung (Muttizettel) */
+  muttizettel: boolean;
 }
 
 export interface TerminSeite {

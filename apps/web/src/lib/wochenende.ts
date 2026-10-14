@@ -8,6 +8,7 @@ export interface WochenendZeile {
   band: string;
   veranstaltungsort: string;
   info: string;
+  muttizettel: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function wochenendVorlage(ab: string): WochenendZeile[] {
     band: '',
     veranstaltungsort: '',
     info: '',
+    muttizettel: false,
   });
   return [
     zeile(0, '20:00', 'Kirmesdisco'),

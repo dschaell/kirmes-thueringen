@@ -108,6 +108,7 @@ const terminDto = (t: Termin) => ({
   ort: t.ort,
   festplatz: t.festplatz,
   band: t.band,
+  muttizettel: t.muttizettel,
   info: t.info,
 });
 
@@ -126,6 +127,7 @@ const terminFormularSchema = {
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     kategorie: { type: ['string', 'null'], maxLength: 20 },
     band: { type: ['string', 'null'], maxLength: 200 },
+    muttizettel: { type: 'boolean' },
     info: { type: ['string', 'null'], maxLength: 1000 },
   },
 } as const;

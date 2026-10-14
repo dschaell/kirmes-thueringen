@@ -92,6 +92,7 @@ describe('leseRecherche', () => {
             quelle: 'instagram.com/p/…',
             band: null,
             info: null,
+            muttizettel: false,
           },
         },
         {
@@ -108,6 +109,7 @@ describe('leseRecherche', () => {
             quelle: null,
             band: null,
             info: null,
+            muttizettel: false,
           },
         },
       ],
@@ -125,5 +127,14 @@ describe('leseRecherche', () => {
       ['Ulla', '2026-11-07', 'Kirmestanz', 'Belconda', 'Eintritt 8 €'],
     ]);
     expect(r.ok && r.value[0]?.daten).toMatchObject({ band: 'Belconda', info: 'Eintritt 8 €' });
+  });
+
+  it('liest die optionale Spalte Muttizettel', () => {
+    const r = leseRecherche([
+      ['Ort', 'Datum', 'Titel', 'Muttizettel'],
+      ['Ulla', '2026-11-07', 'Kirmestanz', 'ja'],
+      ['Ulla', '2026-11-08', 'Frühschoppen', ''],
+    ]);
+    expect(r.ok && r.value.map((z) => z.daten.muttizettel)).toEqual([true, false]);
   });
 });

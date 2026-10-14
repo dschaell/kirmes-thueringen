@@ -58,6 +58,7 @@ const terminSchema = objekt(['ortSlug', 'datum', 'titel'], {
   kategorie: OPT_TEXT(20),
   bestaetigt: { type: 'boolean' },
   band: OPT_TEXT(200),
+  muttizettel: { type: 'boolean' },
   info: OPT_TEXT(1000),
 });
 const zeileSchema = {

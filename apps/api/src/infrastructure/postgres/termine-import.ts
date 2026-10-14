@@ -86,6 +86,7 @@ try {
       bestaetigt: z.bestaetigt,
       band: z.band,
       info: z.info,
+      muttizettel: z.muttizettel,
     });
     if (!v.ok) {
       fehler.push(`Zeile ${zeile}: ${v.error.map((f) => f.meldung).join(' ')}`);
@@ -93,13 +94,15 @@ try {
     }
     const t = v.value.termin;
     const r = await client.query<{ neu: boolean }>(
-      `INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle, band, info)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle, band, info,
+                           muttizettel)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (ort_id, datum, titel) DO UPDATE SET
          beginn = EXCLUDED.beginn, veranstaltungsort = EXCLUDED.veranstaltungsort,
          kategorie = EXCLUDED.kategorie, bestaetigt = termin.bestaetigt OR EXCLUDED.bestaetigt,
          quelle = COALESCE(EXCLUDED.quelle, termin.quelle),
          band = COALESCE(EXCLUDED.band, termin.band), info = COALESCE(EXCLUDED.info, termin.info),
+         muttizettel = termin.muttizettel OR EXCLUDED.muttizettel,
          geaendert_am = now()
        RETURNING (xmax = 0) AS neu`,
       [
@@ -113,6 +116,7 @@ try {
         z.quelle,
         t.band,
         t.info,
+        t.muttizettel,
       ],
     );
     if (r.rows[0]?.neu) neu++;

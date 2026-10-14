@@ -40,6 +40,8 @@ export interface Termin {
   readonly band: string | null;
   /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
   readonly info: string | null;
+  /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */
+  readonly muttizettel: boolean;
 }
 
 export interface TerminEingabe {
@@ -53,6 +55,7 @@ export interface TerminEingabe {
   bestaetigt?: boolean;
   band?: string | null;
   info?: string | null;
+  muttizettel?: boolean;
 }
 
 /** Validierte Eingabe, bereit zum Speichern. */
@@ -67,6 +70,7 @@ export interface NeuerTermin {
   readonly bestaetigt: boolean;
   readonly band: string | null;
   readonly info: string | null;
+  readonly muttizettel: boolean;
 }
 
 export interface Hinweis {
@@ -166,6 +170,7 @@ export function validiereTermin(
     bestaetigt: e.bestaetigt ?? false,
     band,
     info,
+    muttizettel: e.muttizettel ?? false,
   };
   const hinweise: Hinweis[] = [];
   if (termin.kategorie === 'kirmes' && !istHerbstKirmes(termin.datum)) {

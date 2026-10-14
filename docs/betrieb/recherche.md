@@ -30,6 +30,7 @@ befüllen, als CSV exportieren (Excel: „CSV UTF-8 (Trennzeichen-getrennt)“).
 | Kategorie         | nein      | `kinder`                              | leer = automatisch aus dem Titel                                                                                                     |
 | Bestätigt         | nein      | `ja`                                  | nur, wenn die Gesellschaft den Termin selbst bestätigt hat                                                                           |
 | Hinweise          | nein      | `Eintritt 8 €, Einlass ab 16`         | wird **öffentlich** am Termin angezeigt (max. 500 Zeichen)                                                                           |
+| Muttizettel       | nein      | `ja`                                  | Minderjährige brauchen eine Erziehungsbeauftragung – am Termin wird dann eine Druckvorlage angeboten                                 |
 | Quelle            | empfohlen | Link zum Post, „Telefonat KG, 12.10.“ | wird nicht veröffentlicht – dient als Nachweis der eigenen Recherche                                                                 |
 
 ```bash
