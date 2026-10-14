@@ -4,6 +4,12 @@
  */
 import { PersistenzNichtVerfuegbar, type KalenderDatum, type TerminFilter } from '@kirmes/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  erzeugeToken,
+  hashToken,
+  PgBearbeitungslinks,
+  PgFestplatzRepository,
+} from '../src/infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
 import { erstellePool, istVerbindungsfehler } from '../src/infrastructure/postgres/pool.js';
 import {
@@ -81,6 +87,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
   });
   afterAll(async () => {
     await pool.query("DELETE FROM ort WHERE slug LIKE 'it-%'");
+    await pool.query('DELETE FROM aenderungsprotokoll WHERE ort_id IS NULL');
     await pool.end();
   });
 
@@ -152,6 +159,9 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
 
   it('filtert nach Ort und liefert Ortsübersicht', async () => {
     const nurUlla = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
+    const einzeln = await repo.finde(nurUlla.eintraege[0]!.id);
+    expect(einzeln?.titel).toBe('ZZTEST Kindertanz');
+    expect(await repo.finde('00000000-0000-4000-8000-000000000000')).toBeNull();
     expect(nurUlla.eintraege.map((t) => t.ort.slug)).toEqual(['it-ulla']);
 
     const orte = new PgOrtRepository(pool);
@@ -169,5 +179,42 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     });
     expect((await orte.finde('it-ulla'))?.koordinate).toBeNull();
     expect(await orte.finde('it-gibtsnicht')).toBeNull();
+  });
+
+  it('Bearbeitungslink: nur Hash gespeichert, gesperrte Links ungültig, Festplatz am Termin', async () => {
+    const token = erzeugeToken();
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
+       SELECT id, $1, 'IT-KG' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
+      [hashToken(token)],
+    );
+    const links = new PgBearbeitungslinks(pool);
+    const b = await links.pruefe(token);
+    expect(b).toEqual({ linkId: rows[0]?.id, ortSlug: 'it-ulla', bezeichnung: 'IT-KG' });
+    expect(await links.pruefe(erzeugeToken())).toBeNull();
+    expect(await links.pruefe("' OR 1=1 --")).toBeNull();
+
+    const festplaetze = new PgFestplatzRepository(pool);
+    await festplaetze.speichere('it-ulla', { name: '', koordinate: { lat: 50.95, lon: 11.2 } }, b!);
+    const termine = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
+    expect(termine.eintraege[0]?.festplatz).toEqual({ lat: 50.95, lon: 11.2 });
+
+    const u = await festplaetze.uebersicht('it-ulla');
+    expect(u?.festplaetze).toEqual([{ name: '', koordinate: { lat: 50.95, lon: 11.2 } }]);
+    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(true);
+    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(false);
+    const protokoll = await pool.query(
+      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
+      [b!.linkId],
+    );
+    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
+      'festplatz_gespeichert',
+      'festplatz_geloescht',
+    ]);
+
+    await pool.query('UPDATE bearbeitungslink SET gesperrt_am = now() WHERE id = $1', [b!.linkId]);
+    expect(await links.pruefe(token)).toBeNull();
+    expect(await festplaetze.uebersicht('it-gibtsnicht')).toBeNull();
   });
 });

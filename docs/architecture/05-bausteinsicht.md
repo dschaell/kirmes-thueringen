@@ -98,14 +98,16 @@ werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treibe
 
 ### HTTP-Schnittstelle (v1)
 
-| Methode & Pfad           | Beschreibung                                                                        | Antworten                            |
-| ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------ |
-| `GET /api/v1/termine`    | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset` | 200 JSON · 400 Problem Details · 503 |
-| `GET /api/v1/landkreise` | Alle 23 Landkreise                                                                  | 200                                  |
-| `GET /api/v1/orte`       | Alle Orte mit Anzahl kommender Termine                                              | 200                                  |
-| `GET /api/v1/orte/:slug` | Ein Ort                                                                             | 200 · 404                            |
-| `GET /health/live`       | Prozess lebt                                                                        | 200                                  |
-| `GET /health/ready`      | DB erreichbar                                                                       | 200 · 503                            |
+| Methode & Pfad                                  | Beschreibung                                                                        | Antworten                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------ |
+| `GET /api/v1/termine`                           | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset` | 200 JSON · 400 Problem Details · 503 |
+| `GET /api/v1/landkreise`                        | Alle 23 Landkreise                                                                  | 200                                  |
+| `GET /api/v1/orte`                              | Alle Orte mit Anzahl kommender Termine                                              | 200                                  |
+| `GET /api/v1/orte/:slug`                        | Ein Ort                                                                             | 200 · 404                            |
+| `GET /api/v1/termine/:id`                       | Ein Termin (teilbare Terminseite)                                                   | 200 · 404                            |
+| `GET/PUT/DELETE /api/v1/verwaltung/festplaetze` | Festplätze des eigenen Ortes (Header `Authorization: Bearer <Link-Token>`)          | 200 · 204 · 400 · 401                |
+| `GET /health/live`                              | Prozess lebt                                                                        | 200                                  |
+| `GET /health/ready`                             | DB erreichbar                                                                       | 200 · 503                            |
 
 ## 5.3 Ebene 2 – Data-Tier (PostgreSQL)
 
@@ -114,10 +116,16 @@ erDiagram
   landkreis ||--o{ ort : "liegt in"
   ort ||--o{ termin : "findet statt in"
   ort ||--o{ veranstalter : "sitzt in"
+  ort ||--o{ festplatz : "hat"
+  ort ||--o{ bearbeitungslink : "berechtigt"
+  bearbeitungslink ||--o{ aenderungsprotokoll : "protokolliert"
   veranstalter |o--o{ termin : "richtet aus"
   landkreis { text kuerzel PK "Kfz-Kennzeichen, z. B. GTH" text name UK }
   ort { bigint id PK text slug UK text name text landkreis FK "indiziert" geography lage "Point 4326, GiST" }
   veranstalter { bigint id PK text name text kontakt_email "personenbezogen" bigint ort_id FK }
+  festplatz { bigint id PK bigint ort_id FK text name "= termin.veranstaltungsort, '' = Standard" geography lage "Point 4326" }
+  bearbeitungslink { bigint id PK bytea token_hash UK "SHA-256" text bezeichnung timestamptz gesperrt_am }
+  aenderungsprotokoll { bigint id PK bigint link_id FK text aktion jsonb details }
   termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text kategorie "CHECK" boolean bestaetigt }
 ```
 

@@ -5,17 +5,21 @@ import {
   LANDKREISE,
   PersistenzNichtVerfuegbar,
   type FindeOrt,
+  type FindeTermin,
   type ListeOrte,
   type SucheTermine,
+  type VerwalteFestplaetze,
   type Termin,
   type Validierungsfehler,
 } from '@kirmes/core';
-import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
+import Fastify, { type FastifyError, type FastifyReply, type FastifyServerOptions } from 'fastify';
 
 export interface AppAbhaengigkeiten {
   sucheTermine: SucheTermine;
   listeOrte: ListeOrte;
   findeOrt: FindeOrt;
+  findeTermin: FindeTermin;
+  verwalteFestplaetze: VerwalteFestplaetze;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -93,7 +97,23 @@ const terminDto = (t: Termin) => ({
   kategorie: t.kategorie,
   bestaetigt: t.bestaetigt,
   ort: t.ort,
+  festplatz: t.festplatz,
 });
+
+/** „Authorization: Bearer <token>“ → token */
+const bearer = (h: string | undefined): string =>
+  h?.startsWith('Bearer ') ? h.slice(7).trim() : '';
+
+const festplatzSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'lat', 'lon'],
+  properties: {
+    name: { type: 'string', maxLength: 120 },
+    lat: { type: 'number' },
+    lon: { type: 'number' },
+  },
+} as const;
 
 export async function baueApp(d: AppAbhaengigkeiten) {
   const app = Fastify({
@@ -177,6 +197,24 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/termine/:id',
+    {
+      schema: { params: { type: 'object', properties: { id: { type: 'string', maxLength: 36 } } } },
+    },
+    async (req, reply) => {
+      const t = await d.findeTermin.ausfuehren(req.params.id);
+      if (!t) {
+        return reply
+          .status(404)
+          .type('application/problem+json')
+          .send(problem(404, 'Termin nicht gefunden'));
+      }
+      reply.header('Cache-Control', 'public, max-age=300');
+      return terminDto(t);
+    },
+  );
+
   app.get('/api/v1/orte', async (_req, reply) => {
     const orte = await d.listeOrte.ausfuehren();
     reply.header('Cache-Control', 'public, max-age=300');
@@ -200,6 +238,59 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       }
       reply.header('Cache-Control', 'public, max-age=300');
       return ort;
+    },
+  );
+
+  // ── Verwaltung durch Kirmesgesellschaften (persönlicher Bearbeitungslink) ──────────────
+  const nichtBerechtigt = (reply: FastifyReply) =>
+    reply
+      .status(401)
+      .header('WWW-Authenticate', 'Bearer')
+      .type('application/problem+json')
+      .send(problem(401, 'Bearbeitungslink ungültig oder gesperrt'));
+
+  app.get('/api/v1/verwaltung/festplaetze', async (req, reply) => {
+    const r = await d.verwalteFestplaetze.uebersicht(bearer(req.headers.authorization));
+    reply.header('Cache-Control', 'no-store');
+    return r.ok ? r.value : nichtBerechtigt(reply);
+  });
+
+  app.put<{ Body: { name: string; lat: number; lon: number } }>(
+    '/api/v1/verwaltung/festplaetze',
+    { schema: { body: festplatzSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteFestplaetze.speichere(bearer(req.headers.authorization), req.body);
+      if (r.ok) return r.value;
+      if (Array.isArray(r.error)) {
+        return reply
+          .status(400)
+          .type('application/problem+json')
+          .send(problem(400, 'Ungültiger Festplatz', { fehler: r.error }));
+      }
+      return nichtBerechtigt(reply);
+    },
+  );
+
+  app.delete<{ Querystring: { name: string } }>(
+    '/api/v1/verwaltung/festplaetze',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string', maxLength: 120 } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const r = await d.verwalteFestplaetze.loesche(
+        bearer(req.headers.authorization),
+        req.query.name,
+      );
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Festplatz nicht gefunden'));
     },
   );
 

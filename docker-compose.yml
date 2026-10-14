@@ -23,7 +23,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kirmes_dev_only}
     ports: ['127.0.0.1:${DB_PORT:-5432}:5432'] # nur vom eigenen Rechner erreichbar
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U kirmes -d kirmes']
+      # Über TCP prüfen: Beim ersten Start läuft PostGIS kurz nur am Unix-Socket und startet dann neu.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U kirmes -d kirmes']
       interval: 2s
       retries: 30
     volumes: [db-daten:/var/lib/postgresql/data] # Daten überleben Neustarts und Updates

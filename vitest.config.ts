@@ -14,7 +14,10 @@ export default defineConfig({
       provider: 'v8',
       include: ['packages/core/src/**', 'apps/api/src/**'],
       // CLIs und Composition Root werden über Docker/DAST end-to-end geprüft
-      exclude: ['apps/api/src/main.ts', 'apps/api/src/infrastructure/postgres/{migrate,seed}.ts'],
+      exclude: [
+        'apps/api/src/main.ts',
+        'apps/api/src/infrastructure/postgres/{migrate,seed,links}.ts',
+      ],
       reporter: ['text', 'json-summary', 'lcov'],
       thresholds: { lines: 85, functions: 85, statements: 85, branches: 80 },
     },

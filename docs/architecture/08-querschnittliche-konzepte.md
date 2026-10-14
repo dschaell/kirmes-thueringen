@@ -68,3 +68,16 @@
 | DAST             | OWASP ZAP Baseline gegen Web **und** API                                                            | Alerts mit Risiko Medium/High (`scripts/zap-gate.mjs`) |
 | Qualität         | ESLint, Prettier, dependency-cruiser, tsc                                                           | jedem Verstoß                                          |
 | Tests & Coverage | Vitest + PostGIS-Service                                                                            | Abdeckung < 85 % **oder** sinkend ggü. Basis-Branch    |
+
+### Bearbeitungslinks (Festplätze)
+
+| Maßnahme                   | Umsetzung                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unratbare Tokens           | 32 Byte aus `crypto.randomBytes` (256 Bit), Base64url                                                                                                        |
+| Kein Klartext in der DB    | Gespeichert wird nur der SHA-256-Hash; ein DB-Leck verrät keine gültigen Links                                                                               |
+| Kein Token in Logs/Referer | Token steht im URL-Fragment (`#k=…`), wird per JS in `sessionStorage` übernommen und aus der Adresszeile entfernt; Übertragung nur im `Authorization`-Header |
+| Geringste Rechte           | Ein Link berechtigt ausschließlich für **einen** Ort und nur für Festplätze                                                                                  |
+| Nachvollziehbarkeit        | Jede Änderung mit Link-ID, Zeit und Werten in `aenderungsprotokoll`                                                                                          |
+| Widerruf                   | `npm run link -- sperren <id>` – sofort wirksam                                                                                                              |
+| Fachliche Plausibilität    | Koordinaten nur innerhalb Thüringens (vertauschte Breite/Länge werden erkannt)                                                                               |
+| Datenschutz                | Kartenkacheln/Adresssuche (OpenStreetMap) und Standort nur auf der Bearbeitungsseite; eigene CSP dafür                                                       |

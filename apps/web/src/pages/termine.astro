@@ -1,31 +1,42 @@
 ---
 /**
  * Suche & Filter werden serverseitig über die API ausgeführt (funktioniert auch ohne JavaScript).
- * Das kleine Skript unten schickt das Formular nur automatisch ab, wenn sich ein Filter ändert.
+ * Das kleine Skript unten schickt das Formular automatisch ab, wenn sich ein Filter ändert.
  */
 import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
 import TerminListe from '../components/TerminListe.astro';
 import { sucheTermine, UngueltigeAnfrage, type TerminSeite } from '../lib/api';
-import { KATEGORIEN, LANDKREISE, heute, plusTage } from '../lib/anzeige';
+import {
+  KATEGORIEN,
+  LANDKREISE,
+  anzahl,
+  heute,
+  imKreis,
+  kreisKurz,
+  wochenende,
+} from '../lib/anzeige';
+import type { LandkreisKuerzel } from '@kirmes/core';
 
-const SEITE = 50;
+const SEITE = 60;
 const p = Astro.url.searchParams;
 const q = p.get('q')?.slice(0, 100) ?? '';
 const kreis = p.get('kreis') ?? '';
 const zeit = p.get('zeit') ?? 'kommend';
 const kat = p.getAll('kat');
 const nurBest = p.get('best') === '1';
-const offset = Math.max(0, Number(p.get('seite') ?? 1) - 1) * SEITE;
+const vonRoh = p.get('von') ?? '';
+const vonParam = /^\d{4}-\d{2}-\d{2}$/.test(vonRoh) ? vonRoh : null;
+const offset = Math.max(0, Math.floor(Number(p.get('seite') ?? 1)) - 1) * SEITE || 0;
 
 const h = heute();
-const tag = new Date(h).getUTCDay(); // 0 = So
-const freitag = plusTage(h, tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag);
+const jahr = h.slice(0, 4);
 const zeitraum =
   zeit === 'wochenende'
-    ? { von: freitag, bis: plusTage(freitag, 2) }
+    ? wochenende(h)
     : zeit === 'jahr'
-      ? { von: `${h.slice(0, 4)}-01-01`, bis: `${h.slice(0, 4)}-12-31` }
-      : { von: h };
+      ? { von: `${jahr}-01-01`, bis: `${jahr}-12-31` }
+      : { von: vonParam ?? h };
 
 let ergebnis: TerminSeite = { gesamt: 0, termine: [] };
 let fehler: string | null = null;
@@ -45,6 +56,8 @@ try {
   Astro.response.status = 400;
 }
 
+const aktiveFilter =
+  (kreis ? 1 : 0) + (zeit !== 'kommend' ? 1 : 0) + kat.length + (nurBest ? 1 : 0);
 const seiten = Math.ceil(ergebnis.gesamt / SEITE);
 const aktuell = offset / SEITE + 1;
 const seitenLink = (n: number) => {
@@ -52,85 +65,116 @@ const seitenLink = (n: number) => {
   u.set('seite', String(n));
   return `?${u}`;
 };
-const jahr = h.slice(0, 4);
+const kreisListe = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
+  kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
+);
+const kreisGewaehlt = kreisListe.find((k) => k === kreis);
+const ueberschrift = q
+  ? `Termine zu „${q}“`
+  : [
+      zeit === 'wochenende' ? 'Kirmes am Wochenende' : 'Kirmes-Termine',
+      kreisGewaehlt && imKreis(kreisGewaehlt),
+    ]
+      .filter(Boolean)
+      .join(' ');
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
 <Base
-  title={`Alle Kirmes-Termine ${jahr} in Thüringen – suchen & filtern`}
-  description={`Durchsuche alle Kirmes-Termine in Thüringen ${jahr} nach Ort, Landkreis, Zeitraum und Art der Veranstaltung.`}
+  title={`${ueberschrift} – Kirmeskalender Thüringen`}
+  description={`Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`}
 >
-  <section class="hero">
-    <h1>Alle Termine</h1>
-    <form class="filter" id="filter" method="get" role="search">
-      <div class="suche">
+  <section class="einstieg">
+    <h1>{ueberschrift}</h1>
+    <form id="filter" method="get" role="search">
+      <div class="suchzeile">
         <input
           name="q"
           type="search"
           value={q}
           maxlength="100"
-          placeholder="Ort, Band oder Veranstaltung …"
-          autocomplete="off"
-          aria-label="Suche"
+          placeholder="Ort, Band oder Veranstaltung"
+          aria-label="Ort, Band oder Veranstaltung"
         />
-        <select name="kreis" aria-label="Landkreis">
-          <option value="">Alle Landkreise</option>
-          {
-            Object.entries(LANDKREISE).map(([k, n]) => (
-              <option value={k} selected={k === kreis}>
-                {n}
-              </option>
-            ))
-          }
-        </select>
-        <select name="zeit" aria-label="Zeitraum">
-          <option value="kommend" selected={zeit === 'kommend'}>Ab heute</option>
-          <option value="wochenende" selected={zeit === 'wochenende'}>Dieses Wochenende</option>
-          <option value="jahr" selected={zeit === 'jahr'}>Ganzes Jahr {jahr}</option>
-        </select>
-        <button type="submit">Suchen</button>
+        <button class="knopf" type="submit"><Icon name="suche" />Suchen</button>
       </div>
-      <fieldset class="chips">
-        <legend class="small muted">Art der Veranstaltung</legend>
-        {
-          Object.entries(KATEGORIEN).map(([k, v]) => (
-            <label class="chip">
-              <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
-              {v.emoji} {v.label}
-            </label>
-          ))
-        }
-      </fieldset>
-      <label class="small muted">
-        <input type="checkbox" name="best" value="1" checked={nurBest} /> nur bestätigte Termine
-      </label>
+      <details class="filter">
+        <summary>
+          <Icon name="filter" />Filter {
+            aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>
+          }
+        </summary>
+        <div class="filterfelder">
+          <div class="zwei">
+            <select name="kreis" aria-label="Landkreis">
+              <option value="">Alle Landkreise</option>
+              {
+                kreisListe.map((k) => (
+                  <option value={k} selected={k === kreis}>
+                    {kreisKurz(k)}
+                  </option>
+                ))
+              }
+            </select>
+            <select name="zeit" aria-label="Zeitraum">
+              <option value="kommend" selected={zeit === 'kommend'}>Ab heute</option>
+              <option value="wochenende" selected={zeit === 'wochenende'}>Dieses Wochenende</option>
+              <option value="jahr" selected={zeit === 'jahr'}>Ganzes Jahr {jahr}</option>
+            </select>
+          </div>
+          <fieldset>
+            <legend>Art der Veranstaltung</legend>
+            <div class="marken">
+              {
+                Object.entries(KATEGORIEN).map(([k, v]) => (
+                  <label>
+                    <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
+                    {v.label}
+                  </label>
+                ))
+              }
+            </div>
+          </fieldset>
+          <label class="klein">
+            <input type="checkbox" name="best" value="1" checked={nurBest} /> Nur vom Veranstalter bestätigte
+            Termine
+          </label>
+          {
+            aktiveFilter > 0 && (
+              <a class="klein" href="/termine">
+                Alle Filter zurücksetzen
+              </a>
+            )
+          }
+        </div>
+      </details>
     </form>
   </section>
 
   {
     fehler && (
-      <p class="hinweis" role="alert">
+      <p class="meldung" role="alert">
         {fehler}
       </p>
     )
   }
-  <p class="muted small" aria-live="polite">{ergebnis.gesamt} Termine gefunden</p>
+  <p class="leise" aria-live="polite">{anzahl(ergebnis.gesamt, 'Termin', 'Termine')}</p>
   <TerminListe termine={ergebnis.termine} />
 
   {
     seiten > 1 && (
       <nav class="seiten" aria-label="Seiten">
         {aktuell > 1 && (
-          <a class="btn ghost" href={seitenLink(aktuell - 1)}>
-            ← Zurück
+          <a class="knopf zweit" href={seitenLink(aktuell - 1)}>
+            Zurück
           </a>
         )}
-        <span class="muted">
+        <span class="leise">
           Seite {aktuell} von {seiten}
         </span>
         {aktuell < seiten && (
-          <a class="btn ghost" href={seitenLink(aktuell + 1)}>
-            Weiter →
+          <a class="knopf zweit" href={seitenLink(aktuell + 1)}>
+            Weiter
           </a>
         )}
       </nav>
@@ -139,7 +183,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 </Base>
 
 <script>
-  // Fortschrittliche Verbesserung: Filteränderungen sofort anwenden.
+  // Filteränderungen sofort anwenden (ohne JavaScript per „Suchen“-Knopf).
   const form = document.getElementById('filter') as HTMLFormElement;
   form.addEventListener('change', (e) => {
     if ((e.target as HTMLElement).getAttribute('name') !== 'q') form.requestSubmit();

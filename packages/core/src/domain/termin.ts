@@ -1,6 +1,8 @@
 import { monatVon, parseDatum, type KalenderDatum } from './datum.js';
+import type { Koordinate } from './festplatz.js';
 import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
+import { bereinigeTitel, istKeinTermin } from './text.js';
 
 export const KATEGORIEN = [
   'kirmes',
@@ -18,8 +20,8 @@ export interface Ort {
   readonly slug: string;
   readonly name: string;
   readonly landkreis: LandkreisKuerzel;
-  /** WGS84, null solange nicht geokodiert */
-  readonly koordinate: { lat: number; lon: number } | null;
+  /** Ortsmitte (WGS84), null solange nicht geokodiert */
+  readonly koordinate: Koordinate | null;
 }
 
 export interface Termin {
@@ -32,6 +34,8 @@ export interface Termin {
   readonly kategorie: Kategorie;
   /** false = aus Vorjahren hochgerechnet, vom Veranstalter nicht bestätigt */
   readonly bestaetigt: boolean;
+  /** Von der Kirmesgesellschaft hinterlegter Festplatz (passend zum Veranstaltungsort oder Standard) */
+  readonly festplatz: Koordinate | null;
 }
 
 export interface TerminEingabe {
@@ -93,8 +97,14 @@ export function validiereTermin(
   if (!istOrtSlug(e.ortSlug)) {
     fehler.push({ feld: 'ortSlug', code: 'SLUG_UNGUELTIG', meldung: 'Ungültiger Orts-Slug.' });
   }
-  const titel = e.titel.trim();
-  if (!titel || titel.length > TITEL_MAX) {
+  const titel = bereinigeTitel(e.titel);
+  if (istKeinTermin(titel)) {
+    fehler.push({
+      feld: 'titel',
+      code: 'KEIN_TERMIN',
+      meldung: 'Eintrag beschreibt keine Veranstaltung.',
+    });
+  } else if (!titel || titel.length > TITEL_MAX) {
     fehler.push({
       feld: 'titel',
       code: 'TITEL_LAENGE',

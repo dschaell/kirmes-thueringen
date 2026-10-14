@@ -2,7 +2,7 @@
  * CLI: lädt db/seed/termine.json (lokaler Import, nicht im Repo) oder ersatzweise
  * db/seed/termine.beispiel.json. Jeder Datensatz läuft durch die Domänen-Validierung.
  */
-import { validiereTermin } from '@kirmes/core';
+import { normalisiereOrtsname, validiereTermin } from '@kirmes/core';
 import { readFile } from 'node:fs/promises';
 import { ladeKonfiguration } from '../../config.js';
 import { erstellePool } from './pool.js';
@@ -65,7 +65,7 @@ try {
     const ort = await client.query<{ id: string }>(
       `INSERT INTO ort (slug, name, landkreis) VALUES ($1, $2, $3)
        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
-      [t.ortSlug, s.ort, t.landkreis],
+      [t.ortSlug, normalisiereOrtsname(s.ort), t.landkreis],
     );
     const ortId = ort.rows[0]?.id;
     if (!ortId) throw new Error(`Ort ${t.ortSlug} konnte nicht angelegt werden`);

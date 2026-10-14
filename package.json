@@ -26,7 +26,8 @@
     "db:seed": "npm run seed -w @kirmes/api",
     "db:backup": "./scripts/db-backup.sh",
     "db:restore": "./scripts/db-restore.sh",
-    "import:alt": "python3 scripts/import_alt.py scripts/quelle-2026.html 2026"
+    "import:alt": "python3 scripts/import_alt.py scripts/quelle-2026.html 2026",
+    "link": "npm run link -w @kirmes/api --"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -37,6 +38,7 @@
     "eslint-config-prettier": "^10.1.0",
     "prettier": "^3.6.0",
     "prettier-plugin-astro": "^0.14.0",
+    "sharp": "^0.35.5",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.46.0",
     "vitest": "^4.0.0"

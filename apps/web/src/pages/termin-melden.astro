@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
 
 // TODO: echte Kontaktadresse eintragen
 const KONTAKT = 'termine@kirmeskalender-thueringen.de';
@@ -10,11 +11,15 @@ const KONTAKT = 'termine@kirmeskalender-thueringen.de';
   title="Kirmes-Termin melden – Kirmeskalender Thüringen"
   description="Kirmesgesellschaften und Veranstalter melden hier kostenlos ihre Kirmes-Termine in Thüringen."
 >
-  <section class="hero">
+  <section class="einstieg">
     <h1>Termin melden</h1>
-    <p class="muted">
-      Kostenlos für Kirmesgesellschaften, Vereine und Veranstalter. Neue Termine, Korrekturen und
-      Bestätigungen – alles willkommen.
+    <p class="unterzeile">
+      Für Kirmesgesellschaften, Vereine und Veranstalter – kostenlos. Neue Termine, Korrekturen oder
+      einfach die Bestätigung, dass ein Termin stimmt: Alles hilft.
+    </p>
+    <p>
+      Am schnellsten geht es mit dem Formular. Es öffnet euer E-Mail-Programm mit einer fertigen
+      Nachricht. Ihr könnt auch direkt schreiben an <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a>.
     </p>
   </section>
   <form class="melden" id="melden" data-kontakt={KONTAKT}>
@@ -46,12 +51,36 @@ const KONTAKT = 'termine@kirmeskalender-thueringen.de';
         placeholder="Programm, Eintritt, Link zur Kirmesgesellschaft …"></textarea></label
     >
     <label>Dein Name / Kirmesgesellschaft *<input name="absender" required /></label>
-    <p class="small muted">
+    <p class="klein leise">
       Beim Absenden öffnet sich dein E-Mail-Programm mit einer vorbereiteten Nachricht an {KONTAKT}.
       Wir prüfen jede Meldung vor der Veröffentlichung.
     </p>
     <div><button type="submit">Termin senden</button></div>
   </form>
+
+  <section class="lesetext" id="festplatz">
+    <h2>Festplatz auf der Karte eintragen</h2>
+    <p>
+      Jeder Termin hat einen Knopf „Route“, der Google Maps oder Apple Karten öffnet. Ohne genaue
+      Angabe führt er nur in den Ort. Damit eure Gäste direkt am Festzelt, Saal oder Sportplatz
+      ankommen, könnt ihr den Platz selbst eintragen:
+    </p>
+    <ol>
+      <li>Schreibt uns, für welchen Ort ihr zuständig seid.</li>
+      <li>Ihr bekommt einen persönlichen Link – ohne Anmeldung und ohne Passwort.</li>
+      <li>
+        Über den Link setzt ihr den Pin auf der Karte, gebt die Adresse ein oder nutzt direkt vor
+        Ort euren Handy-Standort.
+      </li>
+    </ol>
+    <p>
+      <a
+        class="knopf zweit"
+        href={`mailto:${KONTAKT}?subject=${encodeURIComponent('Link für den Festplatz')}`}
+        ><Icon name="ort" />Link anfordern</a
+      >
+    </p>
+  </section>
 </Base>
 
 <script>

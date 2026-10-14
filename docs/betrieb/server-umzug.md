@@ -84,14 +84,27 @@ cd /opt/kirmes && git pull && docker compose up -d --build --wait
 
 Datenbank-Migrationen laufen dabei automatisch (Dienst `migrate`, bevor die API startet).
 
-## 6. Backups
+## 6. Bearbeitungslinks für Kirmesgesellschaften
+
+```bash
+cd /opt/kirmes
+docker compose run --rm -e WEBSITE_URL=https://$DOMAIN migrate \
+  node apps/api/dist/infrastructure/postgres/links.js erstellen <orts-slug> "Kirmesgesellschaft …"
+docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js liste
+docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js sperren <id>
+```
+
+Der Orts-Slug steht in der Adresse der Ortsseite (`/orte/<slug>`). Der Link wird nur einmal angezeigt –
+direkt per E-Mail oder Messenger an die Kirmesgesellschaft weitergeben. Gesperrte Links sind sofort ungültig.
+
+## 7. Backups
 
 - Der Dienst `backup` erstellt täglich `backups/kirmes-<Datum>.dump` und löscht Sicherungen nach 14 Tagen.
 - **Wichtig:** Backups zusätzlich vom Server wegkopieren (z. B. `rsync` auf einen Speicher oder ein
   Hetzner Storage Box). Ein Backup auf derselben Festplatte schützt nicht vor Server-Ausfall.
 - Wiederherstellung regelmäßig testen: Backup lokal mit `npm run db:restore` einspielen.
 
-## 7. Prüfliste vor dem Livegang
+## 8. Prüfliste vor dem Livegang
 
 - [ ] Zustimmung des bisherigen Betreibers zur Übernahme der Termindaten
 - [ ] Impressum, Datenschutz und Kontaktadresse ausgefüllt

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   baueFilter,
+  FindeTermin,
   FindeOrt,
   ListeOrte,
   type OrtRepository,
@@ -23,6 +24,11 @@ class FakeRepo implements TerminRepository {
     this.letzterFilter = filter;
     return { eintraege: [], gesamt: 0 };
   }
+  async finde(id: string): Promise<Termin | null> {
+    this.gefragt.push(id);
+    return null;
+  }
+  gefragt: string[] = [];
   async speichere(t: NeuerTermin): Promise<Termin> {
     this.gespeichert.push(t);
     return {
@@ -34,6 +40,7 @@ class FakeRepo implements TerminRepository {
       veranstaltungsort: t.veranstaltungsort,
       kategorie: t.kategorie,
       bestaetigt: t.bestaetigt,
+      festplatz: null,
     };
   }
 }
@@ -167,5 +174,15 @@ describe('ListeOrte / FindeOrt', () => {
     expect(await uc.ausfuehren('muehlberg')).toEqual(ort);
     expect(await uc.ausfuehren("x' OR 1=1")).toBeNull();
     expect(gefragt).not.toContain("finde:x' OR 1=1");
+  });
+});
+
+describe('FindeTermin', () => {
+  it('fragt nur gültige UUIDs bei der Datenbank an', async () => {
+    const repo = new FakeRepo();
+    const uc = new FindeTermin(repo);
+    await uc.ausfuehren('kein-uuid');
+    await uc.ausfuehren('6f1c0b6e-3d2a-4c1b-9f00-0123456789ab');
+    expect(repo.gefragt).toEqual(['6f1c0b6e-3d2a-4c1b-9f00-0123456789ab']);
   });
 });

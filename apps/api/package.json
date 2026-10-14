@@ -10,7 +10,8 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node dist/main.js",
     "migrate": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/migrate.ts",
-    "seed": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/seed.ts"
+    "seed": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/seed.ts",
+    "link": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/links.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",

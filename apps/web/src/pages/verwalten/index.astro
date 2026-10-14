@@ -1,0 +1,347 @@
+---
+/**
+ * Bearbeitungsseite für Kirmesgesellschaften. Zugang nur über den persönlichen Link
+ * (…/verwalten#k=TOKEN). Das Token steht im URL-Fragment, wird also nie an Server oder Logs
+ * übertragen, sondern nur per JavaScript im Authorization-Header mitgeschickt.
+ */
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+---
+
+<Base
+  title="Festplatz eintragen – Kirmeskalender Thüringen"
+  description="Bearbeitung für Kirmesgesellschaften."
+  noindex
+>
+  <section class="einstieg">
+    <h1 id="titel">Festplatz eintragen</h1>
+    <p class="unterzeile" id="untertitel">Einen Moment, der Link wird geprüft …</p>
+  </section>
+
+  <p class="meldung" id="meldung" role="status" hidden></p>
+
+  <div id="bereich" hidden>
+    <div class="zweispaltig">
+      <div>
+        <h2>1. Platz auswählen</h2>
+        <p class="leise klein">
+          Die Liste enthält die Veranstaltungsorte aus euren Terminen. Der <strong
+            >Standard-Festplatz</strong
+          >
+          gilt für alle Termine, für die kein eigener Platz eingetragen ist.
+        </p>
+        <ul class="eintraege" id="plaetze"></ul>
+      </div>
+      <aside class="seitenleiste">
+        <div class="kasten">
+          <h2>So geht's</h2>
+          <ol class="klein">
+            <li>Links einen Platz auswählen.</li>
+            <li>
+              Pin auf der Karte setzen: klicken, Adresse suchen, Standort nutzen oder
+              Google-Maps-Link einfügen.
+            </li>
+            <li>
+              „Speichern“ – fertig. Nach wenigen Minuten führt die Route auf der Website dorthin.
+            </li>
+          </ol>
+          <p class="klein leise">
+            Jede Änderung wird mit Datum gespeichert. Gebt den Link nicht weiter.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <section id="editor" hidden>
+      <h2>2. Pin setzen für: <span id="aktuell"></span></h2>
+      <form class="suchzeile" id="adresssuche">
+        <input
+          type="search"
+          id="adresse"
+          placeholder="Adresse suchen, z. B. Hauptstraße 1, Mühlberg"
+          aria-label="Adresse suchen"
+        />
+        <button class="knopf zweit" type="submit"><Icon name="suche" />Suchen</button>
+      </form>
+      <div
+        class="karte"
+        id="karte"
+        role="application"
+        aria-label="Karte – klicken, um den Pin zu setzen"
+      >
+      </div>
+      <div class="knopfreihe">
+        <button class="knopf zweit" type="button" id="standort"
+          ><Icon name="standort" />Meinen Standort verwenden</button
+        >
+        <input
+          id="einfuegen"
+          placeholder="Google-Maps-Link oder „50.87, 10.82“ einfügen"
+          aria-label="Koordinaten oder Kartenlink einfügen"
+        />
+      </div>
+      <p class="leise klein" id="koordinate">Noch kein Pin gesetzt.</p>
+      <div class="knopfreihe">
+        <button class="knopf" type="button" id="speichern" disabled>Speichern</button>
+        <button class="knopf zweit" type="button" id="entfernen" hidden>Eintrag entfernen</button>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+
+  type Koordinate = { lat: number; lon: number };
+  type Uebersicht = {
+    bezeichnung: string;
+    ort: { name: string; koordinate: Koordinate | null };
+    festplaetze: { name: string; koordinate: Koordinate }[];
+    veranstaltungsorte: string[];
+  };
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const meldung = (text: string, gut = false) => {
+    const m = $('meldung');
+    m.textContent = text;
+    m.className = gut ? 'meldung gut' : 'meldung';
+    m.hidden = false;
+  };
+
+  // Token aus dem Fragment übernehmen und aus der Adresszeile entfernen (nicht versehentlich teilen).
+  const hash = new URLSearchParams(location.hash.slice(1)).get('k');
+  if (hash) {
+    sessionStorage.setItem('kirmes-link', hash);
+    history.replaceState(null, '', location.pathname);
+  }
+  const token = sessionStorage.getItem('kirmes-link');
+  const auth = { authorization: `Bearer ${token ?? ''}` };
+
+  let daten: Uebersicht;
+  let auswahl: string | null = null;
+  let karte: L.Map | null = null;
+  let pin: L.Marker | null = null;
+  let punkt: Koordinate | null = null;
+
+  const THUERINGEN = { lat: 50.9, lon: 11.03 };
+  const pinIcon = L.divIcon({
+    className: 'pin',
+    html: '<span></span>',
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+  });
+
+  async function laden() {
+    if (!token) {
+      $('untertitel').textContent = 'Diese Seite ist nur über einen persönlichen Link erreichbar.';
+      return;
+    }
+    const res = await fetch('/verwalten/festplaetze', { headers: auth });
+    if (res.status === 401) {
+      sessionStorage.removeItem('kirmes-link');
+      $('untertitel').textContent =
+        'Der Link ist ungültig oder wurde gesperrt. Bitte fordert über „Termin melden“ einen neuen an.';
+      return;
+    }
+    if (!res.ok) {
+      meldung('Die Daten konnten gerade nicht geladen werden. Bitte später erneut versuchen.');
+      return;
+    }
+    daten = await res.json();
+    $('titel').textContent = `Festplätze in ${daten.ort.name}`;
+    $('untertitel').textContent = `Angemeldet als ${daten.bezeichnung}.`;
+    $('bereich').hidden = false;
+    liste();
+  }
+
+  function liste() {
+    const namen = [
+      '',
+      ...new Set([...daten.veranstaltungsorte, ...daten.festplaetze.map((f) => f.name)]),
+    ].filter((n, i, a) => a.indexOf(n) === i);
+    const ul = $('plaetze');
+    ul.replaceChildren(
+      ...namen.map((name) => {
+        const vorhanden = daten.festplaetze.find((f) => f.name === name);
+        const li = document.createElement('li');
+        li.className = 'eintrag';
+        const titel = document.createElement('div');
+        const strong = document.createElement('strong');
+        strong.textContent = name || 'Standard-Festplatz';
+        const status = document.createElement('div');
+        status.className = 'leise klein';
+        status.textContent = vorhanden ? 'eingetragen ✓' : 'noch kein Pin';
+        titel.append(strong, status);
+        const knopf = document.createElement('button');
+        knopf.type = 'button';
+        knopf.className = 'knopf zweit';
+        knopf.textContent = vorhanden ? 'Ändern' : 'Pin setzen';
+        knopf.addEventListener('click', () => bearbeiten(name));
+        li.append(document.createElement('span'), titel, knopf);
+        return li;
+      }),
+    );
+  }
+
+  function setzePunkt(k: Koordinate, zoom?: number) {
+    punkt = { lat: Math.round(k.lat * 1e6) / 1e6, lon: Math.round(k.lon * 1e6) / 1e6 };
+    if (!karte) return;
+    if (pin) pin.setLatLng([punkt.lat, punkt.lon]);
+    else {
+      pin = L.marker([punkt.lat, punkt.lon], { draggable: true, icon: pinIcon }).addTo(karte);
+      pin.on('dragend', () => {
+        const p = pin!.getLatLng();
+        setzePunkt({ lat: p.lat, lon: p.lng });
+      });
+    }
+    if (zoom) karte.setView([punkt.lat, punkt.lon], zoom);
+    $('koordinate').textContent = `Pin: ${punkt.lat.toFixed(5)}, ${punkt.lon.toFixed(5)}`;
+    $<HTMLButtonElement>('speichern').disabled = false;
+  }
+
+  function bearbeiten(name: string) {
+    auswahl = name;
+    $('editor').hidden = false;
+    $('aktuell').textContent = name || 'Standard-Festplatz';
+    const vorhanden = daten.festplaetze.find((f) => f.name === name);
+    $('entfernen').hidden = !vorhanden;
+    const start = vorhanden?.koordinate ?? daten.ort.koordinate ?? THUERINGEN;
+    if (!karte) {
+      karte = L.map('karte').setView(
+        [start.lat, start.lon],
+        vorhanden || daten.ort.koordinate ? 16 : 9,
+      );
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+      }).addTo(karte);
+      karte.on('click', (e: L.LeafletMouseEvent) =>
+        setzePunkt({ lat: e.latlng.lat, lon: e.latlng.lng }),
+      );
+    } else {
+      karte.setView([start.lat, start.lon], vorhanden ? 17 : karte.getZoom());
+    }
+    if (pin) {
+      pin.remove();
+      pin = null;
+    }
+    punkt = null;
+    $<HTMLButtonElement>('speichern').disabled = true;
+    $('koordinate').textContent = 'Noch kein Pin gesetzt – auf die Karte klicken.';
+    if (vorhanden) setzePunkt(vorhanden.koordinate);
+    $('editor').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  /** „50.8712, 10.8213“, Google-Maps-Links (…/@50.87,10.82,17z oder ?q=50.87,10.82) */
+  function ausText(text: string): Koordinate | null {
+    const m =
+      text.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ??
+      text.match(/[?&](?:q|query|ll|daddr|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) ??
+      text.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ??
+      text.match(/^\s*(-?\d+[.,]\d+)\s*[,;\s]\s*(-?\d+[.,]\d+)\s*$/);
+    if (!m) return null;
+    const lat = Number(m[1]!.replace(',', '.'));
+    const lon = Number(m[2]!.replace(',', '.'));
+    return isFinite(lat) && isFinite(lon) ? { lat, lon } : null;
+  }
+
+  $('einfuegen').addEventListener('input', (e) => {
+    const k = ausText((e.target as HTMLInputElement).value);
+    if (k) setzePunkt(k, 18);
+  });
+
+  $('standort').addEventListener('click', () => {
+    if (!navigator.geolocation) return meldung('Euer Browser kann den Standort nicht bestimmen.');
+    navigator.geolocation.getCurrentPosition(
+      (p) => setzePunkt({ lat: p.coords.latitude, lon: p.coords.longitude }, 18),
+      () =>
+        meldung(
+          'Standort nicht verfügbar. Bitte Freigabe im Browser erlauben oder Pin auf der Karte setzen.',
+        ),
+      { enableHighAccuracy: true, timeout: 15_000 },
+    );
+  });
+
+  $('adresssuche').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = $<HTMLInputElement>('adresse').value.trim();
+    if (!q) return;
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.search = new URLSearchParams({
+      format: 'jsonv2',
+      limit: '1',
+      countrycodes: 'de',
+      viewbox: '9.8,51.75,12.75,50.1',
+      bounded: '1',
+      q: q.includes(daten.ort.name) ? q : `${q}, ${daten.ort.name}`,
+    }).toString();
+    try {
+      const [treffer] = (await (await fetch(url)).json()) as { lat: string; lon: string }[];
+      if (treffer) setzePunkt({ lat: Number(treffer.lat), lon: Number(treffer.lon) }, 18);
+      else meldung('Adresse nicht gefunden – bitte den Pin direkt auf der Karte setzen.');
+    } catch {
+      meldung(
+        'Die Adresssuche ist gerade nicht erreichbar – bitte den Pin direkt auf der Karte setzen.',
+      );
+    }
+  });
+
+  $('speichern').addEventListener('click', async () => {
+    if (auswahl === null || !punkt) return;
+    const res = await fetch('/verwalten/festplaetze', {
+      method: 'PUT',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ name: auswahl, lat: punkt.lat, lon: punkt.lon }),
+    });
+    if (res.ok) {
+      meldung(
+        `Gespeichert: „${auswahl || 'Standard-Festplatz'}“. In wenigen Minuten führt die Route auf der Website dorthin.`,
+        true,
+      );
+      await laden();
+      bearbeiten(auswahl);
+    } else if (res.status === 400) {
+      const body = await res.json().catch(() => ({}));
+      meldung(body.fehler?.[0]?.meldung ?? 'Der Punkt konnte nicht gespeichert werden.');
+    } else {
+      meldung('Speichern fehlgeschlagen. Ist der Link noch gültig?');
+    }
+  });
+
+  $('entfernen').addEventListener('click', async () => {
+    if (auswahl === null || !confirm('Eintrag wirklich entfernen?')) return;
+    const res = await fetch(`/verwalten/festplaetze?name=${encodeURIComponent(auswahl)}`, {
+      method: 'DELETE',
+      headers: auth,
+    });
+    if (res.ok) {
+      meldung('Eintrag entfernt.', true);
+      $('editor').hidden = true;
+      await laden();
+    } else meldung('Entfernen fehlgeschlagen.');
+  });
+
+  laden();
+</script>
+
+<style is:global>
+  .pin span {
+    display: block;
+    width: 28px;
+    height: 28px;
+    background: var(--rot);
+    border: 3px solid #fff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  }
+  #plaetze .eintrag {
+    align-items: center;
+  }
+  #einfuegen {
+    flex: 1;
+    min-width: 220px;
+  }
+</style>

@@ -2,7 +2,10 @@ import {
   FindeOrt,
   ListeOrte,
   PersistenzNichtVerfuegbar,
+  FindeTermin,
   SucheTermine,
+  VerwalteFestplaetze,
+  type FestplatzRepository,
   type OrtRepository,
   type KalenderDatum,
   type Termin,
@@ -13,7 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { baueApp, istInternesNetz } from '../src/interfaces/http/app.js';
 
 const termin: Termin = {
-  id: '6f1c…',
+  id: '6f1c0b6e-3d2a-4c1b-9f00-0123456789ab',
   ort: { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate: null },
   datum: '2026-10-18' as KalenderDatum,
   beginn: '20:00',
@@ -21,6 +24,7 @@ const termin: Termin = {
   veranstaltungsort: 'Reitstall',
   kategorie: 'kirmes',
   bestaetigt: true,
+  festplatz: { lat: 50.87, lon: 10.82 },
 };
 
 class FakeRepo implements TerminRepository {
@@ -30,6 +34,9 @@ class FakeRepo implements TerminRepository {
     if (this.fehler) throw this.fehler;
     this.filter = f;
     return { eintraege: [termin], gesamt: 1 };
+  }
+  async finde(id: string) {
+    return id === termin.id ? termin : null;
   }
   async speichere(): Promise<Termin> {
     throw new Error('nicht benötigt');
@@ -42,12 +49,31 @@ const ortRepo: OrtRepository = {
   finde: async (slug) => (slug === 'muehlberg' ? termin.ort : null),
 };
 
+const TOKEN = 'A'.repeat(43);
+const festplatzRepo: FestplatzRepository & { gespeichert: unknown[] } = {
+  gespeichert: [],
+  uebersicht: async () => ({ ort: termin.ort, festplaetze: [], veranstaltungsorte: ['Reitstall'] }),
+  speichere: async (_o, f) => {
+    festplatzRepo.gespeichert.push(f);
+  },
+  loesche: async (_o, name) => name === 'Reitstall',
+};
+const verwalte = new VerwalteFestplaetze(
+  {
+    pruefe: async (t) =>
+      t === TOKEN ? { linkId: '1', ortSlug: 'muehlberg', bezeichnung: 'KG Mühlberg' } : null,
+  },
+  festplatzRepo,
+);
+
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
   app = await baueApp({
     sucheTermine: new SucheTermine(repo, uhr),
     listeOrte: new ListeOrte(ortRepo, uhr),
     findeOrt: new FindeOrt(ortRepo),
+    findeTermin: new FindeTermin(repo),
+    verwalteFestplaetze: verwalte,
     datenbankErreichbar: async () => dbOk,
   });
   return repo;
@@ -108,6 +134,19 @@ describe('GET /api/v1/termine', () => {
   });
 });
 
+describe('GET /api/v1/termine/:id', () => {
+  it('liefert einen Termin oder 404', async () => {
+    await setup();
+    expect((await app.inject(`/api/v1/termine/${termin.id}`)).json()).toMatchObject({
+      titel: 'Kirmestanz',
+    });
+    expect(
+      (await app.inject('/api/v1/termine/00000000-0000-4000-8000-000000000000')).statusCode,
+    ).toBe(404);
+    expect((await app.inject("/api/v1/termine/1'%20OR%201=1")).statusCode).toBe(404);
+  });
+});
+
 describe('Orte', () => {
   it('listet Orte mit Anzahl kommender Termine', async () => {
     await setup();
@@ -127,6 +166,72 @@ describe('Orte', () => {
     await app.inject('/api/v1/termine?ort=muehlberg');
     expect(repo.filter?.ortSlug).toBe('muehlberg');
     expect((await app.inject('/api/v1/termine?ort=M%C3%BChl%20berg')).statusCode).toBe(400);
+  });
+});
+
+describe('Verwaltung (Bearbeitungslink)', () => {
+  const auth = { authorization: `Bearer ${TOKEN}` };
+
+  it('verlangt einen gültigen Link', async () => {
+    await setup();
+    for (const headers of [{}, { authorization: 'Bearer falsch' }, { authorization: TOKEN }]) {
+      const res = await app.inject({ url: '/api/v1/verwaltung/festplaetze', headers });
+      expect(res.statusCode).toBe(401);
+      expect(res.headers['www-authenticate']).toBe('Bearer');
+    }
+  });
+
+  it('liefert die Übersicht ohne Caching', async () => {
+    await setup();
+    const res = await app.inject({ url: '/api/v1/verwaltung/festplaetze', headers: auth });
+    expect(res.json()).toMatchObject({
+      bezeichnung: 'KG Mühlberg',
+      veranstaltungsorte: ['Reitstall'],
+    });
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('speichert gültige und lehnt ungültige Festplätze ab', async () => {
+    await setup();
+    const ok = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      headers: auth,
+      payload: { name: 'Reitstall', lat: 50.87, lon: 10.82 },
+    });
+    expect(ok.statusCode).toBe(200);
+    const ausserhalb = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      headers: auth,
+      payload: { name: 'Reitstall', lat: 48.1, lon: 11.5 },
+    });
+    expect(ausserhalb.statusCode).toBe(400);
+    const extraFeld = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      headers: auth,
+      payload: { name: 'x', lat: 50.9, lon: 11, ortSlug: 'anderer-ort' },
+    });
+    expect(extraFeld.statusCode).toBe(400);
+    const ohneLink = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      payload: { name: 'x', lat: 50.9, lon: 11 },
+    });
+    expect(ohneLink.statusCode).toBe(401);
+  });
+
+  it('löscht Festplätze', async () => {
+    await setup();
+    const del = (name: string) =>
+      app.inject({
+        method: 'DELETE',
+        url: `/api/v1/verwaltung/festplaetze?name=${name}`,
+        headers: auth,
+      });
+    expect((await del('Reitstall')).statusCode).toBe(204);
+    expect((await del('Gibtsnicht')).statusCode).toBe(404);
   });
 });
 

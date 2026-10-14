@@ -1,0 +1,135 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import TerminListe from '../../components/TerminListe.astro';
+import { alleTermine, findeTermin } from '../../lib/api';
+import {
+  KATEGORIEN,
+  datumLangJahr,
+  eventJsonLd,
+  heute,
+  kreisName,
+  kreisSlug,
+  plusTage,
+  relativerTag,
+  routenLinks,
+} from '../../lib/anzeige';
+
+const t = await findeTermin(Astro.params.id ?? '');
+if (!t) return Astro.rewrite('/404');
+
+// Weitere Termine derselben Kirmes (± 4 Tage im selben Ort)
+const rundherum = (
+  await alleTermine({ ort: t.ort.slug, von: plusTage(t.datum, -4), bis: plusTage(t.datum, 4) })
+).filter((x) => x.id !== t.id);
+
+const route = routenLinks(t);
+const url = new URL(`/termin/${t.id}`, Astro.site).href;
+const datum = datumLangJahr(t.datum);
+const vorbei = t.datum < heute();
+const rel = relativerTag(t.datum);
+const relativ = rel ? rel[0]!.toUpperCase() + rel.slice(1) : null;
+const teilenText = `${t.titel} – ${t.ort.name}, ${datum}${t.beginn ? `, ${t.beginn} Uhr` : ''}`;
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+---
+
+<Base
+  title={`${t.titel} in ${t.ort.name} am ${datum} – Kirmeskalender Thüringen`}
+  description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}. Mit Anfahrt und Kalendereintrag.`}
+  jsonLd={[eventJsonLd(t, Astro.site!)]}
+>
+  <p class="brotkrumen">
+    <a href={`/kreise/${kreisSlug(t.ort.landkreis)}`}>{kreisName(t.ort.landkreis)}</a> ›
+    <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a>
+  </p>
+
+  <article class="einstieg termin-kopf">
+    <p class="datum">
+      {relativ && <>{relativ}, </>}
+      {datum}
+      {vorbei && <span class="leise"> · bereits vorbei</span>}
+    </p>
+    <h1>{t.titel}</h1>
+
+    <dl class="fakten">
+      <dt><Icon name="uhr" /><span class="sr-only">Beginn</span></dt>
+      <dd>{t.beginn ? `${t.beginn} Uhr` : 'Uhrzeit noch offen'}</dd>
+      <dt><Icon name="ort" /><span class="sr-only">Ort</span></dt>
+      <dd>
+        {t.veranstaltungsort && <>{t.veranstaltungsort}, </>}
+        <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
+      </dd>
+      <dt><Icon name="zelt" /><span class="sr-only">Art</span></dt>
+      <dd>
+        {KATEGORIEN[t.kategorie].label}
+        {
+          t.bestaetigt ? (
+            <span class="bestaetigt">
+              <Icon name="haken" groesse={14} />
+              vom Veranstalter bestätigt
+            </span>
+          ) : (
+            <span class="leise klein"> · aus dem Vorjahr übernommen, noch nicht bestätigt</span>
+          )
+        }
+      </dd>
+    </dl>
+
+    <h2 class="sr-only">Anfahrt und Teilen</h2>
+    <div class="knopfreihe">
+      <a class="knopf" href={route.google} target="_blank" rel="noopener"
+        ><Icon name="route" />Route mit Google Maps</a
+      >
+      <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener"
+        ><Icon name="route" />Apple Karten</a
+      >
+      <a class="knopf zweit" href={`/termin/${t.id}.ics`}
+        ><Icon name="kalender" />In Kalender eintragen</a
+      >
+      <a
+        class="knopf zweit"
+        id="teilen"
+        data-titel={teilenText}
+        data-url={url}
+        href={`https://wa.me/?text=${encodeURIComponent(`${teilenText}\n${url}`)}`}
+        target="_blank"
+        rel="noopener"><Icon name="teilen" />Teilen</a
+      >
+    </div>
+    <p class="genau">
+      {
+        route.exakt
+          ? 'Die Route führt zum Festplatz, den die Kirmesgesellschaft hinterlegt hat.'
+          : 'Die Route führt zur Adresse im Ort – den genauen Festplatz hat die Kirmesgesellschaft noch nicht eingetragen.'
+      }
+    </p>
+  </article>
+
+  {
+    rundherum.length > 0 && (
+      <section>
+        <h2>Mehr von der Kirmes in {t.ort.name}</h2>
+        <TerminListe termine={rundherum} ortLinks={false} monate={false} hinweis={false} />
+      </section>
+    )
+  }
+
+  <p class="kasten abstand">
+    Stimmt etwas nicht? <a href={`/termin-melden?ort=${encodeURIComponent(t.ort.name)}`}
+      >Korrektur melden</a
+    >
+  </p>
+</Base>
+
+<script>
+  // Auf dem Handy das System-Teilen-Menü (WhatsApp, Signal, …) nutzen, sonst WhatsApp-Web-Link.
+  const a = document.getElementById('teilen') as HTMLAnchorElement | null;
+  if (a && navigator.share) {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigator
+        .share({ title: a.dataset.titel, text: a.dataset.titel, url: a.dataset.url })
+        .catch(() => {});
+    });
+  }
+</script>

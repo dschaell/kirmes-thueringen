@@ -4,18 +4,48 @@ import type { TerminDto } from './api';
 
 export { LANDKREISE };
 
-export const KATEGORIEN: Record<Kategorie, { label: string; emoji: string }> = {
-  kirmes: { label: 'Kirmes & Kirmestanz', emoji: '🎪' },
-  kinder: { label: 'Kindertanz & Familie', emoji: '🧒' },
-  tanz: { label: 'Tanz & Feste', emoji: '💃' },
-  party: { label: 'Disco & Party', emoji: '🪩' },
-  brauchtum: { label: 'Brauchtum', emoji: '🌳' },
-  ostern: { label: 'Ostern', emoji: '🐣' },
-  mai: { label: 'Tanz in den Mai', emoji: '🌸' },
-  fruehschoppen: { label: 'Frühschoppen', emoji: '🍺' },
+export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
+  kirmes: { label: 'Kirmes & Kirmestanz', kurz: 'Kirmes' },
+  kinder: { label: 'Kindertanz & Familie', kurz: 'Kinder' },
+  tanz: { label: 'Tanz & Feste', kurz: 'Tanz' },
+  party: { label: 'Disco & Party', kurz: 'Party' },
+  brauchtum: { label: 'Brauchtum', kurz: 'Brauchtum' },
+  ostern: { label: 'Ostern', kurz: 'Ostern' },
+  mai: { label: 'Tanz in den Mai', kurz: 'Mai' },
+  fruehschoppen: { label: 'Frühschoppen', kurz: 'Frühschoppen' },
 };
 
-export const kreisName = (k: LandkreisKuerzel) => LANDKREISE[k];
+/** Amtliche Bezeichnung und passende Präposition („im Landkreis Gotha“, „in Erfurt“). */
+const KREIS_ANZEIGE: Record<LandkreisKuerzel, { name: string; in: string }> = {
+  ABG: { name: 'Altenburger Land', in: 'im Altenburger Land' },
+  EIC: { name: 'Landkreis Eichsfeld', in: 'im Eichsfeld' },
+  GTH: { name: 'Landkreis Gotha', in: 'im Landkreis Gotha' },
+  GRZ: { name: 'Landkreis Greiz', in: 'im Landkreis Greiz' },
+  HBN: { name: 'Landkreis Hildburghausen', in: 'im Landkreis Hildburghausen' },
+  IK: { name: 'Ilm-Kreis', in: 'im Ilm-Kreis' },
+  KYF: { name: 'Kyffhäuserkreis', in: 'im Kyffhäuserkreis' },
+  NDH: { name: 'Landkreis Nordhausen', in: 'im Landkreis Nordhausen' },
+  SHK: { name: 'Saale-Holzland-Kreis', in: 'im Saale-Holzland-Kreis' },
+  SOK: { name: 'Saale-Orla-Kreis', in: 'im Saale-Orla-Kreis' },
+  SLF: { name: 'Landkreis Saalfeld-Rudolstadt', in: 'im Landkreis Saalfeld-Rudolstadt' },
+  SM: { name: 'Landkreis Schmalkalden-Meiningen', in: 'im Landkreis Schmalkalden-Meiningen' },
+  SÖM: { name: 'Landkreis Sömmerda', in: 'im Landkreis Sömmerda' },
+  SON: { name: 'Landkreis Sonneberg', in: 'im Landkreis Sonneberg' },
+  UH: { name: 'Unstrut-Hainich-Kreis', in: 'im Unstrut-Hainich-Kreis' },
+  WAK: { name: 'Wartburgkreis', in: 'im Wartburgkreis' },
+  WL: { name: 'Weimarer Land', in: 'im Weimarer Land' },
+  EF: { name: 'Erfurt', in: 'in Erfurt' },
+  G: { name: 'Gera', in: 'in Gera' },
+  J: { name: 'Jena', in: 'in Jena' },
+  SHL: { name: 'Suhl', in: 'in Suhl' },
+  WE: { name: 'Weimar', in: 'in Weimar' },
+  EA: { name: 'Eisenach', in: 'in Eisenach' },
+};
+
+export const kreisName = (k: LandkreisKuerzel) => KREIS_ANZEIGE[k]?.name ?? LANDKREISE[k];
+export const imKreis = (k: LandkreisKuerzel) => KREIS_ANZEIGE[k]?.in ?? `im ${LANDKREISE[k]}`;
+/** Kurzname für Sortierung und Kacheln („Gotha“ statt „Landkreis Gotha“) */
+export const kreisKurz = (k: LandkreisKuerzel) => LANDKREISE[k];
 
 /** URL-Segment je Landkreis: „SÖM“ → „soem“ */
 export const kreisSlug = (k: string) =>
@@ -24,20 +54,27 @@ export const kreisSlug = (k: string) =>
 export const kreisAusSlug = (slug: string): LandkreisKuerzel | undefined =>
   (Object.keys(LANDKREISE) as LandkreisKuerzel[]).find((k) => kreisSlug(k) === slug);
 
-const fmtMonat = new Intl.DateTimeFormat('de-DE', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-const fmtLang = new Intl.DateTimeFormat('de-DE', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
+/** „1 Termin“, „3 Termine“, „kein Termin“ */
+export const anzahl = (
+  n: number,
+  einzahl: string,
+  mehrzahl: string,
+  keiner = `keine ${mehrzahl}`,
+) => (n === 0 ? keiner : `${n.toLocaleString('de-DE')} ${n === 1 ? einzahl : mehrzahl}`);
+
+const fmt = (o: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('de-DE', { ...o, timeZone: 'UTC' });
+const fmtMonat = fmt({ month: 'long', year: 'numeric' });
+const fmtLang = fmt({ weekday: 'long', day: 'numeric', month: 'long' });
+const fmtLangJahr = fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtTag = fmt({ day: 'numeric', month: 'long' });
+const fmtWochentag = fmt({ weekday: 'long' });
 
 export const monatName = (iso: string) => fmtMonat.format(new Date(iso));
 export const datumLang = (iso: string) => fmtLang.format(new Date(iso));
+export const datumLangJahr = (iso: string) => fmtLangJahr.format(new Date(iso));
+export const tagMonat = (iso: string) => fmtTag.format(new Date(iso));
+export const wochentag = (iso: string) => fmtWochentag.format(new Date(iso));
 
 /** Heute in Thüringer Ortszeit (YYYY-MM-DD). */
 export const heute = () =>
@@ -46,30 +83,57 @@ export const heute = () =>
 export const plusTage = (iso: string, tage: number) =>
   new Date(Date.parse(iso) + tage * 86_400_000).toISOString().slice(0, 10);
 
+/** Nächstes (bzw. laufendes) Wochenende Freitag–Sonntag. */
+export function wochenende(h = heute()): { von: string; bis: string } {
+  const tag = new Date(h).getUTCDay(); // 0 = So
+  const freitag = plusTage(h, tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag);
+  return { von: freitag < h ? h : freitag, bis: plusTage(freitag, 2) };
+}
+
+/** „heute“, „morgen“ oder nichts – für Terminlisten. */
+export function relativerTag(iso: string, h = heute()): string | null {
+  if (iso === h) return 'heute';
+  if (iso === plusTage(h, 1)) return 'morgen';
+  return null;
+}
+
+/**
+ * Routen-Links: Mit hinterlegtem Festplatz exakt, sonst über die Adresse
+ * („Festzelt, Mühlberg, Thüringen“) – das finden beide Kartendienste zuverlässig.
+ */
+export function routenLinks(t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'>) {
+  const ziel = t.festplatz
+    ? `${t.festplatz.lat},${t.festplatz.lon}`
+    : [t.veranstaltungsort, t.ort.name, 'Thüringen'].filter(Boolean).join(', ');
+  const z = encodeURIComponent(ziel);
+  return {
+    google: `https://www.google.com/maps/dir/?api=1&destination=${z}`,
+    apple: `https://maps.apple.com/?daddr=${z}&dirflg=d`,
+    exakt: Boolean(t.festplatz),
+  };
+}
+
 /** schema.org Event für Google-Rich-Results */
-export const eventJsonLd = (t: TerminDto, site: URL) => ({
-  '@context': 'https://schema.org',
-  '@type': 'Event',
-  name: `${t.titel} – ${t.ort.name}`,
-  startDate: t.beginn ? `${t.datum}T${t.beginn}:00` : t.datum,
-  eventStatus: 'https://schema.org/EventScheduled',
-  eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-  location: {
-    '@type': 'Place',
-    name: t.veranstaltungsort ?? t.ort.name,
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: t.ort.name,
-      addressRegion: 'Thüringen',
-      addressCountry: 'DE',
-    },
-    ...(t.ort.koordinate && {
-      geo: {
-        '@type': 'GeoCoordinates',
-        latitude: t.ort.koordinate.lat,
-        longitude: t.ort.koordinate.lon,
+export function eventJsonLd(t: TerminDto, site: URL) {
+  const geo = t.festplatz ?? t.ort.koordinate;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: `${t.titel} – ${t.ort.name}`,
+    startDate: t.beginn ? `${t.datum}T${t.beginn}:00` : t.datum,
+    eventStatus: 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    location: {
+      '@type': 'Place',
+      name: t.veranstaltungsort ?? t.ort.name,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: t.ort.name,
+        addressRegion: 'Thüringen',
+        addressCountry: 'DE',
       },
-    }),
-  },
-  url: new URL(`/orte/${t.ort.slug}`, site).href,
-});
+      ...(geo && { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lon } }),
+    },
+    url: new URL(`/termin/${t.id}`, site).href,
+  };
+}

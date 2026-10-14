@@ -1,11 +1,21 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
 import { alleTermine, findeOrt, listeOrte } from '../../lib/api';
-import { datumLang, eventJsonLd, heute, kreisName, kreisSlug, plusTage } from '../../lib/anzeige';
+import {
+  anzahl,
+  datumLang,
+  eventJsonLd,
+  heute,
+  imKreis,
+  kreisName,
+  kreisSlug,
+  plusTage,
+  routenLinks,
+} from '../../lib/anzeige';
 
-const slug = Astro.params.slug ?? '';
-const ort = await findeOrt(slug);
+const ort = await findeOrt(Astro.params.slug ?? '');
 if (!ort) return Astro.rewrite('/404');
 
 const h = heute();
@@ -19,46 +29,53 @@ const [kommend, bisher, orte] = await Promise.all([
   listeOrte(),
 ]);
 const vergangen = [...bisher].reverse();
-const termine = [...bisher, ...kommend];
-const kreis = kreisName(ort.landkreis);
+const naechster = kommend[0];
 const nachbarn = orte
-  .filter((o) => o.landkreis === ort.landkreis && o.slug !== ort.slug)
-  .slice(0, 24);
-const erster = kommend[0];
+  .filter((o) => o.landkreis === ort.landkreis && o.slug !== ort.slug && o.anzahlKommend > 0)
+  .slice(0, 30);
+const route = routenLinks(naechster ?? { festplatz: null, veranstaltungsort: null, ort });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
-  title={`Kirmes ${ort.name} ${jahr} – Termine (${kreis})`}
-  description={`Kirmes in ${ort.name}, ${kreis}: alle Termine ${jahr}${
-    termine.length
-      ? ' – ' +
-        termine
-          .slice(0, 3)
-          .map((t) => t.titel)
-          .join(', ')
-      : ''
-  }.`}
-  jsonLd={kommend.map((t) => eventJsonLd(t, Astro.site!))}
+  title={`Kirmes ${ort.name} ${jahr} – Termine & Anfahrt`}
+  description={`Kirmes in ${ort.name} ${imKreis(ort.landkreis)}: ${naechster ? `nächster Termin ${datumLang(naechster.datum)} – ${naechster.titel}` : `alle Termine ${jahr}`}. Mit Anfahrt und Kalender.`}
+  jsonLd={kommend.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!))}
 >
-  <p class="small muted">
-    <a href="/orte">Orte</a> › <a href={`/kreise/${kreisSlug(ort.landkreis)}`}>{kreis}</a> › {
-      ort.name
-    }
+  <p class="brotkrumen">
+    <a href="/orte">Orte</a> › <a href={`/kreise/${kreisSlug(ort.landkreis)}`}
+      >{kreisName(ort.landkreis)}</a
+    >
   </p>
-  <section class="hero">
+  <section class="einstieg">
     <h1>Kirmes in {ort.name}</h1>
-    <p class="muted">
+    <p class="unterzeile">
       {
-        erster ? (
+        naechster ? (
           <>
-            Nächster Termin: <strong>{datumLang(erster.datum)}</strong> – {erster.titel}
+            Nächster Termin: <strong>{datumLang(naechster.datum)}</strong> – {naechster.titel}
           </>
         ) : (
-          `Für ${jahr} sind keine weiteren Termine bekannt.`
+          `Für die nächsten zwölf Monate ist in ${ort.name} noch nichts eingetragen.`
         )
       }
     </p>
+    {
+      naechster && (
+        <div class="knopfreihe">
+          <a
+            class="knopf zweit"
+            href={route.google}
+            data-apple={route.apple}
+            target="_blank"
+            rel="noopener"
+          >
+            <Icon name="route" />
+            Anfahrt
+          </a>
+        </div>
+      )
+    }
   </section>
 
   {
@@ -73,26 +90,32 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     vergangen.length > 0 && (
       <>
         <h2>Bereits vorbei ({jahr})</h2>
-        <TerminListe termine={vergangen} ortLinks={false} gruppieren={false} />
+        <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
       </>
     )
   }
 
-  <div class="hinweis">
-    Du gehörst zur Kirmesgesellschaft {ort.name}? <a
-      href={`/termin-melden?ort=${encodeURIComponent(ort.name)}`}
-      >Termine bestätigen oder ergänzen</a
-    >.
+  <div class="kasten abstand">
+    <h2>Kirmesgesellschaft {ort.name}?</h2>
+    <p>
+      Bestätigt eure Termine oder schickt uns neue. Auf Wunsch bekommt ihr einen persönlichen Link,
+      mit dem ihr euren Festplatz auf der Karte eintragt – dann führt „Route“ eure Gäste direkt
+      dorthin.
+    </p>
+    <a href={`/termin-melden?ort=${encodeURIComponent(ort.name)}`}
+      >Termin melden oder Link anfordern <Icon name="pfeil" /></a
+    >
   </div>
 
   {
     nachbarn.length > 0 && (
       <>
-        <h2>Weitere Kirmes im {kreis}</h2>
+        <h2>Weitere Kirmesorte {imKreis(ort.landkreis)}</h2>
         <ul class="ortliste">
           {nachbarn.map((o) => (
             <li>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
+              <span class="kz">{anzahl(o.anzahlKommend, 'Termin', 'Termine')}</span>
             </li>
           ))}
         </ul>
@@ -100,3 +123,10 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     )
   }
 </Base>
+
+<script>
+  if (/iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-apple]'))
+      a.href = a.dataset.apple!;
+  }
+</script>

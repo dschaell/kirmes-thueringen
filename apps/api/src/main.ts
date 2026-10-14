@@ -1,6 +1,10 @@
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
-import { FindeOrt, ListeOrte, SucheTermine } from '@kirmes/core';
+import { FindeOrt, FindeTermin, ListeOrte, SucheTermine, VerwalteFestplaetze } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
+import {
+  PgBearbeitungslinks,
+  PgFestplatzRepository,
+} from './infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from './infrastructure/postgres/ort-repository.js';
 import { erstellePool } from './infrastructure/postgres/pool.js';
 import {
@@ -20,10 +24,16 @@ const pool = erstellePool({
 
 const uhr = new SystemUhr();
 const orte = new PgOrtRepository(pool);
+const termine = new PgTerminRepository(pool);
 const app = await baueApp({
-  sucheTermine: new SucheTermine(new PgTerminRepository(pool), uhr),
+  sucheTermine: new SucheTermine(termine, uhr),
+  findeTermin: new FindeTermin(termine),
   listeOrte: new ListeOrte(orte, uhr),
   findeOrt: new FindeOrt(orte),
+  verwalteFestplaetze: new VerwalteFestplaetze(
+    new PgBearbeitungslinks(pool),
+    new PgFestplatzRepository(pool),
+  ),
   datenbankErreichbar: () => datenbankErreichbar(pool),
   logger: {
     level: k.logLevel,

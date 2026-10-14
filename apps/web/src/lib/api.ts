@@ -28,6 +28,8 @@ export interface TerminDto {
   kategorie: Kategorie;
   bestaetigt: boolean;
   ort: OrtDto;
+  /** Von der Kirmesgesellschaft hinterlegter Festplatz */
+  festplatz: { lat: number; lon: number } | null;
 }
 
 export interface TerminSeite {
@@ -103,8 +105,45 @@ export async function alleTermine(s: Omit<TerminSuche, 'limit' | 'offset'>): Pro
   }
 }
 
+export const findeTermin = (id: string): Promise<TerminDto | null> =>
+  hole<TerminDto>(`/api/v1/termine/${encodeURIComponent(id)}`);
+
 export const listeOrte = async (): Promise<OrtUebersichtDto[]> =>
   (await hole<OrtUebersichtDto[]>('/api/v1/orte')) ?? [];
 
 export const findeOrt = (slug: string): Promise<OrtDto | null> =>
   hole<OrtDto>(`/api/v1/orte/${encodeURIComponent(slug)}`);
+
+/**
+ * Verwaltung: leitet eine Anfrage der Bearbeitungsseite mit dem Link-Token an die API weiter.
+ * Antwortet mit Status und JSON der API (401 bei ungültigem Link).
+ */
+export async function verwaltung(
+  methode: 'GET' | 'PUT' | 'DELETE',
+  authorization: string | null,
+  optionen: { body?: unknown; name?: string } = {},
+): Promise<Response> {
+  const url = new URL('/api/v1/verwaltung/festplaetze', API_URL);
+  if (optionen.name !== undefined) url.searchParams.set('name', optionen.name);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: methode,
+      headers: {
+        ...(authorization && { authorization }),
+        ...(optionen.body !== undefined && { 'content-type': 'application/json' }),
+      },
+      body: optionen.body !== undefined ? JSON.stringify(optionen.body) : undefined,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new ApiNichtErreichbar({ cause: e });
+  }
+  return new Response(res.status === 204 ? null : await res.text(), {
+    status: res.status,
+    headers: {
+      'content-type': res.headers.get('content-type') ?? 'application/json',
+      'cache-control': 'no-store',
+    },
+  });
+}

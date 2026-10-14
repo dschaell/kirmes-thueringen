@@ -53,6 +53,20 @@ Tests mit Coverage-Gate und -Ratchet. Ein Merge ist nur bei grünem **Quality Ga
 
 Repository-Einrichtung (Labels, Branch Protection, Backlog): `./scripts/setup-github.sh`
 
+## Festplätze: Bearbeitungslinks für Kirmesgesellschaften
+
+Kirmesgesellschaften tragen ihren Festplatz selbst auf der Karte ein – über einen persönlichen Link
+(ohne Konto, ohne Passwort). Die Route-Knöpfe (Google Maps / Apple Karten) führen dann exakt dorthin.
+
+```bash
+npm run link -- erstellen muehlberg "Kirmesgesellschaft Mühlberg"   # Link wird einmalig angezeigt
+npm run link -- liste
+npm run link -- sperren 3
+```
+
+Auf dem Server: `docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js erstellen …`
+(mit `WEBSITE_URL=https://<domain>` für den richtigen Link).
+
 ## Daten
 
 Die Termindaten sind **nicht** im Repository, solange die Zustimmung des bisherigen Betreibers

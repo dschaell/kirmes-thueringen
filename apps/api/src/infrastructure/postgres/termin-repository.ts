@@ -16,15 +16,25 @@ import { abfrage } from './pool.js';
  * ausschließlich als Parameter zum Server – niemals per String-Verkettung (OWASP A03).
  * Optionale Filter werden über "leeres Array / NULL = kein Filter" ausgedrückt, damit das SQL statisch bleibt.
  */
-const SQL_SUCHE = `
+const SQL_TERMIN_BASIS = `
 SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
+       ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon,
        count(*) OVER () AS gesamt
   FROM termin t
   JOIN ort o ON o.id = t.ort_id
- WHERE t.datum BETWEEN $1::date AND $2::date
+  -- Festplatz: passender Veranstaltungsort, sonst Standard-Festplatz ('') des Ortes
+  LEFT JOIN LATERAL (
+    SELECT fp.lage FROM festplatz fp
+     WHERE fp.ort_id = t.ort_id AND (fp.name = t.veranstaltungsort OR fp.name = '')
+     ORDER BY (fp.name = t.veranstaltungsort) DESC NULLS LAST
+     LIMIT 1
+  ) f ON true
+`;
+
+const SQL_SUCHE = `${SQL_TERMIN_BASIS} WHERE t.datum BETWEEN $1::date AND $2::date
    AND (cardinality($3::text[]) = 0 OR o.landkreis = ANY ($3::text[]))
    AND (cardinality($4::text[]) = 0 OR t.kategorie = ANY ($4::text[]))
    AND ($5::text IS NULL
@@ -35,6 +45,8 @@ SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.t
    AND ($9::text IS NULL OR o.slug = $9)
  ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
  LIMIT $7 OFFSET $8`;
+
+const SQL_FINDE = `${SQL_TERMIN_BASIS} WHERE t.id = $1::uuid`;
 
 const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`;
 
@@ -56,6 +68,8 @@ interface Zeile {
   landkreis: LandkreisKuerzel;
   lat: number | null;
   lon: number | null;
+  f_lat: number | null;
+  f_lon: number | null;
   gesamt: string;
 }
 
@@ -76,6 +90,7 @@ const zuTermin = (z: Zeile): Termin => ({
   veranstaltungsort: z.veranstaltungsort,
   kategorie: z.kategorie,
   bestaetigt: z.bestaetigt,
+  festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,
 });
 
 export class OrtNichtGefunden extends Error {
@@ -107,6 +122,11 @@ export class PgTerminRepository implements TerminRepository {
     return { eintraege: rows.map(zuTermin), gesamt: Number(rows[0]?.gesamt ?? 0) };
   }
 
+  async finde(id: string): Promise<Termin | null> {
+    const { rows } = await this.abfrage<Zeile>(SQL_FINDE, [id]);
+    return rows[0] ? zuTermin(rows[0]) : null;
+  }
+
   async speichere(t: NeuerTermin): Promise<Termin> {
     const ort = await this.abfrage<{ id: string; name: string }>(SQL_ORT_ID, [
       t.ortSlug,
@@ -134,6 +154,7 @@ export class PgTerminRepository implements TerminRepository {
       veranstaltungsort: t.veranstaltungsort,
       kategorie: t.kategorie,
       bestaetigt: t.bestaetigt,
+      festplatz: null,
     };
   }
 }

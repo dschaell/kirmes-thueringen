@@ -1,0 +1,42 @@
+---
+/** Einheitliche Strich-Icons (24×24, 1.75 px), farbig über currentColor. Dekorativ, für Screenreader ausgeblendet. */
+const PFADE = {
+  ort: 'M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  uhr: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13.5V12l3 2',
+  zelt: 'M3 20h18M5 20 12 5l7 15M12 5v15M9.5 20l2.5-5 2.5 5',
+  route:
+    'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm12-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM8 17h6.5a3.5 3.5 0 0 0 0-7h-5a3.5 3.5 0 0 1 0-7H16',
+  kalender:
+    'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12ZM4 10h16M8.5 3v4M15.5 3v4',
+  teilen:
+    'M8.6 13.5l6.8 4M15.4 6.5l-6.8 4M18 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM6 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM18 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  haken: 'M5 12.5l4.5 4.5L19 7.5',
+  suche: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm9 3-4-4',
+  filter: 'M4 6h16M7 12h10M10 18h4',
+  pfeil: 'M5 12h14m-5-5 5 5-5 5',
+  abo: 'M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8M6 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
+  standort:
+    'M12 2v3m0 14v3M2 12h3m14 0h3M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+} as const;
+
+interface Props {
+  name: keyof typeof PFADE;
+  groesse?: number;
+  class?: string;
+}
+const { name, groesse = 18, class: klasse } = Astro.props;
+---
+
+<svg
+  class:list={['icon', klasse]}
+  width={groesse}
+  height={groesse}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.75"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"><path d={PFADE[name]}></path></svg
+>
