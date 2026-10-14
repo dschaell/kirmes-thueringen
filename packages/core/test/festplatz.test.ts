@@ -96,4 +96,14 @@ describe('VerwalteFestplaetze', () => {
     expect(u.ok && u.value.bezeichnung).toBe('KG Mühlberg');
     expect(await uc.loesche('gueltig', ' Festzelt ')).toEqual({ ok: true, value: true });
   });
+
+  it('verweigert, wenn der Ort des Links inzwischen gelöscht ist', async () => {
+    const leer = new VerwalteFestplaetze(
+      {
+        pruefe: async () => ({ linkId: '1', ortSlug: 'weg', landkreis: 'GTH', bezeichnung: 'KG' }),
+      },
+      { uebersicht: async () => null, speichere: async () => {}, loesche: async () => false },
+    );
+    expect(await leer.uebersicht('t')).toEqual({ ok: false, error: { code: 'NICHT_BERECHTIGT' } });
+  });
 });

@@ -6,12 +6,23 @@ import {
   SucheTermine,
   VerwalteFestplaetze,
   VerwalteTermine,
+  AdminAnmeldung,
+  Redaktion,
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
 import {
   PgBearbeitungslinks,
   PgFestplatzRepository,
 } from './infrastructure/postgres/festplatz-repository.js';
+import { NodeKryptografie, SpeicherAnmeldeversuche } from './infrastructure/krypto.js';
+import {
+  ortLandkreis,
+  PgAdminKonten,
+  PgLinkVerwaltung,
+  PgMitteilungen,
+  PgOrtVerwaltung,
+  PgSitzungen,
+} from './infrastructure/postgres/admin-repository.js';
 import { PgOrtRepository } from './infrastructure/postgres/ort-repository.js';
 import { PgTerminVerwaltung } from './infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool } from './infrastructure/postgres/pool.js';
@@ -34,13 +45,33 @@ const uhr = new SystemUhr();
 const orte = new PgOrtRepository(pool);
 const termine = new PgTerminRepository(pool);
 const links = new PgBearbeitungslinks(pool);
+const terminVerwaltung = new PgTerminVerwaltung(pool);
+const mitteilungen = new PgMitteilungen(pool);
+const krypto = new NodeKryptografie();
 const app = await baueApp({
   sucheTermine: new SucheTermine(termine, uhr),
   findeTermin: new FindeTermin(termine),
   listeOrte: new ListeOrte(orte, uhr),
   findeOrt: new FindeOrt(orte),
   verwalteFestplaetze: new VerwalteFestplaetze(links, new PgFestplatzRepository(pool)),
-  verwalteTermine: new VerwalteTermine(links, new PgTerminVerwaltung(pool), termine, uhr),
+  verwalteTermine: new VerwalteTermine(links, terminVerwaltung, termine, uhr),
+  aktuelleMitteilung: () => mitteilungen.aktuelle(),
+  admin: {
+    anmeldung: new AdminAnmeldung(
+      new PgAdminKonten(pool),
+      krypto,
+      new PgSitzungen(pool),
+      new SpeicherAnmeldeversuche(),
+    ),
+    redaktion: new Redaktion(
+      mitteilungen,
+      new PgOrtVerwaltung(pool),
+      ortLandkreis(pool),
+      terminVerwaltung,
+      new PgLinkVerwaltung(pool),
+      krypto,
+    ),
+  },
   datenbankErreichbar: () => datenbankErreichbar(pool),
   logger: {
     level: k.logLevel,

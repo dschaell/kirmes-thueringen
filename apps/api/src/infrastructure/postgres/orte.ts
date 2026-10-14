@@ -30,7 +30,8 @@ try {
      SELECT s, n, l, ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography
        FROM unnest($1::text[], $2::text[], $3::text[], $4::float8[], $5::float8[]) AS t(s, n, l, lat, lon)
      ON CONFLICT (slug) DO UPDATE
-       SET name = EXCLUDED.name, landkreis = EXCLUDED.landkreis, lage = EXCLUDED.lage`,
+       SET name = EXCLUDED.name, landkreis = EXCLUDED.landkreis, lage = EXCLUDED.lage
+       WHERE ort.herkunft = 'osm' -- von der Redaktion angelegte Orte bleiben unverändert`,
     [
       orte.map((o) => o.slug),
       orte.map((o) => normalisiereOrtsname(o.name)),

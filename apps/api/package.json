@@ -13,7 +13,8 @@
     "link": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/links.ts",
     "orte": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/orte.ts",
     "beispiele": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/beispiele.ts",
-    "termine:import": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/termine-import.ts"
+    "termine:import": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/termine-import.ts",
+    "admin": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/admin-cli.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",

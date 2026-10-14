@@ -6,7 +6,10 @@ import {
   SucheTermine,
   VerwalteFestplaetze,
   VerwalteTermine,
+  AdminAnmeldung,
+  Redaktion,
   type TerminVerwaltung,
+  type Mitteilung,
   type FestplatzRepository,
   type OrtRepository,
   type KalenderDatum,
@@ -78,6 +81,9 @@ const terminVerwaltung: TerminVerwaltung = {
   loesche: async (id) => id === termin.id,
 };
 
+const SITZUNG = 'S'.repeat(43);
+let mitteilung: Mitteilung | null = null;
+
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
   app = await baueApp({
@@ -97,6 +103,58 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       repo,
       uhr,
     ),
+    aktuelleMitteilung: async () => mitteilung,
+    admin: {
+      anmeldung: new AdminAnmeldung(
+        {
+          findeNachEmail: async (e) =>
+            e === 'admin@x.de'
+              ? { id: '1', email: e, passwortHash: 'H', totpGeheimnis: 'G' }
+              : null,
+          merkeLogin: async () => {},
+        },
+        {
+          pruefePasswort: async (p) => p === 'richtig',
+          pruefeEinmalcode: (_g, c) => c === '123456',
+          neuesToken: () => SITZUNG,
+        },
+        {
+          lege: async () => {},
+          pruefe: async (t) => (t === SITZUNG ? { adminId: '1', email: 'admin@x.de' } : null),
+          beende: async () => {},
+        },
+        { gesperrt: (e) => e === 'gesperrt@x.de', fehlschlag: () => {}, erfolg: () => {} },
+      ),
+      redaktion: new Redaktion(
+        {
+          liste: async () => [],
+          aktuelle: async () => null,
+          lege: async (m) => ({ ...m, id: '5', veroeffentlichtAm: null, erstelltAm: 'jetzt' }),
+          setzeVeroeffentlicht: async (id) => id === '5',
+          loesche: async (id) => id === '5',
+        },
+        { lege: async (o) => ({ ...o }) },
+        async (slug) => (slug === 'muehlberg' ? 'GTH' : null),
+        terminVerwaltung,
+        {
+          erstelle: async (ortSlug, bezeichnung) =>
+            ortSlug === 'muehlberg'
+              ? {
+                  id: '9',
+                  ortSlug,
+                  ortName: 'Mühlberg',
+                  bezeichnung,
+                  erstelltAm: 'heute',
+                  zuletztGenutzt: null,
+                  gesperrtAm: null,
+                }
+              : null,
+          liste: async () => [],
+          sperre: async (id) => id === '9',
+        },
+        { neuesToken: () => 'x' },
+      ),
+    },
     datenbankErreichbar: async () => dbOk,
   });
   return repo;
@@ -336,6 +394,255 @@ describe('Termine der Kirmesgesellschaft', () => {
     expect((await app.inject({ method: 'DELETE', url: `${url}/${termin.id}` })).statusCode).toBe(
       401,
     );
+  });
+});
+
+describe('Mitteilungen (öffentlich)', () => {
+  it('liefert die neueste veröffentlichte Mitteilung oder 404', async () => {
+    await setup();
+    mitteilung = null;
+    expect((await app.inject('/api/v1/mitteilungen/aktuell')).statusCode).toBe(404);
+    mitteilung = {
+      id: '3',
+      titel: 'Neu',
+      text: 'Hallo',
+      link: null,
+      veroeffentlichtAm: '2026-10-14T10:00',
+      erstelltAm: 'x',
+    };
+    expect((await app.inject('/api/v1/mitteilungen/aktuell')).json()).toEqual({
+      id: '3',
+      titel: 'Neu',
+      text: 'Hallo',
+      link: null,
+      datum: '2026-10-14T10:00',
+    });
+  });
+});
+
+describe('Admin-Bereich', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  const anmelden = (body: object) =>
+    app.inject({ method: 'POST', url: '/api/v1/admin/anmelden', payload: body });
+
+  it('meldet an – nur mit Passwort UND Einmalcode', async () => {
+    await setup();
+    const ok = await anmelden({ email: 'admin@x.de', passwort: 'richtig', code: '123456' });
+    expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
+    expect(ok.headers['cache-control']).toBe('no-store');
+    expect(
+      (await anmelden({ email: 'admin@x.de', passwort: 'richtig', code: '000000' })).statusCode,
+    ).toBe(401);
+    expect(
+      (await anmelden({ email: 'admin@x.de', passwort: 'falsch', code: '123456' })).statusCode,
+    ).toBe(401);
+    expect(
+      (await anmelden({ email: 'gesperrt@x.de', passwort: 'richtig', code: '123456' })).statusCode,
+    ).toBe(429);
+  });
+
+  it('schützt alle Admin-Endpunkte', async () => {
+    await setup();
+    const routen: [string, string][] = [
+      ['GET', '/api/v1/admin/ich'],
+      ['GET', '/api/v1/admin/mitteilungen'],
+      ['POST', '/api/v1/admin/mitteilungen'],
+      ['POST', '/api/v1/admin/orte'],
+      ['POST', '/api/v1/admin/termine'],
+      ['GET', '/api/v1/admin/links'],
+      ['POST', '/api/v1/admin/links/1/sperren'],
+    ];
+    for (const [method, url] of routen) {
+      for (const headers of [
+        {},
+        { authorization: 'Sitzung falsch' },
+        { authorization: `Bearer ${SITZUNG}` },
+      ]) {
+        const res = await app.inject({ method: method as 'GET', url, headers, payload: {} });
+        expect(res.statusCode, `${method} ${url}`).toBe(401);
+      }
+    }
+  });
+
+  it('legt Mitteilungen, Orte und Termine an', async () => {
+    await setup();
+    expect((await app.inject({ url: '/api/v1/admin/ich', headers: auth })).json()).toEqual({
+      adminId: '1',
+    });
+    const m = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/mitteilungen',
+      headers: auth,
+      payload: { titel: 'Willkommen', text: 'Der Kalender ist da.', sofort: true },
+    });
+    expect(m.statusCode).toBe(201);
+    const boeserLink = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/mitteilungen',
+      headers: auth,
+      payload: { titel: 'X', text: 'Y', link: 'javascript:alert(1)' },
+    });
+    expect(boeserLink.statusCode).toBe(400);
+    const ort = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/orte',
+      headers: auth,
+      payload: { name: 'Neudorf', landkreis: 'GTH', lat: 50.9, lon: 10.8 },
+    });
+    expect(ort.json()).toMatchObject({ slug: 'neudorf', koordinate: { lat: 50.9, lon: 10.8 } });
+    const t = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine',
+      headers: auth,
+      payload: { ortSlug: 'muehlberg', datum: '2026-10-18', titel: 'Kirmestanz', bestaetigt: true },
+    });
+    expect(t.statusCode).toBe(201);
+    const unbekannt = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine',
+      headers: auth,
+      payload: { ortSlug: 'nirgendwo', datum: '2026-10-18', titel: 'x' },
+    });
+    expect(unbekannt.statusCode).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/v1/admin/mitteilungen/5/veroeffentlichen',
+          headers: auth,
+          payload: { an: false },
+        })
+      ).statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'DELETE', url: '/api/v1/admin/mitteilungen/6', headers: auth }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/v1/admin/abmelden', headers: auth }))
+        .statusCode,
+    ).toBe(204);
+  });
+  it('ändert, bestätigt und löscht Termine jedes Ortes', async () => {
+    await setup();
+    const url = `/api/v1/admin/termine/${termin.id}`;
+    const fremd = '/api/v1/admin/termine/00000000-0000-4000-8000-000000000000';
+    const f = { ortSlug: 'muehlberg', datum: '2026-10-18', titel: 'Kirmes' };
+    const status = async (o: object) =>
+      (await app.inject({ headers: auth, ...o } as never)).statusCode;
+    expect(await status({ method: 'PUT', url, payload: f })).toBe(200);
+    expect(await status({ method: 'PUT', url: fremd, payload: f })).toBe(404);
+    expect(await status({ method: 'PUT', url, payload: { ...f, datum: 'kaputt' } })).toBe(400);
+    expect(
+      await status({
+        method: 'POST',
+        url: `${url}/bestaetigen`,
+        payload: { ortSlug: 'muehlberg' },
+      }),
+    ).toBe(204);
+    expect(
+      await status({
+        method: 'POST',
+        url: `${fremd}/bestaetigen`,
+        payload: { ortSlug: 'muehlberg' },
+      }),
+    ).toBe(404);
+    expect(await status({ method: 'DELETE', url: `${url}?ort=muehlberg` })).toBe(204);
+    expect(await status({ method: 'DELETE', url: `${fremd}?ort=muehlberg` })).toBe(404);
+  });
+
+  it('verwaltet Bearbeitungslinks und Mitteilungen', async () => {
+    await setup();
+    const status = async (o: object) =>
+      (await app.inject({ headers: auth, ...o } as never)).statusCode;
+    const link = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/links',
+      headers: auth,
+      payload: { ortSlug: 'muehlberg', bezeichnung: 'KG' },
+    });
+    expect(link.json()).toMatchObject({ token: 'x', link: { id: '9' } });
+    expect(
+      await status({
+        method: 'POST',
+        url: '/api/v1/admin/links',
+        payload: { ortSlug: 'nirgendwo', bezeichnung: 'KG' },
+      }),
+    ).toBe(400);
+    expect((await app.inject({ url: '/api/v1/admin/links', headers: auth })).json()).toEqual([]);
+    expect(await status({ method: 'POST', url: '/api/v1/admin/links/9/sperren' })).toBe(204);
+    expect(await status({ method: 'POST', url: '/api/v1/admin/links/8/sperren' })).toBe(404);
+    expect((await app.inject({ url: '/api/v1/admin/mitteilungen', headers: auth })).json()).toEqual(
+      [],
+    );
+    expect(
+      await status({
+        method: 'POST',
+        url: '/api/v1/admin/mitteilungen/6/veroeffentlichen',
+        payload: { an: true },
+      }),
+    ).toBe(404);
+    expect(await status({ method: 'DELETE', url: '/api/v1/admin/mitteilungen/5' })).toBe(204);
+    expect(
+      await status({
+        method: 'POST',
+        url: '/api/v1/admin/orte',
+        payload: { name: '', landkreis: 'XX' },
+      }),
+    ).toBe(400);
+  });
+});
+
+describe('Fehler- und Randfälle der API', () => {
+  it('beantwortet kaputtes JSON und zu große Anfragen mit Problem Details', async () => {
+    await setup();
+    const kaputt = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      payload: '{"name": ',
+    });
+    expect(kaputt.statusCode).toBe(400);
+    expect(kaputt.headers['content-type']).toContain('application/problem+json');
+    const riesig = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/festplaetze',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ name: 'x'.repeat(20_000), lat: 50.9, lon: 11 }),
+    });
+    expect(riesig.statusCode).toBe(413);
+    expect(riesig.body).not.toContain('FST_');
+  });
+
+  it('übernimmt bestaetigt, limit und offset in den Filter', async () => {
+    const repo = await setup();
+    await app.inject('/api/v1/termine?bestaetigt=false&limit=7&offset=14');
+    expect(repo.filter).toMatchObject({ nurBestaetigt: false, limit: 7, offset: 14 });
+  });
+
+  it('verweigert alle Verwaltungsaktionen ohne gültigen Link', async () => {
+    await setup();
+    const ohne = { authorization: 'Bearer falsch' };
+    const termin = { datum: '2026-10-18', titel: 'Kirmes' };
+    const faelle: [string, string, object?][] = [
+      ['DELETE', '/api/v1/verwaltung/festplaetze?name=x'],
+      ['PUT', `/api/v1/verwaltung/termine/${termin.datum}`, termin],
+      ['PUT', '/api/v1/verwaltung/termine/6f1c0b6e-3d2a-4c1b-9f00-0123456789ab', termin],
+      ['POST', '/api/v1/verwaltung/termine/6f1c0b6e-3d2a-4c1b-9f00-0123456789ab/bestaetigen'],
+      ['DELETE', '/api/v1/verwaltung/termine/6f1c0b6e-3d2a-4c1b-9f00-0123456789ab'],
+      ['POST', '/api/v1/verwaltung/termine', termin],
+    ];
+    for (const [method, url, payload] of faelle) {
+      const res = await app.inject({ method: method as 'GET', url, headers: ohne, payload });
+      expect(res.statusCode, `${method} ${url}`).toBe(401);
+    }
+    const ungueltig = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/verwaltung/termine/6f1c0b6e-3d2a-4c1b-9f00-0123456789ab',
+      headers: { authorization: `Bearer ${TOKEN}` },
+      payload: { datum: 'kaputt', titel: 'Kirmes' },
+    });
+    expect(ungueltig.statusCode).toBe(400);
   });
 });
 

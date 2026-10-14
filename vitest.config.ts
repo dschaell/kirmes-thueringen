@@ -16,7 +16,7 @@ export default defineConfig({
       // CLIs und Composition Root werden über Docker/DAST end-to-end geprüft
       exclude: [
         'apps/api/src/main.ts',
-        'apps/api/src/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links}.ts',
+        'apps/api/src/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links,admin-cli}.ts',
       ],
       reporter: ['text', 'json-summary', 'lcov'],
       thresholds: { lines: 85, functions: 85, statements: 85, branches: 80 },

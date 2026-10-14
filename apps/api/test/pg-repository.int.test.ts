@@ -288,4 +288,87 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       'termin_geloescht',
     ]);
   });
+
+  it('reicht SQL-Fehler unverändert durch (nur Verbindungsfehler werden übersetzt)', async () => {
+    const { abfrage } = await import('../src/infrastructure/postgres/pool.js');
+    await expect(abfrage(pool, 'SELECT * FROM gibt_es_nicht', [])).rejects.toMatchObject({
+      code: '42P01',
+    });
+  });
+
+  it('Transaktionen: unbekannter Ort bricht ab und hinterlässt nichts', async () => {
+    const durch = {
+      linkId: null,
+      adminId: undefined,
+      ortSlug: 'it-gibtsnicht',
+      landkreis: 'GTH',
+      bezeichnung: 'IT',
+    };
+    const vorher = await pool.query('SELECT count(*)::int AS n FROM aenderungsprotokoll');
+    await expect(
+      new PgFestplatzRepository(pool).speichere(
+        'it-gibtsnicht',
+        { name: '', koordinate: { lat: 50.9, lon: 11 } },
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    await expect(
+      new PgTerminVerwaltung(pool).lege(
+        {
+          ortSlug: 'it-gibtsnicht',
+          landkreis: 'GTH',
+          datum: d('2026-10-18'),
+          beginn: null,
+          titel: 'x',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: false,
+        },
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    expect(
+      await new PgTerminVerwaltung(pool).aendere(
+        '00000000-0000-4000-8000-000000000000',
+        {
+          ortSlug: 'it-ulla',
+          landkreis: 'WL',
+          datum: d('2026-10-18'),
+          beginn: null,
+          titel: 'x',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: false,
+        },
+        { ...durch, ortSlug: 'it-ulla' },
+      ),
+    ).toBe(false);
+    const nachher = await pool.query('SELECT count(*)::int AS n FROM aenderungsprotokoll');
+    expect(nachher.rows[0].n).toBe(vorher.rows[0].n);
+  });
+
+  it('LegeTerminAn-Pfad: Repository speichert und liefert den Termin zurück', async () => {
+    const t = await repo.speichere({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d('2026-12-05'),
+      beginn: '18:00',
+      titel: 'ZZTEST Weihnachtstanz',
+      veranstaltungsort: 'Saal',
+      kategorie: 'tanz',
+      bestaetigt: false,
+    });
+    expect(t).toMatchObject({
+      ort: { slug: 'it-ulla', name: 'IT-Ulla' },
+      titel: 'ZZTEST Weihnachtstanz',
+      festplatz: null,
+    });
+    expect((await repo.finde(t.id))?.beginn).toBe('18:00');
+  });
+
+  it('Festplatz-Übersicht nennt die Veranstaltungsorte aus den Terminen', async () => {
+    const u = await new PgFestplatzRepository(pool).uebersicht('it-muehlberg');
+    expect(u?.veranstaltungsorte).toContain('Reitstall');
+    expect(u?.ort.koordinate).toEqual({ lat: 50.87, lon: 10.82 });
+  });
 });

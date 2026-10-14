@@ -4,7 +4,10 @@ import type { Ort } from '../domain/termin.js';
 
 /** Wer darf bearbeiten? Ergebnis einer erfolgreichen Link-Prüfung – gilt immer nur für einen Ort. */
 export interface Berechtigung {
-  readonly linkId: string;
+  /** Bearbeitungslink der Kirmesgesellschaft; null bei Änderungen der Redaktion */
+  readonly linkId: string | null;
+  /** gesetzt, wenn die Redaktion (Admin) handelt */
+  readonly adminId?: string;
   readonly ortSlug: string;
   readonly landkreis: string;
   readonly bezeichnung: string;

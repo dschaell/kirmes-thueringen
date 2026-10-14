@@ -10,10 +10,12 @@ import {
   type SucheTermine,
   type VerwalteFestplaetze,
   type VerwalteTermine,
+  type Mitteilung,
   type TerminFormular,
   type Termin,
   type Validierungsfehler,
 } from '@kirmes/core';
+import { adminRouten, type AdminAbhaengigkeiten } from './admin-routen.js';
 import Fastify, { type FastifyError, type FastifyReply, type FastifyServerOptions } from 'fastify';
 
 export interface AppAbhaengigkeiten {
@@ -23,6 +25,10 @@ export interface AppAbhaengigkeiten {
   findeTermin: FindeTermin;
   verwalteFestplaetze: VerwalteFestplaetze;
   verwalteTermine: VerwalteTermine;
+  /** Neueste veröffentlichte Mitteilung (öffentlich) */
+  aktuelleMitteilung: () => Promise<Mitteilung | null>;
+  /** Redaktionszugang; ohne diese Abhängigkeit gibt es keine Admin-Endpunkte */
+  admin?: Omit<AdminAbhaengigkeiten, 'terminDto'>;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -387,6 +393,16 @@ export async function baueApp(d: AppAbhaengigkeiten) {
         : reply.status(404).send(problem(404, 'Termin nicht gefunden'));
     },
   );
+
+  // ── Mitteilungen (öffentlich) ──────────────────────────────────────────────────────────
+  app.get('/api/v1/mitteilungen/aktuell', async (_req, reply) => {
+    const m = await d.aktuelleMitteilung();
+    reply.header('Cache-Control', 'public, max-age=60');
+    if (!m) return reply.status(404).send(problem(404, 'Keine Mitteilung'));
+    return { id: m.id, titel: m.titel, text: m.text, link: m.link, datum: m.veroeffentlichtAm };
+  });
+
+  if (d.admin) await adminRouten(app, { ...d.admin, terminDto });
 
   return app;
 }

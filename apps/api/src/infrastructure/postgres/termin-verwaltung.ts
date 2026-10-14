@@ -6,23 +6,28 @@ import type pg from 'pg';
  * des Bearbeitungslinks gehört – eine fremde Termin-ID bewirkt nichts. Jede Änderung wird protokolliert.
  */
 const SQL_ANLEGEN = `
-INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle, eingetragen_durch)
-SELECT o.id, $2::date, $3::time, $4, $5, $6, true, 'Kirmesgesellschaft', $7
+INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle,
+                    eingetragen_durch, eingetragen_von_admin)
+SELECT o.id, $2::date, $3::time, $4, $5, $6, $8,
+       CASE WHEN $7::bigint IS NULL THEN 'Redaktion' ELSE 'Kirmesgesellschaft' END, $7, $9
   FROM ort o WHERE o.slug = $1
 ON CONFLICT (ort_id, datum, titel) DO UPDATE SET
   beginn = EXCLUDED.beginn, veranstaltungsort = EXCLUDED.veranstaltungsort, kategorie = EXCLUDED.kategorie,
-  bestaetigt = true, eingetragen_durch = EXCLUDED.eingetragen_durch, geaendert_am = now()
+  bestaetigt = termin.bestaetigt OR EXCLUDED.bestaetigt, eingetragen_durch = EXCLUDED.eingetragen_durch,
+  eingetragen_von_admin = EXCLUDED.eingetragen_von_admin, geaendert_am = now()
 RETURNING id, ort_id`;
 
 const SQL_AENDERN = `
 UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltungsort = $6,
-       kategorie = $7, bestaetigt = true, eingetragen_durch = $8, geaendert_am = now()
+       kategorie = $7, bestaetigt = $9, eingetragen_durch = $8, eingetragen_von_admin = $10,
+       geaendert_am = now()
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
 
 const SQL_BESTAETIGEN = `
-UPDATE termin t SET bestaetigt = true, eingetragen_durch = $3, geaendert_am = now()
+UPDATE termin t SET bestaetigt = true, eingetragen_durch = $3, eingetragen_von_admin = $4,
+       geaendert_am = now()
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
@@ -33,7 +38,7 @@ DELETE FROM termin t USING ort o
 RETURNING t.ort_id, t.titel, t.datum::text AS datum`;
 
 const SQL_PROTOKOLL = `
-INSERT INTO aenderungsprotokoll (link_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4)`;
+INSERT INTO aenderungsprotokoll (link_id, admin_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4, $5)`;
 
 export class PgTerminVerwaltung implements TerminVerwaltung {
   constructor(private readonly db: pg.Pool) {}
@@ -48,11 +53,14 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         t.veranstaltungsort,
         t.kategorie,
         durch.linkId,
+        t.bestaetigt,
+        durch.adminId ?? null,
       ]);
       const neu = r.rows[0];
       if (!neu) throw new Error(`Ort ${t.ortSlug} nicht gefunden`);
       await c.query(SQL_PROTOKOLL, [
         durch.linkId,
+        durch.adminId ?? null,
         neu.ort_id,
         'termin_angelegt',
         { id: neu.id, ...t },
@@ -73,7 +81,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         titel: t.titel,
         veranstaltungsort: t.veranstaltungsort,
         kategorie: t.kategorie,
-        bestaetigt: true,
+        bestaetigt: t.bestaetigt,
         festplatz: null,
       };
     });
@@ -91,6 +99,8 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         t.veranstaltungsort,
         t.kategorie,
         durch.linkId,
+        t.bestaetigt,
+        durch.adminId ?? null,
       ],
       durch,
       'termin_geaendert',
@@ -101,7 +111,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
   bestaetige(id: string, durch: Berechtigung): Promise<boolean> {
     return this.mitProtokoll(
       SQL_BESTAETIGEN,
-      [id, durch.ortSlug, durch.linkId],
+      [id, durch.ortSlug, durch.linkId, durch.adminId ?? null],
       durch,
       'termin_bestaetigt',
       {
@@ -125,7 +135,13 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       const r = await c.query<{ ort_id: string }>(sql, werte);
       const zeile = r.rows[0];
       if (!zeile) return false;
-      await c.query(SQL_PROTOKOLL, [durch.linkId, zeile.ort_id, aktion, { ...details, ...zeile }]);
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        durch.adminId ?? null,
+        zeile.ort_id,
+        aktion,
+        { ...details, ...zeile },
+      ]);
       return true;
     });
   }

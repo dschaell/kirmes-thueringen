@@ -43,6 +43,8 @@ describe('erkenneKategorie', () => {
     ['Discoparty mit DJ Holler', 'party'],
     ['Frühschoppen mit den „Thanas“', 'fruehschoppen'],
     ['Herbstball', 'tanz'],
+    ['Osterfeuer mit Tanz', 'ostern'],
+    ['Maisprung', 'mai'],
   ])('%s → %s', (titel, k) => expect(erkenneKategorie(titel)).toBe(k));
 });
 

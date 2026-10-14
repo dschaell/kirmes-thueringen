@@ -48,7 +48,9 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links}.ts'],
+    files: [
+      '**/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links,admin-cli}.ts',
+    ],
     rules: { 'no-console': 'off' },
   },
   {

@@ -103,4 +103,10 @@ describe('VerwalteTermine', () => {
     expect(await uc.bestaetige('gut', 'kein-uuid')).toEqual({ ok: true, value: false });
     expect(await uc.loesche('gut', ID)).toEqual({ ok: true, value: true });
   });
+
+  it('ändert keine Termine mit ungültigen Angaben', async () => {
+    const { uc } = aufbau();
+    const r = await uc.aendere('gut', ID, { datum: '2026-13-01', titel: 'Kirmes' });
+    expect(!r.ok && Array.isArray(r.error)).toBe(true);
+  });
 });

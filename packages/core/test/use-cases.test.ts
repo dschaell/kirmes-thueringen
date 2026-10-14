@@ -105,6 +105,11 @@ describe('baueFilter', () => {
     ]);
   });
 
+  it('fällt bei ungültigem „von“ für „bis“ auf heute zurück und meldet nur den einen Fehler', () => {
+    const r = baueFilter({ von: 'kaputt' }, uhr);
+    expect(!r.ok && r.error.map((f) => f.code)).toEqual(['DATUM_UNGUELTIG']);
+  });
+
   it('lehnt umgekehrten Zeitraum ab', () => {
     const r = baueFilter({ von: '2026-12-01', bis: '2026-11-01' }, uhr);
     expect(!r.ok && r.error[0]?.code).toBe('BEREICH_UMGEKEHRT');
