@@ -89,7 +89,7 @@ jobs:
         with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
       - run: npm ci
       - run: npm run build -w @kirmes/core
-      - run: npm run db:migrate && npm run db:seed
+      - run: npm run db:migrate && npm run db:orte && npm run db:beispiele
       - name: Unit- und Integrationstests mit Mindestabdeckung (vitest thresholds)
         run: npm run test:coverage
       - name: Coverage-Ratchet – Abdeckung darf gegenüber dem Basis-Branch nicht sinken
@@ -219,7 +219,8 @@ jobs:
           POSTGRES_PASSWORD: ci_only_not_secret
         run: |
           docker compose --profile app up -d --build --wait
-          docker compose --profile app run --rm migrate node apps/api/dist/infrastructure/postgres/seed.js
+          docker compose --profile app run --rm migrate node apps/api/dist/infrastructure/postgres/orte.js
+          docker compose --profile app run --rm migrate node apps/api/dist/infrastructure/postgres/beispiele.js
       - name: ZAP Baseline – Web (Client-Tier)
         run: |
           mkdir -p zap && chmod 777 zap

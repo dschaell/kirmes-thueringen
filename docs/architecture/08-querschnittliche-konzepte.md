@@ -20,7 +20,7 @@
 - **Landkreis**: nur die 23 Thüringer Kreise/kreisfreien Städte.
 - **Saisonregel**: Kirmes außerhalb September–November ergibt einen **Hinweis**, keinen Fehler
   (Mai- und Osterkirmes sind legitim, aber selten).
-- **Bestätigt-Flag**: aus Vorjahren hochgerechnete Termine bleiben `bestaetigt = false` und werden im UI markiert.
+- **Bestätigt-Flag**: Einträge der Kirmesgesellschaft sind `bestaetigt = true`; recherchierte Termine bleiben `false`, bis die Gesellschaft sie bestätigt. Die Quelle jedes Termins wird intern gespeichert (`termin.quelle`).
 
 ## 8.3 Fehlerbehandlung und Resilienz
 

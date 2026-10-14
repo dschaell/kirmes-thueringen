@@ -32,7 +32,7 @@ export interface Termin {
   readonly titel: string;
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
-  /** false = aus Vorjahren hochgerechnet, vom Veranstalter nicht bestätigt */
+  /** true = vom Veranstalter (Kirmesgesellschaft) bestätigt; false = aus öffentlicher Ankündigung recherchiert */
   readonly bestaetigt: boolean;
   /** Von der Kirmesgesellschaft hinterlegter Festplatz (passend zum Veranstaltungsort oder Standard) */
   readonly festplatz: Koordinate | null;

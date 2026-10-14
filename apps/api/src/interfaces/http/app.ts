@@ -9,6 +9,8 @@ import {
   type ListeOrte,
   type SucheTermine,
   type VerwalteFestplaetze,
+  type VerwalteTermine,
+  type TerminFormular,
   type Termin,
   type Validierungsfehler,
 } from '@kirmes/core';
@@ -20,6 +22,7 @@ export interface AppAbhaengigkeiten {
   findeOrt: FindeOrt;
   findeTermin: FindeTermin;
   verwalteFestplaetze: VerwalteFestplaetze;
+  verwalteTermine: VerwalteTermine;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -103,6 +106,24 @@ const terminDto = (t: Termin) => ({
 /** „Authorization: Bearer <token>“ → token */
 const bearer = (h: string | undefined): string =>
   h?.startsWith('Bearer ') ? h.slice(7).trim() : '';
+
+const terminFormularSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['datum', 'titel'],
+  properties: {
+    datum: { type: 'string', maxLength: 10 },
+    beginn: { type: ['string', 'null'], maxLength: 5 },
+    titel: { type: 'string', maxLength: 200 },
+    veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
+    kategorie: { type: ['string', 'null'], maxLength: 20 },
+  },
+} as const;
+
+const idSchema = {
+  type: 'object',
+  properties: { id: { type: 'string', maxLength: 36 } },
+} as const;
 
 const festplatzSchema = {
   type: 'object',
@@ -291,6 +312,79 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       return r.value
         ? reply.status(204).send()
         : reply.status(404).send(problem(404, 'Festplatz nicht gefunden'));
+    },
+  );
+
+  // ── Termine der Kirmesgesellschaft ─────────────────────────────────────────────────────
+  const ungueltig = (reply: FastifyReply, fehler: Validierungsfehler[]) =>
+    reply
+      .status(400)
+      .type('application/problem+json')
+      .send(problem(400, 'Ungültiger Termin', { fehler }));
+
+  app.get('/api/v1/verwaltung/termine', async (req, reply) => {
+    const r = await d.verwalteTermine.liste(bearer(req.headers.authorization));
+    reply.header('Cache-Control', 'no-store');
+    return r.ok ? r.value.map(terminDto) : nichtBerechtigt(reply);
+  });
+
+  app.post<{ Body: TerminFormular }>(
+    '/api/v1/verwaltung/termine',
+    { schema: { body: terminFormularSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.lege(bearer(req.headers.authorization), req.body);
+      if (r.ok)
+        return reply
+          .status(201)
+          .send({ termin: terminDto(r.value.termin), hinweise: r.value.hinweise });
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.put<{ Params: { id: string }; Body: TerminFormular }>(
+    '/api/v1/verwaltung/termine/:id',
+    { schema: { params: idSchema, body: terminFormularSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.aendere(
+        bearer(req.headers.authorization),
+        req.params.id,
+        req.body,
+      );
+      if (r.ok) return r.value;
+      if (r.error === 'NICHT_GEFUNDEN') {
+        return reply
+          .status(404)
+          .type('application/problem+json')
+          .send(problem(404, 'Termin nicht gefunden'));
+      }
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/verwaltung/termine/:id/bestaetigen',
+    { schema: { params: idSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.bestaetige(
+        bearer(req.headers.authorization),
+        req.params.id,
+      );
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Termin nicht gefunden'));
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    '/api/v1/verwaltung/termine/:id',
+    { schema: { params: idSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.loesche(bearer(req.headers.authorization), req.params.id);
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Termin nicht gefunden'));
     },
   );
 

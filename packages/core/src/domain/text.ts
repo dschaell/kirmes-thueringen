@@ -1,5 +1,5 @@
 /**
- * Normalisierung von Freitext aus Meldungen und dem Altdaten-Import.
+ * Normalisierung von Freitext aus Meldungen, Recherche-Tabellen und Eingaben der Kirmesgesellschaften.
  * Ziel: einheitliche, saubere Titel – keine Platzhalter, deutsche Anführungszeichen.
  */
 

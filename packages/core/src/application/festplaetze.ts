@@ -6,6 +6,7 @@ import type { Ort } from '../domain/termin.js';
 export interface Berechtigung {
   readonly linkId: string;
   readonly ortSlug: string;
+  readonly landkreis: string;
   readonly bezeichnung: string;
 }
 

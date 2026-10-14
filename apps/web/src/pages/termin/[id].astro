@@ -69,7 +69,10 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
               vom Veranstalter bestätigt
             </span>
           ) : (
-            <span class="leise klein"> · aus dem Vorjahr übernommen, noch nicht bestätigt</span>
+            <span class="leise klein">
+              {' '}
+              · aus einer öffentlichen Ankündigung, noch nicht vom Veranstalter bestätigt
+            </span>
           )
         }
       </dd>

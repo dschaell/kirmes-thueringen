@@ -6,86 +6,121 @@
  */
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
+import { KATEGORIEN } from '../../lib/anzeige';
 ---
 
 <Base
-  title="Festplatz eintragen – Kirmeskalender Thüringen"
+  title="Eure Kirmes verwalten – Kirmeskalender Thüringen"
   description="Bearbeitung für Kirmesgesellschaften."
   noindex
 >
   <section class="einstieg">
-    <h1 id="titel">Festplatz eintragen</h1>
+    <h1 id="titel">Eure Kirmes verwalten</h1>
     <p class="unterzeile" id="untertitel">Einen Moment, der Link wird geprüft …</p>
   </section>
 
   <p class="meldung" id="meldung" role="status" hidden></p>
 
   <div id="bereich" hidden>
-    <div class="zweispaltig">
-      <div>
-        <h2>1. Platz auswählen</h2>
-        <p class="leise klein">
-          Die Liste enthält die Veranstaltungsorte aus euren Terminen. Der <strong
-            >Standard-Festplatz</strong
-          >
-          gilt für alle Termine, für die kein eigener Platz eingetragen ist.
-        </p>
-        <ul class="eintraege" id="plaetze"></ul>
-      </div>
-      <aside class="seitenleiste">
-        <div class="kasten">
-          <h2>So geht's</h2>
-          <ol class="klein">
-            <li>Links einen Platz auswählen.</li>
-            <li>
-              Pin auf der Karte setzen: klicken, Adresse suchen, Standort nutzen oder
-              Google-Maps-Link einfügen.
-            </li>
-            <li>
-              „Speichern“ – fertig. Nach wenigen Minuten führt die Route auf der Website dorthin.
-            </li>
-          </ol>
-          <p class="klein leise">
-            Jede Änderung wird mit Datum gespeichert. Gebt den Link nicht weiter.
-          </p>
-        </div>
-      </aside>
-    </div>
+    <!-- ── Termine ─────────────────────────────────────────────────────────── -->
+    <section aria-labelledby="h-termine">
+      <h2 id="h-termine">Eure Termine</h2>
+      <p class="leise">
+        Was ihr hier eintragt, erscheint sofort im Kalender und gilt als vom Veranstalter bestätigt.
+        Termine, die wir aus Ankündigungen übernommen haben, könnt ihr mit einem Klick bestätigen.
+      </p>
+      <ul class="eintraege" id="terminliste"></ul>
+      <p class="leer" id="keine-termine" hidden>Noch keine Termine eingetragen.</p>
 
-    <section id="editor" hidden>
-      <h2>2. Pin setzen für: <span id="aktuell"></span></h2>
-      <form class="suchzeile" id="adresssuche">
-        <input
-          type="search"
-          id="adresse"
-          placeholder="Adresse suchen, z. B. Hauptstraße 1, Mühlberg"
-          aria-label="Adresse suchen"
-        />
-        <button class="knopf zweit" type="submit"><Icon name="suche" />Suchen</button>
-      </form>
-      <div
-        class="karte"
-        id="karte"
-        role="application"
-        aria-label="Karte – klicken, um den Pin zu setzen"
-      >
-      </div>
-      <div class="knopfreihe">
-        <button class="knopf zweit" type="button" id="standort"
-          ><Icon name="standort" />Meinen Standort verwenden</button
+      <h3 id="formular-titel">Termin hinzufügen</h3>
+      <form class="melden" id="terminformular">
+        <div class="zwei">
+          <label>Datum *<input name="datum" type="date" required /></label>
+          <label>Beginn<input name="beginn" type="time" /></label>
+        </div>
+        <label
+          >Veranstaltung *<input
+            name="titel"
+            required
+            maxlength="200"
+            placeholder="z. B. Kirmestanz mit „Bandname“"
+          /></label
         >
-        <input
-          id="einfuegen"
-          placeholder="Google-Maps-Link oder „50.87, 10.82“ einfügen"
-          aria-label="Koordinaten oder Kartenlink einfügen"
-        />
-      </div>
-      <p class="leise klein" id="koordinate">Noch kein Pin gesetzt.</p>
-      <div class="knopfreihe">
-        <button class="knopf" type="button" id="speichern" disabled>Speichern</button>
-        <button class="knopf zweit" type="button" id="entfernen" hidden>Eintrag entfernen</button>
+        <div class="zwei">
+          <label
+            >Wo genau?<input
+              name="veranstaltungsort"
+              maxlength="120"
+              list="orte-liste"
+              placeholder="z. B. Festzelt, Kulturhaus"
+            /></label
+          >
+          <label
+            >Art
+            <select name="kategorie">
+              <option value="">automatisch erkennen</option>
+              {Object.entries(KATEGORIEN).map(([k, v]) => <option value={k}>{v.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <datalist id="orte-liste"></datalist>
+        <div class="knopfreihe">
+          <button class="knopf" type="submit" id="termin-speichern">Termin speichern</button>
+          <button class="knopf zweit" type="button" id="termin-abbrechen" hidden>Abbrechen</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Festplätze ──────────────────────────────────────────────────────── -->
+    <section aria-labelledby="h-plaetze">
+      <h2 id="h-plaetze">Festplätze auf der Karte</h2>
+      <p class="leise">
+        Damit „Route“ eure Gäste direkt zum Festzelt, Saal oder Sportplatz führt. Der
+        <strong>Standard-Festplatz</strong> gilt für alle Termine ohne eigenen Platz.
+      </p>
+      <ul class="eintraege" id="plaetze"></ul>
+
+      <div id="editor" hidden>
+        <h3>Pin setzen für: <span id="aktuell"></span></h3>
+        <form class="suchzeile" id="adresssuche">
+          <input
+            type="search"
+            id="adresse"
+            placeholder="Adresse suchen, z. B. Hauptstraße 1"
+            aria-label="Adresse suchen"
+          />
+          <button class="knopf zweit" type="submit"><Icon name="suche" />Suchen</button>
+        </form>
+        <div
+          class="karte"
+          id="karte"
+          role="application"
+          aria-label="Karte – klicken, um den Pin zu setzen"
+        >
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf zweit" type="button" id="standort"
+            ><Icon name="standort" />Meinen Standort verwenden</button
+          >
+          <input
+            id="einfuegen"
+            placeholder="Google-Maps-Link oder „50.87, 10.82“ einfügen"
+            aria-label="Koordinaten oder Kartenlink einfügen"
+          />
+        </div>
+        <p class="leise klein" id="koordinate">Noch kein Pin gesetzt.</p>
+        <div class="knopfreihe">
+          <button class="knopf" type="button" id="speichern" disabled>Festplatz speichern</button>
+          <button class="knopf zweit" type="button" id="entfernen" hidden>Eintrag entfernen</button>
+        </div>
       </div>
     </section>
+
+    <p class="klein leise abstand-oben">
+      Jede Änderung wird mit Datum gespeichert. Gebt den Link bitte nicht weiter – bei Bedarf
+      sperren wir ihn und schicken euch einen neuen. Änderungen sind nach wenigen Minuten auf allen
+      Seiten sichtbar.
+    </p>
   </div>
 </Base>
 
@@ -100,13 +135,33 @@ import Icon from '../../components/Icon.astro';
     festplaetze: { name: string; koordinate: Koordinate }[];
     veranstaltungsorte: string[];
   };
+  type Termin = {
+    id: string;
+    datum: string;
+    beginn: string | null;
+    titel: string;
+    veranstaltungsort: string | null;
+    kategorie: string;
+    bestaetigt: boolean;
+  };
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, klasse = '', text = '') => {
+    const e = document.createElement(tag);
+    if (klasse) e.className = klasse;
+    if (text) e.textContent = text;
+    return e;
+  };
   const meldung = (text: string, gut = false) => {
     const m = $('meldung');
     m.textContent = text;
     m.className = gut ? 'meldung gut' : 'meldung';
     m.hidden = false;
+    m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  const fehlertext = async (res: Response, standard: string) => {
+    const body = await res.json().catch(() => ({}));
+    return body.fehler?.map((f: { meldung: string }) => f.meldung).join(' ') || standard;
   };
 
   // Token aus dem Fragment übernehmen und aus der Adresszeile entfernen (nicht versehentlich teilen).
@@ -117,13 +172,169 @@ import Icon from '../../components/Icon.astro';
   }
   const token = sessionStorage.getItem('kirmes-link');
   const auth = { authorization: `Bearer ${token ?? ''}` };
+  const api = (pfad: string, init: RequestInit = {}) =>
+    fetch(`/verwalten/${pfad}`, {
+      ...init,
+      headers: {
+        ...auth,
+        ...(init.body ? { 'content-type': 'application/json' } : {}),
+      },
+    });
 
   let daten: Uebersicht;
+  let termine: Termin[] = [];
+  let bearbeiteteId: string | null = null;
+
+  // ── Laden ────────────────────────────────────────────────────────────────
+  async function laden() {
+    if (!token) {
+      $('untertitel').textContent = 'Diese Seite ist nur über einen persönlichen Link erreichbar.';
+      return;
+    }
+    const [r1, r2] = await Promise.all([api('festplaetze'), api('termine')]);
+    if (r1.status === 401) {
+      sessionStorage.removeItem('kirmes-link');
+      $('untertitel').textContent =
+        'Der Link ist ungültig oder wurde gesperrt. Bitte fordert über „Termin melden“ einen neuen an.';
+      return;
+    }
+    if (!r1.ok || !r2.ok) {
+      meldung('Die Daten konnten gerade nicht geladen werden. Bitte später erneut versuchen.');
+      return;
+    }
+    daten = await r1.json();
+    termine = await r2.json();
+    $('titel').textContent = `Kirmes in ${daten.ort.name}`;
+    $('untertitel').textContent = `Angemeldet als ${daten.bezeichnung}.`;
+    $('bereich').hidden = false;
+    zeigeTermine();
+    zeigePlaetze();
+  }
+
+  // ── Termine ──────────────────────────────────────────────────────────────
+  const datumText = (iso: string) =>
+    new Date(iso).toLocaleDateString('de-DE', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+  function zeigeTermine() {
+    const heute = new Date().toISOString().slice(0, 10);
+    $('keine-termine').hidden = termine.length > 0;
+    $('terminliste').replaceChildren(
+      ...termine.map((t) => {
+        const li = el('li', 'eintrag');
+        const zeit = el('span', 'zeit', t.beginn ?? '');
+        const info = el('div');
+        const titel = el('strong', '', t.titel);
+        const wo = el(
+          'div',
+          'wo',
+          `${datumText(t.datum)}${t.veranstaltungsort ? ' · ' + t.veranstaltungsort : ''}${t.datum < heute ? ' · vorbei' : ''}`,
+        );
+        const status = el(
+          'span',
+          t.bestaetigt ? 'bestaetigt' : 'kat',
+          t.bestaetigt ? '✓ bestätigt' : 'noch nicht bestätigt',
+        );
+        info.append(titel, ' ', status, wo);
+        const knoepfe = el('div', 'knopfreihe');
+        if (!t.bestaetigt) {
+          const b = el('button', 'knopf', 'Bestätigen');
+          b.type = 'button';
+          b.addEventListener('click', () => bestaetigen(t));
+          knoepfe.append(b);
+        }
+        const aendern = el('button', 'knopf zweit', 'Ändern');
+        aendern.type = 'button';
+        aendern.addEventListener('click', () => bearbeiten(t));
+        const loeschen = el('button', 'knopf zweit', 'Löschen');
+        loeschen.type = 'button';
+        loeschen.addEventListener('click', () => entfernen(t));
+        knoepfe.append(aendern, loeschen);
+        li.append(zeit, info, knoepfe);
+        return li;
+      }),
+    );
+    $('orte-liste').replaceChildren(
+      ...daten.veranstaltungsorte.map((n) => {
+        const o = el('option');
+        o.value = n;
+        return o;
+      }),
+    );
+  }
+
+  const formular = $<HTMLFormElement>('terminformular');
+  const feld = (name: string) =>
+    formular.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement;
+
+  function bearbeiten(t: Termin) {
+    bearbeiteteId = t.id;
+    feld('datum').value = t.datum;
+    feld('beginn').value = t.beginn ?? '';
+    feld('titel').value = t.titel;
+    feld('veranstaltungsort').value = t.veranstaltungsort ?? '';
+    feld('kategorie').value = t.kategorie;
+    $('formular-titel').textContent = 'Termin ändern';
+    $('termin-abbrechen').hidden = false;
+    formular.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function formularLeeren() {
+    bearbeiteteId = null;
+    formular.reset();
+    $('formular-titel').textContent = 'Termin hinzufügen';
+    $('termin-abbrechen').hidden = true;
+  }
+  $('termin-abbrechen').addEventListener('click', formularLeeren);
+
+  formular.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = JSON.stringify({
+      datum: feld('datum').value,
+      beginn: feld('beginn').value || null,
+      titel: feld('titel').value,
+      veranstaltungsort: feld('veranstaltungsort').value || null,
+      kategorie: feld('kategorie').value || null,
+    });
+    const res = bearbeiteteId
+      ? await api(`termine/${bearbeiteteId}`, { method: 'PUT', body })
+      : await api('termine', { method: 'POST', body });
+    if (!res.ok)
+      return meldung(await fehlertext(res, 'Der Termin konnte nicht gespeichert werden.'));
+    const { hinweise = [] } = await res.json();
+    meldung(
+      ['Termin gespeichert.', ...hinweise.map((h: { meldung: string }) => h.meldung)].join(' '),
+      true,
+    );
+    formularLeeren();
+    await laden();
+  });
+
+  async function bestaetigen(t: Termin) {
+    const res = await api(`termine/${t.id}/bestaetigen`, { method: 'POST' });
+    if (!res.ok) return meldung('Bestätigen fehlgeschlagen.');
+    meldung(`„${t.titel}“ ist jetzt als bestätigt markiert.`, true);
+    await laden();
+  }
+
+  async function entfernen(t: Termin) {
+    if (!confirm(`„${t.titel}“ am ${datumText(t.datum)} wirklich löschen?`)) return;
+    const res = await api(`termine/${t.id}`, { method: 'DELETE' });
+    if (!res.ok) return meldung('Löschen fehlgeschlagen.');
+    meldung('Termin gelöscht.', true);
+    await laden();
+  }
+
+  // ── Festplätze ───────────────────────────────────────────────────────────
   let auswahl: string | null = null;
   let karte: L.Map | null = null;
   let pin: L.Marker | null = null;
   let punkt: Koordinate | null = null;
-
   const THUERINGEN = { lat: 50.9, lon: 11.03 };
   const pinIcon = L.divIcon({
     className: 'pin',
@@ -132,53 +343,28 @@ import Icon from '../../components/Icon.astro';
     iconAnchor: [14, 28],
   });
 
-  async function laden() {
-    if (!token) {
-      $('untertitel').textContent = 'Diese Seite ist nur über einen persönlichen Link erreichbar.';
-      return;
-    }
-    const res = await fetch('/verwalten/festplaetze', { headers: auth });
-    if (res.status === 401) {
-      sessionStorage.removeItem('kirmes-link');
-      $('untertitel').textContent =
-        'Der Link ist ungültig oder wurde gesperrt. Bitte fordert über „Termin melden“ einen neuen an.';
-      return;
-    }
-    if (!res.ok) {
-      meldung('Die Daten konnten gerade nicht geladen werden. Bitte später erneut versuchen.');
-      return;
-    }
-    daten = await res.json();
-    $('titel').textContent = `Festplätze in ${daten.ort.name}`;
-    $('untertitel').textContent = `Angemeldet als ${daten.bezeichnung}.`;
-    $('bereich').hidden = false;
-    liste();
-  }
-
-  function liste() {
+  function zeigePlaetze() {
     const namen = [
       '',
-      ...new Set([...daten.veranstaltungsorte, ...daten.festplaetze.map((f) => f.name)]),
+      ...new Set([
+        ...termine.map((t) => t.veranstaltungsort).filter((n): n is string => Boolean(n)),
+        ...daten.veranstaltungsorte,
+        ...daten.festplaetze.map((f) => f.name),
+      ]),
     ].filter((n, i, a) => a.indexOf(n) === i);
-    const ul = $('plaetze');
-    ul.replaceChildren(
+    $('plaetze').replaceChildren(
       ...namen.map((name) => {
         const vorhanden = daten.festplaetze.find((f) => f.name === name);
-        const li = document.createElement('li');
-        li.className = 'eintrag';
-        const titel = document.createElement('div');
-        const strong = document.createElement('strong');
-        strong.textContent = name || 'Standard-Festplatz';
-        const status = document.createElement('div');
-        status.className = 'leise klein';
-        status.textContent = vorhanden ? 'eingetragen ✓' : 'noch kein Pin';
-        titel.append(strong, status);
-        const knopf = document.createElement('button');
+        const li = el('li', 'eintrag');
+        const info = el('div');
+        info.append(
+          el('strong', '', name || 'Standard-Festplatz'),
+          el('div', 'leise klein', vorhanden ? 'eingetragen ✓' : 'noch kein Pin'),
+        );
+        const knopf = el('button', 'knopf zweit', vorhanden ? 'Ändern' : 'Pin setzen');
         knopf.type = 'button';
-        knopf.className = 'knopf zweit';
-        knopf.textContent = vorhanden ? 'Ändern' : 'Pin setzen';
-        knopf.addEventListener('click', () => bearbeiten(name));
-        li.append(document.createElement('span'), titel, knopf);
+        knopf.addEventListener('click', () => pinBearbeiten(name));
+        li.append(el('span'), info, knopf);
         return li;
       }),
     );
@@ -200,18 +386,16 @@ import Icon from '../../components/Icon.astro';
     $<HTMLButtonElement>('speichern').disabled = false;
   }
 
-  function bearbeiten(name: string) {
+  function pinBearbeiten(name: string) {
     auswahl = name;
     $('editor').hidden = false;
     $('aktuell').textContent = name || 'Standard-Festplatz';
     const vorhanden = daten.festplaetze.find((f) => f.name === name);
     $('entfernen').hidden = !vorhanden;
     const start = vorhanden?.koordinate ?? daten.ort.koordinate ?? THUERINGEN;
+    const zoom = vorhanden ? 17 : daten.ort.koordinate ? 15 : 9;
     if (!karte) {
-      karte = L.map('karte').setView(
-        [start.lat, start.lon],
-        vorhanden || daten.ort.koordinate ? 16 : 9,
-      );
+      karte = L.map('karte').setView([start.lat, start.lon], zoom);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution:
@@ -220,13 +404,9 @@ import Icon from '../../components/Icon.astro';
       karte.on('click', (e: L.LeafletMouseEvent) =>
         setzePunkt({ lat: e.latlng.lat, lon: e.latlng.lng }),
       );
-    } else {
-      karte.setView([start.lat, start.lon], vorhanden ? 17 : karte.getZoom());
-    }
-    if (pin) {
-      pin.remove();
-      pin = null;
-    }
+    } else karte.setView([start.lat, start.lon], zoom);
+    pin?.remove();
+    pin = null;
     punkt = null;
     $<HTMLButtonElement>('speichern').disabled = true;
     $('koordinate').textContent = 'Noch kein Pin gesetzt – auf die Karte klicken.';
@@ -290,37 +470,28 @@ import Icon from '../../components/Icon.astro';
 
   $('speichern').addEventListener('click', async () => {
     if (auswahl === null || !punkt) return;
-    const res = await fetch('/verwalten/festplaetze', {
+    const res = await api('festplaetze', {
       method: 'PUT',
-      headers: { ...auth, 'content-type': 'application/json' },
       body: JSON.stringify({ name: auswahl, lat: punkt.lat, lon: punkt.lon }),
     });
-    if (res.ok) {
-      meldung(
-        `Gespeichert: „${auswahl || 'Standard-Festplatz'}“. In wenigen Minuten führt die Route auf der Website dorthin.`,
-        true,
-      );
-      await laden();
-      bearbeiten(auswahl);
-    } else if (res.status === 400) {
-      const body = await res.json().catch(() => ({}));
-      meldung(body.fehler?.[0]?.meldung ?? 'Der Punkt konnte nicht gespeichert werden.');
-    } else {
-      meldung('Speichern fehlgeschlagen. Ist der Link noch gültig?');
-    }
+    if (!res.ok)
+      return meldung(await fehlertext(res, 'Der Punkt konnte nicht gespeichert werden.'));
+    meldung(
+      `Gespeichert: „${auswahl || 'Standard-Festplatz'}“. In wenigen Minuten führt die Route auf der Website dorthin.`,
+      true,
+    );
+    const gewaehlt = auswahl;
+    await laden();
+    pinBearbeiten(gewaehlt);
   });
 
   $('entfernen').addEventListener('click', async () => {
     if (auswahl === null || !confirm('Eintrag wirklich entfernen?')) return;
-    const res = await fetch(`/verwalten/festplaetze?name=${encodeURIComponent(auswahl)}`, {
-      method: 'DELETE',
-      headers: auth,
-    });
-    if (res.ok) {
-      meldung('Eintrag entfernt.', true);
-      $('editor').hidden = true;
-      await laden();
-    } else meldung('Entfernen fehlgeschlagen.');
+    const res = await api(`festplaetze?name=${encodeURIComponent(auswahl)}`, { method: 'DELETE' });
+    if (!res.ok) return meldung('Entfernen fehlgeschlagen.');
+    meldung('Eintrag entfernt.', true);
+    $('editor').hidden = true;
+    await laden();
   });
 
   laden();
@@ -337,11 +508,24 @@ import Icon from '../../components/Icon.astro';
     transform: rotate(-45deg);
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
   }
-  #plaetze .eintrag {
+  #plaetze .eintrag,
+  #terminliste .eintrag {
     align-items: center;
+  }
+  #terminliste .knopf {
+    padding: 8px 12px;
+    font-size: 0.9rem;
   }
   #einfuegen {
     flex: 1;
     min-width: 220px;
+  }
+  .abstand-oben {
+    margin-top: 40px;
+  }
+  @media (max-width: 600px) {
+    #terminliste .knopfreihe {
+      grid-column: 1 / -1;
+    }
   }
 </style>

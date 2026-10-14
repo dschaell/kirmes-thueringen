@@ -5,6 +5,8 @@ import {
   FindeTermin,
   SucheTermine,
   VerwalteFestplaetze,
+  VerwalteTermine,
+  type TerminVerwaltung,
   type FestplatzRepository,
   type OrtRepository,
   type KalenderDatum,
@@ -61,10 +63,20 @@ const festplatzRepo: FestplatzRepository & { gespeichert: unknown[] } = {
 const verwalte = new VerwalteFestplaetze(
   {
     pruefe: async (t) =>
-      t === TOKEN ? { linkId: '1', ortSlug: 'muehlberg', bezeichnung: 'KG Mühlberg' } : null,
+      t === TOKEN
+        ? { linkId: '1', ortSlug: 'muehlberg', landkreis: 'GTH', bezeichnung: 'KG Mühlberg' }
+        : null,
   },
   festplatzRepo,
 );
+
+const geaendert: string[] = [];
+const terminVerwaltung: TerminVerwaltung = {
+  lege: async (t) => ({ ...termin, titel: t.titel, datum: t.datum }),
+  aendere: async (id) => (geaendert.push(`aendere:${id}`), id === termin.id),
+  bestaetige: async (id) => id === termin.id,
+  loesche: async (id) => id === termin.id,
+};
 
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
@@ -74,6 +86,17 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     findeOrt: new FindeOrt(ortRepo),
     findeTermin: new FindeTermin(repo),
     verwalteFestplaetze: verwalte,
+    verwalteTermine: new VerwalteTermine(
+      {
+        pruefe: async (t) =>
+          t === TOKEN
+            ? { linkId: '1', ortSlug: 'muehlberg', landkreis: 'GTH', bezeichnung: 'KG Mühlberg' }
+            : null,
+      },
+      terminVerwaltung,
+      repo,
+      uhr,
+    ),
     datenbankErreichbar: async () => dbOk,
   });
   return repo;
@@ -232,6 +255,87 @@ describe('Verwaltung (Bearbeitungslink)', () => {
       });
     expect((await del('Reitstall')).statusCode).toBe(204);
     expect((await del('Gibtsnicht')).statusCode).toBe(404);
+  });
+});
+
+describe('Termine der Kirmesgesellschaft', () => {
+  const auth = { authorization: `Bearer ${TOKEN}` };
+  const url = '/api/v1/verwaltung/termine';
+
+  it('listet nur die Termine des eigenen Ortes', async () => {
+    const repo = await setup();
+    const res = await app.inject({ url, headers: auth });
+    expect(res.statusCode).toBe(200);
+    expect(repo.filter?.ortSlug).toBe('muehlberg');
+    expect((await app.inject({ url })).statusCode).toBe(401);
+  });
+
+  it('legt Termine an – Ort und Bestätigung kommen aus dem Link', async () => {
+    await setup();
+    const res = await app.inject({
+      method: 'POST',
+      url,
+      headers: auth,
+      payload: {
+        datum: '2026-05-02',
+        beginn: '20:00',
+        titel: 'Maikirmes',
+        veranstaltungsort: 'Saal',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().hinweise[0].code).toBe('KIRMES_AUSSERHALB_HERBST');
+    const fremd = await app.inject({
+      method: 'POST',
+      url,
+      headers: auth,
+      payload: { datum: '2026-10-18', titel: 'x', ortSlug: 'anderer-ort' },
+    });
+    expect(fremd.statusCode).toBe(400);
+    const kaputt = await app.inject({
+      method: 'POST',
+      url,
+      headers: auth,
+      payload: { datum: '31.02.', titel: 'x' },
+    });
+    expect(kaputt.statusCode).toBe(400);
+  });
+
+  it('ändert, bestätigt und löscht nur vorhandene Termine', async () => {
+    await setup();
+    const payload = { datum: '2026-10-18', titel: 'Kirmestanz' };
+    expect(
+      (await app.inject({ method: 'PUT', url: `${url}/${termin.id}`, headers: auth, payload }))
+        .statusCode,
+    ).toBe(200);
+    const fremdeId = '00000000-0000-4000-8000-000000000000';
+    expect(
+      (await app.inject({ method: 'PUT', url: `${url}/${fremdeId}`, headers: auth, payload }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'PUT', url: `${url}/kein-uuid`, headers: auth, payload }))
+        .statusCode,
+    ).toBe(404);
+    expect(geaendert).not.toContain('aendere:kein-uuid');
+    expect(
+      (await app.inject({ method: 'POST', url: `${url}/${termin.id}/bestaetigen`, headers: auth }))
+        .statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'POST', url: `${url}/${fremdeId}/bestaetigen`, headers: auth }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `${url}/${termin.id}`, headers: auth }))
+        .statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `${url}/${fremdeId}`, headers: auth })).statusCode,
+    ).toBe(404);
+    expect((await app.inject({ method: 'DELETE', url: `${url}/${termin.id}` })).statusCode).toBe(
+      401,
+    );
   });
 });
 

@@ -126,7 +126,7 @@ erDiagram
   festplatz { bigint id PK bigint ort_id FK text name "= termin.veranstaltungsort, '' = Standard" geography lage "Point 4326" }
   bearbeitungslink { bigint id PK bytea token_hash UK "SHA-256" text bezeichnung timestamptz gesperrt_am }
   aenderungsprotokoll { bigint id PK bigint link_id FK text aktion jsonb details }
-  termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text kategorie "CHECK" boolean bestaetigt }
+  termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text kategorie "CHECK" boolean bestaetigt text quelle "intern" bigint eingetragen_durch FK }
 ```
 
 | Index / Constraint                      | Zweck                                                     |

@@ -2,7 +2,8 @@
 import Base from '../../layouts/Base.astro';
 import { listeOrte, type OrtUebersichtDto } from '../../lib/api';
 
-const orte = await listeOrte();
+// Nur Orte mit kommenden Terminen – das Ortsverzeichnis enthält alle 3.000+ Thüringer Orte.
+const orte = (await listeOrte()).filter((o) => o.anzahlKommend > 0);
 /** Sortierbuchstabe ohne Präfixe wie „Erfurt-“ und mit Umlauten unter dem Grundbuchstaben */
 const buchstabe = (n: string) =>
   (n.replace(/^(Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0] ?? '#')
@@ -25,9 +26,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
   <section class="einstieg">
     <h1>Orte von A bis Z</h1>
     <p class="unterzeile">
-      {orte.length} Orte mit Kirmes. Die Zahl hinter dem Namen zeigt die kommenden Termine.
+      {orte.length} Orte mit kommenden Kirmes-Terminen. Die Zahl zeigt, wie viele es sind.
     </p>
   </section>
+  {
+    orte.length === 0 && (
+      <p class="leer">
+        Noch sind keine Termine eingetragen. <a href="/termin-melden">Kennt ihr eine Kirmes?</a>
+      </p>
+    )
+  }
   <nav class="abc" aria-label="Anfangsbuchstabe">
     {[...gruppen.keys()].map((b) => <a href={`#${b}`}>{b}</a>)}
   </nav>
@@ -41,7 +49,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
           {liste.map((o) => (
             <li>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
-              {o.anzahlKommend > 0 && <span class="kz">{o.anzahlKommend}</span>}
+              <span class="kz">{o.anzahlKommend}</span>
             </li>
           ))}
         </ul>

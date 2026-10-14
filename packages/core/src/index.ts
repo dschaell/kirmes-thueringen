@@ -9,3 +9,5 @@ export * from './application/suche-termine.js';
 export * from './application/lege-termin-an.js';
 export * from './application/orte.js';
 export * from './application/festplaetze.js';
+export * from './application/recherche.js';
+export * from './application/termine-verwalten.js';

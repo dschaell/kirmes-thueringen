@@ -47,7 +47,10 @@ export default tseslint.config(
       ],
     },
   },
-  { files: ['**/infrastructure/postgres/{migrate,seed,links}.ts'], rules: { 'no-console': 'off' } },
+  {
+    files: ['**/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links}.ts'],
+    rules: { 'no-console': 'off' },
+  },
   {
     files: ['**/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: { module: 'writable' } },
@@ -56,7 +59,16 @@ export default tseslint.config(
   {
     files: ['scripts/**/*.mjs', 'apps/web/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly', URL: 'readonly', Buffer: 'readonly' },
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Buffer: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+        setTimeout: 'readonly',
+      },
     },
   },
   prettier,

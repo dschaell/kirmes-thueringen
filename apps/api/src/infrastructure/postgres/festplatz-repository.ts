@@ -19,20 +19,23 @@ const SQL_LINK_PRUEFEN = `
 UPDATE bearbeitungslink l SET zuletzt_genutzt = now()
   FROM ort o
  WHERE l.token_hash = $1 AND l.gesperrt_am IS NULL AND o.id = l.ort_id
-RETURNING l.id::text AS id, o.slug, l.bezeichnung`;
+RETURNING l.id::text AS id, o.slug, o.landkreis, l.bezeichnung`;
 
 export class PgBearbeitungslinks implements Bearbeitungslinks {
   constructor(private readonly db: pg.Pool) {}
 
   async pruefe(token: string): Promise<Berechtigung | null> {
     if (!TOKEN_FORMAT.test(token)) return null; // spart den DB-Zugriff bei Unsinn
-    const { rows } = await abfrage<{ id: string; slug: string; bezeichnung: string }>(
-      this.db,
-      SQL_LINK_PRUEFEN,
-      [hashToken(token)],
-    );
+    const { rows } = await abfrage<{
+      id: string;
+      slug: string;
+      landkreis: string;
+      bezeichnung: string;
+    }>(this.db, SQL_LINK_PRUEFEN, [hashToken(token)]);
     const r = rows[0];
-    return r ? { linkId: r.id, ortSlug: r.slug, bezeichnung: r.bezeichnung } : null;
+    return r
+      ? { linkId: r.id, ortSlug: r.slug, landkreis: r.landkreis, bezeichnung: r.bezeichnung }
+      : null;
   }
 }
 

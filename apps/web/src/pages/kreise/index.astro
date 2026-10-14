@@ -10,7 +10,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     const imKreis = orte.filter((o) => o.landkreis === k);
     return { k, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0), orte: imKreis.length };
   })
-  .filter((x) => x.orte > 0)
+  .filter((x) => x.n > 0)
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---

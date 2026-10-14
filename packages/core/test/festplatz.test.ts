@@ -43,6 +43,7 @@ describe('VerwalteFestplaetze', () => {
   const berechtigung: Berechtigung = {
     linkId: '1',
     ortSlug: 'muehlberg',
+    landkreis: 'GTH',
     bezeichnung: 'KG Mühlberg',
   };
   const gespeichert: { ort: string; f: Festplatz; durch: Berechtigung }[] = [];

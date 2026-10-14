@@ -34,7 +34,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 <Base
   title={`Kirmes in Thüringen ${jahr} – Termine für Kirmestanz, Kindertanz & mehr`}
-  description={`Wann ist wo Kirmes? Termine der Kirmesgesellschaften aus ${orte.length} Thüringer Orten – nach Ort und Landkreis, mit Anfahrt und Kalender-Abo.`}
+  description={`Wann ist wo Kirmes? Termine der Kirmesgesellschaften aus ganz Thüringen – nach Ort und Landkreis, mit Anfahrt und Kalender-Abo.`}
   jsonLd={[
     {
       '@context': 'https://schema.org',
@@ -53,7 +53,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <section class="einstieg">
     <h1>Kirmes in Thüringen</h1>
     <p class="unterzeile">
-      Wann ist wo Kirmes? Die Termine der Kirmesgesellschaften aus {orte.length} Orten – vom Kirmestanz
+      Wann ist wo Kirmes? Die Termine der Kirmesgesellschaften aus ganz Thüringen – vom Kirmestanz
       bis zur Kirmesbeerdigung.
     </p>
     <form class="suchzeile" action="/termine" method="get" role="search">

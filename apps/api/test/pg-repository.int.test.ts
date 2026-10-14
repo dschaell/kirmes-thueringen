@@ -11,6 +11,7 @@ import {
   PgFestplatzRepository,
 } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
+import { PgTerminVerwaltung } from '../src/infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool, istVerbindungsfehler } from '../src/infrastructure/postgres/pool.js';
 import {
   alsLikeMuster,
@@ -191,7 +192,12 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     );
     const links = new PgBearbeitungslinks(pool);
     const b = await links.pruefe(token);
-    expect(b).toEqual({ linkId: rows[0]?.id, ortSlug: 'it-ulla', bezeichnung: 'IT-KG' });
+    expect(b).toEqual({
+      linkId: rows[0]?.id,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT-KG',
+    });
     expect(await links.pruefe(erzeugeToken())).toBeNull();
     expect(await links.pruefe("' OR 1=1 --")).toBeNull();
 
@@ -216,5 +222,70 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     await pool.query('UPDATE bearbeitungslink SET gesperrt_am = now() WHERE id = $1', [b!.linkId]);
     expect(await links.pruefe(token)).toBeNull();
     expect(await festplaetze.uebersicht('it-gibtsnicht')).toBeNull();
+  });
+
+  it('Kirmesgesellschaft verwaltet nur Termine ihres Ortes – mit Protokoll', async () => {
+    const link = await pool.query<{ id: string }>(
+      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
+       SELECT id, $1, 'IT-KG Ulla' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
+      [hashToken(erzeugeToken())],
+    );
+    const durch = {
+      linkId: link.rows[0]!.id,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT-KG Ulla',
+    };
+    const v = new PgTerminVerwaltung(pool);
+    const neu = await v.lege(
+      {
+        ortSlug: 'it-ulla',
+        landkreis: 'WL',
+        datum: d('2026-10-03'),
+        beginn: '20:00',
+        titel: 'ZZTEST Neu',
+        veranstaltungsort: 'Saal',
+        kategorie: 'kirmes',
+        bestaetigt: true,
+      },
+      durch,
+    );
+    expect(neu.ort.name).toBe('IT-Ulla');
+    expect(
+      await v.aendere(
+        neu.id,
+        {
+          ortSlug: 'it-ulla',
+          landkreis: 'WL',
+          datum: d('2026-10-04'),
+          beginn: null,
+          titel: 'ZZTEST Geändert',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: true,
+        },
+        durch,
+      ),
+    ).toBe(true);
+
+    // Termin aus Mühlberg ist für den Ulla-Link tabu
+    const fremd = (await repo.suche({ ...basis, suchtext: 'ZZTEST', ortSlug: 'it-muehlberg' }))
+      .eintraege[0]!;
+    expect(await v.loesche(fremd.id, durch)).toBe(false);
+    expect(await v.bestaetige(fremd.id, durch)).toBe(false);
+    expect(await repo.finde(fremd.id)).not.toBeNull();
+
+    expect(await v.bestaetige(neu.id, durch)).toBe(true);
+    expect(await v.loesche(neu.id, durch)).toBe(true);
+    const protokoll = await pool.query(
+      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
+      [durch.linkId],
+    );
+    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
+      'termin_angelegt',
+      'termin_geaendert',
+      'termin_bestaetigt',
+      'termin_geloescht',
+    ]);
   });
 });

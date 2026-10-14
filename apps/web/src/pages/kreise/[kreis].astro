@@ -49,15 +49,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       <h2>Orte {imKreis(k)}</h2>
       <ul class="kreisliste">
         {
-          ortListe.map((o) => (
+          mitTerminen.map((o) => (
             <li>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
-              {o.anzahlKommend > 0 && <span class="n">{o.anzahlKommend}</span>}
+              <span class="n">{o.anzahlKommend}</span>
             </li>
           ))
         }
       </ul>
-      <p class="leise klein">{name}: {anzahl(ortListe.length, 'Ort', 'Orte')} im Kalender.</p>
     </aside>
   </div>
 </Base>

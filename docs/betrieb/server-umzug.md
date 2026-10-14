@@ -22,7 +22,8 @@ Datenbank, API und Website laufen in Docker-Containern. Lokal und auf dem Server
 | ------------------------------------------- | -------------------------------------------------------------------- |
 | Alles starten (DB im Container, Rest lokal) | `npm run dev` → http://localhost:4321                                |
 | Nur die Datenbank starten / stoppen         | `npm run db:up` / `npm run db:stop`                                  |
-| Termine einspielen                          | `npm run db:seed`                                                    |
+| Orte laden / Beispieltermine                | `npm run db:orte` / `npm run db:beispiele`                           |
+| Recherche einspielen                        | `npm run termine:import -- datei.csv`                                |
 | Komplett in Containern (wie Server)         | `docker compose --profile app up -d --build` → http://localhost:8080 |
 | Backup erstellen                            | `npm run db:backup` → `backups/kirmes-<Datum>.dump`                  |
 | Backup einspielen                           | `npm run db:restore -- backups/kirmes-….dump`                        |
@@ -76,6 +77,9 @@ cd /opt/kirmes && ./scripts/db-restore.sh backups/kirmes-2026-10-14-1530.dump
 
 Danach ist die Website unter `https://DOMAIN` mit denselben Daten erreichbar.
 
+Alternativ auf einem leeren Server: `docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/orte.js`
+lädt das Ortsverzeichnis; Termine dann per Recherche-Import oder über die Links der Kirmesgesellschaften.
+
 ## 5. Updates einspielen
 
 ```bash
@@ -106,7 +110,7 @@ direkt per E-Mail oder Messenger an die Kirmesgesellschaft weitergeben. Gesperrt
 
 ## 8. Prüfliste vor dem Livegang
 
-- [ ] Zustimmung des bisherigen Betreibers zur Übernahme der Termindaten
+- [ ] Eigene Termine eingespielt (`docs/betrieb/recherche.md`), Links an die ersten Kirmesgesellschaften verschickt
 - [ ] Impressum, Datenschutz und Kontaktadresse ausgefüllt
 - [ ] `site` in `apps/web/astro.config.mjs` und `apps/web/public/robots.txt` auf die echte Domain gesetzt
 - [ ] `POSTGRES_PASSWORD` stark und nur in `/opt/kirmes/.env` (chmod 600)

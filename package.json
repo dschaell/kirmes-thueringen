@@ -23,11 +23,13 @@
     "db:up": "docker compose up -d --wait db",
     "db:stop": "docker compose stop db",
     "db:migrate": "npm run migrate -w @kirmes/api",
-    "db:seed": "npm run seed -w @kirmes/api",
     "db:backup": "./scripts/db-backup.sh",
     "db:restore": "./scripts/db-restore.sh",
-    "import:alt": "python3 scripts/import_alt.py scripts/quelle-2026.html 2026",
-    "link": "npm run link -w @kirmes/api --"
+    "link": "npm run link -w @kirmes/api --",
+    "db:orte": "npm run orte -w @kirmes/api",
+    "db:beispiele": "npm run beispiele -w @kirmes/api",
+    "termine:import": "npm run termine:import -w @kirmes/api --",
+    "orte:aktualisieren": "node scripts/ortsverzeichnis.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
