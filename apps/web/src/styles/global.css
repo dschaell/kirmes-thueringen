@@ -863,3 +863,55 @@ dialog.mitteilung h2 {
     display: none;
   }
 }
+
+/* ── Tippflächen auf Touch-Geräten und schmalen Bildschirmen (≥ 44 px, Apple HIG / WCAG 2.5.5) ── */
+@media (pointer: coarse), (max-width: 760px) {
+  .marke,
+  .nav a,
+  .eintrag .route,
+  .mehr,
+  .abc a,
+  .ortliste a,
+  .kreisliste a,
+  .filter > summary,
+  .marken label,
+  .filterfelder label.klein,
+  .knopf {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .abc a {
+    justify-content: center;
+    min-width: 44px;
+  }
+  .ortliste a,
+  .kreisliste a {
+    display: flex;
+  }
+  .filter > summary {
+    display: flex;
+  }
+  /* Terminliste: die ganze Zeile öffnet den Termin; Ort und Route liegen darüber */
+  .eintrag {
+    position: relative;
+  }
+  .eintrag .titel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .eintrag .wo a,
+  .eintrag .route,
+  .eintrag .bestaetigt {
+    position: relative;
+    z-index: 1;
+  }
+  /* Einzeilige Links: größere Tippfläche, ohne die Zeile höher zu machen */
+  .eintrag .wo a,
+  .brotkrumen a {
+    display: inline-block;
+    padding-block: 11px;
+    margin-block: -11px;
+  }
+}

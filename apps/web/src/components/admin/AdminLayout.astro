@@ -103,6 +103,15 @@ const nav = [
   .admin-tabelle form {
     display: inline;
   }
+  @media (pointer: coarse), (max-width: 760px) {
+    .admin-nav a,
+    .admin-tabelle .knopf,
+    .admin-tabelle td > a {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
   /* Handy: jede Zeile als Block statt vier enger Spalten */
   @media (max-width: 560px) {
     .admin-tabelle thead {
