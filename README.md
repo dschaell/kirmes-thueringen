@@ -60,6 +60,18 @@ Tests mit Coverage-Gate und -Ratchet. Ein Merge ist nur bei grünem **Quality Ga
 
 Repository-Einrichtung (Labels, Branch Protection, Backlog): `./scripts/setup-github.sh`
 
+## Redaktion (Admin-Bereich)
+
+Unter `/admin` verwaltest du als Betreiber alles: Termine aller Orte (mit Recherche-Assistent für
+Texte aus Instagram/Facebook), Mitteilungen (erscheinen einmal als Hinweis für Besucher), Orte und
+Bearbeitungslinks. Zugang nur mit Passwort **und** Einmalcode aus einer Authenticator-App.
+
+```bash
+npm run admin -- anlegen deine@email.de      # Passwort festlegen, Schlüssel in die Authenticator-App
+npm run admin -- passwort deine@email.de     # Passwort ändern
+npm run admin -- zweiter-faktor deine@email.de   # neues Handy / App neu einrichten
+```
+
 ## Festplätze: Bearbeitungslinks für Kirmesgesellschaften
 
 Kirmesgesellschaften tragen ihren Festplatz selbst auf der Karte ein – über einen persönlichen Link

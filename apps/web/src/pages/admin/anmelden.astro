@@ -1,0 +1,55 @@
+---
+/** Anmeldung der Redaktion: E-Mail, Passwort und Einmalcode aus der Authenticator-App. */
+import Base from '../../layouts/Base.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { anmelden, feld, setzeSitzung } from '../../lib/admin';
+
+let fehler: string | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const r = await anmelden(feld(f, 'email'), feld(f, 'passwort'), feld(f, 'code'));
+  if ('token' in r) {
+    setzeSitzung(Astro.cookies, r.token, r.stunden);
+    return Astro.redirect('/admin', 303);
+  }
+  fehler = r.fehler;
+  Astro.response.status = 401;
+}
+---
+
+<Base title="Anmelden – Redaktion" description="Anmeldung für die Redaktion" noindex>
+  <section class="einstieg">
+    <h1>Redaktion</h1>
+    <p class="unterzeile">Nur für die Redaktion des Kirmeskalenders.</p>
+  </section>
+  {
+    fehler && (
+      <p class="meldung" role="alert">
+        {fehler}
+      </p>
+    )
+  }
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <label>E-Mail<input name="email" type="email" required autocomplete="username" /></label>
+    <label
+      >Passwort<input
+        name="passwort"
+        type="password"
+        required
+        autocomplete="current-password"
+      /></label
+    >
+    <label
+      >Code aus der Authenticator-App<input
+        name="code"
+        inputmode="numeric"
+        pattern="[0-9]{6}"
+        maxlength="6"
+        required
+        autocomplete="one-time-code"
+      /></label
+    >
+    <div><button class="knopf" type="submit">Anmelden</button></div>
+  </form>
+</Base>

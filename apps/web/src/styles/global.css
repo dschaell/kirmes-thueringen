@@ -785,6 +785,35 @@ form.melden label {
   }
 }
 
+/* ── Mitteilung (Popup) ───────────────────────────────────────────────────────────────── */
+dialog.mitteilung {
+  max-width: min(520px, calc(100vw - 32px));
+  border: 0;
+  border-top: 6px solid var(--rot);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  background: var(--flaeche);
+  color: var(--tinte);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.3);
+}
+dialog.mitteilung::backdrop {
+  background: rgb(20 12 8 / 0.45);
+}
+.mitteilung-art {
+  font: 700 0.75rem/1 var(--text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rot);
+  margin: 0 0 8px;
+}
+dialog.mitteilung h2 {
+  margin: 0 0 10px;
+}
+.mitteilung-text p {
+  margin: 0 0 10px;
+  white-space: pre-line;
+}
+
 @media print {
   .kopf,
   .wimpel,

@@ -88,7 +88,19 @@ cd /opt/kirmes && git pull && docker compose up -d --build --wait
 
 Datenbank-Migrationen laufen dabei automatisch (Dienst `migrate`, bevor die API startet).
 
-## 6. Bearbeitungslinks für Kirmesgesellschaften
+## 6. Redaktionszugang einrichten
+
+```bash
+cd /opt/kirmes
+docker compose run --rm -it migrate node apps/api/dist/infrastructure/postgres/admin-cli.js anlegen deine@email.de
+```
+
+Passwort festlegen (mind. 12 Zeichen), dann den angezeigten Schlüssel in eine Authenticator-App
+eintragen (Google Authenticator, Authy, 1Password …). Anmeldung unter `https://DOMAIN/admin`.
+
+## 6a. Bearbeitungslinks für Kirmesgesellschaften
+
+Am einfachsten über den Admin-Bereich (`/admin/links`). Alternativ per Befehl:
 
 ```bash
 cd /opt/kirmes

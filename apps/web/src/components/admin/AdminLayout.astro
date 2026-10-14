@@ -1,0 +1,126 @@
+---
+import Base from '../../layouts/Base.astro';
+import CsrfFeld from './CsrfFeld.astro';
+
+interface Props {
+  titel: string;
+  meldung?: string | null;
+  fehler?: string[];
+}
+const { titel, meldung = null, fehler = [] } = Astro.props;
+const pfad = Astro.url.pathname;
+const nav = [
+  ['/admin', 'Übersicht'],
+  ['/admin/termine', 'Termine'],
+  ['/admin/mitteilungen', 'Mitteilungen'],
+  ['/admin/orte', 'Orte'],
+  ['/admin/links', 'Bearbeitungslinks'],
+];
+---
+
+<Base title={`${titel} – Redaktion`} description="Redaktionsbereich" noindex>
+  <section class="einstieg admin-kopf">
+    <p class="brotkrumen">Redaktion</p>
+    <h1>{titel}</h1>
+    <nav class="admin-nav" aria-label="Redaktion">
+      {
+        nav.map(([href, label]) => (
+          <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+            {label}
+          </a>
+        ))
+      }
+      <form method="post" action="/admin/abmelden">
+        <CsrfFeld />
+        <button class="knopf zweit" type="submit">Abmelden</button>
+      </form>
+    </nav>
+  </section>
+  {
+    meldung && (
+      <p class="meldung gut" role="status">
+        {meldung}
+      </p>
+    )
+  }
+  {
+    fehler.length > 0 && (
+      <p class="meldung" role="alert">
+        {fehler.join(' ')}
+      </p>
+    )
+  }
+  <slot />
+</Base>
+
+<style is:global>
+  .admin-kopf h1 {
+    margin-bottom: 0.3em;
+  }
+  .admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+    border-bottom: 1px solid var(--linie);
+    padding-bottom: 10px;
+  }
+  .admin-nav a {
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--tinte);
+    font-weight: 600;
+  }
+  .admin-nav a[aria-current] {
+    background: var(--rot-zart);
+    color: var(--rot);
+  }
+  .admin-nav form {
+    margin-left: auto;
+  }
+  .admin-nav .knopf {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+  .admin-tabelle {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 28px;
+  }
+  .admin-tabelle th,
+  .admin-tabelle td {
+    text-align: left;
+    padding: 9px 8px;
+    border-bottom: 1px solid var(--linie);
+    vertical-align: top;
+  }
+  .admin-tabelle th {
+    font-size: 0.85rem;
+    color: var(--grau);
+    font-weight: 600;
+  }
+  .admin-tabelle form {
+    display: inline;
+  }
+  .admin-tabelle .knopf {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+  .klein-knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .geheim {
+    font-family: ui-monospace, monospace;
+    word-break: break-all;
+    background: var(--flaeche);
+    border: 1px dashed var(--rot);
+    padding: 12px;
+    border-radius: 8px;
+  }
+  form.melden textarea {
+    min-height: 120px;
+  }
+</style>

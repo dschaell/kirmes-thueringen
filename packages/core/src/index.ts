@@ -13,3 +13,4 @@ export * from './application/festplaetze.js';
 export * from './application/recherche.js';
 export * from './application/termine-verwalten.js';
 export * from './application/admin.js';
+export * from './application/text-erkennung.js';

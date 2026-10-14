@@ -125,5 +125,67 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
         </div>
       </div>
     </footer>
+    <script>
+      // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
+      // Inhalte nur als Text (textContent) – nie als HTML.
+      const SCHLUESSEL = 'kirmes-mitteilung-gelesen';
+      const gelesen = (() => {
+        try {
+          return Number(localStorage.getItem(SCHLUESSEL) ?? 0);
+        } catch {
+          return 0;
+        }
+      })();
+      if (!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/verwalten')) {
+        fetch('/mitteilung.json')
+          .then((r) => (r.status === 200 ? r.json() : null))
+          .then((m: { id: string; titel: string; text: string; link: string | null } | null) => {
+            if (!m || Number(m.id) <= gelesen) return;
+            const d = document.createElement('dialog');
+            d.className = 'mitteilung';
+            d.setAttribute('aria-labelledby', 'mitteilung-titel');
+            const kopf = document.createElement('p');
+            kopf.className = 'mitteilung-art';
+            kopf.textContent = 'Mitteilung';
+            const h = document.createElement('h2');
+            h.id = 'mitteilung-titel';
+            h.textContent = m.titel;
+            const text = document.createElement('div');
+            text.className = 'mitteilung-text';
+            for (const absatz of m.text.split(/\n{2,}/)) {
+              const p = document.createElement('p');
+              p.textContent = absatz;
+              text.append(p);
+            }
+            const knoepfe = document.createElement('div');
+            knoepfe.className = 'knopfreihe';
+            if (m.link && /^(https:\/\/|\/)/.test(m.link)) {
+              const a = document.createElement('a');
+              a.className = 'knopf';
+              a.href = m.link;
+              a.textContent = 'Mehr erfahren';
+              knoepfe.append(a);
+            }
+            const zu = document.createElement('button');
+            zu.className = m.link ? 'knopf zweit' : 'knopf';
+            zu.type = 'button';
+            zu.textContent = 'Verstanden';
+            zu.addEventListener('click', () => d.close());
+            knoepfe.append(zu);
+            d.append(kopf, h, text, knoepfe);
+            d.addEventListener('close', () => {
+              try {
+                localStorage.setItem(SCHLUESSEL, m.id);
+              } catch {
+                /* privater Modus – dann eben beim nächsten Besuch erneut */
+              }
+              d.remove();
+            });
+            document.body.append(d);
+            d.showModal();
+          })
+          .catch(() => {});
+      }
+    </script>
   </body>
 </html>

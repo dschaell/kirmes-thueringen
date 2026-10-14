@@ -1,0 +1,135 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+
+interface Link {
+  id: string;
+  ortSlug: string;
+  ortName: string;
+  bezeichnung: string;
+  erstelltAm: string;
+  zuletztGenutzt: string | null;
+  gesperrtAm: string | null;
+}
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+let neuerLink: string | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (feld(f, 'aktion') === 'sperren') {
+    const r = await adminApi(
+      Astro.cookies,
+      'POST',
+      `links/${encodeURIComponent(feld(f, 'id'))}/sperren`,
+    );
+    if (r.status < 300) meldung = 'Link gesperrt – er funktioniert ab sofort nicht mehr.';
+    else fehler = r.fehler;
+  } else {
+    const r = await adminApi<{ token: string; link: Link }>(Astro.cookies, 'POST', 'links', {
+      ortSlug: feld(f, 'ortSlug'),
+      bezeichnung: feld(f, 'bezeichnung'),
+    });
+    if (r.daten) {
+      // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
+      const basis = process.env.WEBSITE_URL ?? Astro.site?.href ?? 'http://localhost:4321';
+      neuerLink = new URL(`/verwalten#k=${r.daten.token}`, basis).href;
+      meldung = `Link für ${r.daten.link.ortName} erstellt.`;
+    } else fehler = r.fehler;
+  }
+}
+const links = (await adminApi<Link[]>(Astro.cookies, 'GET', 'links')).daten ?? [];
+const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
+---
+
+<AdminLayout titel="Bearbeitungslinks" meldung={meldung} fehler={fehler}>
+  {
+    neuerLink && (
+      <div class="kasten">
+        <p>
+          <strong>Diesen Link jetzt kopieren und an die Kirmesgesellschaft schicken</strong> (z. B.
+          per Instagram-Nachricht). Er wird nur einmal angezeigt.
+        </p>
+        <p class="geheim">{neuerLink}</p>
+        <p class="leise klein">
+          Damit können sie Termine und Festplatz ihres Ortes selbst pflegen.
+        </p>
+      </div>
+    )
+  }
+
+  <h2>Neuen Link erstellen</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <input type="hidden" name="aktion" value="erstellen" />
+    <div class="zwei">
+      <label
+        >Ort (Adresse der Ortsseite)<input
+          name="ortSlug"
+          required
+          value={vorbelegt}
+          placeholder="z. B. muehlberg"
+          pattern="[a-z0-9-]+"
+        /></label
+      >
+      <label
+        >Für wen?<input
+          name="bezeichnung"
+          required
+          maxlength="200"
+          placeholder="Kirmesgesellschaft Mühlberg"
+        /></label
+      >
+    </div>
+    <p class="leise klein">
+      Die Adresse steht in der Ortsseite: kirmeskalender…/orte/<strong>muehlberg</strong>. Unter <a
+        href="/admin/orte">Orte</a
+      > kannst du sie suchen.
+    </p>
+    <div><button class="knopf" type="submit">Link erstellen</button></div>
+  </form>
+
+  <h2>Alle Links</h2>
+  {
+    links.length === 0 ? (
+      <p class="leer">Noch keine Links erstellt.</p>
+    ) : (
+      <table class="admin-tabelle">
+        <thead>
+          <tr>
+            <th>Ort</th>
+            <th>Für</th>
+            <th>Erstellt</th>
+            <th>Zuletzt genutzt</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {links.map((l) => (
+            <tr>
+              <td>
+                <a href={`/orte/${l.ortSlug}`}>{l.ortName}</a>
+              </td>
+              <td>{l.bezeichnung}</td>
+              <td class="klein">{l.erstelltAm}</td>
+              <td class="klein">{l.zuletztGenutzt ?? 'noch nie'}</td>
+              <td>
+                {l.gesperrtAm ? (
+                  <span class="leise klein">gesperrt seit {l.gesperrtAm}</span>
+                ) : (
+                  <form method="post">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="sperren" />
+                    <input type="hidden" name="id" value={l.id} />
+                    <button class="knopf zweit">Sperren</button>
+                  </form>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+</AdminLayout>

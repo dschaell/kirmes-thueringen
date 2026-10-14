@@ -1,0 +1,314 @@
+---
+/**
+ * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
+ * gezeigt und können angelegt, geändert, bestätigt und gelöscht werden. ?bearbeiten=<id> füllt das Formular.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import Icon from '../../components/Icon.astro';
+import { adminApi, feld } from '../../lib/admin';
+import { alleTermine, findeOrt, findeTermin, listeOrte, type TerminDto } from '../../lib/api';
+import { KATEGORIEN, datumLangJahr, heute, kreisKurz, plusTage } from '../../lib/anzeige';
+
+const p = Astro.url.searchParams;
+const ortSlug = p.get('ort') ?? '';
+const ort = ortSlug ? await findeOrt(ortSlug) : null;
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+if (Astro.request.method === 'POST' && ort) {
+  const f = await Astro.request.formData();
+  const aktion = feld(f, 'aktion');
+  const id = feld(f, 'id');
+  const formular = {
+    ortSlug: ort.slug,
+    datum: feld(f, 'datum'),
+    beginn: feld(f, 'beginn') || null,
+    titel: feld(f, 'titel'),
+    veranstaltungsort: feld(f, 'veranstaltungsort') || null,
+    kategorie: feld(f, 'kategorie') || null,
+    bestaetigt: f.get('bestaetigt') === 'ja',
+  };
+  const r =
+    aktion === 'speichern' && id
+      ? await adminApi<{ hinweise: { meldung: string }[] }>(
+          Astro.cookies,
+          'PUT',
+          `termine/${encodeURIComponent(id)}`,
+          formular,
+        )
+      : aktion === 'speichern'
+        ? await adminApi<{ hinweise: { meldung: string }[] }>(
+            Astro.cookies,
+            'POST',
+            'termine',
+            formular,
+          )
+        : aktion === 'bestaetigen'
+          ? await adminApi(Astro.cookies, 'POST', `termine/${encodeURIComponent(id)}/bestaetigen`, {
+              ortSlug: ort.slug,
+            })
+          : aktion === 'loeschen'
+            ? await adminApi(
+                Astro.cookies,
+                'DELETE',
+                `termine/${encodeURIComponent(id)}?ort=${encodeURIComponent(ort.slug)}`,
+              )
+            : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+  if (r.status < 300) {
+    const hinweise = (r.daten as { hinweise?: { meldung: string }[] } | null)?.hinweise ?? [];
+    meldung = [
+      {
+        speichern: 'Termin gespeichert.',
+        bestaetigen: 'Termin bestätigt.',
+        loeschen: 'Termin gelöscht.',
+      }[aktion],
+      ...hinweise.map((h) => h.meldung),
+    ].join(' ');
+  } else fehler = r.fehler;
+}
+
+const h = heute();
+const termine: TerminDto[] = ort
+  ? await alleTermine({ ort: ort.slug, von: plusTage(h, -30), bis: plusTage(h, 335) })
+  : [];
+const bearbeiten = p.get('bearbeiten') && ort ? await findeTermin(p.get('bearbeiten')!) : null;
+const zuBearbeiten = bearbeiten && bearbeiten.ort.slug === ort?.slug ? bearbeiten : null;
+
+const suche = p.get('suche')?.trim().toLowerCase() ?? '';
+const treffer =
+  !ort && suche
+    ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
+    : [];
+const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).filter(Boolean))];
+---
+
+<AdminLayout titel={ort ? `Termine in ${ort.name}` : 'Termine'} meldung={meldung} fehler={fehler}>
+  {
+    !ort && (
+      <>
+        <h2>Für welchen Ort?</h2>
+        <form class="suchzeile" method="get">
+          <input
+            type="search"
+            name="suche"
+            value={suche}
+            placeholder="Ortsname, z. B. Mühlberg"
+            aria-label="Ortsname"
+            autofocus
+          />
+          <button class="knopf" type="submit">
+            <Icon name="suche" />
+            Suchen
+          </button>
+        </form>
+        {suche && (
+          <table class="admin-tabelle">
+            <tbody>
+              {treffer.length === 0 && (
+                <tr>
+                  <td>
+                    Kein Ort gefunden. <a href="/admin/orte">Ort anlegen</a>
+                  </td>
+                </tr>
+              )}
+              {treffer.map((o) => (
+                <tr>
+                  <td>
+                    <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
+                    <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+                  </td>
+                  <td class="klein">{o.anzahlKommend} kommende Termine</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>
+    )
+  }
+
+  {
+    ortSlug && !ort && (
+      <p class="meldung">
+        Ort „{ortSlug}“ nicht gefunden. <a href="/admin/termine">Neu suchen</a>
+      </p>
+    )
+  }
+
+  {
+    ort && (
+      <>
+        <p class="brotkrumen">
+          <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
+          <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
+          <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
+        </p>
+
+        <h2>{zuBearbeiten ? 'Termin ändern' : 'Neuer Termin'}</h2>
+        <details class="filter" open={!zuBearbeiten}>
+          <summary>
+            <Icon name="suche" />
+            Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
+          </summary>
+          <div class="filterfelder">
+            <textarea
+              id="assistent"
+              rows="5"
+              placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
+            />
+            <p class="leise klein" id="assistent-info">
+              Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der
+              Recherche notieren.
+            </p>
+          </div>
+        </details>
+
+        <form class="melden" method="post" id="terminformular">
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="speichern" />
+          {zuBearbeiten && <input type="hidden" name="id" value={zuBearbeiten.id} />}
+          <div class="zwei">
+            <label>
+              Datum *<input name="datum" type="date" required value={zuBearbeiten?.datum ?? ''} />
+            </label>
+            <label>
+              Beginn
+              <input name="beginn" type="time" value={zuBearbeiten?.beginn ?? ''} />
+            </label>
+          </div>
+          <label>
+            Veranstaltung *
+            <input name="titel" required maxlength="200" value={zuBearbeiten?.titel ?? ''} />
+          </label>
+          <div class="zwei">
+            <label>
+              Wo genau?
+              <input
+                name="veranstaltungsort"
+                maxlength="120"
+                list="vo-liste"
+                value={zuBearbeiten?.veranstaltungsort ?? ''}
+              />
+            </label>
+            <label>
+              Art
+              <select name="kategorie">
+                <option value="">automatisch erkennen</option>
+                {Object.entries(KATEGORIEN).map(([k, v]) => (
+                  <option value={k} selected={zuBearbeiten?.kategorie === k}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <datalist id="vo-liste">
+            {veranstaltungsorte.map((v) => (
+              <option value={v!} />
+            ))}
+          </datalist>
+          <label class="klein">
+            <input
+              type="checkbox"
+              name="bestaetigt"
+              value="ja"
+              checked={zuBearbeiten?.bestaetigt ?? false}
+            />{' '}
+            Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+          </label>
+          <div class="knopfreihe">
+            <button class="knopf" type="submit">
+              Speichern
+            </button>
+            {zuBearbeiten && (
+              <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
+                Abbrechen
+              </a>
+            )}
+          </div>
+        </form>
+
+        <h2>Termine in {ort.name}</h2>
+        {termine.length === 0 ? (
+          <p class="leer">Noch keine Termine.</p>
+        ) : (
+          <table class="admin-tabelle">
+            <tbody>
+              {termine.map((t) => (
+                <tr>
+                  <td class="klein">
+                    {datumLangJahr(t.datum)}
+                    {t.beginn && <>, {t.beginn}</>}
+                  </td>
+                  <td>
+                    <strong>{t.titel}</strong>
+                    {t.veranstaltungsort && <div class="leise klein">{t.veranstaltungsort}</div>}
+                  </td>
+                  <td class="klein">
+                    {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
+                  </td>
+                  <td>
+                    <div class="klein-knoepfe">
+                      <a
+                        class="knopf zweit"
+                        href={`/admin/termine?ort=${ort.slug}&bearbeiten=${t.id}`}
+                      >
+                        Ändern
+                      </a>
+                      <form method="post">
+                        <CsrfFeld />
+                        <input type="hidden" name="id" value={t.id} />
+                        {!t.bestaetigt && (
+                          <button class="knopf zweit" name="aktion" value="bestaetigen">
+                            Bestätigen
+                          </button>
+                        )}
+                        <button class="knopf zweit" name="aktion" value="loeschen">
+                          Löschen
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>
+    )
+  }
+</AdminLayout>
+
+<script>
+  import { erkenneTerminAusText } from '@kirmes/core';
+
+  const feld = document.getElementById('assistent') as HTMLTextAreaElement | null;
+  const formular = document.getElementById('terminformular') as HTMLFormElement | null;
+  const info = document.getElementById('assistent-info');
+  if (feld && formular && info) {
+    const setze = (name: string, wert: string | null) => {
+      const el = formular.elements.namedItem(name) as HTMLInputElement | null;
+      if (el && wert) el.value = wert;
+    };
+    feld.addEventListener('input', () => {
+      const heute = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(
+        new Date(),
+      );
+      const v = erkenneTerminAusText(feld.value, heute);
+      setze('datum', v.datum);
+      setze('beginn', v.beginn);
+      setze('titel', v.titel);
+      setze('veranstaltungsort', v.veranstaltungsort);
+      const gefunden = [
+        v.datum && 'Datum',
+        v.beginn && 'Uhrzeit',
+        v.titel && 'Titel',
+        v.veranstaltungsort && 'Ort',
+      ].filter(Boolean);
+      info.textContent = gefunden.length
+        ? `Erkannt: ${gefunden.join(', ')} – bitte im Formular prüfen.`
+        : 'Nichts erkannt – bitte Felder von Hand ausfüllen.';
+    });
+  }
+</script>

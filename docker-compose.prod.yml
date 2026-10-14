@@ -25,6 +25,8 @@ services:
     profiles: !reset []
     restart: always
     ports: !reset []
+    environment:
+      WEBSITE_URL: https://${DOMAIN:?}
 
   # Reverse-Proxy mit automatischem HTTPS (Let's Encrypt)
   caddy:

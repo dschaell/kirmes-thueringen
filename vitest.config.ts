@@ -9,7 +9,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['packages/*/test/**/*.test.ts', 'apps/api/test/**/*.test.ts'],
+    include: [
+      'packages/*/test/**/*.test.ts',
+      'apps/api/test/**/*.test.ts',
+      'apps/web/test/**/*.test.ts',
+    ],
     coverage: {
       provider: 'v8',
       include: ['packages/core/src/**', 'apps/api/src/**'],

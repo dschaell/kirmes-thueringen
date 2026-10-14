@@ -81,3 +81,21 @@
 | Widerruf                   | `npm run link -- sperren <id>` – sofort wirksam                                                                                                              |
 | Fachliche Plausibilität    | Koordinaten nur innerhalb Thüringens (vertauschte Breite/Länge werden erkannt)                                                                               |
 | Datenschutz                | Kartenkacheln/Adresssuche (OpenStreetMap) und Standort nur auf der Bearbeitungsseite; eigene CSP dafür                                                       |
+
+### Redaktionszugang (Admin)
+
+| Maßnahme               | Umsetzung                                                                                                                                                                                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Zwei Faktoren          | Passwort (scrypt, N=2¹⁵, Salz) **und** Einmalcode nach RFC 6238 (TOTP); jeder Code nur einmal gültig                                                                                                                                                              |
+| Keine Konto-Aufzählung | Gleiche Antwort und gleiche Rechenzeit für unbekannte E-Mail, falsches Passwort und falschen Code                                                                                                                                                                 |
+| Brute-Force-Schutz     | Sperre nach 5 Fehlversuchen je E-Mail bzw. 30 insgesamt für 15 Minuten (HTTP 429)                                                                                                                                                                                 |
+| Sitzungen              | 256-Bit-Token, in der DB nur als SHA-256; Cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/admin`, 12 h                                                                                                                                                     |
+| Reihenfolge            | Anmeldeprüfung (`onRequest`) **vor** der Eingabevalidierung – Nicht-Angemeldete erfahren nichts über Schemas                                                                                                                                                      |
+| CSRF                   | Synchronizer-Token (`csrf_token`, HttpOnly-Cookie, Vergleich in konstanter Zeit) **und** eigene Origin-Prüfung gegen Host/X-Forwarded-Host; dazu `SameSite=Strict`. Astros `checkOrigin` ist abgeschaltet, weil es hinter dem Proxy die echte Adresse nicht kennt |
+| Nachvollziehbarkeit    | Admin-Änderungen im `aenderungsprotokoll` (Spalte `admin_id`)                                                                                                                                                                                                     |
+| Kein Index             | `/admin` mit `noindex`, `X-Robots-Tag` und `Cache-Control: no-store`                                                                                                                                                                                              |
+
+### Mitteilungen
+
+Nur Klartext (Darstellung per `textContent`, nie als HTML), Links nur `https://` oder seitenintern.
+Ob eine Mitteilung gelesen wurde, speichert nur der Browser des Besuchers (`localStorage`, keine Cookies).

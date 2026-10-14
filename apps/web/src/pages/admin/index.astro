@@ -1,0 +1,49 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import { adminApi } from '../../lib/admin';
+import { listeOrte, sucheTermine } from '../../lib/api';
+import { heute } from '../../lib/anzeige';
+
+const [termine, orte, links, mitteilungen] = await Promise.all([
+  sucheTermine({ von: heute(), limit: 1 }),
+  listeOrte(),
+  adminApi<{ gesperrtAm: string | null }[]>(Astro.cookies, 'GET', 'links'),
+  adminApi<{ veroeffentlichtAm: string | null; titel: string }[]>(
+    Astro.cookies,
+    'GET',
+    'mitteilungen',
+  ),
+]);
+const aktiveLinks = (links.daten ?? []).filter((l) => !l.gesperrtAm).length;
+const aktuell = (mitteilungen.daten ?? []).find((m) => m.veroeffentlichtAm);
+---
+
+<AdminLayout titel="Übersicht">
+  <div class="kreisraster">
+    <a href="/admin/termine"><strong>Kommende Termine</strong><span>{termine.gesamt}</span></a>
+    <a href="/orte"
+      ><strong>Orte mit Terminen</strong><span
+        >{orte.filter((o) => o.anzahlKommend > 0).length}</span
+      ></a
+    >
+    <a href="/admin/links"><strong>Aktive Bearbeitungslinks</strong><span>{aktiveLinks}</span></a>
+    <a href="/admin/mitteilungen"
+      ><strong>Aktuelle Mitteilung</strong><span>{aktuell ? aktuell.titel : 'keine'}</span></a
+    >
+  </div>
+
+  <h2>Was möchtest du tun?</h2>
+  <ul class="lesetext">
+    <li>
+      <a href="/admin/termine">Termin eintragen</a> – auch per Text aus Instagram oder Facebook (Recherche-Assistent).
+    </li>
+    <li>
+      <a href="/admin/mitteilungen">Mitteilung schreiben</a> – erscheint einmal als Hinweis für alle Besucher.
+    </li>
+    <li>
+      <a href="/admin/links">Link für eine Kirmesgesellschaft erstellen</a> – damit sie Termine und Festplatz
+      selbst pflegt.
+    </li>
+    <li><a href="/admin/orte">Ort anlegen</a>, falls einer im Ortsverzeichnis fehlt.</li>
+  </ul>
+</AdminLayout>

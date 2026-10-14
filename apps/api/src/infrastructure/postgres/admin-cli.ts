@@ -11,21 +11,30 @@ import { ladeKonfiguration } from '../../config.js';
 import { hashePasswort, neuesTotpGeheimnis, otpauthUrl } from '../krypto.js';
 import { erstellePool } from './pool.js';
 
-/** Passwort ohne Echo einlesen. */
-function frageVerdeckt(frage: string): Promise<string> {
-  return new Promise((auf) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const original = (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput;
-    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
-      if (s.startsWith(frage)) original.call(rl, s);
-      else if (s.includes('\n')) original.call(rl, '\n');
-      else original.call(rl, '*');
-    };
-    rl.question(frage, (antwort) => {
-      rl.close();
-      auf(antwort);
-    });
-  });
+/**
+ * Passwort ohne Echo einlesen. Eine einzige readline-Schnittstelle für alle Fragen – sonst schließt
+ * die erste Frage die Eingabe und die zweite wartet ewig (auch beim Einfügen per Zwischenablage).
+ */
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  terminal: process.stdin.isTTY,
+});
+let verdeckt = false;
+const schreibe = (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput.bind(rl);
+(rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
+  if (!verdeckt) return schreibe(s);
+  schreibe(s.includes('\n') || s.includes('\r') ? '\n' : '*'.repeat(s.length));
+};
+/** Zeilen werden gepuffert – auch wenn beide Passwörter auf einmal eingefügt werden. */
+const zeilen = rl[Symbol.asyncIterator]();
+async function frageVerdeckt(frage: string): Promise<string> {
+  process.stdout.write(frage);
+  verdeckt = true;
+  const { value } = await zeilen.next();
+  verdeckt = false;
+  if (!process.stdin.isTTY) process.stdout.write('\n');
+  return typeof value === 'string' ? value : '';
 }
 
 async function neuesPasswort(): Promise<string> {
@@ -106,5 +115,6 @@ try {
   console.error(`✖ ${(e as Error).message}`);
   process.exitCode = 1;
 } finally {
+  rl.close();
   await pool.end();
 }
