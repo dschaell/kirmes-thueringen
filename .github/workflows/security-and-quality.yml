@@ -178,7 +178,8 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           mkdir -p ~/.dependency-check-data reports
-          docker run --rm \
+          # Gleiche Benutzer-ID wie der Runner, sonst darf der Container den Cache nicht beschreiben (H2-Lock)
+          docker run --rm --user "$(id -u):$(id -g)" \
             -e NVD_API_KEY \
             -v "$PWD:/src:ro" -v ~/.dependency-check-data:/usr/share/dependency-check/data \
             -v "$PWD/reports:/report" \
