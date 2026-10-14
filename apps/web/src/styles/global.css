@@ -697,6 +697,10 @@ legend {
   margin: -10px 0 24px;
   white-space: pre-line;
 }
+.hinweise span {
+  flex: 1;
+  min-width: 0;
+}
 .hinweise .icon {
   flex: none;
   color: var(--grau);
