@@ -11,8 +11,9 @@ import {
 } from '../src/infrastructure/postgres/admin-repository.js';
 import { PgBearbeitungslinks } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { erstellePool } from '../src/infrastructure/postgres/pool.js';
+import { testDatenbankUrl } from './test-datenbank.js';
 
-const url = process.env.DATABASE_URL;
+const url = testDatenbankUrl();
 
 describe.runIf(url)('Redaktion (PostgreSQL)', () => {
   const pool = erstellePool({

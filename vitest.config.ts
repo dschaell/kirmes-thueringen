@@ -1,6 +1,13 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
+// Lokale .env laden (TEST_DATABASE_URL für Integrationstests)
+try {
+  process.loadEnvFile('.env');
+} catch {
+  /* keine .env – z. B. in CI */
+}
+
 export default defineConfig({
   resolve: {
     // Tests laufen gegen die Quellen, nicht gegen gebaute dist/-Dateien

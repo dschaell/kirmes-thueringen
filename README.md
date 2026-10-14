@@ -40,16 +40,17 @@ npm run db:beispiele   # erfundene Beispieltermine zum Ausprobieren (nicht auf d
 Alles in Containern wie auf dem Server: `docker compose --profile app up -d --build` → http://localhost:8080
 Server-Umzug: [docs/betrieb/server-umzug.md](docs/betrieb/server-umzug.md)
 
-| Befehl                   | Zweck                                                   |
-| ------------------------ | ------------------------------------------------------- |
-| `npm run lint`           | ESLint, Prettier, Schichtenregeln                       |
-| `npm test`               | Unit-, HTTP- und (mit `DATABASE_URL`) Integrationstests |
-| `npm run test:coverage`  | wie oben, mit Abdeckungs-Schwelle 85 %                  |
-| `npm run build`          | Core, API und Web bauen                                 |
-| `npm run db:backup`      | Datenbank sichern nach `backups/`                       |
-| `npm run termine:import` | Recherche-Tabelle (CSV) einspielen                      |
-| `npm run link`           | Bearbeitungslinks erstellen / auflisten / sperren       |
-| `npm run db:restore`     | Backup einspielen                                       |
+| Befehl                   | Zweck                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `npm run lint`           | ESLint, Prettier, Schichtenregeln                                              |
+| `npm run test:db`        | Eigene Test-Datenbank anlegen (einmalig) – Tests berühren nie die Arbeitsdaten |
+| `npm test`               | Unit-, HTTP- und (mit `DATABASE_URL`) Integrationstests                        |
+| `npm run test:coverage`  | wie oben, mit Abdeckungs-Schwelle 85 %                                         |
+| `npm run build`          | Core, API und Web bauen                                                        |
+| `npm run db:backup`      | Datenbank sichern nach `backups/`                                              |
+| `npm run termine:import` | Recherche-Tabelle (CSV) einspielen                                             |
+| `npm run link`           | Bearbeitungslinks erstellen / auflisten / sperren                              |
+| `npm run db:restore`     | Backup einspielen                                                              |
 
 ## Qualität und Sicherheit
 

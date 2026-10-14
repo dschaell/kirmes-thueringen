@@ -19,8 +19,9 @@ import {
   OrtNichtGefunden,
   PgTerminRepository,
 } from '../src/infrastructure/postgres/termin-repository.js';
+import { testDatenbankUrl } from './test-datenbank.js';
 
-const url = process.env.DATABASE_URL;
+const url = testDatenbankUrl();
 const d = (s: string) => s as KalenderDatum;
 const basis: TerminFilter = {
   bereich: { von: d('2026-01-01'), bis: d('2026-12-31') },
