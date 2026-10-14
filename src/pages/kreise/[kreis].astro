@@ -1,0 +1,31 @@
+---
+import Base from '../../layouts/Base.astro';
+import TerminListe from '../../components/TerminListe.astro';
+import { KREISE, kreisSlug, orte, termine, heute } from '../../lib/data';
+
+export function getStaticPaths() {
+  return Object.keys(KREISE)
+    .filter((k) => termine.some((t) => t.kreis === k))
+    .map((k) => ({ params: { kreis: kreisSlug(k) }, props: { k } }));
+}
+const { k } = Astro.props;
+const name = KREISE[k];
+const h = heute();
+const jahr = h.slice(0, 4);
+const kommend = termine.filter((t) => t.kreis === k && t.datum && t.datum >= h);
+const ortListe = orte.filter((o) => o.kreis === k);
+---
+<Base
+  title={`Kirmes ${name} ${jahr} – alle Termine im Landkreis`}
+  description={`Kirmes-Termine ${jahr} im Landkreis ${name} (${k}): ${ortListe.length} Orte, Kirmestanz, Kindertanz und Zeltkirmes.`}
+>
+  <p class="small muted"><a href="/kreise">Landkreise</a> › {name}</p>
+  <section class="hero">
+    <h1>Kirmes im {name}</h1>
+    <p class="muted">{ortListe.length} Orte · {kommend.length} kommende Termine · <a href={`/termine?kreis=${encodeURIComponent(k)}`}>durchsuchen</a></p>
+  </section>
+  <h2>Orte</h2>
+  <ul class="ortliste">{ortListe.map((o) => <li><a href={`/orte/${o.slug}`}>{o.name}</a></li>)}</ul>
+  <h2>Kommende Termine</h2>
+  <TerminListe termine={kommend} />
+</Base>

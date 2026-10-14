@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+
+// TODO: echte Kontaktadresse eintragen
+const KONTAKT = 'termine@kirmeskalender-thueringen.de';
+---
+<Base title="Kirmes-Termin melden – Kirmeskalender Thüringen" description="Kirmesgesellschaften und Veranstalter melden hier kostenlos ihre Kirmes-Termine in Thüringen.">
+  <section class="hero">
+    <h1>Termin melden</h1>
+    <p class="muted">Kostenlos für Kirmesgesellschaften, Vereine und Veranstalter. Neue Termine, Korrekturen und Bestätigungen – alles willkommen.</p>
+  </section>
+  <form class="melden" id="melden">
+    <div class="zwei">
+      <label>Ort *<input name="ort" required placeholder="z. B. Mühlberg" /></label>
+      <label>Landkreis<input name="kreis" placeholder="z. B. Gotha" /></label>
+    </div>
+    <div class="zwei">
+      <label>Datum *<input name="datum" type="date" required /></label>
+      <label>Uhrzeit<input name="zeit" type="time" /></label>
+    </div>
+    <label>Veranstaltung *<input name="titel" required placeholder="z. B. Kirmestanz mit „Band XY“" /></label>
+    <label>Veranstaltungsort<input name="location" placeholder="z. B. Festzelt, Kulturhaus, Saal" /></label>
+    <label>Weitere Infos<textarea name="info" rows="4" placeholder="Programm, Eintritt, Link zur Kirmesgesellschaft …"></textarea></label>
+    <label>Dein Name / Kirmesgesellschaft *<input name="absender" required /></label>
+    <p class="small muted">Beim Absenden öffnet sich dein E-Mail-Programm mit einer vorbereiteten Nachricht an {KONTAKT}. Wir prüfen jede Meldung vor der Veröffentlichung.</p>
+    <div><button type="submit">Termin senden</button></div>
+  </form>
+</Base>
+
+<script define:vars={{ KONTAKT }}>
+  const form = document.getElementById('melden');
+  const ort = new URLSearchParams(location.search).get('ort');
+  if (ort) form.ort.value = ort;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(form));
+    const body = [
+      `Ort: ${f.ort}${f.kreis ? ` (${f.kreis})` : ''}`,
+      `Datum: ${f.datum}${f.zeit ? `, ${f.zeit} Uhr` : ''}`,
+      `Veranstaltung: ${f.titel}`,
+      f.location && `Veranstaltungsort: ${f.location}`,
+      f.info && `Infos: ${f.info}`,
+      `Gemeldet von: ${f.absender}`,
+    ].filter(Boolean).join('\n');
+    location.href = `mailto:${KONTAKT}?subject=${encodeURIComponent(`Kirmes-Termin: ${f.ort} ${f.datum}`)}&body=${encodeURIComponent(body)}`;
+  });
+</script>

@@ -1,0 +1,26 @@
+---
+import Base from '../../layouts/Base.astro';
+import { orte } from '../../lib/data';
+
+const buchstabe = (n: string) => n.replace(/^(EF-|Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0].toUpperCase().replace(/[ÄÖÜ]/, (c) => ({ Ä: 'A', Ö: 'O', Ü: 'U' })[c]!);
+const gruppen = new Map<string, typeof orte>();
+for (const o of [...orte].sort((a, b) => buchstabe(a.name).localeCompare(buchstabe(b.name)) || a.name.localeCompare(b.name, 'de'))) {
+  const b = buchstabe(o.name);
+  gruppen.set(b, [...(gruppen.get(b) ?? []), o]);
+}
+---
+<Base title={`Kirmes-Orte in Thüringen A–Z (${orte.length} Orte)`} description={`Alle ${orte.length} Orte mit Kirmes in Thüringen von A bis Z – mit Terminen, Kirmestanz und Kindertanz.`}>
+  <section class="hero">
+    <h1>Orte A–Z</h1>
+    <p class="muted">{orte.length} Orte mit Kirmes-Terminen in Thüringen.</p>
+    <nav class="abc" aria-label="Alphabet">{[...gruppen.keys()].map((b) => <a href={`#${b}`}>{b}</a>)}</nav>
+  </section>
+  {[...gruppen].map(([b, liste]) => (
+    <section>
+      <h2 id={b}>{b}</h2>
+      <ul class="ortliste">
+        {liste.map((o) => <li><a href={`/orte/${o.slug}`}>{o.name}</a>{o.kreis && <span class="muted small"> ({o.kreis})</span>}</li>)}
+      </ul>
+    </section>
+  ))}
+</Base>

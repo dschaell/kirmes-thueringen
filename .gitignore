@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+
+# Termindaten der alten Seite – erst nach Zustimmung des Altbetreibers veröffentlichen
+scripts/quelle-*.html
+src/data/termine.json
+db/seed/termine.json
