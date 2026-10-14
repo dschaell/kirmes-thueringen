@@ -61,16 +61,14 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
 
   <h2>Personensorgeberechtigte Person (Mutter, Vater oder Vormund)</h2>
   <div class="mz-raster">
-    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
+    <label>Name, Vorname<input autocomplete="off" /></label>
+    <label>Telefon (während der Veranstaltung erreichbar)<input autocomplete="off" /></label>
     <label class="breit">Anschrift<input autocomplete="off" /></label>
-    <label class="breit"
-      >Telefon (während der Veranstaltung erreichbar)<input autocomplete="off" /></label
-    >
   </div>
 
   <h2>Minderjährige Person</h2>
   <div class="mz-raster">
-    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
+    <label>Name, Vorname<input autocomplete="off" /></label>
     <label>Geburtsdatum<input autocomplete="off" /></label>
   </div>
 
@@ -231,11 +229,11 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
       grid-template-columns: 1fr 1fr;
     }
     .muttizettel header h1 {
-      font-size: 20pt;
+      font-size: 18pt;
     }
     .muttizettel h2 {
-      font-size: 11pt;
-      margin: 12px 0 2px;
+      font-size: 10.5pt;
+      margin: 9px 0 0;
     }
     .mz-raster {
       gap: 2px 18px;
@@ -245,23 +243,25 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
       gap: 0;
     }
     .muttizettel input {
-      font-size: 10.5pt;
-      padding: 2px;
-      height: 22px;
+      font-size: 10pt;
+      padding: 1px 2px;
+      height: 20px;
     }
     .muttizettel p {
       margin: 6px 0;
     }
     .mz-unterschriften {
-      margin-top: 22px;
+      margin-top: 16px;
       font-size: 8pt;
+      break-inside: avoid;
     }
     .mz-linie {
       height: 26px;
     }
     .mz-hinweise {
-      margin-top: 14px;
-      font-size: 8pt;
+      margin-top: 10px;
+      font-size: 7.5pt;
+      break-inside: avoid;
     }
   }
 </style>

@@ -89,7 +89,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     <section aria-labelledby="h-plaetze">
       <h2 id="h-plaetze">Festplätze auf der Karte</h2>
       <p class="leise">
-        Damit „Route“ eure Gäste direkt zum Festzelt, Saal oder Sportplatz führt. Der
+        Damit „Route“ eure Gäste direkt zum Festzelt, Saal oder Sportplatz führt. Der{' '}
         <strong>Standard-Festplatz</strong> gilt für alle Termine ohne eigenen Platz.
       </p>
       <ul class="eintraege" id="plaetze"></ul>
@@ -378,7 +378,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     $('plaetze').replaceChildren(
       ...namen.map((name) => {
         const vorhanden = daten.festplaetze.find((f) => f.name === name);
-        const li = el('li', 'eintrag');
+        const li = el('li', 'eintrag platz');
         const info = el('div');
         info.append(
           el('strong', '', name || 'Standard-Festplatz'),
@@ -387,7 +387,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
         const knopf = el('button', 'knopf zweit', vorhanden ? 'Ändern' : 'Pin setzen');
         knopf.type = 'button';
         knopf.addEventListener('click', () => pinBearbeiten(name));
-        li.append(el('span'), info, knopf);
+        li.append(info, knopf);
         return li;
       }),
     );
