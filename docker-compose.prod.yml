@@ -1,0 +1,68 @@
+# Produktions-Ergänzung für den Server. Aktivieren über COMPOSE_FILE in der .env auf dem Server:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+# Anleitung: docs/betrieb/server-umzug.md
+services:
+  db:
+    platform: ${DB_PLATFORM:-linux/amd64}
+    restart: always
+    ports: !reset [] # Datenbank nur im internen Docker-Netz
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in .env gesetzt sein}
+
+  migrate:
+    profiles: !reset []
+    environment:
+      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
+
+  api:
+    profiles: !reset []
+    restart: always
+    ports: !reset [] # API nur intern – öffentlich ist allein Caddy
+    environment:
+      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
+
+  web:
+    profiles: !reset []
+    restart: always
+    ports: !reset []
+
+  # Reverse-Proxy mit automatischem HTTPS (Let's Encrypt)
+  caddy:
+    image: caddy:2.10-alpine
+    restart: always
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN muss in .env gesetzt sein}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-daten:/data
+      - caddy-config:/config
+    depends_on: [web]
+
+  # Tägliche Sicherung der Datenbank nach ./backups (14 Tage Aufbewahrung)
+  backup:
+    image: postgis/postgis:17-3.5-alpine
+    platform: ${DB_PLATFORM:-linux/amd64}
+    restart: always
+    environment:
+      PGHOST: db
+      PGUSER: kirmes
+      PGDATABASE: kirmes
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes: ['./backups:/backups']
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        while true; do
+          sleep 3600
+          [ -f /backups/.letzte ] && [ "$$(date +%F)" = "$$(cat /backups/.letzte)" ] && continue
+          pg_dump --format=custom --file=/backups/kirmes-$$(date +%F).dump \
+            && date +%F > /backups/.letzte \
+            && find /backups -name 'kirmes-*.dump' -mtime +14 -delete \
+            && echo "Backup kirmes-$$(date +%F).dump erstellt"
+        done
+    depends_on: { db: { condition: service_healthy } }
+
+volumes:
+  caddy-daten:
+  caddy-config:

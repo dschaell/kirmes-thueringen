@@ -1,6 +1,6 @@
 import type { Datumsbereich, KalenderDatum } from '../domain/datum.js';
 import type { LandkreisKuerzel } from '../domain/landkreis.js';
-import type { Kategorie, NeuerTermin, Termin } from '../domain/termin.js';
+import type { Kategorie, NeuerTermin, Ort, Termin } from '../domain/termin.js';
 
 /** Abfrage-Kriterien – bereits validiert, frei von SQL/HTTP-Details. */
 export interface TerminFilter {
@@ -8,6 +8,8 @@ export interface TerminFilter {
   landkreise: readonly LandkreisKuerzel[];
   kategorien: readonly Kategorie[];
   suchtext: string | null;
+  /** null = alle Orte */
+  ortSlug: string | null;
   nurBestaetigt: boolean;
   limit: number;
   offset: number;
@@ -22,6 +24,19 @@ export interface Seite<T> {
 export interface TerminRepository {
   suche(filter: TerminFilter): Promise<Seite<Termin>>;
   speichere(termin: NeuerTermin): Promise<Termin>;
+}
+
+/** Ort mit Terminanzahl – für Übersichten (Orte A–Z, Landkreise). */
+export interface OrtUebersicht {
+  ort: Ort;
+  /** Termine ab heute */
+  anzahlKommend: number;
+}
+
+/** Driven Port: Orte lesen. */
+export interface OrtRepository {
+  liste(ab: KalenderDatum): Promise<OrtUebersicht[]>;
+  finde(slug: string): Promise<Ort | null>;
 }
 
 /** Ermöglicht deterministische Tests ohne echte Uhr. */

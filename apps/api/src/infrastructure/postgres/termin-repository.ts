@@ -1,5 +1,4 @@
 import {
-  PersistenzNichtVerfuegbar,
   type Kategorie,
   type KalenderDatum,
   type LandkreisKuerzel,
@@ -10,7 +9,7 @@ import {
   type TerminRepository,
 } from '@kirmes/core';
 import type pg from 'pg';
-import { istVerbindungsfehler } from './pool.js';
+import { abfrage } from './pool.js';
 
 /*
  * Alle Statements sind konstante Strings mit Platzhaltern ($1 …). Benutzereingaben gelangen
@@ -33,6 +32,7 @@ SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.t
         OR o.name ILIKE $5 ESCAPE '\\'
         OR t.veranstaltungsort ILIKE $5 ESCAPE '\\')
    AND (NOT $6::boolean OR t.bestaetigt)
+   AND ($9::text IS NULL OR o.slug = $9)
  ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
  LIMIT $7 OFFSET $8`;
 
@@ -88,13 +88,8 @@ export class OrtNichtGefunden extends Error {
 export class PgTerminRepository implements TerminRepository {
   constructor(private readonly db: pg.Pool) {}
 
-  private async abfrage<R extends pg.QueryResultRow>(sql: string, werte: unknown[]) {
-    try {
-      return await this.db.query<R>(sql, werte);
-    } catch (e) {
-      if (istVerbindungsfehler(e)) throw new PersistenzNichtVerfuegbar({ cause: e });
-      throw e;
-    }
+  private abfrage<R extends pg.QueryResultRow>(sql: string, werte: unknown[]) {
+    return abfrage<R>(this.db, sql, werte);
   }
 
   async suche(f: TerminFilter): Promise<Seite<Termin>> {
@@ -107,6 +102,7 @@ export class PgTerminRepository implements TerminRepository {
       f.nurBestaetigt,
       f.limit,
       f.offset,
+      f.ortSlug,
     ]);
     return { eintraege: rows.map(zuTermin), gesamt: Number(rows[0]?.gesamt ?? 0) };
   }

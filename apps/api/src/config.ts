@@ -4,7 +4,6 @@ export interface Konfiguration {
   host: string;
   databaseUrl: string;
   dbSsl: boolean;
-  erlaubteOrigins: string[];
   logLevel: string;
 }
 
@@ -12,11 +11,10 @@ export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfigu
   const databaseUrl = env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL fehlt');
   return {
-    port: Number(env.PORT ?? 3000),
+    port: Number(env.API_PORT ?? 3100),
     host: env.HOST ?? '0.0.0.0',
     databaseUrl,
     dbSsl: env.DB_SSL === 'true',
-    erlaubteOrigins: (env.CORS_ORIGINS ?? '').split(',').filter(Boolean),
     logLevel: env.LOG_LEVEL ?? 'info',
   };
 }

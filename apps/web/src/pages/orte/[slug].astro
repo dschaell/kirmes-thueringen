@@ -1,40 +1,50 @@
 ---
 import Base from '../../layouts/Base.astro';
 import TerminListe from '../../components/TerminListe.astro';
-import { orte, KREISE, kreisSlug, heute, eventJsonLd, type Ort } from '../../lib/data';
+import { alleTermine, findeOrt, listeOrte } from '../../lib/api';
+import { datumLang, eventJsonLd, heute, kreisName, kreisSlug, plusTage } from '../../lib/anzeige';
 
-export function getStaticPaths() {
-  return orte.map((ort) => ({ params: { slug: ort.slug }, props: { ort } }));
-}
-const { ort } = Astro.props as { ort: Ort };
+const slug = Astro.params.slug ?? '';
+const ort = await findeOrt(slug);
+if (!ort) return Astro.rewrite('/404');
+
 const h = heute();
 const jahr = h.slice(0, 4);
-const kommend = ort.termine.filter((t) => !t.datum || t.datum >= h);
-const vergangen = ort.termine.filter((t) => t.datum && t.datum < h).reverse();
-const kreisName = ort.kreis ? KREISE[ort.kreis] : null;
-const nachbarn = ort.kreis
-  ? orte.filter((o) => o.kreis === ort.kreis && o.slug !== ort.slug).slice(0, 24)
-  : [];
-const erster = kommend.find((t) => t.datum);
+// Zwei Abfragen, weil die API Zeiträume auf 366 Tage begrenzt: kommende 12 Monate + bisher in diesem Jahr
+const [kommend, bisher, orte] = await Promise.all([
+  alleTermine({ ort: ort.slug, von: h, bis: plusTage(h, 365) }),
+  h > `${jahr}-01-01`
+    ? alleTermine({ ort: ort.slug, von: `${jahr}-01-01`, bis: plusTage(h, -1) })
+    : Promise.resolve([]),
+  listeOrte(),
+]);
+const vergangen = [...bisher].reverse();
+const termine = [...bisher, ...kommend];
+const kreis = kreisName(ort.landkreis);
+const nachbarn = orte
+  .filter((o) => o.landkreis === ort.landkreis && o.slug !== ort.slug)
+  .slice(0, 24);
+const erster = kommend[0];
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
-  title={`Kirmes ${ort.name} ${jahr} – Termine${kreisName ? ` (${kreisName})` : ''}`}
-  description={`Kirmes in ${ort.name}${kreisName ? `, ${kreisName}` : ''}: alle Termine ${jahr} – ${ort.termine
-    .slice(0, 3)
-    .map((t) => t.titel)
-    .join(', ')}.`}
-  jsonLd={ort.termine.map((t) => eventJsonLd(t, Astro.site!))}
+  title={`Kirmes ${ort.name} ${jahr} – Termine (${kreis})`}
+  description={`Kirmes in ${ort.name}, ${kreis}: alle Termine ${jahr}${
+    termine.length
+      ? ' – ' +
+        termine
+          .slice(0, 3)
+          .map((t) => t.titel)
+          .join(', ')
+      : ''
+  }.`}
+  jsonLd={kommend.map((t) => eventJsonLd(t, Astro.site!))}
 >
   <p class="small muted">
-    <a href="/orte">Orte</a>{
-      ort.kreis && (
-        <>
-          {' '}
-          › <a href={`/kreise/${kreisSlug(ort.kreis)}`}>{kreisName}</a>
-        </>
-      )
-    } › {ort.name}
+    <a href="/orte">Orte</a> › <a href={`/kreise/${kreisSlug(ort.landkreis)}`}>{kreis}</a> › {
+      ort.name
+    }
   </p>
   <section class="hero">
     <h1>Kirmes in {ort.name}</h1>
@@ -42,16 +52,7 @@ const erster = kommend.find((t) => t.datum);
       {
         erster ? (
           <>
-            Nächster Termin:{' '}
-            <strong>
-              {new Date(erster.datum!).toLocaleDateString('de-DE', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                timeZone: 'UTC',
-              })}
-            </strong>{' '}
-            – {erster.titel}
+            Nächster Termin: <strong>{datumLang(erster.datum)}</strong> – {erster.titel}
           </>
         ) : (
           `Für ${jahr} sind keine weiteren Termine bekannt.`
@@ -63,20 +64,16 @@ const erster = kommend.find((t) => t.datum);
   {
     kommend.length > 0 && (
       <>
-        <>
-          <h2>Kommende Termine</h2>
-          <TerminListe termine={kommend} ortLinks={false} />
-        </>
+        <h2>Kommende Termine</h2>
+        <TerminListe termine={kommend} ortLinks={false} />
       </>
     )
   }
   {
     vergangen.length > 0 && (
       <>
-        <>
-          <h2>Bereits vorbei ({jahr})</h2>
-          <TerminListe termine={vergangen} ortLinks={false} gruppieren={false} />
-        </>
+        <h2>Bereits vorbei ({jahr})</h2>
+        <TerminListe termine={vergangen} ortLinks={false} gruppieren={false} />
       </>
     )
   }
@@ -91,7 +88,7 @@ const erster = kommend.find((t) => t.datum);
   {
     nachbarn.length > 0 && (
       <>
-        <h2>Weitere Kirmes im {kreisName}</h2>
+        <h2>Weitere Kirmes im {kreis}</h2>
         <ul class="ortliste">
           {nachbarn.map((o) => (
             <li>

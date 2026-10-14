@@ -1,36 +1,66 @@
-# Lokale Entwicklung und DAST in CI: PostgreSQL/PostGIS (Data), API (Server), Web (Client)
+# Kirmeskalender Thüringen – Container-Setup
+#
+# Lokal (Standard):   docker compose up -d          → nur die Datenbank (für `npm run dev`)
+# Lokal komplett:     docker compose --profile app up -d --build
+# Server:             zusätzlich docker-compose.prod.yml, siehe docs/betrieb/server-umzug.md
 name: kirmes
+
+x-api-build: &api-build
+  build: { context: ., dockerfile: apps/api/Dockerfile }
+  image: kirmes-api:latest
+
 services:
+  # ── Data-Tier ────────────────────────────────────────────────────────────────
   db:
     image: postgis/postgis:17-3.5-alpine
-    platform: linux/amd64 # offizielles PostGIS-Image nur amd64; Apple Silicon emuliert
+    # Das offizielle PostGIS-Image gibt es nur für amd64; auf Apple Silicon läuft es emuliert.
+    platform: ${DB_PLATFORM:-linux/amd64}
+    restart: unless-stopped # startet mit Docker automatisch wieder
     environment:
       POSTGRES_DB: kirmes
       POSTGRES_USER: kirmes
-      # Nur für lokale Entwicklung. Produktion: Secret aus dem Secret-Store, nie im Repo.
+      # Lokaler Standard; auf dem Server Pflichtwert aus .env (siehe docker-compose.prod.yml)
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kirmes_dev_only}
-    ports: ['127.0.0.1:5432:5432']
+    ports: ['127.0.0.1:${DB_PORT:-5432}:5432'] # nur vom eigenen Rechner erreichbar
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U kirmes -d kirmes']
       interval: 2s
       retries: 30
-    volumes: [db-daten:/var/lib/postgresql/data]
+    volumes: [db-daten:/var/lib/postgresql/data] # Daten überleben Neustarts und Updates
 
-  api:
-    build: { context: ., dockerfile: apps/api/Dockerfile }
+  # ── Server-Tier ──────────────────────────────────────────────────────────────
+  migrate:
+    <<: *api-build
+    profiles: [app]
+    command: ['node', 'apps/api/dist/infrastructure/postgres/migrate.js']
     environment:
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
-      CORS_ORIGINS: http://localhost:8080
-    ports: ['127.0.0.1:3000:3000']
     depends_on: { db: { condition: service_healthy } }
+    restart: 'no'
+
+  api:
+    <<: *api-build
+    profiles: [app]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports: ['127.0.0.1:3100:3100']
+    depends_on: { migrate: { condition: service_completed_successfully } }
     read_only: true
     security_opt: ['no-new-privileges:true']
 
+  # ── Client-Tier ──────────────────────────────────────────────────────────────
   web:
     build: { context: ., dockerfile: apps/web/Dockerfile }
-    ports: ['127.0.0.1:8080:8080']
+    image: kirmes-web:latest
+    profiles: [app]
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3100
+    ports: ['127.0.0.1:8080:4321']
+    depends_on: { api: { condition: service_healthy } }
     read_only: true
-    tmpfs: [/tmp]
     security_opt: ['no-new-privileges:true']
 
 volumes:

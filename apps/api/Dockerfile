@@ -21,6 +21,6 @@ COPY --from=build --chown=node:node /app/apps/api/package.json apps/api/
 COPY --from=build --chown=node:node /app/apps/api/dist apps/api/dist
 COPY --chown=node:node db db
 USER node
-EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=3s CMD wget -qO- http://127.0.0.1:3000/health/live || exit 1
+EXPOSE 3100
+HEALTHCHECK --interval=10s --timeout=3s CMD wget -qO- http://127.0.0.1:3100/health/live || exit 1
 CMD ["node", "apps/api/dist/main.js"]

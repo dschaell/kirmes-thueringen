@@ -4,6 +4,7 @@
  */
 import { PersistenzNichtVerfuegbar, type KalenderDatum, type TerminFilter } from '@kirmes/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
 import { erstellePool, istVerbindungsfehler } from '../src/infrastructure/postgres/pool.js';
 import {
   alsLikeMuster,
@@ -19,6 +20,7 @@ const basis: TerminFilter = {
   landkreise: [],
   kategorien: [],
   suchtext: null,
+  ortSlug: null,
   nurBestaetigt: false,
   limit: 50,
   offset: 0,
@@ -146,5 +148,26 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         bestaetigt: false,
       }),
     ).rejects.toBeInstanceOf(OrtNichtGefunden);
+  });
+
+  it('filtert nach Ort und liefert Ortsübersicht', async () => {
+    const nurUlla = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
+    expect(nurUlla.eintraege.map((t) => t.ort.slug)).toEqual(['it-ulla']);
+
+    const orte = new PgOrtRepository(pool);
+    const muehlberg = (await orte.liste(d('2026-10-01'))).find(
+      (o) => o.ort.slug === 'it-muehlberg',
+    );
+    expect(muehlberg).toEqual({
+      ort: {
+        slug: 'it-muehlberg',
+        name: 'IT-Mühlberg',
+        landkreis: 'GTH',
+        koordinate: { lat: 50.87, lon: 10.82 },
+      },
+      anzahlKommend: 1,
+    });
+    expect((await orte.finde('it-ulla'))?.koordinate).toBeNull();
+    expect(await orte.finde('it-gibtsnicht')).toBeNull();
   });
 });

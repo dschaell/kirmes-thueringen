@@ -102,6 +102,8 @@ werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treibe
 | ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------ |
 | `GET /api/v1/termine`    | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset` | 200 JSON · 400 Problem Details · 503 |
 | `GET /api/v1/landkreise` | Alle 23 Landkreise                                                                  | 200                                  |
+| `GET /api/v1/orte`       | Alle Orte mit Anzahl kommender Termine                                              | 200                                  |
+| `GET /api/v1/orte/:slug` | Ein Ort                                                                             | 200 · 404                            |
 | `GET /health/live`       | Prozess lebt                                                                        | 200                                  |
 | `GET /health/ready`      | DB erreichbar                                                                       | 200 · 503                            |
 
@@ -134,11 +136,19 @@ Core synchronisiert – **eine** Quelle der Wahrheit.
 
 ## 5.4 Ebene 2 – Client-Tier
 
-| Baustein                     | Verantwortung                                               |
-| ---------------------------- | ----------------------------------------------------------- |
-| `layouts/Base.astro`         | Gerüst, Navigation, SEO-Meta, JSON-LD                       |
-| `pages/termine.astro`        | Suche & Filter im Browser, Zustand in der URL               |
-| `pages/orte/[slug].astro`    | Statische Ortsseite je Kirmesort                            |
-| `pages/kreise/[kreis].astro` | Landkreisseite                                              |
-| `pages/kalender.ics.ts`      | iCal-Feed                                                   |
-| `lib/data.ts`                | Datenzugriff (heute: Seed-Datei, Ziel: API – siehe Kap. 11) |
+Die Website rendert jede Seite serverseitig (Astro, `output: 'server'`) und holt Daten **ausschließlich**
+über die HTTP-API (`apps/web/src/lib/api.ts`). Der Browser spricht nie direkt mit der API; die API ist
+nur im internen Netz erreichbar. Regel `web-nur-ueber-api` (dependency-cruiser) verhindert Importe aus
+`db/` oder `apps/api`.
+
+| Baustein                     | Verantwortung                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `server.mjs`                 | HTTP-Server, setzt Sicherheits-Header auf **jede** Antwort                        |
+| `src/middleware.ts`          | API nicht erreichbar → 503-Seite statt Fehler                                     |
+| `src/lib/api.ts`             | API-Client (Timeout 5 s, Fehlerklassen `ApiNichtErreichbar`, `UngueltigeAnfrage`) |
+| `src/lib/anzeige.ts`         | Darstellung (Kategorien, Datumsformate, JSON-LD)                                  |
+| `pages/termine.astro`        | Suche & Filter als GET-Formular – funktioniert ohne JavaScript                    |
+| `pages/orte/[slug].astro`    | Ortsseite, aktuell aus der DB                                                     |
+| `pages/kreise/[kreis].astro` | Landkreisseite                                                                    |
+| `pages/kalender.ics.ts`      | iCal-Feed aller kommenden Termine                                                 |
+| `pages/sitemap.xml.ts`       | Sitemap inkl. aller Ortsseiten aus der DB                                         |

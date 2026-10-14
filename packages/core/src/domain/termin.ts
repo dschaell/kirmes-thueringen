@@ -71,6 +71,8 @@ export const HERBST_MONATE = [9, 10, 11] as const;
 export const istHerbstKirmes = (d: KalenderDatum): boolean =>
   (HERBST_MONATE as readonly number[]).includes(monatVon(d));
 
+export const istOrtSlug = (s: string): boolean => SLUG.test(s);
+
 const istKategorie = (k: string): k is Kategorie => (KATEGORIEN as readonly string[]).includes(k);
 
 /**
@@ -88,7 +90,7 @@ export function validiereTermin(
   const landkreis = parseLandkreis(e.landkreis);
   if (!landkreis.ok) fehler.push(landkreis.error);
 
-  if (!SLUG.test(e.ortSlug)) {
+  if (!istOrtSlug(e.ortSlug)) {
     fehler.push({ feld: 'ortSlug', code: 'SLUG_UNGUELTIG', meldung: 'Ungültiger Orts-Slug.' });
   }
   const titel = e.titel.trim();

@@ -16,3 +16,4 @@ coverage/
 *.tsbuildinfo
 zap/
 reports/
+backups/

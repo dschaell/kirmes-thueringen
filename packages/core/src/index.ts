@@ -5,3 +5,4 @@ export * from './domain/termin.js';
 export * from './application/ports.js';
 export * from './application/suche-termine.js';
 export * from './application/lege-termin-an.js';
+export * from './application/orte.js';

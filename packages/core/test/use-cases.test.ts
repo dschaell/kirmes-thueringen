@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   baueFilter,
+  FindeOrt,
+  ListeOrte,
+  type OrtRepository,
   LegeTerminAn,
   SucheTermine,
   type KalenderDatum,
@@ -63,6 +66,7 @@ describe('baueFilter', () => {
         landkreise: ['GTH', 'IK'],
         kategorien: ['kinder'],
         suchtext: 'Mühlberg',
+        ortSlug: null,
         nurBestaetigt: true,
         limit: 10,
         offset: 20,
@@ -77,6 +81,7 @@ describe('baueFilter', () => {
         landkreise: ['BY'],
         kategorien: ['zirkus'],
         q: 'x'.repeat(101),
+        ort: 'Mühl berg',
         limit: 0,
         offset: -1,
       },
@@ -87,6 +92,7 @@ describe('baueFilter', () => {
       'LANDKREIS_UNBEKANNT',
       'KATEGORIE_UNBEKANNT',
       'SUCHE_ZU_LANG',
+      'SLUG_UNGUELTIG',
       'LIMIT_UNGUELTIG',
       'OFFSET_UNGUELTIG',
     ]);
@@ -134,5 +140,32 @@ describe('LegeTerminAn', () => {
     });
     expect(r.ok).toBe(false);
     expect(repo.gespeichert).toHaveLength(0);
+  });
+});
+
+describe('ListeOrte / FindeOrt', () => {
+  const ort = { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH' as const, koordinate: null };
+  const gefragt: string[] = [];
+  const repo: OrtRepository = {
+    liste: async (ab) => {
+      gefragt.push(`liste:${ab}`);
+      return [{ ort, anzahlKommend: 2 }];
+    },
+    finde: async (slug) => {
+      gefragt.push(`finde:${slug}`);
+      return slug === 'muehlberg' ? ort : null;
+    },
+  };
+
+  it('listet Orte ab heute', async () => {
+    expect(await new ListeOrte(repo, uhr).ausfuehren()).toEqual([{ ort, anzahlKommend: 2 }]);
+    expect(gefragt).toContain('liste:2026-10-14');
+  });
+
+  it('fragt ungültige Slugs gar nicht erst an', async () => {
+    const uc = new FindeOrt(repo);
+    expect(await uc.ausfuehren('muehlberg')).toEqual(ort);
+    expect(await uc.ausfuehren("x' OR 1=1")).toBeNull();
+    expect(gefragt).not.toContain("finde:x' OR 1=1");
   });
 });

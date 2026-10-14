@@ -1,28 +1,44 @@
 # 7. Verteilungssicht
 
+## 7.1 Lokal (Entwicklung)
+
+`npm run dev` startet die Datenbank als Docker-Container (`docker-compose.yml`, Dienst `db`,
+Port nur auf `127.0.0.1:5432`) und API (`:3100`) sowie Website (`:4321`) direkt auf dem Rechner.
+Die Daten liegen im Volume `kirmes_db-daten`.
+
+## 7.2 Server (Produktion)
+
 ```mermaid
 flowchart LR
-  subgraph Host["Container-Host (z. B. VPS / Kubernetes)"]
-    RP["Reverse-Proxy<br/>TLS, HSTS"]
-    subgraph netz["internes Netz"]
-      W["web<br/>nginx-unprivileged:1.29<br/>UID 101, read-only"]
-      A["api<br/>node:24-alpine<br/>User node, read-only"]
-      P[("db<br/>postgis/postgis:17-3.5<br/>Volume db-daten")]
+  Internet((Internet)) -->|443 HTTPS| C
+  subgraph Host["VPS (Ubuntu, Docker) – /opt/kirmes"]
+    C["caddy<br/>TLS (Let's Encrypt), HSTS"]
+    subgraph netz["internes Docker-Netz"]
+      W["web<br/>node:24-alpine, User node, read-only"]
+      A["api<br/>node:24-alpine, User node, read-only"]
+      M["migrate (einmalig je Start)"]
+      P[("db<br/>postgis/postgis:17-3.5")]
+      B["backup<br/>pg_dump täglich"]
     end
+    V[(Volume db-daten)]
+    D[/./backups/]
   end
-  Internet((Internet)) --> RP
-  RP -->|/ | W
-  RP -->|/api/| A
-  A --> P
+  C --> W --> A --> P
+  M --> P
+  B --> P
+  P --- V
+  B --> D
 ```
 
-| Knoten | Image                               | Härtung                                                            |
-| ------ | ----------------------------------- | ------------------------------------------------------------------ |
-| web    | `apps/web/Dockerfile`               | unprivilegierter User, Read-only-FS, `no-new-privileges`, CSP      |
-| api    | `apps/api/Dockerfile` (multi-stage) | ohne Dev-Abhängigkeiten, User `node`, Read-only-FS, Healthcheck    |
-| db     | `postgis/postgis:17-3.5-alpine`     | Port nur `127.0.0.1` bzw. internes Netz, Passwort aus Secret-Store |
+| Knoten  | Quelle                          | Härtung                                                         |
+| ------- | ------------------------------- | --------------------------------------------------------------- |
+| caddy   | `deploy/Caddyfile`              | einziger öffentlicher Dienst (80/443), HSTS, automatisches TLS  |
+| web     | `apps/web/Dockerfile`           | kein öffentlicher Port, User `node`, Read-only-FS, CSP          |
+| api     | `apps/api/Dockerfile`           | kein öffentlicher Port, User `node`, Read-only-FS, Healthcheck  |
+| migrate | wie api                         | läuft vor der API; API startet nur nach erfolgreicher Migration |
+| db      | `postgis/postgis:17-3.5-alpine` | kein Port nach außen, Passwort aus `.env` (chmod 600)           |
+| backup  | wie db                          | täglicher `pg_dump`, 14 Tage Aufbewahrung                       |
 
-**Lokal:** `docker compose up -d --build --wait` startet alle drei Tiers; dieselbe Topologie
-nutzt der DAST-Job in CI. Auf Apple Silicon läuft das PostGIS-Image per amd64-Emulation.
-
-**Datenhaltung:** Tägliches `pg_dump` mit Aufbewahrung von 30 Tagen (Betriebsaufgabe).
+Die Produktions-Konfiguration ist eine Ergänzung (`docker-compose.prod.yml`) derselben Compose-Datei,
+aktiviert über `COMPOSE_FILE` in der Server-`.env`. Schritt-für-Schritt-Anleitung inkl. Datenumzug:
+[docs/betrieb/server-umzug.md](../betrieb/server-umzug.md).

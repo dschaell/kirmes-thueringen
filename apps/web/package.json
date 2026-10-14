@@ -3,14 +3,16 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
+    "@astrojs/node": "^11.1.7",
+    "@kirmes/core": "^0.1.0",
     "astro": "^7.3.8"
   },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "start": "node server.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10"

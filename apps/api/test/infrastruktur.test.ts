@@ -7,14 +7,11 @@ describe('ladeKonfiguration', () => {
     expect(() => ladeKonfiguration({})).toThrow('DATABASE_URL fehlt');
   });
   it('liest Werte und setzt sichere Standards', () => {
-    expect(
-      ladeKonfiguration({ DATABASE_URL: 'postgres://x', CORS_ORIGINS: 'https://a,https://b' }),
-    ).toEqual({
-      port: 3000,
+    expect(ladeKonfiguration({ DATABASE_URL: 'postgres://x' })).toEqual({
+      port: 3100,
       host: '0.0.0.0',
       databaseUrl: 'postgres://x',
       dbSsl: false,
-      erlaubteOrigins: ['https://a', 'https://b'],
       logLevel: 'info',
     });
   });

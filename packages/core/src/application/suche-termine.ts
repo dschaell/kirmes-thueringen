@@ -1,7 +1,7 @@
 import { erstelleDatumsbereich, parseDatum, plusTage } from '../domain/datum.js';
 import { parseLandkreis, type LandkreisKuerzel } from '../domain/landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
-import { KATEGORIEN, type Kategorie, type Termin } from '../domain/termin.js';
+import { istOrtSlug, KATEGORIEN, type Kategorie, type Termin } from '../domain/termin.js';
 import type { Seite, TerminFilter, TerminRepository, Uhr } from './ports.js';
 
 /** Rohe Anfrage, wie sie von außen (HTTP, CLI) kommt. */
@@ -11,6 +11,7 @@ export interface SucheAnfrage {
   landkreise?: string[];
   kategorien?: string[];
   q?: string;
+  ort?: string;
   nurBestaetigt?: boolean;
   limit?: number;
   offset?: number;
@@ -51,6 +52,11 @@ export function baueFilter(a: SucheAnfrage, uhr: Uhr): Result<TerminFilter, Vali
     fehler.push({ feld: 'q', code: 'SUCHE_ZU_LANG', meldung: `Max. ${SUCHTEXT_MAX} Zeichen.` });
   }
 
+  const ortSlug = a.ort?.trim() || null;
+  if (ortSlug && !istOrtSlug(ortSlug)) {
+    fehler.push({ feld: 'ort', code: 'SLUG_UNGUELTIG', meldung: 'Ungültiger Orts-Slug.' });
+  }
+
   const limit = a.limit ?? 50;
   const offset = a.offset ?? 0;
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
@@ -66,6 +72,7 @@ export function baueFilter(a: SucheAnfrage, uhr: Uhr): Result<TerminFilter, Vali
     landkreise,
     kategorien,
     suchtext: q,
+    ortSlug,
     nurBestaetigt: a.nurBestaetigt ?? false,
     limit,
     offset,

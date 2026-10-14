@@ -1,16 +1,17 @@
 ---
-import { KATEGORIEN, KREISE, monatName, type Termin } from '../lib/data';
+import type { TerminDto } from '../lib/api';
+import { KATEGORIEN, kreisName, monatName } from '../lib/anzeige';
 
 interface Props {
-  termine: Termin[];
+  termine: TerminDto[];
   ortLinks?: boolean;
   gruppieren?: boolean;
 }
 const { termine, ortLinks = true, gruppieren = true } = Astro.props;
 
-const gruppen = new Map<string, Termin[]>();
+const gruppen = new Map<string, TerminDto[]>();
 for (const t of termine) {
-  const key = gruppieren ? (t.datum ? monatName(t.datum) : 'Datum noch offen') : '';
+  const key = gruppieren ? monatName(t.datum) : '';
   gruppen.set(key, [...(gruppen.get(key) ?? []), t]);
 }
 const wt = (iso: string) =>
@@ -27,29 +28,22 @@ const mon = (iso: string) =>
       <ul class="liste">
         {liste.map((t) => (
           <li class="termin" id={t.id}>
-            {t.datum ? (
-              <div class="kal" aria-hidden="true">
-                <div class="wt">{wt(t.datum)}</div>
-                <div class="tag">{+t.datum.slice(8, 10)}</div>
-                <div class="mon">{mon(t.datum)}</div>
-              </div>
-            ) : (
-              <div class="kal offen" aria-hidden="true">
-                <div class="wt">offen</div>
-                <div class="tag">?</div>
-              </div>
-            )}
+            <div class="kal" aria-hidden="true">
+              <div class="wt">{wt(t.datum)}</div>
+              <div class="tag">{+t.datum.slice(8, 10)}</div>
+              <div class="mon">{mon(t.datum)}</div>
+            </div>
             <div>
               <h3>
                 {KATEGORIEN[t.kategorie].emoji} {t.titel}
               </h3>
               <div class="meta">
                 <span>
-                  📍 {ortLinks ? <a href={`/orte/${t.ortSlug}`}>{t.ort}</a> : t.ort}
-                  {t.kreis && <span title={KREISE[t.kreis]}> ({t.kreis})</span>}
+                  📍 {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
+                  <span title={kreisName(t.ort.landkreis)}> ({t.ort.landkreis})</span>
                 </span>
-                {t.location && <span>🏛️ {t.location}</span>}
-                {t.zeit && <span>🕗 {t.zeit} Uhr</span>}
+                {t.veranstaltungsort && <span>🏛️ {t.veranstaltungsort}</span>}
+                {t.beginn && <span>🕗 {t.beginn} Uhr</span>}
                 {!t.bestaetigt && (
                   <span
                     class="badge warn"

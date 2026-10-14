@@ -1,8 +1,11 @@
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import { isIP } from 'node:net';
 import {
   LANDKREISE,
   PersistenzNichtVerfuegbar,
+  type FindeOrt,
+  type ListeOrte,
   type SucheTermine,
   type Termin,
   type Validierungsfehler,
@@ -11,8 +14,9 @@ import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
 
 export interface AppAbhaengigkeiten {
   sucheTermine: SucheTermine;
+  listeOrte: ListeOrte;
+  findeOrt: FindeOrt;
   datenbankErreichbar: () => Promise<boolean>;
-  erlaubteOrigins: readonly string[];
   logger?: FastifyServerOptions['logger'];
 }
 
@@ -22,6 +26,7 @@ interface TermineQuery {
   landkreis?: string | string[];
   kategorie?: string | string[];
   q?: string;
+  ort?: string;
   bestaetigt?: boolean;
   limit?: number;
   offset?: number;
@@ -30,6 +35,20 @@ interface TermineQuery {
 /** „GTH,IK“ und ?landkreis=GTH&landkreis=IK werden gleich behandelt. */
 const liste = (v: string | string[] | undefined): string[] =>
   (Array.isArray(v) ? v : v ? [v] : []).flatMap((s) => s.split(',')).filter(Boolean);
+
+/**
+ * Aufrufer aus privaten Netzen (Website-Container, localhost) sind vom Rate-Limit ausgenommen:
+ * Die API ist nicht öffentlich erreichbar, alle Seitenaufrufe kommen über den Web-Server.
+ */
+export function istInternesNetz(ip: string | undefined): boolean {
+  if (!ip) return false;
+  const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (isIP(v4) === 4) {
+    const [a, b] = v4.split('.').map(Number) as [number, number];
+    return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  }
+  return ip === '::1' || /^f[cd]/i.test(ip);
+}
 
 /** RFC 9457 Problem Details */
 const problem = (status: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -58,6 +77,7 @@ const termineQuerySchema = {
       ],
     },
     q: { type: 'string', maxLength: 100 },
+    ort: { type: 'string', maxLength: 120 },
     bestaetigt: { type: 'boolean' },
     limit: { type: 'integer' },
     offset: { type: 'integer' },
@@ -79,7 +99,7 @@ export async function baueApp(d: AppAbhaengigkeiten) {
   const app = Fastify({
     logger: d.logger ?? false,
     bodyLimit: 16 * 1024,
-    trustProxy: true,
+    // Kein trustProxy: Die API steht nicht hinter einem öffentlichen Proxy, X-Forwarded-For wäre fälschbar.
     ajv: { customOptions: { removeAdditional: false, coerceTypes: 'array' } },
   });
 
@@ -87,12 +107,10 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
-  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
-
-  // CORS: zurückgegeben wird nur ein Wert aus der Konfiguration, nie der Request-Header selbst.
-  app.addHook('onSend', async (req, reply) => {
-    const erlaubt = d.erlaubteOrigins.find((o) => o === req.headers.origin);
-    if (erlaubt) reply.header('Access-Control-Allow-Origin', erlaubt).header('Vary', 'Origin');
+  await app.register(rateLimit, {
+    max: 120,
+    timeWindow: '1 minute',
+    allowList: (req) => istInternesNetz(req.socket.remoteAddress),
   });
 
   app.setErrorHandler((fehler: FastifyError | PersistenzNichtVerfuegbar, req, reply) => {
@@ -141,6 +159,7 @@ export async function baueApp(d: AppAbhaengigkeiten) {
         landkreise: liste(q.landkreis),
         kategorien: liste(q.kategorie),
         ...(q.q && { q: q.q }),
+        ...(q.ort && { ort: q.ort }),
         ...(q.bestaetigt !== undefined && { nurBestaetigt: q.bestaetigt }),
         ...(q.limit !== undefined && { limit: q.limit }),
         ...(q.offset !== undefined && { offset: q.offset }),
@@ -155,6 +174,32 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       }
       reply.header('Cache-Control', 'public, max-age=300');
       return { gesamt: r.value.gesamt, termine: r.value.eintraege.map(terminDto) };
+    },
+  );
+
+  app.get('/api/v1/orte', async (_req, reply) => {
+    const orte = await d.listeOrte.ausfuehren();
+    reply.header('Cache-Control', 'public, max-age=300');
+    return orte.map((o) => ({ ...o.ort, anzahlKommend: o.anzahlKommend }));
+  });
+
+  app.get<{ Params: { slug: string } }>(
+    '/api/v1/orte/:slug',
+    {
+      schema: {
+        params: { type: 'object', properties: { slug: { type: 'string', maxLength: 120 } } },
+      },
+    },
+    async (req, reply) => {
+      const ort = await d.findeOrt.ausfuehren(req.params.slug);
+      if (!ort) {
+        return reply
+          .status(404)
+          .type('application/problem+json')
+          .send(problem(404, 'Ort nicht gefunden'));
+      }
+      reply.header('Cache-Control', 'public, max-age=300');
+      return ort;
     },
   );
 

@@ -7,10 +7,10 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "dev": "npm run build -w @kirmes/core && tsx watch src/main.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node dist/main.js",
-    "migrate": "tsx src/infrastructure/postgres/migrate.ts",
-    "seed": "tsx src/infrastructure/postgres/seed.ts"
+    "migrate": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/migrate.ts",
+    "seed": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/seed.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",

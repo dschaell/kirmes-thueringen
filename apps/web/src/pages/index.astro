@@ -1,16 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
 import TerminListe from '../components/TerminListe.astro';
-import { termine, kommende, orte, KREISE, kreisSlug, heute, eventJsonLd } from '../lib/data';
+import { listeOrte, sucheTermine } from '../lib/api';
+import { LANDKREISE, eventJsonLd, heute, kreisSlug, plusTage } from '../lib/anzeige';
 
 const h = heute();
-const plus = (tage: number) => new Date(Date.parse(h) + tage * 864e5).toISOString().slice(0, 10);
-const naechste = kommende().filter((t) => t.datum! <= plus(21));
-const kreise = Object.entries(KREISE)
-  .map(([k, name]) => ({ k, name, n: termine.filter((t) => t.kreis === k).length }))
+const [naechste, orte] = await Promise.all([
+  sucheTermine({ von: h, bis: plusTage(h, 21), limit: 200 }),
+  listeOrte(),
+]);
+const kommendGesamt = orte.reduce((s, o) => s + o.anzahlKommend, 0);
+const kreise = Object.entries(LANDKREISE)
+  .map(([k, name]) => ({
+    k,
+    name,
+    n: orte.filter((o) => o.landkreis === k).reduce((s, o) => s + o.anzahlKommend, 0),
+  }))
   .filter((x) => x.n > 0)
   .sort((a, b) => b.n - a.n);
 const jahr = h.slice(0, 4);
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
@@ -28,22 +37,20 @@ const jahr = h.slice(0, 4);
         'query-input': 'required name=suche',
       },
     },
-    ...naechste.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!)),
+    ...naechste.termine.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!)),
   ]}
 >
   <section class="hero">
     <h1>Kirmes in Thüringen {jahr}</h1>
     <p class="muted">
-      Der Kirmeskalender für ganz Thüringen – {termine.length.toLocaleString('de-DE')} Termine in {
-        orte.length
-      } Orten. Finde die nächste Kirmes in deiner Nähe.
+      Der Kirmeskalender für ganz Thüringen – {kommendGesamt.toLocaleString('de-DE')} kommende Termine
+      in {orte.length} Orten. Finde die nächste Kirmes in deiner Nähe.
     </p>
     <form class="suche" action="/termine" method="get" role="search">
-      <label class="sr" for="q" hidden>Suche</label>
       <input
-        id="q"
         name="q"
         type="search"
+        aria-label="Suche"
         placeholder="Ort, Band oder Veranstaltung – z. B. „Mühlberg“ oder „Kindertanz“"
         autocomplete="off"
       />
@@ -52,7 +59,7 @@ const jahr = h.slice(0, 4);
   </section>
 
   <div class="stats">
-    <div class="stat"><b>{kommende().length}</b>kommende Termine</div>
+    <div class="stat"><b>{kommendGesamt}</b>kommende Termine</div>
     <div class="stat"><b>{orte.length}</b>Orte</div>
     <div class="stat"><b>{kreise.length}</b>Landkreise</div>
     <div class="stat"><b><a href="/kalender.ics">iCal</a></b>Kalender abonnieren</div>
@@ -60,8 +67,8 @@ const jahr = h.slice(0, 4);
 
   <h2>Die nächsten drei Wochen</h2>
   {
-    naechste.length ? (
-      <TerminListe termine={naechste} />
+    naechste.termine.length ? (
+      <TerminListe termine={naechste.termine} />
     ) : (
       <p class="leer">
         In den nächsten drei Wochen sind keine Termine eingetragen.{' '}
@@ -76,11 +83,9 @@ const jahr = h.slice(0, 4);
     {
       kreise.map((x) => (
         <a class="card card-link" href={`/kreise/${kreisSlug(x.k)}`}>
-          <>
-            <strong>{x.name}</strong>
-            <br />
-            <span class="muted small">{x.n} Termine</span>
-          </>
+          <strong>{x.name}</strong>
+          <br />
+          <span class="muted small">{x.n} kommende Termine</span>
         </a>
       ))
     }

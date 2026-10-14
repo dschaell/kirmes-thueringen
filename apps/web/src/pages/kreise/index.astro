@@ -1,16 +1,17 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { KREISE, kreisSlug, orte, termine } from '../../lib/data';
+import { listeOrte } from '../../lib/api';
+import { LANDKREISE, kreisSlug } from '../../lib/anzeige';
 
-const kreise = Object.entries(KREISE)
-  .map(([k, name]) => ({
-    k,
-    name,
-    orte: orte.filter((o) => o.kreis === k).length,
-    n: termine.filter((t) => t.kreis === k).length,
-  }))
-  .filter((x) => x.n > 0)
+const orte = await listeOrte();
+const kreise = Object.entries(LANDKREISE)
+  .map(([k, name]) => {
+    const imKreis = orte.filter((o) => o.landkreis === k);
+    return { k, name, orte: imKreis.length, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0) };
+  })
+  .filter((x) => x.orte > 0)
   .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
 
 <Base
@@ -22,13 +23,10 @@ const kreise = Object.entries(KREISE)
     {
       kreise.map((x) => (
         <a class="card card-link" href={`/kreise/${kreisSlug(x.k)}`}>
-          <strong>{x.name}</strong>{' '}
-          <>
-            <span class="badge">{x.k}</span>
-            <br />
-          </>
+          <strong>{x.name}</strong> <span class="badge">{x.k}</span>
+          <br />
           <span class="muted small">
-            {x.orte} Orte · {x.n} Termine
+            {x.orte} Orte · {x.n} kommende Termine
           </span>
         </a>
       ))

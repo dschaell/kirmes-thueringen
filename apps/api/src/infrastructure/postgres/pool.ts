@@ -1,3 +1,4 @@
+import { PersistenzNichtVerfuegbar } from '@kirmes/core';
 import pg from 'pg';
 
 export interface DbKonfiguration {
@@ -36,4 +37,18 @@ export function istVerbindungsfehler(e: unknown): boolean {
     code.startsWith('08') || // connection_exception
     /timeout|Connection terminated/i.test(e.message)
   );
+}
+
+/** Führt eine parametrisierte Abfrage aus und übersetzt Verbindungsfehler in den Port-Fehler des Core. */
+export async function abfrage<R extends pg.QueryResultRow>(
+  db: pg.Pool,
+  sql: string,
+  werte: unknown[],
+): Promise<pg.QueryResult<R>> {
+  try {
+    return await db.query<R>(sql, werte);
+  } catch (e) {
+    if (istVerbindungsfehler(e)) throw new PersistenzNichtVerfuegbar({ cause: e });
+    throw e;
+  }
 }

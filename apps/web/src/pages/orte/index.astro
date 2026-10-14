@@ -1,13 +1,13 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { orte } from '../../lib/data';
+import { listeOrte, type OrtUebersichtDto } from '../../lib/api';
 
+const orte = await listeOrte();
 const buchstabe = (n: string) =>
-  n
-    .replace(/^(EF-|Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0]
+  (n.replace(/^(EF-|Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0] ?? '#')
     .toUpperCase()
-    .replace(/[ÄÖÜ]/, (c) => ({ Ä: 'A', Ö: 'O', Ü: 'U' })[c]!);
-const gruppen = new Map<string, typeof orte>();
+    .replace(/[ÄÖÜ]/, (c) => ({ Ä: 'A', Ö: 'O', Ü: 'U' })[c] ?? c);
+const gruppen = new Map<string, OrtUebersichtDto[]>();
 for (const o of [...orte].sort(
   (a, b) =>
     buchstabe(a.name).localeCompare(buchstabe(b.name)) || a.name.localeCompare(b.name, 'de'),
@@ -15,6 +15,7 @@ for (const o of [...orte].sort(
   const b = buchstabe(o.name);
   gruppen.set(b, [...(gruppen.get(b) ?? []), o]);
 }
+Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
 
 <Base
@@ -36,7 +37,7 @@ for (const o of [...orte].sort(
           {liste.map((o) => (
             <li>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
-              {o.kreis && <span class="muted small"> ({o.kreis})</span>}
+              <span class="muted small"> ({o.landkreis})</span>
             </li>
           ))}
         </ul>

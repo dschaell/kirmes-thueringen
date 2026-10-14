@@ -38,6 +38,14 @@ module.exports = {
       from: { path: '^apps/api/src/infrastructure' },
       to: { path: '^apps/api/src/interfaces' },
     },
+    {
+      name: 'web-nur-ueber-api',
+      severity: 'error',
+      comment:
+        'Client-Tier holt Daten nur per HTTP von der API – kein Zugriff auf db/ oder API-Interna (N-Tier).',
+      from: { path: '^apps/web' },
+      to: { path: '^(db|apps/api)/|^node_modules/pg' },
+    },
     { name: 'keine-zyklen', severity: 'error', from: {}, to: { circular: true } },
   ],
   options: {

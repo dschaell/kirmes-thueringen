@@ -9,10 +9,11 @@ krankheitsbedingt eingestellt).
 ## Architektur (N-Tier + Clean Architecture)
 
 ```
-apps/web        Client-Tier   Astro (statisch), nginx mit strenger CSP
+apps/web        Client-Tier   Astro mit Server-Rendering, holt Daten nur über die API
 apps/api        Server-Tier   Fastify-API, PostgreSQL-Adapter, Migrationen
 packages/core   Fachlogik     Domain + Use Cases – keine Framework-/DB-Abhängigkeiten
-db/             Data-Tier     SQL-Migrationen (PostgreSQL 17 + PostGIS), Seed-Daten
+db/             Data-Tier     PostgreSQL 17 + PostGIS im Docker-Container, Migrationen, Seed
+deploy/         Betrieb       Caddy (HTTPS) und .env-Vorlage für den Server
 docs/architecture             arc42-Dokumentation
 ```
 
@@ -21,16 +22,18 @@ bei jedem Lint-Lauf. Details: [docs/architecture](docs/architecture/README.md).
 
 ## Schnellstart
 
+Voraussetzungen: Node.js ≥ 22, Docker (z. B. Docker Desktop oder Rancher Desktop).
+
 ```bash
 npm install
-docker compose up -d --wait db
-export DATABASE_URL=postgres://kirmes:kirmes_dev_only@127.0.0.1:5432/kirmes
-npm run db:migrate && npm run db:seed
-npm run dev -w @kirmes/api      # http://localhost:3000/api/v1/termine
-npm run dev -w @kirmes/web      # http://localhost:4321
+npm run dev        # startet PostgreSQL im Container, migriert, startet API + Website
 ```
 
-Alles in Containern: `docker compose up -d --build --wait` (Web :8080, API :3000).
+Website: http://localhost:4321 · API: http://localhost:3100/api/v1/termine
+Termine einspielen: `npm run db:seed` (Beispieldaten oder lokaler Import, siehe unten).
+
+Alles in Containern wie auf dem Server: `docker compose --profile app up -d --build` → http://localhost:8080
+Server-Umzug: [docs/betrieb/server-umzug.md](docs/betrieb/server-umzug.md)
 
 | Befehl                  | Zweck                                                   |
 | ----------------------- | ------------------------------------------------------- |
@@ -38,6 +41,8 @@ Alles in Containern: `docker compose up -d --build --wait` (Web :8080, API :3000
 | `npm test`              | Unit-, HTTP- und (mit `DATABASE_URL`) Integrationstests |
 | `npm run test:coverage` | wie oben, mit Abdeckungs-Schwelle 85 %                  |
 | `npm run build`         | Core, API und Web bauen                                 |
+| `npm run db:backup`     | Datenbank sichern nach `backups/`                       |
+| `npm run db:restore`    | Backup einspielen                                       |
 
 ## Qualität und Sicherheit
 

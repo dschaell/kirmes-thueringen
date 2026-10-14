@@ -436,3 +436,36 @@ form.melden textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* Filterformular (Server-Rendering) */
+fieldset.chips {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+}
+fieldset.chips legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+label.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px 6px 0;
+}
+label.chip input {
+  accent-color: var(--rot);
+  margin: 0;
+}
+label.chip:has(input:checked) {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.seiten {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0;
+}

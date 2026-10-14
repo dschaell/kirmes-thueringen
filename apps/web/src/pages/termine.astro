@@ -1,174 +1,147 @@
 ---
+/**
+ * Suche & Filter werden serverseitig über die API ausgeführt (funktioniert auch ohne JavaScript).
+ * Das kleine Skript unten schickt das Formular nur automatisch ab, wenn sich ein Filter ändert.
+ */
 import Base from '../layouts/Base.astro';
-import { KATEGORIEN, KREISE, termine, heute } from '../lib/data';
+import TerminListe from '../components/TerminListe.astro';
+import { sucheTermine, UngueltigeAnfrage, type TerminSeite } from '../lib/api';
+import { KATEGORIEN, LANDKREISE, heute, plusTage } from '../lib/anzeige';
 
-const kreise = Object.entries(KREISE).filter(([k]) => termine.some((t) => t.kreis === k));
-const jahr = heute().slice(0, 4);
+const SEITE = 50;
+const p = Astro.url.searchParams;
+const q = p.get('q')?.slice(0, 100) ?? '';
+const kreis = p.get('kreis') ?? '';
+const zeit = p.get('zeit') ?? 'kommend';
+const kat = p.getAll('kat');
+const nurBest = p.get('best') === '1';
+const offset = Math.max(0, Number(p.get('seite') ?? 1) - 1) * SEITE;
+
+const h = heute();
+const tag = new Date(h).getUTCDay(); // 0 = So
+const freitag = plusTage(h, tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag);
+const zeitraum =
+  zeit === 'wochenende'
+    ? { von: freitag, bis: plusTage(freitag, 2) }
+    : zeit === 'jahr'
+      ? { von: `${h.slice(0, 4)}-01-01`, bis: `${h.slice(0, 4)}-12-31` }
+      : { von: h };
+
+let ergebnis: TerminSeite = { gesamt: 0, termine: [] };
+let fehler: string | null = null;
+try {
+  ergebnis = await sucheTermine({
+    ...zeitraum,
+    q,
+    landkreis: kreis ? [kreis] : [],
+    kategorie: kat,
+    bestaetigt: nurBest || undefined,
+    limit: SEITE,
+    offset,
+  });
+} catch (e) {
+  if (!(e instanceof UngueltigeAnfrage)) throw e;
+  fehler = e.fehler.map((f) => f.meldung).join(' ');
+  Astro.response.status = 400;
+}
+
+const seiten = Math.ceil(ergebnis.gesamt / SEITE);
+const aktuell = offset / SEITE + 1;
+const seitenLink = (n: number) => {
+  const u = new URLSearchParams(p);
+  u.set('seite', String(n));
+  return `?${u}`;
+};
+const jahr = h.slice(0, 4);
+Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
 <Base
   title={`Alle Kirmes-Termine ${jahr} in Thüringen – suchen & filtern`}
-  description={`Durchsuche alle Kirmes-Termine in Thüringen ${jahr} nach Ort, Landkreis, Monat und Art der Veranstaltung.`}
+  description={`Durchsuche alle Kirmes-Termine in Thüringen ${jahr} nach Ort, Landkreis, Zeitraum und Art der Veranstaltung.`}
 >
   <section class="hero">
     <h1>Alle Termine</h1>
-    <div class="suche" role="search">
-      <input
-        id="q"
-        type="search"
-        placeholder="Ort, Band oder Veranstaltung …"
-        autocomplete="off"
-        aria-label="Suche"
-      />
-      <select id="kreis" aria-label="Landkreis">
-        <option value="">Alle Landkreise</option>
-        {kreise.map(([k, n]) => <option value={k}>{n}</option>)}
-      </select>
-      <select id="zeitraum" aria-label="Zeitraum">
-        <option value="kommend">Ab heute</option>
-        <option value="wochenende">Dieses Wochenende</option>
-        <option value="alle">Ganzes Jahr</option>
-      </select>
-    </div>
-    <div class="chips" id="kats" role="group" aria-label="Art der Veranstaltung">
-      {
-        Object.entries(KATEGORIEN).map(([k, v]) => (
-          <button type="button" class="chip" data-kat={k} aria-pressed="false">
-            {v.emoji} {v.label}
-          </button>
-        ))
-      }
-    </div>
-    <label class="small muted"><input type="checkbox" id="nurBest" /> nur bestätigte Termine</label>
+    <form class="filter" id="filter" method="get" role="search">
+      <div class="suche">
+        <input
+          name="q"
+          type="search"
+          value={q}
+          maxlength="100"
+          placeholder="Ort, Band oder Veranstaltung …"
+          autocomplete="off"
+          aria-label="Suche"
+        />
+        <select name="kreis" aria-label="Landkreis">
+          <option value="">Alle Landkreise</option>
+          {
+            Object.entries(LANDKREISE).map(([k, n]) => (
+              <option value={k} selected={k === kreis}>
+                {n}
+              </option>
+            ))
+          }
+        </select>
+        <select name="zeit" aria-label="Zeitraum">
+          <option value="kommend" selected={zeit === 'kommend'}>Ab heute</option>
+          <option value="wochenende" selected={zeit === 'wochenende'}>Dieses Wochenende</option>
+          <option value="jahr" selected={zeit === 'jahr'}>Ganzes Jahr {jahr}</option>
+        </select>
+        <button type="submit">Suchen</button>
+      </div>
+      <fieldset class="chips">
+        <legend class="small muted">Art der Veranstaltung</legend>
+        {
+          Object.entries(KATEGORIEN).map(([k, v]) => (
+            <label class="chip">
+              <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
+              {v.emoji} {v.label}
+            </label>
+          ))
+        }
+      </fieldset>
+      <label class="small muted">
+        <input type="checkbox" name="best" value="1" checked={nurBest} /> nur bestätigte Termine
+      </label>
+    </form>
   </section>
-  <p id="anzahl" class="muted small" aria-live="polite"></p>
-  <div id="ergebnis"><p class="leer">Lade Termine …</p></div>
-  <noscript
-    ><p>
-      Für die Suche wird JavaScript benötigt. Alternativ: <a href="/orte">Orte A–Z</a>.
-    </p></noscript
-  >
+
+  {
+    fehler && (
+      <p class="hinweis" role="alert">
+        {fehler}
+      </p>
+    )
+  }
+  <p class="muted small" aria-live="polite">{ergebnis.gesamt} Termine gefunden</p>
+  <TerminListe termine={ergebnis.termine} />
+
+  {
+    seiten > 1 && (
+      <nav class="seiten" aria-label="Seiten">
+        {aktuell > 1 && (
+          <a class="btn ghost" href={seitenLink(aktuell - 1)}>
+            ← Zurück
+          </a>
+        )}
+        <span class="muted">
+          Seite {aktuell} von {seiten}
+        </span>
+        {aktuell < seiten && (
+          <a class="btn ghost" href={seitenLink(aktuell + 1)}>
+            Weiter →
+          </a>
+        )}
+      </nav>
+    )
+  }
 </Base>
 
 <script>
-  import { KATEGORIEN, type Termin } from '../lib/data-client';
-
-  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-  const q = $<HTMLInputElement>('q'),
-    kreis = $<HTMLSelectElement>('kreis'),
-    zeitraum = $<HTMLSelectElement>('zeitraum');
-  const nurBest = $<HTMLInputElement>('nurBest'),
-    ergebnis = $('ergebnis'),
-    anzahl = $('anzahl');
-  const chips = [...document.querySelectorAll<HTMLButtonElement>('#kats .chip')];
-
-  const params = new URLSearchParams(location.search);
-  q.value = params.get('q') ?? '';
-  kreis.value = params.get('kreis') ?? '';
-  zeitraum.value = params.get('zeit') ?? 'kommend';
-  nurBest.checked = params.get('best') === '1';
-  const aktiv = new Set((params.get('kat') ?? '').split(',').filter(Boolean));
-  chips.forEach((c) => c.setAttribute('aria-pressed', String(aktiv.has(c.dataset.kat!))));
-
-  const norm = (s: string) =>
-    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss');
-  const esc = (s: string) =>
-    s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const monat = new Intl.DateTimeFormat('de-DE', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
+  // Fortschrittliche Verbesserung: Filteränderungen sofort anwenden.
+  const form = document.getElementById('filter') as HTMLFormElement;
+  form.addEventListener('change', (e) => {
+    if ((e.target as HTMLElement).getAttribute('name') !== 'q') form.requestSubmit();
   });
-  const wt = new Intl.DateTimeFormat('de-DE', { weekday: 'short', timeZone: 'UTC' });
-  const mon = new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'UTC' });
-
-  function wochenende(): [string, string] {
-    const d = new Date(iso(new Date()));
-    const tag = d.getUTCDay(); // 0 So … 6 Sa
-    const fr = new Date(d);
-    fr.setUTCDate(d.getUTCDate() + (tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag));
-    const so = new Date(fr);
-    so.setUTCDate(fr.getUTCDate() + 2);
-    return [iso(fr), iso(so)];
-  }
-
-  let daten: (Termin & { _s: string })[] = [];
-
-  function render() {
-    const h = iso(new Date());
-    const worte = norm(q.value).split(/\s+/).filter(Boolean);
-    const [we1, we2] = wochenende();
-    const liste = daten.filter(
-      (t) =>
-        (!kreis.value || t.kreis === kreis.value) &&
-        (!aktiv.size || aktiv.has(t.kategorie)) &&
-        (!nurBest.checked || t.bestaetigt) &&
-        (zeitraum.value === 'alle' ||
-          (zeitraum.value === 'kommend'
-            ? !t.datum || t.datum >= h
-            : t.datum && t.datum >= we1 && t.datum <= we2)) &&
-        worte.every((w) => t._s.includes(w)),
-    );
-
-    const p = new URLSearchParams();
-    if (q.value) p.set('q', q.value);
-    if (kreis.value) p.set('kreis', kreis.value);
-    if (zeitraum.value !== 'kommend') p.set('zeit', zeitraum.value);
-    if (aktiv.size) p.set('kat', [...aktiv].join(','));
-    if (nurBest.checked) p.set('best', '1');
-    history.replaceState(null, '', p.size ? `?${p}` : location.pathname);
-
-    anzahl.textContent = `${liste.length} Termine gefunden`;
-    if (!liste.length) {
-      ergebnis.innerHTML = '<p class="leer">Keine Termine gefunden. Filter lockern?</p>';
-      return;
-    }
-    let html = '',
-      akt = '';
-    for (const t of liste.slice(0, 600)) {
-      const g = t.datum ? monat.format(new Date(t.datum)) : 'Datum noch offen';
-      if (g !== akt) {
-        html += `${akt ? '</ul></section>' : ''}<section><h2 class="monat">${g}</h2><ul class="liste">`;
-        akt = g;
-      }
-      const d = t.datum ? new Date(t.datum) : null;
-      html += `<li class="termin">${
-        d
-          ? `<div class="kal"><div class="wt">${wt.format(d)}</div><div class="tag">${d.getUTCDate()}</div><div class="mon">${mon.format(d)}</div></div>`
-          : '<div class="kal offen"><div class="wt">offen</div><div class="tag">?</div></div>'
-      }
-        <div><h3>${KATEGORIEN[t.kategorie].emoji} ${esc(t.titel)}</h3><div class="meta">
-        <span>📍 <a href="/orte/${t.ortSlug}">${esc(t.ort)}</a>${t.kreis ? ` (${t.kreis})` : ''}</span>
-        ${t.location ? `<span>🏛️ ${esc(t.location)}</span>` : ''}${t.zeit ? `<span>🕗 ${t.zeit} Uhr</span>` : ''}
-        ${t.bestaetigt ? '' : '<span class="badge warn" title="Datum aus Vorjahren hochgerechnet">unbestätigt</span>'}
-        </div></div></li>`;
-    }
-    html += '</ul></section>';
-    if (liste.length > 600)
-      html += `<p class="leer">… und ${liste.length - 600} weitere. Bitte Suche eingrenzen.</p>`;
-    ergebnis.innerHTML = html;
-  }
-
-  chips.forEach((c) =>
-    c.addEventListener('click', () => {
-      const k = c.dataset.kat!;
-      aktiv.has(k) ? aktiv.delete(k) : aktiv.add(k);
-      c.setAttribute('aria-pressed', String(aktiv.has(k)));
-      render();
-    }),
-  );
-  let timer: number;
-  q.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = window.setTimeout(render, 120);
-  });
-  [kreis, zeitraum, nurBest].forEach((el) => el.addEventListener('change', render));
-
-  fetch('/termine.json')
-    .then((r) => r.json())
-    .then((d: Termin[]) => {
-      daten = d.map((t) => ({ ...t, _s: norm([t.titel, t.ort, t.location, t.kreis].join(' ')) }));
-      render();
-    });
 </script>

@@ -1,6 +1,7 @@
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
-import { SucheTermine } from '@kirmes/core';
+import { FindeOrt, ListeOrte, SucheTermine } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
+import { PgOrtRepository } from './infrastructure/postgres/ort-repository.js';
 import { erstellePool } from './infrastructure/postgres/pool.js';
 import {
   datenbankErreichbar,
@@ -17,10 +18,13 @@ const pool = erstellePool({
   statementTimeoutMs: 5_000,
 });
 
+const uhr = new SystemUhr();
+const orte = new PgOrtRepository(pool);
 const app = await baueApp({
-  sucheTermine: new SucheTermine(new PgTerminRepository(pool), new SystemUhr()),
+  sucheTermine: new SucheTermine(new PgTerminRepository(pool), uhr),
+  listeOrte: new ListeOrte(orte, uhr),
+  findeOrt: new FindeOrt(orte),
   datenbankErreichbar: () => datenbankErreichbar(pool),
-  erlaubteOrigins: k.erlaubteOrigins,
   logger: {
     level: k.logLevel,
     redact: ['req.headers.authorization', 'req.headers.cookie'],

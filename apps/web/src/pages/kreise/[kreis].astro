@@ -1,19 +1,21 @@
 ---
 import Base from '../../layouts/Base.astro';
 import TerminListe from '../../components/TerminListe.astro';
-import { KREISE, kreisSlug, orte, termine, heute } from '../../lib/data';
+import { listeOrte, sucheTermine } from '../../lib/api';
+import { heute, kreisAusSlug, kreisName } from '../../lib/anzeige';
 
-export function getStaticPaths() {
-  return Object.keys(KREISE)
-    .filter((k) => termine.some((t) => t.kreis === k))
-    .map((k) => ({ params: { kreis: kreisSlug(k) }, props: { k } }));
-}
-const { k } = Astro.props;
-const name = KREISE[k];
+const k = kreisAusSlug(Astro.params.kreis ?? '');
+if (!k) return Astro.rewrite('/404');
+
+const name = kreisName(k);
 const h = heute();
 const jahr = h.slice(0, 4);
-const kommend = termine.filter((t) => t.kreis === k && t.datum && t.datum >= h);
-const ortListe = orte.filter((o) => o.kreis === k);
+const [kommend, orte] = await Promise.all([
+  sucheTermine({ landkreis: [k], von: h, limit: 200 }),
+  listeOrte(),
+]);
+const ortListe = orte.filter((o) => o.landkreis === k);
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
@@ -24,7 +26,7 @@ const ortListe = orte.filter((o) => o.kreis === k);
   <section class="hero">
     <h1>Kirmes im {name}</h1>
     <p class="muted">
-      {ortListe.length} Orte · {kommend.length} kommende Termine · <a
+      {ortListe.length} Orte · {kommend.gesamt} kommende Termine · <a
         href={`/termine?kreis=${encodeURIComponent(k)}`}>durchsuchen</a
       >
     </p>
@@ -40,5 +42,14 @@ const ortListe = orte.filter((o) => o.kreis === k);
     }
   </ul>
   <h2>Kommende Termine</h2>
-  <TerminListe termine={kommend} />
+  <TerminListe termine={kommend.termine} />
+  {
+    kommend.gesamt > kommend.termine.length && (
+      <p>
+        <a class="btn ghost" href={`/termine?kreis=${encodeURIComponent(k)}`}>
+          Alle {kommend.gesamt} Termine anzeigen →
+        </a>
+      </p>
+    )
+  }
 </Base>
