@@ -8,7 +8,7 @@ Ohne Konfiguration zeigt die Website bei einer Meldung den Weg über `mailto:` a
 ## Einrichten (einmalig)
 
 1. **Brevo-Konto** anlegen (kostenloser Tarif reicht: 300 Mails/Tag).
-2. **Auftragsverarbeitungsvertrag (AVV)** im Brevo-Konto abschließen (DSGVO Art. 28).
+2. **Auftragsverarbeitungsvertrag (AVV):** ist bei Brevo Teil der Nutzungsbedingungen (Anhang 3 „Datenschutzvereinbarung“) und gilt mit der Kontoeröffnung – die Fassung als PDF ablegen. Zwei-Faktor-Anmeldung im Brevo-Konto einschalten.
 3. **Absender-Domain verifizieren:** Brevo → _Absender, Domains & dedizierte IPs_ → _Domains_ →
    Domain hinzufügen und die angezeigten DNS-Einträge beim Domain-Anbieter setzen
    (Brevo-Code, **DKIM**, **DMARC**; SPF nach Vorgabe). Erst danach landen Mails nicht im Spam.
