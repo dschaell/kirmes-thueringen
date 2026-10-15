@@ -92,6 +92,20 @@ class LegeTerminAn {
 }
 ```
 
+#### Zugriffsschutz (Ports)
+
+Schreibende Use Cases bekommen den **Akteur** als Parameter und prüfen Rechte über Ports – der Core
+kennt weder Cookies noch HTTP-Header:
+
+| Akteur             | Nachweis                                        | Port(s) im Core                                                    | Darf                                      |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- |
+| Kirmesgesellschaft | persönlicher Bearbeitungslink (Token, nur Hash) | `Bearbeitungslinks.pruefe(token) → Berechtigung`                   | Termine und Festplätze **ihres** Ortes    |
+| Redaktion (Admin)  | Sitzung nach Passwort + TOTP oder Passkey       | `AdminKonten`, `Kryptografie`, `Sitzungen`, `Passkeys`, `WebAuthn` | alles: Orte, Termine, Mitteilungen, Links |
+| Besucher           | –                                               | –                                                                  | lesen, Meldung an die Redaktion senden    |
+
+`Berechtigung` (Ort, Link- bzw. Admin-ID) fließt bis in die Persistenz: Jede Schreibanweisung prüft
+im `WHERE` den Ort und schreibt einen Eintrag ins `aenderungsprotokoll` (wer, was, wann).
+
 `TerminFilter` ist bereits validiert (Datumsbereich ≤ 366 Tage, nur Thüringer Landkreise,
 Limit 1–200) und enthält keine SQL- oder HTTP-Konzepte. Technische Fehler der Persistenz
 werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treiberfehler.
