@@ -205,7 +205,8 @@ jobs:
         env:
           POSTGRES_PASSWORD: ci_only_not_secret
         run: |
-          docker compose --profile app up -d --build --wait
+          # ZAP crawlt schnell von einer IP – das Website-Rate-Limit würde sonst den Scan drosseln
+          RATE_LIMIT_MAX=100000 docker compose --profile app up -d --build --wait
           docker compose --profile app run --rm migrate node apps/api/dist/infrastructure/postgres/orte.js
           docker compose --profile app run --rm migrate node apps/api/dist/infrastructure/postgres/beispiele.js
       - name: ZAP Baseline – Web (Client-Tier)

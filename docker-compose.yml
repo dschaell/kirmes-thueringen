@@ -71,6 +71,9 @@ services:
       API_URL: http://api:3100
       # Öffentliche Adresse – Grundlage für Bearbeitungslinks (nie aus der Anfrage abgeleitet)
       WEBSITE_URL: ${APP_URL:-http://localhost:8080}
+      # Seitenaufrufe je Client-IP und Minute (statische Dateien zählen nicht)
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_FENSTER_S: ${RATE_LIMIT_FENSTER_S:-60}
     ports: ['127.0.0.1:8080:4321']
     depends_on: { api: { condition: service_healthy } }
     read_only: true

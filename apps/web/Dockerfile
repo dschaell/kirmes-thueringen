@@ -19,7 +19,7 @@ COPY --from=build --chown=node:node /app/packages/core/package.json packages/cor
 COPY --from=build --chown=node:node /app/packages/core/dist packages/core/dist
 COPY --from=build --chown=node:node /app/apps/web/package.json apps/web/
 COPY --from=build --chown=node:node /app/apps/web/dist apps/web/dist
-COPY --chown=node:node apps/web/server.mjs apps/web/sicherheits-header.mjs apps/web/
+COPY --chown=node:node apps/web/server.mjs apps/web/sicherheits-header.mjs apps/web/rate-limit.mjs apps/web/
 USER node
 EXPOSE 4321
 HEALTHCHECK --interval=10s --timeout=3s CMD wget -qO- http://127.0.0.1:4321/impressum >/dev/null || exit 1
