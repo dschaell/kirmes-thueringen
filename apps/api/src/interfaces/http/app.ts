@@ -5,17 +5,34 @@ import {
   LANDKREISE,
   PersistenzNichtVerfuegbar,
   type FindeOrt,
+  type FindeTermin,
   type ListeOrte,
   type SucheTermine,
+  type VerwalteFestplaetze,
+  type VerwalteTermine,
+  type Mitteilung,
+  type TerminFormular,
   type Termin,
   type Validierungsfehler,
+  type MeldeAnRedaktion,
+  type MeldungEingabe,
 } from '@kirmes/core';
-import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
+import { adminRouten, type AdminAbhaengigkeiten } from './admin-routen.js';
+import Fastify, { type FastifyError, type FastifyReply, type FastifyServerOptions } from 'fastify';
 
 export interface AppAbhaengigkeiten {
   sucheTermine: SucheTermine;
   listeOrte: ListeOrte;
   findeOrt: FindeOrt;
+  findeTermin: FindeTermin;
+  verwalteFestplaetze: VerwalteFestplaetze;
+  verwalteTermine: VerwalteTermine;
+  /** Neueste veröffentlichte Mitteilung (öffentlich) */
+  aktuelleMitteilung: () => Promise<Mitteilung | null>;
+  /** Redaktionszugang; ohne diese Abhängigkeit gibt es keine Admin-Endpunkte */
+  admin?: Omit<AdminAbhaengigkeiten, 'terminDto'>;
+  /** Meldungen an die Redaktion per E-Mail; fehlt sie, antwortet der Endpunkt mit 503 */
+  meldungen?: MeldeAnRedaktion;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -93,7 +110,54 @@ const terminDto = (t: Termin) => ({
   kategorie: t.kategorie,
   bestaetigt: t.bestaetigt,
   ort: t.ort,
+  festplatz: t.festplatz,
+  band: t.band,
+  muttizettel: t.muttizettel,
+  info: t.info,
 });
+
+/** „Authorization: Bearer <token>“ → token */
+const bearer = (h: string | undefined): string =>
+  h?.startsWith('Bearer ') ? h.slice(7).trim() : '';
+
+const terminFormularSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['datum', 'titel'],
+  properties: {
+    datum: { type: 'string', maxLength: 10 },
+    beginn: { type: ['string', 'null'], maxLength: 5 },
+    titel: { type: 'string', maxLength: 200 },
+    veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
+    kategorie: { type: ['string', 'null'], maxLength: 20 },
+    band: { type: ['string', 'null'], maxLength: 200 },
+    muttizettel: { type: 'boolean' },
+    info: { type: ['string', 'null'], maxLength: 1000 },
+  },
+} as const;
+
+const wochenendeSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['zeilen'],
+  properties: { zeilen: { type: 'array', minItems: 1, maxItems: 20, items: terminFormularSchema } },
+} as const;
+
+const idSchema = {
+  type: 'object',
+  properties: { id: { type: 'string', maxLength: 36 } },
+} as const;
+
+const festplatzSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'lat', 'lon'],
+  properties: {
+    name: { type: 'string', maxLength: 120 },
+    lat: { type: 'number' },
+    lon: { type: 'number' },
+  },
+} as const;
 
 export async function baueApp(d: AppAbhaengigkeiten) {
   const app = Fastify({
@@ -144,6 +208,71 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       : reply.status(503).send({ status: 'datenbank nicht erreichbar' }),
   );
 
+  // Meldung an die Redaktion (Termin melden, Link anfordern) – Versand per SMTP
+  const T = (max: number) => ({ type: 'string', maxLength: max });
+  app.post<{ Body: MeldungEingabe }>(
+    '/api/v1/meldungen',
+    {
+      bodyLimit: 16 * 1024,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: {
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['art', 'ort', 'absender', 'email'],
+          properties: {
+            art: { type: 'string', enum: ['termin', 'link'] },
+            ort: T(200),
+            landkreis: T(100),
+            datum: T(20),
+            zeit: T(10),
+            titel: T(300),
+            veranstaltungsort: T(200),
+            info: T(4000),
+            absender: T(200),
+            email: T(300),
+            falle: T(500),
+            dauerMs: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      if (!d.meldungen) {
+        return reply
+          .status(503)
+          .type('application/problem+json')
+          .send(problem(503, 'Meldungen per E-Mail sind gerade nicht möglich.'));
+      }
+      // Hinter der Website (internes Netz) zählt die IP der Besucher, die die Website mitschickt
+      const weitergeleitet = req.headers['x-kirmes-client-ip'];
+      const herkunft =
+        istInternesNetz(req.socket.remoteAddress) && typeof weitergeleitet === 'string'
+          ? weitergeleitet.slice(0, 64)
+          : req.ip;
+      try {
+        const r = await d.meldungen.melde(req.body, herkunft);
+        if (r.ok) return reply.status(202).send({ angenommen: true });
+        if (r.error === 'ZU_VIELE') {
+          return reply
+            .status(429)
+            .type('application/problem+json')
+            .send(problem(429, 'Zu viele Meldungen – bitte später noch einmal versuchen.'));
+        }
+        return reply
+          .status(400)
+          .type('application/problem+json')
+          .send(problem(400, 'Ungültige Eingabe', { fehler: r.error }));
+      } catch (e) {
+        req.log.error({ err: e }, 'Meldung konnte nicht versendet werden');
+        return reply
+          .status(502)
+          .type('application/problem+json')
+          .send(problem(502, 'Die Meldung konnte gerade nicht versendet werden.'));
+      }
+    },
+  );
+
   app.get('/api/v1/landkreise', async () =>
     Object.entries(LANDKREISE).map(([kuerzel, name]) => ({ kuerzel, name })),
   );
@@ -177,6 +306,24 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/termine/:id',
+    {
+      schema: { params: { type: 'object', properties: { id: { type: 'string', maxLength: 36 } } } },
+    },
+    async (req, reply) => {
+      const t = await d.findeTermin.ausfuehren(req.params.id);
+      if (!t) {
+        return reply
+          .status(404)
+          .type('application/problem+json')
+          .send(problem(404, 'Termin nicht gefunden'));
+      }
+      reply.header('Cache-Control', 'public, max-age=300');
+      return terminDto(t);
+    },
+  );
+
   app.get('/api/v1/orte', async (_req, reply) => {
     const orte = await d.listeOrte.ausfuehren();
     reply.header('Cache-Control', 'public, max-age=300');
@@ -202,6 +349,159 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       return ort;
     },
   );
+
+  // ── Verwaltung durch Kirmesgesellschaften (persönlicher Bearbeitungslink) ──────────────
+  const nichtBerechtigt = (reply: FastifyReply) =>
+    reply
+      .status(401)
+      .header('WWW-Authenticate', 'Bearer')
+      .type('application/problem+json')
+      .send(problem(401, 'Bearbeitungslink ungültig oder gesperrt'));
+
+  app.get('/api/v1/verwaltung/festplaetze', async (req, reply) => {
+    const r = await d.verwalteFestplaetze.uebersicht(bearer(req.headers.authorization));
+    reply.header('Cache-Control', 'no-store');
+    return r.ok ? r.value : nichtBerechtigt(reply);
+  });
+
+  app.put<{ Body: { name: string; lat: number; lon: number } }>(
+    '/api/v1/verwaltung/festplaetze',
+    { schema: { body: festplatzSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteFestplaetze.speichere(bearer(req.headers.authorization), req.body);
+      if (r.ok) return r.value;
+      if (Array.isArray(r.error)) {
+        return reply
+          .status(400)
+          .type('application/problem+json')
+          .send(problem(400, 'Ungültiger Festplatz', { fehler: r.error }));
+      }
+      return nichtBerechtigt(reply);
+    },
+  );
+
+  app.delete<{ Querystring: { name: string } }>(
+    '/api/v1/verwaltung/festplaetze',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string', maxLength: 120 } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const r = await d.verwalteFestplaetze.loesche(
+        bearer(req.headers.authorization),
+        req.query.name,
+      );
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Festplatz nicht gefunden'));
+    },
+  );
+
+  // ── Termine der Kirmesgesellschaft ─────────────────────────────────────────────────────
+  const ungueltig = (reply: FastifyReply, fehler: Validierungsfehler[]) =>
+    reply
+      .status(400)
+      .type('application/problem+json')
+      .send(problem(400, 'Ungültiger Termin', { fehler }));
+
+  app.get('/api/v1/verwaltung/termine', async (req, reply) => {
+    const r = await d.verwalteTermine.liste(bearer(req.headers.authorization));
+    reply.header('Cache-Control', 'no-store');
+    return r.ok ? r.value.map(terminDto) : nichtBerechtigt(reply);
+  });
+
+  app.post<{ Body: TerminFormular }>(
+    '/api/v1/verwaltung/termine',
+    { schema: { body: terminFormularSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.lege(bearer(req.headers.authorization), req.body);
+      if (r.ok)
+        return reply
+          .status(201)
+          .send({ termin: terminDto(r.value.termin), hinweise: r.value.hinweise });
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.post<{ Body: { zeilen: TerminFormular[] } }>(
+    '/api/v1/verwaltung/termine/wochenende',
+    { schema: { body: wochenendeSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.legeMehrere(
+        bearer(req.headers.authorization),
+        req.body.zeilen,
+      );
+      if (r.ok) {
+        return reply
+          .status(201)
+          .send({ termine: r.value.termine.map(terminDto), hinweise: r.value.hinweise });
+      }
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.put<{ Params: { id: string }; Body: TerminFormular }>(
+    '/api/v1/verwaltung/termine/:id',
+    { schema: { params: idSchema, body: terminFormularSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.aendere(
+        bearer(req.headers.authorization),
+        req.params.id,
+        req.body,
+      );
+      if (r.ok) return r.value;
+      if (r.error === 'NICHT_GEFUNDEN') {
+        return reply
+          .status(404)
+          .type('application/problem+json')
+          .send(problem(404, 'Termin nicht gefunden'));
+      }
+      return Array.isArray(r.error) ? ungueltig(reply, r.error) : nichtBerechtigt(reply);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/verwaltung/termine/:id/bestaetigen',
+    { schema: { params: idSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.bestaetige(
+        bearer(req.headers.authorization),
+        req.params.id,
+      );
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Termin nicht gefunden'));
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    '/api/v1/verwaltung/termine/:id',
+    { schema: { params: idSchema } },
+    async (req, reply) => {
+      const r = await d.verwalteTermine.loesche(bearer(req.headers.authorization), req.params.id);
+      if (!r.ok) return nichtBerechtigt(reply);
+      return r.value
+        ? reply.status(204).send()
+        : reply.status(404).send(problem(404, 'Termin nicht gefunden'));
+    },
+  );
+
+  // ── Mitteilungen (öffentlich) ──────────────────────────────────────────────────────────
+  app.get('/api/v1/mitteilungen/aktuell', async (_req, reply) => {
+    const m = await d.aktuelleMitteilung();
+    reply.header('Cache-Control', 'public, max-age=60');
+    if (!m) return reply.status(404).send(problem(404, 'Keine Mitteilung'));
+    return { id: m.id, titel: m.titel, text: m.text, link: m.link, datum: m.veroeffentlichtAm };
+  });
+
+  if (d.admin) await adminRouten(app, { ...d.admin, terminDto });
 
   return app;
 }

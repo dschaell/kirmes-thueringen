@@ -23,7 +23,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kirmes_dev_only}
     ports: ['127.0.0.1:${DB_PORT:-5432}:5432'] # nur vom eigenen Rechner erreichbar
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U kirmes -d kirmes']
+      # Über TCP prüfen: Beim ersten Start läuft PostGIS kurz nur am Unix-Socket und startet dann neu.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U kirmes -d kirmes']
       interval: 2s
       retries: 30
     volumes: [db-daten:/var/lib/postgresql/data] # Daten überleben Neustarts und Updates
@@ -45,6 +46,16 @@ services:
     environment:
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Website-Adresse: Bearbeitungslinks und Relying Party der Passkeys
+      WEBSITE_URL: ${APP_URL:-http://localhost:8080}
+      # Meldungen an die Redaktion per E-Mail (Brevo). Leer = Formular nutzt mailto
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_OHNE_TLS: ${SMTP_OHNE_TLS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_AN: ${MAIL_AN:-}
     ports: ['127.0.0.1:3100:3100']
     depends_on: { migrate: { condition: service_completed_successfully } }
     read_only: true
@@ -58,10 +69,21 @@ services:
     restart: unless-stopped
     environment:
       API_URL: http://api:3100
+      # Öffentliche Adresse – Grundlage für Bearbeitungslinks (nie aus der Anfrage abgeleitet)
+      WEBSITE_URL: ${APP_URL:-http://localhost:8080}
     ports: ['127.0.0.1:8080:4321']
     depends_on: { api: { condition: service_healthy } }
     read_only: true
     security_opt: ['no-new-privileges:true']
+
+  # ── Nur Entwicklung: fängt alle Mails ab (Web-Oberfläche http://localhost:8025) ──
+  mailpit:
+    image: axllent/mailpit:v1.29.0
+    profiles: [mail]
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports: ['127.0.0.1:8025:8025', '127.0.0.1:1025:1025']
 
 volumes:
   db-daten:

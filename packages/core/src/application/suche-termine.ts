@@ -92,3 +92,14 @@ export class SucheTermine {
     return ok(await this.repo.suche(filter.value));
   }
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Use Case: einzelnen Termin laden (teilbare Terminseite). Ungültige IDs gehen nicht zur DB. */
+export class FindeTermin {
+  constructor(private readonly repo: TerminRepository) {}
+
+  ausfuehren(id: string): Promise<Termin | null> {
+    return UUID.test(id) ? this.repo.finde(id) : Promise.resolve(null);
+  }
+}

@@ -1,0 +1,6 @@
+---
+/** Verstecktes CSRF-Feld – in jedes Admin-Formular mit method="post" einbauen. */
+import { CSRF_FELD } from '../../lib/csrf';
+---
+
+<input type="hidden" name={CSRF_FELD} value={Astro.locals.csrf ?? ''} />

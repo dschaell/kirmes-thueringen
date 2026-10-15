@@ -1,21 +1,27 @@
 ---
+import '@fontsource-variable/bitter';
+import '@fontsource-variable/source-sans-3';
 import '../styles/global.css';
 
 interface Props {
   title: string;
   description: string;
   jsonLd?: unknown[];
+  /** Für Seiten, die nicht in Suchmaschinen sollen (z. B. Verwaltung) */
+  noindex?: boolean;
 }
-const { title, description, jsonLd = [] } = Astro.props;
+const { title, description, jsonLd = [], noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const pfad = Astro.url.pathname;
 const nav = [
-  ['/termine', 'Alle Termine'],
+  ['/termine', 'Termine'],
   ['/orte', 'Orte A–Z'],
   ['/kreise', 'Landkreise'],
   ['/termin-melden', 'Termin melden'],
   ['/ueber-die-kirmes', 'Über die Kirmes'],
 ];
+/** JSON sicher in <script> einbetten: „<“ maskieren, damit kein Titel das Script-Tag beenden kann. */
+const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
@@ -25,35 +31,51 @@ const nav = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {
+      noindex ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : (
+        <link rel="canonical" href={canonical} />
+      )
+    }
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link
       rel="alternate"
       type="text/calendar"
       title="Kirmeskalender Thüringen (iCal)"
       href="/kalender.ics"
     />
+    <meta name="theme-color" content="#a4161a" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="de_DE" />
     <meta property="og:site_name" content="Kirmeskalender Thüringen" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="theme-color" content="#b3261e" />
+    <meta property="og:image" content={new URL('/og.png', Astro.site)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     {
       jsonLd
         .filter(Boolean)
-        .map((j) => <script type="application/ld+json" set:html={JSON.stringify(j)} />)
+        .map((j) => <script type="application/ld+json" set:html={alsJsonLd(j)} />)
     }
   </head>
   <body>
-    <header class="site-head">
+    <a class="sprung" href="#inhalt">Zum Inhalt springen</a>
+    <header class="kopf">
       <div class="wrap">
-        <a class="logo" href="/"><span aria-hidden="true">🎪</span> Kirmeskalender Thüringen</a>
-        <nav aria-label="Hauptnavigation">
+        <a class="marke" href="/">
+          <img src="/favicon.svg" alt="" width="36" height="36" />
+          <span>Kirmeskalender<small>Thüringen</small></span>
+        </a>
+        <nav class="nav" aria-label="Hauptnavigation">
           {
             nav.map(([href, label]) => (
-              <a href={href} aria-current={pfad.startsWith(href) ? 'page' : undefined}>
+              <a href={href} aria-current={pfad.startsWith(href!) ? 'page' : undefined}>
                 {label}
               </a>
             ))
@@ -62,22 +84,109 @@ const nav = [
       </div>
     </header>
     <div class="wimpel" aria-hidden="true"></div>
-    <main class="wrap">
+    <main id="inhalt" class="wrap">
       <slot />
     </main>
-    <footer class="site-foot">
+    <footer class="fuss">
       <div class="wrap">
         <div>
-          <strong>Kirmeskalender Thüringen</strong><br />
-          Alle Angaben ohne Gewähr. Termine bitte beim Veranstalter bestätigen.
+          <h2>Kirmeskalender Thüringen</h2>
+          <p>
+            Wann ist wo Kirmes? Hier stehen die Termine der Kirmesgesellschaften aus ganz Thüringen
+            – vom Kirmestanz über den Kindertanz bis zur Kirmesbeerdigung.
+          </p>
+          <p class="leise klein">
+            Alle Angaben ohne Gewähr. Im Zweifel beim Veranstalter nachfragen.
+          </p>
         </div>
         <div>
-          <a href="/kalender.ics">Kalender abonnieren (iCal)</a> ·
-          <a href="/termin-melden">Termin melden</a> ·
-          <a href="/impressum">Impressum</a> ·
-          <a href="/datenschutz">Datenschutz</a>
+          <h2>Termine</h2>
+          <ul>
+            <li><a href="/termine?zeit=wochenende">Dieses Wochenende</a></li>
+            <li><a href="/termine">Alle Termine</a></li>
+            <li><a href="/orte">Orte A–Z</a></li>
+            <li><a href="/kalender.ics">Kalender abonnieren</a></li>
+            <li><a href="/muttizettel">Muttizettel-Vorlage</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Für Kirmesgesellschaften</h2>
+          <ul>
+            <li><a href="/termin-melden">Termin melden oder ändern</a></li>
+            <li><a href="/termin-melden#festplatz">Festplatz auf der Karte eintragen</a></li>
+          </ul>
+        </div>
+        <div class="recht">
+          <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
+          <span>
+            Ortsdaten © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a
+            >-Mitwirkende ·{' '}
+            <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+          </span>
         </div>
       </div>
     </footer>
+    <script>
+      // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
+      // Inhalte nur als Text (textContent) – nie als HTML.
+      const SCHLUESSEL = 'kirmes-mitteilung-gelesen';
+      const gelesen = (() => {
+        try {
+          return Number(localStorage.getItem(SCHLUESSEL) ?? 0);
+        } catch {
+          return 0;
+        }
+      })();
+      if (!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/verwalten')) {
+        fetch('/mitteilung.json')
+          .then((r) => (r.status === 200 ? r.json() : null))
+          .then((m: { id: string; titel: string; text: string; link: string | null } | null) => {
+            if (!m || Number(m.id) <= gelesen) return;
+            const d = document.createElement('dialog');
+            d.className = 'mitteilung';
+            d.setAttribute('aria-labelledby', 'mitteilung-titel');
+            const kopf = document.createElement('p');
+            kopf.className = 'mitteilung-art';
+            kopf.textContent = 'Mitteilung';
+            const h = document.createElement('h2');
+            h.id = 'mitteilung-titel';
+            h.textContent = m.titel;
+            const text = document.createElement('div');
+            text.className = 'mitteilung-text';
+            for (const absatz of m.text.split(/\n{2,}/)) {
+              const p = document.createElement('p');
+              p.textContent = absatz;
+              text.append(p);
+            }
+            const knoepfe = document.createElement('div');
+            knoepfe.className = 'knopfreihe';
+            if (m.link && /^(https:\/\/|\/)/.test(m.link)) {
+              const a = document.createElement('a');
+              a.className = 'knopf';
+              a.href = m.link;
+              a.textContent = 'Mehr erfahren';
+              knoepfe.append(a);
+            }
+            const zu = document.createElement('button');
+            zu.className = m.link ? 'knopf zweit' : 'knopf';
+            zu.type = 'button';
+            zu.textContent = 'Verstanden';
+            zu.addEventListener('click', () => d.close());
+            knoepfe.append(zu);
+            d.append(kopf, h, text, knoepfe);
+            d.addEventListener('close', () => {
+              try {
+                localStorage.setItem(SCHLUESSEL, m.id);
+              } catch {
+                /* privater Modus – dann eben beim nächsten Besuch erneut */
+              }
+              d.remove();
+            });
+            document.body.append(d);
+            d.showModal();
+          })
+          .catch(() => {});
+      }
+    </script>
   </body>
 </html>

@@ -20,7 +20,7 @@
 - **Landkreis**: nur die 23 Thüringer Kreise/kreisfreien Städte.
 - **Saisonregel**: Kirmes außerhalb September–November ergibt einen **Hinweis**, keinen Fehler
   (Mai- und Osterkirmes sind legitim, aber selten).
-- **Bestätigt-Flag**: aus Vorjahren hochgerechnete Termine bleiben `bestaetigt = false` und werden im UI markiert.
+- **Bestätigt-Flag**: Einträge der Kirmesgesellschaft sind `bestaetigt = true`; recherchierte Termine bleiben `false`, bis die Gesellschaft sie bestätigt. Die Quelle jedes Termins wird intern gespeichert (`termin.quelle`).
 
 ## 8.3 Fehlerbehandlung und Resilienz
 
@@ -52,7 +52,7 @@
 | **A03 Injection**                      | Ausgabe-Escaping (Astro), `esc()` im Such-Rendering | JSON-Schema + Core-Validierung; nur parametrisierte Statements; LIKE-Metazeichen escaped | CHECK-Constraints                                        | Semgrep (eigene pg-Regeln + `p/sql-injection`), Integrationstest mit `' OR 1=1 --` |
 | **A04 Insecure Design**                | –                                                   | Datumsbereich ≤ 366 Tage, Limit ≤ 200, Rate-Limit                                        | Statement-Timeout                                        | Unit-Tests                                                                         |
 | **A05 Security Misconfiguration**      | CSP ohne `unsafe-inline`, COOP/COEP/CORP, `nosniff` | Helmet, keine Stacktraces, API nur intern                                                | DB-Port nicht öffentlich                                 | ZAP Baseline, Semgrep (nginx)                                                      |
-| **A06 Vulnerable Components**          | Astro/Vite aktuell                                  | Fastify/pg aktuell                                                                       | Image-Tag gepinnt                                        | npm audit, OWASP Dependency-Check, Dependabot                                      |
+| **A06 Vulnerable Components**          | Astro/Vite aktuell                                  | Fastify/pg aktuell                                                                       | Image-Tag gepinnt                                        | npm audit, OSV-Scanner, Dependabot                                                 |
 | **A07 Identification & Auth Failures** | –                                                   | Geplant: OIDC/Passkey für Redaktion, Session-Härtung                                     | –                                                        | Issue P0                                                                           |
 | **A08 Software & Data Integrity**      | –                                                   | Actions auf SHA gepinnt, `npm ci` mit Lockfile                                           | Migrationen versioniert                                  | Dependabot, Harden-Runner                                                          |
 | **A09 Logging & Monitoring Failures**  | –                                                   | Strukturierte Logs, Fehler mit Ursache                                                   | Postgres-Logs                                            | –                                                                                  |
@@ -60,11 +60,62 @@
 
 ### Security-Pipeline (`.github/workflows/security-and-quality.yml`)
 
-| Gate             | Werkzeug                                                                                            | Bricht ab bei                                          |
-| ---------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Secret Scanning  | TruffleHog (gesamte History)                                                                        | verifizierten **und** unverifizierten Treffern         |
-| SAST             | Semgrep: `security-audit`, `sql-injection`, `owasp-top-ten`, `typescript`, `nodejs` + eigene Regeln | Befunden `WARNING` (≈ Medium) und `ERROR` (≈ High)     |
-| SCA              | `npm audit` + OWASP Dependency-Check                                                                | Laufzeit ≥ moderate, Dev ≥ high, CVSS ≥ 4.0            |
-| DAST             | OWASP ZAP Baseline gegen Web **und** API                                                            | Alerts mit Risiko Medium/High (`scripts/zap-gate.mjs`) |
-| Qualität         | ESLint, Prettier, dependency-cruiser, tsc                                                           | jedem Verstoß                                          |
-| Tests & Coverage | Vitest + PostGIS-Service                                                                            | Abdeckung < 85 % **oder** sinkend ggü. Basis-Branch    |
+| Gate             | Werkzeug                                                                                                                              | Bricht ab bei                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Secret Scanning  | TruffleHog (gesamte History)                                                                                                          | verifizierten **und** unverifizierten Treffern            |
+| SAST             | Semgrep: `security-audit`, `sql-injection`, `owasp-top-ten`, `typescript`, `nodejs` + eigene Regeln                                   | Befunden `WARNING` (≈ Medium) und `ERROR` (≈ High)        |
+| SCA              | `npm audit` + OSV-Scanner (osv.dev: GitHub-Advisories, npm, NVD; ersetzt OWASP Dependency-Check, dessen NVD-Abgleich Stunden dauerte) | Laufzeit ≥ moderate, Dev ≥ high, OSV: jeder bekannte Fund |
+| DAST             | OWASP ZAP Baseline gegen Web **und** API                                                                                              | Alerts mit Risiko Medium/High (`scripts/zap-gate.mjs`)    |
+| Qualität         | ESLint, Prettier, dependency-cruiser, tsc                                                                                             | jedem Verstoß                                             |
+| Tests & Coverage | Vitest + PostGIS-Service                                                                                                              | Abdeckung < 85 % **oder** sinkend ggü. Basis-Branch       |
+
+### Bearbeitungslinks (Festplätze)
+
+| Maßnahme                   | Umsetzung                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unratbare Tokens           | 32 Byte aus `crypto.randomBytes` (256 Bit), Base64url                                                                                                        |
+| Kein Klartext in der DB    | Gespeichert wird nur der SHA-256-Hash; ein DB-Leck verrät keine gültigen Links                                                                               |
+| Kein Token in Logs/Referer | Token steht im URL-Fragment (`#k=…`), wird per JS in `sessionStorage` übernommen und aus der Adresszeile entfernt; Übertragung nur im `Authorization`-Header |
+| Geringste Rechte           | Ein Link berechtigt ausschließlich für **einen** Ort und nur für Festplätze                                                                                  |
+| Nachvollziehbarkeit        | Jede Änderung mit Link-ID, Zeit und Werten in `aenderungsprotokoll`                                                                                          |
+| Widerruf                   | `npm run link -- sperren <id>` – sofort wirksam                                                                                                              |
+| Fachliche Plausibilität    | Koordinaten nur innerhalb Thüringens (vertauschte Breite/Länge werden erkannt)                                                                               |
+| Datenschutz                | Kartenkacheln/Adresssuche (OpenStreetMap) und Standort nur auf der Bearbeitungsseite; eigene CSP dafür                                                       |
+
+### Redaktionszugang (Admin)
+
+| Maßnahme               | Umsetzung                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zwei Faktoren          | Passwort (scrypt, N=2¹⁵, Salz) **und** Einmalcode nach RFC 6238 (TOTP); jeder Code nur einmal gültig                                                                                                                                                                                                                                                                                       |
+| Keine Konto-Aufzählung | Gleiche Antwort und gleiche Rechenzeit für unbekannte E-Mail, falsches Passwort und falschen Code                                                                                                                                                                                                                                                                                          |
+| Brute-Force-Schutz     | Sperre nach 5 Fehlversuchen je E-Mail bzw. 30 insgesamt für 15 Minuten (HTTP 429)                                                                                                                                                                                                                                                                                                          |
+| Sitzungen              | 256-Bit-Token, in der DB nur als SHA-256; Cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/admin`, 12 h                                                                                                                                                                                                                                                                              |
+| Reihenfolge            | Anmeldeprüfung (`onRequest`) **vor** der Eingabevalidierung – Nicht-Angemeldete erfahren nichts über Schemas                                                                                                                                                                                                                                                                               |
+| CSRF                   | Synchronizer-Token (`csrf_token` im Formular bzw. Header `X-CSRF-Token` bei JSON, HttpOnly-Cookie, Vergleich in konstanter Zeit) **und** eigene Origin-Prüfung gegen Host/X-Forwarded-Host; dazu `SameSite=Strict`. Astros `checkOrigin` ist abgeschaltet, weil es hinter dem Proxy die echte Adresse nicht kennt                                                                          |
+| Passkeys (WebAuthn)    | Optional statt Passwort + Code: Einrichtung nur nach normaler Anmeldung; Benutzerverifikation (Biometrie/PIN) Pflicht; RP-ID = Hostname aus `WEBSITE_URL`, Origin geprüft (phishing-resistent); Challenge zufällig, einmalig, 5 min; Signaturzähler gegen geklonte Geräte; nur öffentlicher Schlüssel in `admin_passkey`. Sitzungs-Token bleibt im HttpOnly-Cookie, die Seite sieht es nie |
+| Nachvollziehbarkeit    | Admin-Änderungen im `aenderungsprotokoll` (Spalte `admin_id`)                                                                                                                                                                                                                                                                                                                              |
+| Kein Index             | `/admin` mit `noindex`, `X-Robots-Tag` und `Cache-Control: no-store`                                                                                                                                                                                                                                                                                                                       |
+
+### Mitteilungen
+
+Nur Klartext (Darstellung per `textContent`, nie als HTML), Links nur `https://` oder seitenintern.
+Ob eine Mitteilung gelesen wurde, speichert nur der Browser des Besuchers (`localStorage`, keine Cookies).
+
+Welche Mitteilung die neueste ist, entscheidet der Zeitstempel `veroeffentlicht_am` (bei
+Gleichstand die höhere `id`) – nie die für die Anzeige formatierte Spalte gleichen Namens, die
+nur minutengenau ist (Issue #25). Im SQL daher immer `ORDER BY mitteilung.veroeffentlicht_am`.
+
+### Strukturierte Daten (JSON-LD)
+
+Terminseiten betten schema.org-`Event` als `<script type="application/ld+json">` ein. Weil Titel,
+Band und Hinweise von außen kommen, wird jedes `<` im JSON als `\u003c` geschrieben – ein Titel
+mit `</script>` kann den Block nicht verlassen (Issue #22, Kap. 8.5 A03).
+
+### Gestaltung
+
+- Schriften (Bitter, Source Sans 3) und Icons liegen auf dem eigenen Server (`@fontsource`,
+  SVG-Icon-Komponente) – keine Anfragen an Google Fonts oder CDNs, passend zur CSP und zum
+  Datenschutz (Issue #21).
+- Vorschaubilder (`og.png`, App-Icons) erzeugt `scripts/bilder-erzeugen.mjs` aus dem SVG-Logo.
+- Farben als CSS-Variablen in `styles/global.css`, helles und dunkles Farbschema; Tippflächen auf
+  Touch-Geräten ≥ 44 px (Issue #30), Druckansicht für die Muttizettel-Vorlage (Issue #32).

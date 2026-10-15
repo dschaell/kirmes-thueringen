@@ -46,6 +46,49 @@ sequenceDiagram
 
 ## 6.4 Termin anlegen (Verwaltung)
 
-`LegeTerminAn` validiert über `validiereTermin` (harte Regeln → Fehler, Auffälligkeiten →
-Hinweise, z. B. `KIRMES_AUSSERHALB_HERBST`) und speichert erst danach. Der HTTP-Endpunkt ist
-noch nicht freigeschaltet, da die Authentifizierung fehlt (Kapitel 11, Issue „AuthN/AuthZ“).
+`VerwalteTermine` (Bearbeitungslink) bzw. `Redaktion` (Admin) validieren über `validiereTermin`
+(harte Regeln → Fehler, Auffälligkeiten → Hinweise, z. B. `KIRMES_AUSSERHALB_HERBST`) und
+speichern erst danach über den Port `TerminVerwaltung`; jede Änderung wird protokolliert.
+
+### Kirmeswochenende (mehrere Veranstaltungen auf einmal)
+
+```mermaid
+sequenceDiagram
+  participant R as Redaktion (Browser)
+  participant W as Website /admin/termine
+  participant A as API
+  participant C as Core (validiereAlle)
+  participant D as PostgreSQL
+  R->>W: POST Formular (Zeilen: Datum, Beginn, Titel, Band, Hinweise) + CSRF
+  W->>A: POST /api/v1/admin/termine/wochenende {ortSlug, zeilen[]}
+  A->>C: legeWochenende
+  C-->>A: Fehler „Zeile n: …“ (+ DOPPELT) → 400, nichts gespeichert
+  C->>D: legeAlle – BEGIN · INSERT … je Zeile · Protokoll · COMMIT
+  D-->>C: bei Fehler ROLLBACK (alle oder keiner)
+  A-->>W: 201 {termine, hinweise}
+```
+
+Höchstens 20 Veranstaltungen je Aufruf. Kirmesgesellschaften haben denselben Ablauf über
+`POST /api/v1/verwaltung/termine/wochenende`.
+
+## 6.5 Kirmesgesellschaft trägt ihren Festplatz ein
+
+```mermaid
+sequenceDiagram
+  participant K as Kirmesgesellschaft (Browser)
+  participant W as Website /verwalten
+  participant A as API
+  participant D as PostgreSQL
+  Note over K: öffnet …/verwalten#k=TOKEN<br/>(Fragment wird nie an Server gesendet)
+  K->>K: Token → sessionStorage, Fragment aus URL entfernen
+  K->>W: GET /verwalten/festplaetze (Authorization: Bearer TOKEN)
+  W->>A: GET /api/v1/verwaltung/festplaetze (Header weitergereicht)
+  A->>D: UPDATE bearbeitungslink … WHERE token_hash = sha256(TOKEN) AND nicht gesperrt
+  D-->>A: Ort des Links
+  A-->>K: Ort, Festplätze, Veranstaltungsorte
+  K->>W: PUT {name, lat, lon}
+  W->>A: PUT /api/v1/verwaltung/festplaetze
+  A->>A: Koordinate in Thüringen? Name ≤ 120 Zeichen?
+  A->>D: UPSERT festplatz + INSERT aenderungsprotokoll (eine Transaktion)
+  Note over A,D: Ab jetzt liefert jede Terminabfrage den Festplatz mit;<br/>„Route“ führt zu den exakten Koordinaten
+```

@@ -3,10 +3,9 @@ dist/
 .astro/
 .DS_Store
 
-# Termindaten der alten Seite – erst nach Zustimmung des Altbetreibers veröffentlichen
-scripts/quelle-*.html
-src/data/termine.json
-db/seed/termine.json
+# Recherche-Tabellen der Redaktion bleiben lokal (enthalten Quellen und Notizen)
+recherche/
+*.recherche.csv
 
 # Lokale Umgebung / Testartefakte
 .env

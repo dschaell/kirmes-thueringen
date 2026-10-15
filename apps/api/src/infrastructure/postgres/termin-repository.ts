@@ -16,31 +16,45 @@ import { abfrage } from './pool.js';
  * ausschließlich als Parameter zum Server – niemals per String-Verkettung (OWASP A03).
  * Optionale Filter werden über "leeres Array / NULL = kein Filter" ausgedrückt, damit das SQL statisch bleibt.
  */
-const SQL_SUCHE = `
+const SQL_TERMIN_BASIS = `
 SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
-       t.veranstaltungsort, t.kategorie, t.bestaetigt,
+       t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.info, t.muttizettel,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
+       ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon,
        count(*) OVER () AS gesamt
   FROM termin t
   JOIN ort o ON o.id = t.ort_id
- WHERE t.datum BETWEEN $1::date AND $2::date
+  -- Festplatz: passender Veranstaltungsort, sonst Standard-Festplatz ('') des Ortes
+  LEFT JOIN LATERAL (
+    SELECT fp.lage FROM festplatz fp
+     WHERE fp.ort_id = t.ort_id AND (fp.name = t.veranstaltungsort OR fp.name = '')
+     ORDER BY (fp.name = t.veranstaltungsort) DESC NULLS LAST
+     LIMIT 1
+  ) f ON true
+`;
+
+const SQL_SUCHE = `${SQL_TERMIN_BASIS} WHERE t.datum BETWEEN $1::date AND $2::date
    AND (cardinality($3::text[]) = 0 OR o.landkreis = ANY ($3::text[]))
    AND (cardinality($4::text[]) = 0 OR t.kategorie = ANY ($4::text[]))
    AND ($5::text IS NULL
         OR t.titel ILIKE $5 ESCAPE '\\'
         OR o.name ILIKE $5 ESCAPE '\\'
-        OR t.veranstaltungsort ILIKE $5 ESCAPE '\\')
+        OR t.veranstaltungsort ILIKE $5 ESCAPE '\\'
+        OR t.band ILIKE $5 ESCAPE '\\')
    AND (NOT $6::boolean OR t.bestaetigt)
    AND ($9::text IS NULL OR o.slug = $9)
  ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
  LIMIT $7 OFFSET $8`;
 
+const SQL_FINDE = `${SQL_TERMIN_BASIS} WHERE t.id = $1::uuid`;
+
 const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`;
 
 const SQL_EINFUEGEN = `
-INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt)
-VALUES ($1, $2::date, $3::time, $4, $5, $6, $7)
+INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, band, info,
+                    muttizettel)
+VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id`;
 
 interface Zeile {
@@ -51,11 +65,16 @@ interface Zeile {
   veranstaltungsort: string | null;
   kategorie: Kategorie;
   bestaetigt: boolean;
+  band: string | null;
+  info: string | null;
+  muttizettel: boolean;
   ort_slug: string;
   ort_name: string;
   landkreis: LandkreisKuerzel;
   lat: number | null;
   lon: number | null;
+  f_lat: number | null;
+  f_lon: number | null;
   gesamt: string;
 }
 
@@ -76,6 +95,10 @@ const zuTermin = (z: Zeile): Termin => ({
   veranstaltungsort: z.veranstaltungsort,
   kategorie: z.kategorie,
   bestaetigt: z.bestaetigt,
+  band: z.band,
+  info: z.info,
+  muttizettel: z.muttizettel,
+  festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,
 });
 
 export class OrtNichtGefunden extends Error {
@@ -107,6 +130,11 @@ export class PgTerminRepository implements TerminRepository {
     return { eintraege: rows.map(zuTermin), gesamt: Number(rows[0]?.gesamt ?? 0) };
   }
 
+  async finde(id: string): Promise<Termin | null> {
+    const { rows } = await this.abfrage<Zeile>(SQL_FINDE, [id]);
+    return rows[0] ? zuTermin(rows[0]) : null;
+  }
+
   async speichere(t: NeuerTermin): Promise<Termin> {
     const ort = await this.abfrage<{ id: string; name: string }>(SQL_ORT_ID, [
       t.ortSlug,
@@ -122,6 +150,9 @@ export class PgTerminRepository implements TerminRepository {
       t.veranstaltungsort,
       t.kategorie,
       t.bestaetigt,
+      t.band,
+      t.info,
+      t.muttizettel ?? false,
     ]);
     const neu = rows[0];
     if (!neu) throw new Error('INSERT lieferte keine ID');
@@ -134,6 +165,10 @@ export class PgTerminRepository implements TerminRepository {
       veranstaltungsort: t.veranstaltungsort,
       kategorie: t.kategorie,
       bestaetigt: t.bestaetigt,
+      festplatz: null,
+      band: t.band,
+      info: t.info,
+      muttizettel: t.muttizettel ?? false,
     };
   }
 }

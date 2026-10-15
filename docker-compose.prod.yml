@@ -13,6 +13,7 @@ services:
     profiles: !reset []
     environment:
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
+      WEBSITE_URL: https://${DOMAIN:?}
 
   api:
     profiles: !reset []
@@ -25,6 +26,8 @@ services:
     profiles: !reset []
     restart: always
     ports: !reset []
+    environment:
+      WEBSITE_URL: https://${DOMAIN:?}
 
   # Reverse-Proxy mit automatischem HTTPS (Let's Encrypt)
   caddy:

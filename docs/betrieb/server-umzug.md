@@ -22,7 +22,8 @@ Datenbank, API und Website laufen in Docker-Containern. Lokal und auf dem Server
 | ------------------------------------------- | -------------------------------------------------------------------- |
 | Alles starten (DB im Container, Rest lokal) | `npm run dev` → http://localhost:4321                                |
 | Nur die Datenbank starten / stoppen         | `npm run db:up` / `npm run db:stop`                                  |
-| Termine einspielen                          | `npm run db:seed`                                                    |
+| Orte laden / Beispieltermine                | `npm run db:orte` / `npm run db:beispiele`                           |
+| Recherche einspielen                        | `npm run termine:import -- datei.csv`                                |
 | Komplett in Containern (wie Server)         | `docker compose --profile app up -d --build` → http://localhost:8080 |
 | Backup erstellen                            | `npm run db:backup` → `backups/kirmes-<Datum>.dump`                  |
 | Backup einspielen                           | `npm run db:restore -- backups/kirmes-….dump`                        |
@@ -76,6 +77,9 @@ cd /opt/kirmes && ./scripts/db-restore.sh backups/kirmes-2026-10-14-1530.dump
 
 Danach ist die Website unter `https://DOMAIN` mit denselben Daten erreichbar.
 
+Alternativ auf einem leeren Server: `docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/orte.js`
+lädt das Ortsverzeichnis; Termine dann per Recherche-Import oder über die Links der Kirmesgesellschaften.
+
 ## 5. Updates einspielen
 
 ```bash
@@ -84,16 +88,41 @@ cd /opt/kirmes && git pull && docker compose up -d --build --wait
 
 Datenbank-Migrationen laufen dabei automatisch (Dienst `migrate`, bevor die API startet).
 
-## 6. Backups
+## 6. Redaktionszugang einrichten
+
+```bash
+cd /opt/kirmes
+docker compose run --rm -it migrate node apps/api/dist/infrastructure/postgres/admin-cli.js anlegen deine@email.de
+```
+
+Passwort festlegen (mind. 12 Zeichen), dann den angezeigten Schlüssel in eine Authenticator-App
+eintragen (Google Authenticator, Authy, 1Password …). Anmeldung unter `https://DOMAIN/admin`.
+
+## 6a. Bearbeitungslinks für Kirmesgesellschaften
+
+Am einfachsten über den Admin-Bereich (`/admin/links`). Alternativ per Befehl:
+
+```bash
+cd /opt/kirmes
+docker compose run --rm -e WEBSITE_URL=https://$DOMAIN migrate \
+  node apps/api/dist/infrastructure/postgres/links.js erstellen <orts-slug> "Kirmesgesellschaft …"
+docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js liste
+docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js sperren <id>
+```
+
+Der Orts-Slug steht in der Adresse der Ortsseite (`/orte/<slug>`). Der Link wird nur einmal angezeigt –
+direkt per E-Mail oder Messenger an die Kirmesgesellschaft weitergeben. Gesperrte Links sind sofort ungültig.
+
+## 7. Backups
 
 - Der Dienst `backup` erstellt täglich `backups/kirmes-<Datum>.dump` und löscht Sicherungen nach 14 Tagen.
 - **Wichtig:** Backups zusätzlich vom Server wegkopieren (z. B. `rsync` auf einen Speicher oder ein
   Hetzner Storage Box). Ein Backup auf derselben Festplatte schützt nicht vor Server-Ausfall.
 - Wiederherstellung regelmäßig testen: Backup lokal mit `npm run db:restore` einspielen.
 
-## 7. Prüfliste vor dem Livegang
+## 8. Prüfliste vor dem Livegang
 
-- [ ] Zustimmung des bisherigen Betreibers zur Übernahme der Termindaten
+- [ ] Eigene Termine eingespielt (`docs/betrieb/recherche.md`), Links an die ersten Kirmesgesellschaften verschickt
 - [ ] Impressum, Datenschutz und Kontaktadresse ausgefüllt
 - [ ] `site` in `apps/web/astro.config.mjs` und `apps/web/public/robots.txt` auf die echte Domain gesetzt
 - [ ] `POSTGRES_PASSWORD` stark und nur in `/opt/kirmes/.env` (chmod 600)

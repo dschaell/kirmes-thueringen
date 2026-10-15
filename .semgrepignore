@@ -2,5 +2,4 @@ node_modules/
 dist/
 coverage/
 .astro/
-scripts/quelle-*.html
 db/seed/

@@ -4,7 +4,14 @@
  */
 import { PersistenzNichtVerfuegbar, type KalenderDatum, type TerminFilter } from '@kirmes/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  erzeugeToken,
+  hashToken,
+  PgBearbeitungslinks,
+  PgFestplatzRepository,
+} from '../src/infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
+import { PgTerminVerwaltung } from '../src/infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool, istVerbindungsfehler } from '../src/infrastructure/postgres/pool.js';
 import {
   alsLikeMuster,
@@ -12,8 +19,9 @@ import {
   OrtNichtGefunden,
   PgTerminRepository,
 } from '../src/infrastructure/postgres/termin-repository.js';
+import { testDatenbankUrl } from './test-datenbank.js';
 
-const url = process.env.DATABASE_URL;
+const url = testDatenbankUrl();
 const d = (s: string) => s as KalenderDatum;
 const basis: TerminFilter = {
   bereich: { von: d('2026-01-01'), bis: d('2026-12-31') },
@@ -81,6 +89,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
   });
   afterAll(async () => {
     await pool.query("DELETE FROM ort WHERE slug LIKE 'it-%'");
+    await pool.query('DELETE FROM aenderungsprotokoll WHERE ort_id IS NULL');
     await pool.end();
   });
 
@@ -152,6 +161,9 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
 
   it('filtert nach Ort und liefert Ortsübersicht', async () => {
     const nurUlla = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
+    const einzeln = await repo.finde(nurUlla.eintraege[0]!.id);
+    expect(einzeln?.titel).toBe('ZZTEST Kindertanz');
+    expect(await repo.finde('00000000-0000-4000-8000-000000000000')).toBeNull();
     expect(nurUlla.eintraege.map((t) => t.ort.slug)).toEqual(['it-ulla']);
 
     const orte = new PgOrtRepository(pool);
@@ -169,5 +181,252 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     });
     expect((await orte.finde('it-ulla'))?.koordinate).toBeNull();
     expect(await orte.finde('it-gibtsnicht')).toBeNull();
+  });
+
+  it('Bearbeitungslink: nur Hash gespeichert, gesperrte Links ungültig, Festplatz am Termin', async () => {
+    const token = erzeugeToken();
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
+       SELECT id, $1, 'IT-KG' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
+      [hashToken(token)],
+    );
+    const links = new PgBearbeitungslinks(pool);
+    const b = await links.pruefe(token);
+    expect(b).toEqual({
+      linkId: rows[0]?.id,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT-KG',
+    });
+    expect(await links.pruefe(erzeugeToken())).toBeNull();
+    expect(await links.pruefe("' OR 1=1 --")).toBeNull();
+
+    const festplaetze = new PgFestplatzRepository(pool);
+    await festplaetze.speichere('it-ulla', { name: '', koordinate: { lat: 50.95, lon: 11.2 } }, b!);
+    const termine = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
+    expect(termine.eintraege[0]?.festplatz).toEqual({ lat: 50.95, lon: 11.2 });
+
+    const u = await festplaetze.uebersicht('it-ulla');
+    expect(u?.festplaetze).toEqual([{ name: '', koordinate: { lat: 50.95, lon: 11.2 } }]);
+    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(true);
+    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(false);
+    const protokoll = await pool.query(
+      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
+      [b!.linkId],
+    );
+    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
+      'festplatz_gespeichert',
+      'festplatz_geloescht',
+    ]);
+
+    await pool.query('UPDATE bearbeitungslink SET gesperrt_am = now() WHERE id = $1', [b!.linkId]);
+    expect(await links.pruefe(token)).toBeNull();
+    expect(await festplaetze.uebersicht('it-gibtsnicht')).toBeNull();
+  });
+
+  it('Kirmesgesellschaft verwaltet nur Termine ihres Ortes – mit Protokoll', async () => {
+    const link = await pool.query<{ id: string }>(
+      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
+       SELECT id, $1, 'IT-KG Ulla' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
+      [hashToken(erzeugeToken())],
+    );
+    const durch = {
+      linkId: link.rows[0]!.id,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT-KG Ulla',
+    };
+    const v = new PgTerminVerwaltung(pool);
+    const neu = await v.lege(
+      {
+        ortSlug: 'it-ulla',
+        landkreis: 'WL',
+        datum: d('2026-10-03'),
+        beginn: '20:00',
+        titel: 'ZZTEST Neu',
+        veranstaltungsort: 'Saal',
+        kategorie: 'kirmes',
+        bestaetigt: true,
+      },
+      durch,
+    );
+    expect(neu.ort.name).toBe('IT-Ulla');
+    expect(
+      await v.aendere(
+        neu.id,
+        {
+          ortSlug: 'it-ulla',
+          landkreis: 'WL',
+          datum: d('2026-10-04'),
+          beginn: null,
+          titel: 'ZZTEST Geändert',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: true,
+        },
+        durch,
+      ),
+    ).toBe(true);
+
+    // Termin aus Mühlberg ist für den Ulla-Link tabu
+    const fremd = (await repo.suche({ ...basis, suchtext: 'ZZTEST', ortSlug: 'it-muehlberg' }))
+      .eintraege[0]!;
+    expect(await v.loesche(fremd.id, durch)).toBe(false);
+    expect(await v.bestaetige(fremd.id, durch)).toBe(false);
+    expect(await repo.finde(fremd.id)).not.toBeNull();
+
+    expect(await v.bestaetige(neu.id, durch)).toBe(true);
+    expect(await v.loesche(neu.id, durch)).toBe(true);
+    const protokoll = await pool.query(
+      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
+      [durch.linkId],
+    );
+    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
+      'termin_angelegt',
+      'termin_geaendert',
+      'termin_bestaetigt',
+      'termin_geloescht',
+    ]);
+  });
+
+  it('Kirmeswochenende: alle Abende mit Band und Hinweisen – oder gar keiner', async () => {
+    const durch = {
+      linkId: null,
+      adminId: undefined,
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      bezeichnung: 'IT',
+    };
+    const abend = (
+      datum: string,
+      titel: string,
+      band: string | null,
+      info: string | null = null,
+    ) => ({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d(datum),
+      beginn: '20:00',
+      titel,
+      veranstaltungsort: 'Saal',
+      kategorie: 'kirmes' as const,
+      bestaetigt: true,
+      band,
+      info,
+      muttizettel: band !== null,
+    });
+    const v = new PgTerminVerwaltung(pool);
+    const angelegt = await v.legeAlle(
+      [
+        abend('2026-10-16', 'ZZWE Disco', 'DJ Wirbelwind'),
+        abend('2026-10-17', 'ZZWE Tanz', 'Belconda', 'Eintritt 8 €'),
+      ],
+      durch,
+    );
+    expect(angelegt.map((t) => t.ort.name)).toEqual(['IT-Ulla', 'IT-Ulla']);
+    const gefunden = await repo.suche({ ...basis, suchtext: 'Belconda', ortSlug: 'it-ulla' });
+    expect(gefunden.eintraege.map((t) => [t.titel, t.band, t.info, t.muttizettel])).toEqual([
+      ['ZZWE Tanz', 'Belconda', 'Eintritt 8 €', true],
+    ]);
+
+    // zweiter Abend scheitert (unbekannter Ort) → auch der erste wird nicht gespeichert
+    await expect(
+      v.legeAlle(
+        [
+          abend('2026-10-18', 'ZZWE Frühschoppen', null),
+          { ...abend('2026-10-18', 'x', null), ortSlug: 'it-gibtsnicht' },
+        ],
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    expect((await repo.suche({ ...basis, suchtext: 'ZZWE Frühschoppen' })).gesamt).toBe(0);
+  });
+
+  it('reicht SQL-Fehler unverändert durch (nur Verbindungsfehler werden übersetzt)', async () => {
+    const { abfrage } = await import('../src/infrastructure/postgres/pool.js');
+    await expect(abfrage(pool, 'SELECT * FROM gibt_es_nicht', [])).rejects.toMatchObject({
+      code: '42P01',
+    });
+  });
+
+  it('Transaktionen: unbekannter Ort bricht ab und hinterlässt nichts', async () => {
+    const durch = {
+      linkId: null,
+      adminId: undefined,
+      ortSlug: 'it-gibtsnicht',
+      landkreis: 'GTH',
+      bezeichnung: 'IT',
+    };
+    const vorher = await pool.query(
+      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+    );
+    await expect(
+      new PgFestplatzRepository(pool).speichere(
+        'it-gibtsnicht',
+        { name: '', koordinate: { lat: 50.9, lon: 11 } },
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    await expect(
+      new PgTerminVerwaltung(pool).lege(
+        {
+          ortSlug: 'it-gibtsnicht',
+          landkreis: 'GTH',
+          datum: d('2026-10-18'),
+          beginn: null,
+          titel: 'x',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: false,
+        },
+        durch,
+      ),
+    ).rejects.toThrow('nicht gefunden');
+    expect(
+      await new PgTerminVerwaltung(pool).aendere(
+        '00000000-0000-4000-8000-000000000000',
+        {
+          ortSlug: 'it-ulla',
+          landkreis: 'WL',
+          datum: d('2026-10-18'),
+          beginn: null,
+          titel: 'x',
+          veranstaltungsort: null,
+          kategorie: 'kirmes',
+          bestaetigt: false,
+        },
+        { ...durch, ortSlug: 'it-ulla' },
+      ),
+    ).toBe(false);
+    const nachher = await pool.query(
+      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+    );
+    expect(nachher.rows[0].n).toBe(vorher.rows[0].n);
+  });
+
+  it('LegeTerminAn-Pfad: Repository speichert und liefert den Termin zurück', async () => {
+    const t = await repo.speichere({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d('2026-12-05'),
+      beginn: '18:00',
+      titel: 'ZZTEST Weihnachtstanz',
+      veranstaltungsort: 'Saal',
+      kategorie: 'tanz',
+      bestaetigt: false,
+    });
+    expect(t).toMatchObject({
+      ort: { slug: 'it-ulla', name: 'IT-Ulla' },
+      titel: 'ZZTEST Weihnachtstanz',
+      festplatz: null,
+    });
+    expect((await repo.finde(t.id))?.beginn).toBe('18:00');
+  });
+
+  it('Festplatz-Übersicht nennt die Veranstaltungsorte aus den Terminen', async () => {
+    const u = await new PgFestplatzRepository(pool).uebersicht('it-muehlberg');
+    expect(u?.veranstaltungsorte).toContain('Reitstall');
+    expect(u?.ort.koordinate).toEqual({ lat: 50.87, lon: 10.82 });
   });
 });

@@ -2,42 +2,54 @@
 import Base from '../../layouts/Base.astro';
 import { listeOrte, type OrtUebersichtDto } from '../../lib/api';
 
-const orte = await listeOrte();
+// Nur Orte mit kommenden Terminen – das Ortsverzeichnis enthält alle 3.000+ Thüringer Orte.
+const orte = (await listeOrte()).filter((o) => o.anzahlKommend > 0);
+/** Sortierbuchstabe ohne Präfixe wie „Erfurt-“ und mit Umlauten unter dem Grundbuchstaben */
 const buchstabe = (n: string) =>
-  (n.replace(/^(EF-|Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0] ?? '#')
+  (n.replace(/^(Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0] ?? '#')
     .toUpperCase()
     .replace(/[ÄÖÜ]/, (c) => ({ Ä: 'A', Ö: 'O', Ü: 'U' })[c] ?? c);
-const gruppen = new Map<string, OrtUebersichtDto[]>();
-for (const o of [...orte].sort(
+const sortiert = [...orte].sort(
   (a, b) =>
     buchstabe(a.name).localeCompare(buchstabe(b.name)) || a.name.localeCompare(b.name, 'de'),
-)) {
-  const b = buchstabe(o.name);
-  gruppen.set(b, [...(gruppen.get(b) ?? []), o]);
-}
+);
+const gruppen = new Map<string, OrtUebersichtDto[]>();
+for (const o of sortiert)
+  gruppen.set(buchstabe(o.name), [...(gruppen.get(buchstabe(o.name)) ?? []), o]);
 Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
 
 <Base
-  title={`Kirmes-Orte in Thüringen A–Z (${orte.length} Orte)`}
-  description={`Alle ${orte.length} Orte mit Kirmes in Thüringen von A bis Z – mit Terminen, Kirmestanz und Kindertanz.`}
+  title={`Kirmesorte in Thüringen von A bis Z – Kirmeskalender Thüringen`}
+  description={`Alle ${orte.length} Thüringer Orte mit Kirmes von A bis Z – mit Terminen für Kirmestanz, Kindertanz und Brauchtum.`}
 >
-  <section class="hero">
-    <h1>Orte A–Z</h1>
-    <p class="muted">{orte.length} Orte mit Kirmes-Terminen in Thüringen.</p>
-    <nav class="abc" aria-label="Alphabet">
-      {[...gruppen.keys()].map((b) => <a href={`#${b}`}>{b}</a>)}
-    </nav>
+  <section class="einstieg">
+    <h1>Orte von A bis Z</h1>
+    <p class="unterzeile">
+      {orte.length} Orte mit kommenden Kirmes-Terminen. Die Zahl zeigt, wie viele es sind.
+    </p>
   </section>
+  {
+    orte.length === 0 && (
+      <p class="leer">
+        Noch sind keine Termine eingetragen. <a href="/termin-melden">Kennt ihr eine Kirmes?</a>
+      </p>
+    )
+  }
+  <nav class="abc" aria-label="Anfangsbuchstabe">
+    {[...gruppen.keys()].map((b) => <a href={`#${b}`}>{b}</a>)}
+  </nav>
   {
     [...gruppen].map(([b, liste]) => (
       <section>
-        <h2 id={b}>{b}</h2>
+        <h2 class="buchstabe" id={b}>
+          {b}
+        </h2>
         <ul class="ortliste">
           {liste.map((o) => (
             <li>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
-              <span class="muted small"> ({o.landkreis})</span>
+              <span class="kz">{o.anzahlKommend}</span>
             </li>
           ))}
         </ul>

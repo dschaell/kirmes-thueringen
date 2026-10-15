@@ -1,0 +1,237 @@
+---
+import Base from '../../layouts/Base.astro';
+import CsrfFeld from './CsrfFeld.astro';
+
+interface Props {
+  titel: string;
+  meldung?: string | null;
+  fehler?: string[];
+}
+const { titel, meldung = null, fehler = [] } = Astro.props;
+const pfad = Astro.url.pathname;
+const nav = [
+  ['/admin', 'Übersicht'],
+  ['/admin/termine', 'Termine'],
+  ['/admin/mitteilungen', 'Mitteilungen'],
+  ['/admin/orte', 'Orte'],
+  ['/admin/links', 'Bearbeitungslinks'],
+  ['/admin/passkeys', 'Passkeys'],
+];
+---
+
+<Base title={`${titel} – Redaktion`} description="Redaktionsbereich" noindex>
+  <section class="einstieg admin-kopf">
+    <p class="brotkrumen">Redaktion</p>
+    <h1>{titel}</h1>
+    <nav class="admin-nav" aria-label="Redaktion">
+      {
+        nav.map(([href, label]) => (
+          <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+            {label}
+          </a>
+        ))
+      }
+      <form method="post" action="/admin/abmelden">
+        <CsrfFeld />
+        <button class="knopf zweit" type="submit">Abmelden</button>
+      </form>
+    </nav>
+  </section>
+  {
+    meldung && (
+      <p class="meldung gut" role="status">
+        {meldung}
+      </p>
+    )
+  }
+  {
+    fehler.length > 0 && (
+      <p class="meldung" role="alert">
+        {fehler.join(' ')}
+      </p>
+    )
+  }
+  <slot />
+</Base>
+
+<style is:global>
+  .admin-kopf h1 {
+    margin-bottom: 0.3em;
+  }
+  .admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+    border-bottom: 1px solid var(--linie);
+    padding-bottom: 10px;
+  }
+  .admin-nav a {
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--tinte);
+    font-weight: 600;
+  }
+  .admin-nav a[aria-current] {
+    background: var(--rot-zart);
+    color: var(--rot);
+  }
+  .admin-nav form {
+    margin-left: auto;
+  }
+  .admin-nav .knopf {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+  .admin-tabelle {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 28px;
+  }
+  .admin-tabelle th,
+  .admin-tabelle td {
+    text-align: left;
+    padding: 9px 8px;
+    border-bottom: 1px solid var(--linie);
+    vertical-align: top;
+  }
+  .admin-tabelle th {
+    font-size: 0.85rem;
+    color: var(--grau);
+    font-weight: 600;
+  }
+  .admin-tabelle form {
+    display: inline;
+  }
+  @media (pointer: coarse), (max-width: 760px) {
+    .admin-nav a,
+    .admin-tabelle .knopf,
+    .admin-tabelle td > a {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+  /* Handy: jede Zeile als Block statt vier enger Spalten */
+  @media (max-width: 560px) {
+    .admin-tabelle thead {
+      display: none;
+    }
+    .admin-tabelle,
+    .admin-tabelle tbody,
+    .admin-tabelle tr,
+    .admin-tabelle td {
+      display: block;
+    }
+    .admin-tabelle tr {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--linie);
+    }
+    .admin-tabelle td {
+      border: 0;
+      padding: 2px 0;
+    }
+  }
+  .admin-tabelle .knopf {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+  .klein-knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .geheim {
+    font-family: ui-monospace, monospace;
+    word-break: break-all;
+    background: var(--flaeche);
+    border: 1px dashed var(--rot);
+    padding: 12px;
+    border-radius: 8px;
+  }
+  form.melden textarea {
+    min-height: 120px;
+  }
+  /* Umschalter Einzeltermin / Kirmeswochenende */
+  .umschalter {
+    display: inline-flex;
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    overflow: hidden;
+    margin: 18px 0 4px;
+  }
+  .umschalter a {
+    padding: 10px 16px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    color: var(--tinte);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .umschalter a + a {
+    border-left: 1px solid var(--linie);
+  }
+  .umschalter a[aria-current='page'] {
+    background: var(--tinte);
+    color: var(--flaeche);
+  }
+  .suchzeile label {
+    display: grid;
+    gap: 4px;
+  }
+  .suchzeile label input {
+    font-size: 1rem;
+  }
+  .suchzeile:has(label) {
+    align-items: end;
+    flex-wrap: wrap;
+  }
+  .we-zeilen {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+    counter-reset: zeile;
+  }
+  .we-zeile {
+    counter-increment: zeile;
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--linie);
+    border-left: 4px solid var(--linie);
+    border-radius: var(--r);
+    background: var(--flaeche);
+  }
+  .we-zeile:has([name='z-titel']:not(:placeholder-shown)) {
+    border-left-color: var(--rot);
+  }
+  .we-zeile.fehlerhaft {
+    border-color: var(--rot);
+    box-shadow: 0 0 0 1px var(--rot);
+  }
+  .we-zeit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: end;
+  }
+  .we-zeit::before {
+    content: 'Nr. ' counter(zeile);
+    font-weight: 700;
+    color: var(--grau);
+    align-self: center;
+    min-width: 3.2em;
+  }
+  .we-tag {
+    align-self: center;
+  }
+  @media (max-width: 560px) {
+    .we-zeit::before {
+      flex-basis: 100%;
+    }
+  }
+</style>

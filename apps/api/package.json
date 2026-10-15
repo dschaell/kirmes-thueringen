@@ -10,17 +10,24 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node dist/main.js",
     "migrate": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/migrate.ts",
-    "seed": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/seed.ts"
+    "link": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/links.ts",
+    "orte": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/orte.ts",
+    "beispiele": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/beispiele.ts",
+    "termine:import": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/termine-import.ts",
+    "admin": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/admin-cli.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
     "@fastify/rate-limit": "^11.0.0",
     "@kirmes/core": "0.1.0",
+    "@simplewebauthn/server": "^14.0.3",
     "fastify": "^5.6.0",
+    "nodemailer": "^10.0.12",
     "pg": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.15.0",
     "tsx": "^4.20.0"
   }

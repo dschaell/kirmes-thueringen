@@ -1,0 +1,111 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { koordinateAusText } from '@kirmes/core';
+import { adminApi, feld } from '../../lib/admin';
+import { listeOrte } from '../../lib/api';
+import { LANDKREISE, kreisKurz } from '../../lib/anzeige';
+import type { LandkreisKuerzel } from '@kirmes/core';
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+let neuerSlug: string | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const k = feld(f, 'koordinate') ? koordinateAusText(feld(f, 'koordinate')) : null;
+  if (feld(f, 'koordinate') && !k) {
+    fehler = [
+      'Koordinate nicht erkannt – bitte „50.87, 10.82“ oder einen Google-Maps-Link einfügen.',
+    ];
+  } else {
+    const r = await adminApi<{ slug: string; name: string }>(Astro.cookies, 'POST', 'orte', {
+      name: feld(f, 'name'),
+      landkreis: feld(f, 'landkreis'),
+      lat: k?.lat ?? null,
+      lon: k?.lon ?? null,
+    });
+    if (r.daten) {
+      neuerSlug = r.daten.slug;
+      meldung = `Ort „${r.daten.name}“ angelegt.`;
+    } else fehler = r.fehler;
+  }
+}
+
+const suche = Astro.url.searchParams.get('suche')?.trim().toLowerCase() ?? '';
+const treffer = suche
+  ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
+  : [];
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
+  kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
+);
+---
+
+<AdminLayout titel="Orte" meldung={meldung} fehler={fehler}>
+  {
+    neuerSlug && (
+      <p class="kasten">
+        Ortsseite: <a href={`/orte/${neuerSlug}`}>/orte/{neuerSlug}</a> ·{' '}
+        <a href={`/admin/termine?ort=${neuerSlug}`}>Termin für diesen Ort eintragen</a>
+      </p>
+    )
+  }
+  <p class="lesetext leise">
+    Das Ortsverzeichnis enthält bereits über 3.000 Thüringer Orte und Ortsteile aus OpenStreetMap.
+    Bitte zuerst suchen – nur fehlende Orte neu anlegen.
+  </p>
+
+  <h2>Ort suchen</h2>
+  <form class="suchzeile" method="get">
+    <input type="search" name="suche" value={suche} placeholder="Ortsname" aria-label="Ortsname" />
+    <button class="knopf zweit" type="submit">Suchen</button>
+  </form>
+  {
+    suche && (
+      <table class="admin-tabelle">
+        <tbody>
+          {treffer.length === 0 && (
+            <tr>
+              <td>Kein Ort gefunden – unten neu anlegen.</td>
+            </tr>
+          )}
+          {treffer.map((o) => (
+            <tr>
+              <td>
+                <a href={`/orte/${o.slug}`}>{o.name}</a>{' '}
+                <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+              </td>
+              <td class="klein">{o.anzahlKommend} Termine</td>
+              <td>
+                <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
+                  Termine
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+
+  <h2>Neuen Ort anlegen</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <div class="zwei">
+      <label>Name<input name="name" required maxlength="120" /></label>
+      <label
+        >Landkreis
+        <select name="landkreis" required>
+          <option value="">bitte wählen</option>
+          {kreise.map((k) => <option value={k}>{kreisKurz(k)}</option>)}
+        </select>
+      </label>
+    </div>
+    <label
+      >Lage (optional)<input
+        name="koordinate"
+        placeholder="Google-Maps-Link oder „50.87, 10.82“"
+      /></label
+    >
+    <div><button class="knopf" type="submit">Ort anlegen</button></div>
+  </form>
+</AdminLayout>

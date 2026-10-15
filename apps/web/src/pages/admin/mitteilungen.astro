@@ -1,0 +1,155 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+
+interface Mitteilung {
+  id: string;
+  titel: string;
+  text: string;
+  link: string | null;
+  veroeffentlichtAm: string | null;
+  erstelltAm: string;
+}
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const aktion = feld(f, 'aktion');
+  const id = feld(f, 'id');
+  const r =
+    aktion === 'neu'
+      ? await adminApi(Astro.cookies, 'POST', 'mitteilungen', {
+          titel: feld(f, 'titel'),
+          text: feld(f, 'text'),
+          link: feld(f, 'link') || null,
+          sofort: f.get('sofort') === 'ja',
+        })
+      : aktion === 'veroeffentlichen' || aktion === 'zurueckziehen'
+        ? await adminApi(
+            Astro.cookies,
+            'POST',
+            `mitteilungen/${encodeURIComponent(id)}/veroeffentlichen`,
+            {
+              an: aktion === 'veroeffentlichen',
+            },
+          )
+        : aktion === 'loeschen'
+          ? await adminApi(Astro.cookies, 'DELETE', `mitteilungen/${encodeURIComponent(id)}`)
+          : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+  if (r.status < 300) {
+    meldung =
+      {
+        neu:
+          f.get('sofort') === 'ja'
+            ? 'Mitteilung veröffentlicht – Besucher sehen sie beim nächsten Seitenaufruf.'
+            : 'Mitteilung als Entwurf gespeichert.',
+        veroeffentlichen: 'Mitteilung veröffentlicht.',
+        zurueckziehen: 'Mitteilung zurückgezogen.',
+        loeschen: 'Mitteilung gelöscht.',
+      }[aktion] ?? 'Erledigt.';
+  } else fehler = r.fehler;
+}
+
+const liste = (await adminApi<Mitteilung[]>(Astro.cookies, 'GET', 'mitteilungen')).daten ?? [];
+const aktuellId = liste
+  .filter((m) => m.veroeffentlichtAm)
+  .sort((a, b) => (b.veroeffentlichtAm ?? '').localeCompare(a.veroeffentlichtAm ?? ''))[0]?.id;
+const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
+---
+
+<AdminLayout titel="Mitteilungen" meldung={meldung} fehler={fehler}>
+  <p class="lesetext leise">
+    Besucher sehen die <strong>neueste veröffentlichte</strong> Mitteilung einmal als Hinweis. Wer sie
+    schließt, sieht sie nicht wieder – erst die nächste neue Mitteilung.
+  </p>
+
+  <h2>Neue Mitteilung</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <input type="hidden" name="aktion" value="neu" />
+    <label
+      >Titel<input
+        name="titel"
+        required
+        maxlength="120"
+        placeholder="z. B. Die Kirmessaison 2027 startet"
+      /></label
+    >
+    <label>Text<textarea name="text" required maxlength="2000" rows="5"></textarea></label>
+    <label
+      >Link (optional)<input
+        name="link"
+        maxlength="500"
+        placeholder="/termine oder https://…"
+        pattern="(https://|/).*"
+      /></label
+    >
+    <label class="klein"
+      ><input type="checkbox" name="sofort" value="ja" checked /> Sofort veröffentlichen</label
+    >
+    <div><button class="knopf" type="submit">Speichern</button></div>
+  </form>
+
+  <h2>Alle Mitteilungen</h2>
+  {
+    liste.length === 0 ? (
+      <p class="leer">Noch keine Mitteilungen.</p>
+    ) : (
+      <table class="admin-tabelle">
+        <thead>
+          <tr>
+            <th>Titel</th>
+            <th>Status</th>
+            <th>Erstellt</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {liste.map((m) => (
+            <tr>
+              <td>
+                <strong>{m.titel}</strong>
+                <div class="leise klein">
+                  {m.text.slice(0, 140)}
+                  {m.text.length > 140 ? '…' : ''}
+                </div>
+              </td>
+              <td>
+                {m.id === aktuellId ? (
+                  <span class="bestaetigt">wird angezeigt</span>
+                ) : m.veroeffentlichtAm ? (
+                  'veröffentlicht (ältere)'
+                ) : (
+                  'Entwurf'
+                )}
+              </td>
+              <td class="klein">{zeit(m.erstelltAm)}</td>
+              <td>
+                <div class="klein-knoepfe">
+                  <form method="post">
+                    <CsrfFeld />
+                    <input type="hidden" name="id" value={m.id} />
+                    {m.veroeffentlichtAm ? (
+                      <button class="knopf zweit" name="aktion" value="zurueckziehen">
+                        Zurückziehen
+                      </button>
+                    ) : (
+                      <button class="knopf" name="aktion" value="veroeffentlichen">
+                        Veröffentlichen
+                      </button>
+                    )}
+                    <button class="knopf zweit" name="aktion" value="loeschen">
+                      Löschen
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+</AdminLayout>

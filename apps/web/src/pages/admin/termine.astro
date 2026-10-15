@@ -1,0 +1,545 @@
+---
+/**
+ * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
+ * gezeigt und können angelegt, geändert, bestätigt und gelöscht werden. ?bearbeiten=<id> füllt das Formular.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import Icon from '../../components/Icon.astro';
+import { adminApi, feld } from '../../lib/admin';
+import { alleTermine, findeOrt, findeTermin, listeOrte, type TerminDto } from '../../lib/api';
+import {
+  KATEGORIEN,
+  datumLangJahr,
+  heute,
+  kreisKurz,
+  plusTage,
+  tagMonat,
+  wochentag,
+} from '../../lib/anzeige';
+import { wochenendVorlage, type WochenendZeile } from '../../lib/wochenende';
+
+const p = Astro.url.searchParams;
+const ortSlug = p.get('ort') ?? '';
+const ort = ortSlug ? await findeOrt(ortSlug) : null;
+const wochenendModus = p.get('modus') === 'wochenende';
+const ab = /^\d{4}-\d{2}-\d{2}$/.test(p.get('ab') ?? '') ? p.get('ab')! : null;
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+/** Eingaben des Wochenend-Formulars – bleiben bei Fehlern stehen, nichts muss neu getippt werden. */
+let zeilen: WochenendZeile[] = ab ? wochenendVorlage(ab) : [];
+let wochenendBestaetigt = false;
+if (Astro.request.method === 'POST' && ort) {
+  const f = await Astro.request.formData();
+  const aktion = feld(f, 'aktion');
+  const id = feld(f, 'id');
+  const formular = {
+    ortSlug: ort.slug,
+    datum: feld(f, 'datum'),
+    beginn: feld(f, 'beginn') || null,
+    titel: feld(f, 'titel'),
+    veranstaltungsort: feld(f, 'veranstaltungsort') || null,
+    kategorie: feld(f, 'kategorie') || null,
+    bestaetigt: f.get('bestaetigt') === 'ja',
+    band: feld(f, 'band') || null,
+    info: feld(f, 'info') || null,
+    muttizettel: f.get('muttizettel') === 'ja',
+  };
+  const spalte = (name: string) =>
+    f.getAll(name).map((v) => (typeof v === 'string' ? v.trim() : ''));
+  if (aktion === 'wochenende') {
+    const titel = spalte('z-titel');
+    // Checkboxen senden nur angehakte Werte – daher trägt jede ihre Zeilennummer
+    const mutti = new Set(spalte('z-mutti'));
+    const [datum, beginn, band, vo, info] = ['z-datum', 'z-beginn', 'z-band', 'z-vo', 'z-info'].map(
+      spalte,
+    );
+    zeilen = titel.map((t, i) => ({
+      datum: datum![i] ?? '',
+      beginn: beginn![i] ?? '',
+      titel: t,
+      band: band![i] ?? '',
+      veranstaltungsort: vo![i] ?? '',
+      info: info![i] ?? '',
+      muttizettel: mutti.has(String(i)),
+    }));
+    wochenendBestaetigt = f.get('bestaetigt') === 'ja';
+  }
+  // Zeilen ohne Veranstaltung bleiben leer und werden nicht gespeichert
+  const gefuellt = zeilen.filter((z) => z.titel);
+  const r =
+    aktion === 'wochenende'
+      ? gefuellt.length === 0
+        ? { status: 400, daten: null, fehler: ['Bitte mindestens eine Veranstaltung eintragen.'] }
+        : await adminApi<{ hinweise: { meldung: string }[] }>(
+            Astro.cookies,
+            'POST',
+            'termine/wochenende',
+            {
+              ortSlug: ort.slug,
+              zeilen: gefuellt.map((z) => ({
+                datum: z.datum,
+                beginn: z.beginn || null,
+                titel: z.titel,
+                veranstaltungsort: z.veranstaltungsort || null,
+                band: z.band || null,
+                info: z.info || null,
+                muttizettel: z.muttizettel,
+                bestaetigt: wochenendBestaetigt,
+              })),
+            },
+          )
+      : aktion === 'speichern' && id
+        ? await adminApi<{ hinweise: { meldung: string }[] }>(
+            Astro.cookies,
+            'PUT',
+            `termine/${encodeURIComponent(id)}`,
+            formular,
+          )
+        : aktion === 'speichern'
+          ? await adminApi<{ hinweise: { meldung: string }[] }>(
+              Astro.cookies,
+              'POST',
+              'termine',
+              formular,
+            )
+          : aktion === 'bestaetigen'
+            ? await adminApi(
+                Astro.cookies,
+                'POST',
+                `termine/${encodeURIComponent(id)}/bestaetigen`,
+                {
+                  ortSlug: ort.slug,
+                },
+              )
+            : aktion === 'loeschen'
+              ? await adminApi(
+                  Astro.cookies,
+                  'DELETE',
+                  `termine/${encodeURIComponent(id)}?ort=${encodeURIComponent(ort.slug)}`,
+                )
+              : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+  if (r.status < 300) {
+    const hinweise = (r.daten as { hinweise?: { meldung: string }[] } | null)?.hinweise ?? [];
+    meldung = [
+      {
+        wochenende: `${gefuellt.length} Veranstaltungen gespeichert.`,
+        speichern: 'Termin gespeichert.',
+        bestaetigen: 'Termin bestätigt.',
+        loeschen: 'Termin gelöscht.',
+      }[aktion],
+      ...hinweise.map((h) => h.meldung),
+    ].join(' ');
+    if (aktion === 'wochenende') zeilen = [];
+  } else fehler = r.fehler;
+}
+// Fehler nennen die Zeile („Zeile 3: …“) – bezogen auf die gefüllten Zeilen
+const gefuellteNr = zeilen.map((z, i) => (z.titel ? i : -1)).filter((i) => i >= 0);
+const fehlerhaft = new Set(
+  fehler
+    .map((m) => /^Zeile (\d+):/.exec(m)?.[1])
+    .filter(Boolean)
+    .map((n) => gefuellteNr[Number(n) - 1]),
+);
+const leereZeilen = zeilen.length ? Math.max(2, 8 - zeilen.length) : 0;
+
+const h = heute();
+const termine: TerminDto[] = ort
+  ? await alleTermine({ ort: ort.slug, von: plusTage(h, -30), bis: plusTage(h, 335) })
+  : [];
+const bearbeiten = p.get('bearbeiten') && ort ? await findeTermin(p.get('bearbeiten')!) : null;
+const zuBearbeiten = bearbeiten && bearbeiten.ort.slug === ort?.slug ? bearbeiten : null;
+
+const suche = p.get('suche')?.trim().toLowerCase() ?? '';
+const treffer =
+  !ort && suche
+    ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
+    : [];
+const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).filter(Boolean))];
+---
+
+<AdminLayout titel={ort ? `Termine in ${ort.name}` : 'Termine'} meldung={meldung} fehler={fehler}>
+  {
+    !ort && (
+      <>
+        <h2>Für welchen Ort?</h2>
+        <form class="suchzeile" method="get">
+          <input
+            type="search"
+            name="suche"
+            value={suche}
+            placeholder="Ortsname, z. B. Mühlberg"
+            aria-label="Ortsname"
+            autofocus
+          />
+          <button class="knopf" type="submit">
+            <Icon name="suche" />
+            Suchen
+          </button>
+        </form>
+        {suche && (
+          <table class="admin-tabelle">
+            <tbody>
+              {treffer.length === 0 && (
+                <tr>
+                  <td>
+                    Kein Ort gefunden. <a href="/admin/orte">Ort anlegen</a>
+                  </td>
+                </tr>
+              )}
+              {treffer.map((o) => (
+                <tr>
+                  <td>
+                    <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
+                    <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+                  </td>
+                  <td class="klein">{o.anzahlKommend} kommende Termine</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>
+    )
+  }
+
+  {
+    ortSlug && !ort && (
+      <p class="meldung">
+        Ort „{ortSlug}“ nicht gefunden. <a href="/admin/termine">Neu suchen</a>
+      </p>
+    )
+  }
+
+  {
+    ort && (
+      <>
+        <p class="brotkrumen">
+          <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
+          <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
+          <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
+        </p>
+
+        {!zuBearbeiten && (
+          <nav class="umschalter" aria-label="Art der Eingabe">
+            <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!wochenendModus && 'page'}>
+              Einzelner Termin
+            </a>
+            <a
+              href={`/admin/termine?ort=${ort.slug}&modus=wochenende`}
+              aria-current={wochenendModus && 'page'}
+            >
+              Ganzes Kirmeswochenende
+            </a>
+          </nav>
+        )}
+
+        {wochenendModus && !zuBearbeiten && (
+          <section aria-labelledby="we-kopf">
+            <h2 id="we-kopf">Kirmeswochenende anlegen</h2>
+            <form class="suchzeile" method="get">
+              <input type="hidden" name="ort" value={ort.slug} />
+              <input type="hidden" name="modus" value="wochenende" />
+              <label class="klein">
+                Erster Kirmestag (meist Freitag)
+                <input type="date" name="ab" required value={ab ?? ''} />
+              </label>
+              <button class="knopf zweit" type="submit">
+                {zeilen.length ? 'Vorlage neu laden' : 'Vorlage laden'}
+              </button>
+            </form>
+            {zeilen.length > 0 && (
+              <form class="melden wochenende" method="post" id="wochenende">
+                <CsrfFeld />
+                <input type="hidden" name="aktion" value="wochenende" />
+                <p class="leise klein">
+                  Jede Zeile ist eine Veranstaltung – mehrere pro Tag sind möglich. Zeilen ohne
+                  Veranstaltung werden ignoriert. Gespeichert wird alles zusammen oder gar nichts.
+                </p>
+                <ol class="we-zeilen">
+                  {[...zeilen, ...Array.from({ length: leereZeilen }, () => null)].map((z, i) => (
+                    <li class:list={['we-zeile', { fehlerhaft: fehlerhaft.has(i) }]}>
+                      <div class="we-zeit">
+                        <label>
+                          Datum
+                          <input name="z-datum" type="date" value={z?.datum ?? ''} />
+                        </label>
+                        <label>
+                          Beginn
+                          <input name="z-beginn" type="time" value={z?.beginn ?? ''} />
+                        </label>
+                        {z?.datum && (
+                          <span class="we-tag leise klein" aria-hidden="true">
+                            {wochentag(z.datum)}, {tagMonat(z.datum)}
+                          </span>
+                        )}
+                      </div>
+                      <label>
+                        Veranstaltung
+                        <input
+                          name="z-titel"
+                          maxlength="200"
+                          value={z?.titel ?? ''}
+                          placeholder="z. B. Kirmestanz"
+                        />
+                      </label>
+                      <div class="zwei">
+                        <label>
+                          Band / DJ
+                          <input name="z-band" maxlength="120" value={z?.band ?? ''} />
+                        </label>
+                        <label>
+                          Wo genau?
+                          <input
+                            name="z-vo"
+                            maxlength="120"
+                            list="vo-liste"
+                            value={z?.veranstaltungsort ?? ''}
+                          />
+                        </label>
+                      </div>
+                      <label>
+                        Hinweise (öffentlich)
+                        <textarea name="z-info" maxlength="500" rows="2" set:text={z?.info ?? ''} />
+                      </label>
+                      <label class="klein">
+                        <input
+                          type="checkbox"
+                          name="z-mutti"
+                          value={String(i)}
+                          checked={z?.muttizettel ?? false}
+                        />{' '}
+                        Unter 18 nur mit Muttizettel
+                      </label>
+                    </li>
+                  ))}
+                </ol>
+                <label class="klein">
+                  <input
+                    type="checkbox"
+                    name="bestaetigt"
+                    value="ja"
+                    checked={wochenendBestaetigt}
+                  />{' '}
+                  Vom Veranstalter bestätigt (gilt für alle Veranstaltungen)
+                </label>
+                <div class="knopfreihe">
+                  <button class="knopf" type="submit">
+                    Ganzes Wochenende speichern
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {!wochenendModus && <h2>{zuBearbeiten ? 'Termin ändern' : 'Neuer Termin'}</h2>}
+        {!wochenendModus && (
+          <details class="filter" open={!zuBearbeiten}>
+            <summary>
+              <Icon name="suche" />
+              Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
+            </summary>
+            <div class="filterfelder">
+              <textarea
+                id="assistent"
+                rows="5"
+                placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
+              />
+              <p class="leise klein" id="assistent-info">
+                Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der
+                Recherche notieren.
+              </p>
+            </div>
+          </details>
+        )}
+
+        {!wochenendModus && (
+          <form class="melden" method="post" id="terminformular">
+            <CsrfFeld />
+            <input type="hidden" name="aktion" value="speichern" />
+            {zuBearbeiten && <input type="hidden" name="id" value={zuBearbeiten.id} />}
+            <div class="zwei">
+              <label>
+                Datum *<input name="datum" type="date" required value={zuBearbeiten?.datum ?? ''} />
+              </label>
+              <label>
+                Beginn
+                <input name="beginn" type="time" value={zuBearbeiten?.beginn ?? ''} />
+              </label>
+            </div>
+            <label>
+              Veranstaltung *
+              <input name="titel" required maxlength="200" value={zuBearbeiten?.titel ?? ''} />
+            </label>
+            <div class="zwei">
+              <label>
+                Wo genau?
+                <input
+                  name="veranstaltungsort"
+                  maxlength="120"
+                  list="vo-liste"
+                  value={zuBearbeiten?.veranstaltungsort ?? ''}
+                />
+              </label>
+              <label>
+                Art
+                <select name="kategorie">
+                  <option value="">automatisch erkennen</option>
+                  {Object.entries(KATEGORIEN).map(([k, v]) => (
+                    <option value={k} selected={zuBearbeiten?.kategorie === k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div class="zwei">
+              <label>
+                Band / DJ
+                <input name="band" maxlength="120" value={zuBearbeiten?.band ?? ''} />
+              </label>
+              <label>
+                Hinweise (öffentlich)
+                <textarea
+                  name="info"
+                  maxlength="500"
+                  rows="2"
+                  placeholder="z. B. Eintritt 8 €, Einlass ab 18"
+                  set:text={zuBearbeiten?.info ?? ''}
+                />
+              </label>
+            </div>
+            <datalist id="vo-liste">
+              {veranstaltungsorte.map((v) => (
+                <option value={v!} />
+              ))}
+            </datalist>
+            <label class="klein">
+              <input
+                type="checkbox"
+                name="bestaetigt"
+                value="ja"
+                checked={zuBearbeiten?.bestaetigt ?? false}
+              />{' '}
+              Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+            </label>
+            <label class="klein">
+              <input
+                type="checkbox"
+                name="muttizettel"
+                value="ja"
+                checked={zuBearbeiten?.muttizettel ?? false}
+              />{' '}
+              Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
+            </label>
+            <div class="knopfreihe">
+              <button class="knopf" type="submit">
+                Speichern
+              </button>
+              {zuBearbeiten && (
+                <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
+                  Abbrechen
+                </a>
+              )}
+            </div>
+          </form>
+        )}
+        {wochenendModus && (
+          <datalist id="vo-liste">
+            {veranstaltungsorte.map((v) => (
+              <option value={v!} />
+            ))}
+          </datalist>
+        )}
+
+        <h2>Termine in {ort.name}</h2>
+        {termine.length === 0 ? (
+          <p class="leer">Noch keine Termine.</p>
+        ) : (
+          <table class="admin-tabelle">
+            <tbody>
+              {termine.map((t) => (
+                <tr>
+                  <td class="klein">
+                    {datumLangJahr(t.datum)}
+                    {t.beginn && <>, {t.beginn}</>}
+                  </td>
+                  <td>
+                    <strong>{t.titel}</strong>
+                    {(t.veranstaltungsort || t.band) && (
+                      <div class="leise klein">
+                        {[t.veranstaltungsort, t.band && `Musik: ${t.band}`]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    )}
+                  </td>
+                  <td class="klein">
+                    {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
+                  </td>
+                  <td>
+                    <div class="klein-knoepfe">
+                      <a
+                        class="knopf zweit"
+                        href={`/admin/termine?ort=${ort.slug}&bearbeiten=${t.id}`}
+                      >
+                        Ändern
+                      </a>
+                      <form method="post">
+                        <CsrfFeld />
+                        <input type="hidden" name="id" value={t.id} />
+                        {!t.bestaetigt && (
+                          <button class="knopf zweit" name="aktion" value="bestaetigen">
+                            Bestätigen
+                          </button>
+                        )}
+                        <button class="knopf zweit" name="aktion" value="loeschen">
+                          Löschen
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>
+    )
+  }
+</AdminLayout>
+
+<script>
+  import { erkenneTerminAusText } from '@kirmes/core';
+
+  const feld = document.getElementById('assistent') as HTMLTextAreaElement | null;
+  const formular = document.getElementById('terminformular') as HTMLFormElement | null;
+  const info = document.getElementById('assistent-info');
+  if (feld && formular && info) {
+    const setze = (name: string, wert: string | null) => {
+      const el = formular.elements.namedItem(name) as HTMLInputElement | null;
+      if (el && wert) el.value = wert;
+    };
+    feld.addEventListener('input', () => {
+      const heute = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(
+        new Date(),
+      );
+      const v = erkenneTerminAusText(feld.value, heute);
+      setze('datum', v.datum);
+      setze('beginn', v.beginn);
+      setze('titel', v.titel);
+      setze('veranstaltungsort', v.veranstaltungsort);
+      const gefunden = [
+        v.datum && 'Datum',
+        v.beginn && 'Uhrzeit',
+        v.titel && 'Titel',
+        v.veranstaltungsort && 'Ort',
+      ].filter(Boolean);
+      info.textContent = gefunden.length
+        ? `Erkannt: ${gefunden.join(', ')} – bitte im Formular prüfen.`
+        : 'Nichts erkannt – bitte Felder von Hand ausfüllen.';
+    });
+  }
+</script>

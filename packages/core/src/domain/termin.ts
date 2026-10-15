@@ -1,6 +1,8 @@
 import { monatVon, parseDatum, type KalenderDatum } from './datum.js';
+import type { Koordinate } from './festplatz.js';
 import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
+import { bereinigeTitel, istKeinTermin } from './text.js';
 
 export const KATEGORIEN = [
   'kirmes',
@@ -18,8 +20,8 @@ export interface Ort {
   readonly slug: string;
   readonly name: string;
   readonly landkreis: LandkreisKuerzel;
-  /** WGS84, null solange nicht geokodiert */
-  readonly koordinate: { lat: number; lon: number } | null;
+  /** Ortsmitte (WGS84), null solange nicht geokodiert */
+  readonly koordinate: Koordinate | null;
 }
 
 export interface Termin {
@@ -30,8 +32,16 @@ export interface Termin {
   readonly titel: string;
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
-  /** false = aus Vorjahren hochgerechnet, vom Veranstalter nicht bestätigt */
+  /** true = vom Veranstalter (Kirmesgesellschaft) bestätigt; false = aus öffentlicher Ankündigung recherchiert */
   readonly bestaetigt: boolean;
+  /** Von der Kirmesgesellschaft hinterlegter Festplatz (passend zum Veranstaltungsort oder Standard) */
+  readonly festplatz: Koordinate | null;
+  /** Band oder DJ – eigenes Feld, damit man nach Bands suchen kann */
+  readonly band: string | null;
+  /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
+  readonly info: string | null;
+  /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */
+  readonly muttizettel: boolean;
 }
 
 export interface TerminEingabe {
@@ -43,6 +53,9 @@ export interface TerminEingabe {
   veranstaltungsort?: string | null;
   kategorie: string;
   bestaetigt?: boolean;
+  band?: string | null;
+  info?: string | null;
+  muttizettel?: boolean;
 }
 
 /** Validierte Eingabe, bereit zum Speichern. */
@@ -55,6 +68,9 @@ export interface NeuerTermin {
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
   readonly bestaetigt: boolean;
+  readonly band: string | null;
+  readonly info: string | null;
+  readonly muttizettel: boolean;
 }
 
 export interface Hinweis {
@@ -65,6 +81,15 @@ export interface Hinweis {
 const UHRZEIT = /^([01]\d|2[0-3]):[0-5]\d$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TITEL_MAX = 200;
+const BAND_MAX = 120;
+const INFO_MAX = 500;
+
+/** Anführungszeichen um den Bandnamen sind überflüssig (Apostrophe wie in „Sethi's“ bleiben). */
+const bereinigeBand = (b: string | null | undefined) =>
+  b
+    ?.replace(/["„“”]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
 
 /** Herbst = traditionelle Kirmeszeit in Thüringen (Kirchweih nach der Ernte). */
 export const HERBST_MONATE = [9, 10, 11] as const;
@@ -93,12 +118,30 @@ export function validiereTermin(
   if (!istOrtSlug(e.ortSlug)) {
     fehler.push({ feld: 'ortSlug', code: 'SLUG_UNGUELTIG', meldung: 'Ungültiger Orts-Slug.' });
   }
-  const titel = e.titel.trim();
-  if (!titel || titel.length > TITEL_MAX) {
+  const titel = bereinigeTitel(e.titel);
+  if (istKeinTermin(titel)) {
+    fehler.push({
+      feld: 'titel',
+      code: 'KEIN_TERMIN',
+      meldung: 'Eintrag beschreibt keine Veranstaltung.',
+    });
+  } else if (!titel || titel.length > TITEL_MAX) {
     fehler.push({
       feld: 'titel',
       code: 'TITEL_LAENGE',
       meldung: `Titel muss 1–${TITEL_MAX} Zeichen lang sein.`,
+    });
+  }
+  const band = bereinigeBand(e.band);
+  if (band && band.length > BAND_MAX) {
+    fehler.push({ feld: 'band', code: 'BAND_LAENGE', meldung: `Band: max. ${BAND_MAX} Zeichen.` });
+  }
+  const info = e.info?.trim().replace(/\r\n/g, '\n') || null;
+  if (info && info.length > INFO_MAX) {
+    fehler.push({
+      feld: 'info',
+      code: 'INFO_LAENGE',
+      meldung: `Hinweise: max. ${INFO_MAX} Zeichen.`,
     });
   }
   if (e.beginn != null && !UHRZEIT.test(e.beginn)) {
@@ -125,6 +168,9 @@ export function validiereTermin(
     veranstaltungsort: e.veranstaltungsort?.trim() || null,
     kategorie: e.kategorie,
     bestaetigt: e.bestaetigt ?? false,
+    band,
+    info,
+    muttizettel: e.muttizettel ?? false,
   };
   const hinweise: Hinweis[] = [];
   if (termin.kategorie === 'kirmes' && !istHerbstKirmes(termin.datum)) {

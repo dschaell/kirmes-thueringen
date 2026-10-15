@@ -1,0 +1,156 @@
+---
+/**
+ * Passkeys des angemeldeten Admins: hinzufügen (Face ID, Touch ID, Windows Hello, Sicherheitsschlüssel),
+ * auflisten, löschen. Danach geht die Anmeldung ohne Passwort und Einmalcode.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+import { datumLangJahr } from '../../lib/anzeige';
+
+interface PasskeyInfo {
+  id: string;
+  name: string;
+  erstelltAm: string;
+  zuletztGenutzt: string | null;
+}
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (feld(f, 'aktion') === 'loeschen') {
+    const r = await adminApi(
+      Astro.cookies,
+      'DELETE',
+      `passkeys/${encodeURIComponent(feld(f, 'id'))}`,
+    );
+    if (r.status === 204) meldung = 'Passkey gelöscht.';
+    else fehler = r.fehler;
+  }
+}
+if (Astro.url.searchParams.get('neu') === '1') meldung = 'Passkey eingerichtet.';
+
+const liste = await adminApi<PasskeyInfo[]>(Astro.cookies, 'GET', 'passkeys');
+const aktiv = liste.status === 200;
+const passkeys = liste.daten ?? [];
+const datum = (iso: string) => datumLangJahr(iso.slice(0, 10));
+
+// Vorschlag für den Namen aus dem Gerät
+const ua = Astro.request.headers.get('user-agent') ?? '';
+const vorschlag = /iPhone/.test(ua)
+  ? 'iPhone'
+  : /iPad/.test(ua)
+    ? 'iPad'
+    : /Android/.test(ua)
+      ? 'Android-Handy'
+      : /Macintosh/.test(ua)
+        ? 'Mac'
+        : /Windows/.test(ua)
+          ? 'Windows-PC'
+          : 'Passkey';
+---
+
+<AdminLayout titel="Passkeys" meldung={meldung} fehler={fehler}>
+  <p class="lesetext">
+    Mit einem Passkey meldest du dich per Face ID, Touch ID, Windows Hello oder Sicherheitsschlüssel
+    an – ohne Passwort und ohne Code aus der Authenticator-App. Der Passkey funktioniert nur auf
+    dieser Website und lässt sich nicht abfischen. Passwort und Einmalcode bleiben als Rückfallweg.
+  </p>
+
+  {
+    !aktiv ? (
+      <p class="meldung">
+        Passkeys sind auf diesem Server nicht eingeschaltet (WEBSITE_URL fehlt in der API).
+      </p>
+    ) : (
+      <>
+        <h2>Neuen Passkey hinzufügen</h2>
+        <form class="melden" id="passkey-neu">
+          <CsrfFeld />
+          <label>
+            Name des Geräts
+            <input name="name" maxlength="60" value={vorschlag} required />
+          </label>
+          <div class="knopfreihe">
+            <button class="knopf" type="submit">
+              Passkey hinzufügen
+            </button>
+          </div>
+          <p class="leise klein" id="passkey-status" role="status" aria-live="polite" />
+        </form>
+
+        <h2>Eingerichtete Passkeys</h2>
+        {passkeys.length === 0 ? (
+          <p class="leer">Noch keine Passkeys.</p>
+        ) : (
+          <table class="admin-tabelle">
+            <tbody>
+              {passkeys.map((p) => (
+                <tr>
+                  <td>
+                    <strong>{p.name}</strong>
+                  </td>
+                  <td class="klein">eingerichtet am {datum(p.erstelltAm)}</td>
+                  <td class="klein">
+                    {p.zuletztGenutzt
+                      ? `zuletzt genutzt am ${datum(p.zuletztGenutzt)}`
+                      : 'noch nie genutzt'}
+                  </td>
+                  <td>
+                    <form method="post">
+                      <CsrfFeld />
+                      <input type="hidden" name="id" value={p.id} />
+                      <button class="knopf zweit" name="aktion" value="loeschen">
+                        Löschen
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>
+    )
+  }
+</AdminLayout>
+
+<script>
+  import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
+  import { passkeyFehler, postJson } from '../../lib/passkey-client';
+
+  const form = document.getElementById('passkey-neu') as HTMLFormElement | null;
+  const status = document.getElementById('passkey-status');
+  if (form && status) {
+    if (!browserSupportsWebAuthn()) {
+      status.textContent = 'Dieser Browser unterstützt keine Passkeys.';
+      form.querySelector('button')?.setAttribute('disabled', '');
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const knopf = form.querySelector('button');
+      knopf?.setAttribute('disabled', '');
+      status.textContent = 'Bitte am Gerät bestätigen …';
+      try {
+        const opt = await postJson('/admin/passkeys/optionen');
+        if (!opt.ok) throw new Error(String(opt.daten.fehler ?? 'Fehler'));
+        const antwort = await startRegistration({ optionsJSON: opt.daten.optionen as never });
+        const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+        const r = await postJson('/admin/passkeys/speichern', {
+          vorgang: opt.daten.vorgang,
+          antwort,
+          name,
+        });
+        if (!r.ok) throw Object.assign(new Error(String(r.daten.fehler ?? '')), { name: 'Server' });
+        location.assign('/admin/passkeys?neu=1');
+      } catch (err) {
+        status.textContent =
+          (err as Error).name === 'Server' && (err as Error).message
+            ? (err as Error).message
+            : passkeyFehler(err);
+        knopf?.removeAttribute('disabled');
+      }
+    });
+  }
+</script>

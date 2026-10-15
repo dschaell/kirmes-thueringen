@@ -1,30 +1,40 @@
 ---
 import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
 import TerminListe from '../components/TerminListe.astro';
 import { listeOrte, sucheTermine } from '../lib/api';
-import { LANDKREISE, eventJsonLd, heute, kreisSlug, plusTage } from '../lib/anzeige';
+import {
+  LANDKREISE,
+  eventJsonLd,
+  heute,
+  kreisKurz,
+  kreisSlug,
+  plusTage,
+  wochenende,
+} from '../lib/anzeige';
+import type { LandkreisKuerzel } from '@kirmes/core';
 
 const h = heute();
-const [naechste, orte] = await Promise.all([
-  sucheTermine({ von: h, bis: plusTage(h, 21), limit: 200 }),
+const we = wochenende(h);
+const [amWochenende, danach, orte] = await Promise.all([
+  sucheTermine({ ...we, limit: 200 }),
+  sucheTermine({ von: plusTage(we.bis, 1), bis: plusTage(we.bis, 14), limit: 40 }),
   listeOrte(),
 ]);
-const kommendGesamt = orte.reduce((s, o) => s + o.anzahlKommend, 0);
-const kreise = Object.entries(LANDKREISE)
-  .map(([k, name]) => ({
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
+  .map((k) => ({
     k,
-    name,
     n: orte.filter((o) => o.landkreis === k).reduce((s, o) => s + o.anzahlKommend, 0),
   }))
   .filter((x) => x.n > 0)
-  .sort((a, b) => b.n - a.n);
+  .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 const jahr = h.slice(0, 4);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
-  title={`Kirmes Termine Thüringen ${jahr} – Kirmeskalender mit ${orte.length} Orten`}
-  description={`Alle Kirmes-Termine in Thüringen ${jahr}: Kirmestanz, Kindertanz, Zeltkirmes und Brauchtum in ${orte.length} Orten. Suchen nach Ort, Landkreis oder Band – kostenlos als Kalender abonnieren.`}
+  title={`Kirmes in Thüringen ${jahr} – Termine für Kirmestanz, Kindertanz & mehr`}
+  description={`Wann ist wo Kirmes? Termine der Kirmesgesellschaften aus ganz Thüringen – nach Ort und Landkreis, mit Anfahrt und Kalender-Abo.`}
   jsonLd={[
     {
       '@context': 'https://schema.org',
@@ -37,64 +47,71 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         'query-input': 'required name=suche',
       },
     },
-    ...naechste.termine.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!)),
+    ...amWochenende.termine.slice(0, 30).map((t) => eventJsonLd(t, Astro.site!)),
   ]}
 >
-  <section class="hero">
-    <h1>Kirmes in Thüringen {jahr}</h1>
-    <p class="muted">
-      Der Kirmeskalender für ganz Thüringen – {kommendGesamt.toLocaleString('de-DE')} kommende Termine
-      in {orte.length} Orten. Finde die nächste Kirmes in deiner Nähe.
+  <section class="einstieg">
+    <h1>Kirmes in Thüringen</h1>
+    <p class="unterzeile">
+      Wann ist wo Kirmes? Die Termine der Kirmesgesellschaften aus ganz Thüringen – vom Kirmestanz
+      bis zur Kirmesbeerdigung.
     </p>
-    <form class="suche" action="/termine" method="get" role="search">
+    <form class="suchzeile" action="/termine" method="get" role="search">
       <input
         name="q"
         type="search"
-        aria-label="Suche"
-        placeholder="Ort, Band oder Veranstaltung – z. B. „Mühlberg“ oder „Kindertanz“"
-        autocomplete="off"
+        aria-label="Ort, Band oder Veranstaltung"
+        placeholder="Ort oder Band, z. B. Mühlberg"
       />
-      <button type="submit">Suchen</button>
+      <button class="knopf" type="submit"><Icon name="suche" />Suchen</button>
     </form>
   </section>
 
-  <div class="stats">
-    <div class="stat"><b>{kommendGesamt}</b>kommende Termine</div>
-    <div class="stat"><b>{orte.length}</b>Orte</div>
-    <div class="stat"><b>{kreise.length}</b>Landkreise</div>
-    <div class="stat"><b><a href="/kalender.ics">iCal</a></b>Kalender abonnieren</div>
-  </div>
+  <div class="zweispaltig">
+    <div>
+      <h2>Dieses Wochenende</h2>
+      <TerminListe termine={amWochenende.termine} monate={false} />
+      {
+        danach.termine.length > 0 && (
+          <>
+            <h2>Die zwei Wochen danach</h2>
+            <TerminListe termine={danach.termine} monate={false} hinweis={false} />
+            <a class="mehr" href={`/termine?von=${plusTage(we.bis, 1)}`}>
+              Alle weiteren Termine <Icon name="pfeil" />
+            </a>
+          </>
+        )
+      }
+    </div>
 
-  <h2>Die nächsten drei Wochen</h2>
-  {
-    naechste.termine.length ? (
-      <TerminListe termine={naechste.termine} />
-    ) : (
-      <p class="leer">
-        In den nächsten drei Wochen sind keine Termine eingetragen.{' '}
-        <a href="/termine">Alle Termine ansehen</a>
+    <aside class="seitenleiste">
+      <h2>Nach Landkreis</h2>
+      <ul class="kreisliste">
+        {
+          kreise.map((x) => (
+            <li>
+              <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
+              <span class="n">{x.n}</span>
+            </li>
+          ))
+        }
+      </ul>
+
+      <h2>Immer aktuell im eigenen Kalender</h2>
+      <p>
+        Alle kommenden Termine als Kalender-Abo für Handy, Outlook oder Google Kalender – neue
+        Termine erscheinen automatisch.
       </p>
-    )
-  }
-  <p><a class="btn" href="/termine">Alle Termine durchsuchen →</a></p>
+      <a class="knopf zweit" href="/kalender.ics"><Icon name="abo" />Kalender abonnieren</a>
 
-  <h2>Kirmes nach Landkreis</h2>
-  <div class="grid">
-    {
-      kreise.map((x) => (
-        <a class="card card-link" href={`/kreise/${kreisSlug(x.k)}`}>
-          <strong>{x.name}</strong>
-          <br />
-          <span class="muted small">{x.n} kommende Termine</span>
-        </a>
-      ))
-    }
-  </div>
-
-  <div class="hinweis">
-    <strong>Deine Kirmes fehlt oder ein Termin stimmt nicht?</strong>
-    Kirmesgesellschaften und Veranstalter können Termine kostenlos <a href="/termin-melden"
-      >hier melden</a
-    >.
+      <div class="kasten abstand">
+        <h2>Ihr seid Kirmesgesellschaft?</h2>
+        <p>
+          Schickt uns eure Termine – oder bestätigt, dass sie stimmen. Auf Wunsch tragt ihr euren
+          Festplatz selbst auf der Karte ein, damit Gäste direkt hinfinden.
+        </p>
+        <a class="mehr" href="/termin-melden">Termin melden <Icon name="pfeil" /></a>
+      </div>
+    </aside>
   </div>
 </Base>

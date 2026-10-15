@@ -4,8 +4,8 @@
 
 Der Kirmeskalender Thüringen ist eine **Single-Purpose-Webanwendung**: Er macht alle Kirmes-Termine
 in Thüringen (Kirmestanz, Kindertanz, Zeltkirmes, Brauchtum) **such-, filter- und verwaltbar** – nach
-Ort, Landkreis, Zeitraum und Art der Veranstaltung. Er löst die bisherige, krankheitsbedingt
-eingestellte Unterseite von mauersberger-haarhausen.de/kirmes ab.
+Ort, Landkreis, Zeitraum und Art der Veranstaltung. Die Termine stammen aus eigener Recherche
+der Redaktion und von den Kirmesgesellschaften selbst.
 
 Nicht Teil des Systems (bewusst ausgeschlossen): Ticketverkauf, Kommentare, allgemeine
 Veranstaltungen ohne Kirmesbezug, Termine außerhalb Thüringens.
@@ -36,4 +36,3 @@ Veranstaltungen ohne Kirmesbezug, Termine außerhalb Thüringens.
 | Kirmesgesellschaften/Vereine | Eigene Termine einfach melden und korrigieren                      |
 | Redaktion (Betreiber)        | Termine prüfen, freigeben, pflegen – mit wenig Aufwand             |
 | Entwickler:innen             | Klare Schichten, schnelle Tests, automatisierte Qualitätssicherung |
-| Bisheriger Betreiber         | Respektvoller Umgang mit der übernommenen Datensammlung            |

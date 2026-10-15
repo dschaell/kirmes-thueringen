@@ -1,8 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
 import { listeOrte, sucheTermine } from '../../lib/api';
-import { heute, kreisAusSlug, kreisName } from '../../lib/anzeige';
+import { anzahl, heute, imKreis, kreisAusSlug, kreisName } from '../../lib/anzeige';
 
 const k = kreisAusSlug(Astro.params.kreis ?? '');
 if (!k) return Astro.rewrite('/404');
@@ -11,45 +12,51 @@ const name = kreisName(k);
 const h = heute();
 const jahr = h.slice(0, 4);
 const [kommend, orte] = await Promise.all([
-  sucheTermine({ landkreis: [k], von: h, limit: 200 }),
+  sucheTermine({ landkreis: [k], von: h, limit: 120 }),
   listeOrte(),
 ]);
 const ortListe = orte.filter((o) => o.landkreis === k);
+const mitTerminen = ortListe.filter((o) => o.anzahlKommend > 0);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
 <Base
-  title={`Kirmes ${name} ${jahr} – alle Termine im Landkreis`}
-  description={`Kirmes-Termine ${jahr} im Landkreis ${name} (${k}): ${ortListe.length} Orte, Kirmestanz, Kindertanz und Zeltkirmes.`}
+  title={`Kirmes ${imKreis(k)} ${jahr} – alle Termine`}
+  description={`Kirmes ${imKreis(k)}: ${anzahl(kommend.gesamt, 'kommender Termin', 'kommende Termine')} in ${anzahl(mitTerminen.length, 'Ort', 'Orten')} – Kirmestanz, Kindertanz und Brauchtum.`}
 >
-  <p class="small muted"><a href="/kreise">Landkreise</a> › {name}</p>
-  <section class="hero">
-    <h1>Kirmes im {name}</h1>
-    <p class="muted">
-      {ortListe.length} Orte · {kommend.gesamt} kommende Termine · <a
-        href={`/termine?kreis=${encodeURIComponent(k)}`}>durchsuchen</a
-      >
+  <p class="brotkrumen"><a href="/kreise">Landkreise</a></p>
+  <section class="einstieg">
+    <h1>Kirmes {imKreis(k)}</h1>
+    <p class="unterzeile">
+      {anzahl(kommend.gesamt, 'kommender Termin', 'kommende Termine')} in {
+        anzahl(mitTerminen.length, 'Ort', 'Orten')
+      }.
     </p>
   </section>
-  <h2>Orte</h2>
-  <ul class="ortliste">
-    {
-      ortListe.map((o) => (
-        <li>
-          <a href={`/orte/${o.slug}`}>{o.name}</a>
-        </li>
-      ))
-    }
-  </ul>
-  <h2>Kommende Termine</h2>
-  <TerminListe termine={kommend.termine} />
-  {
-    kommend.gesamt > kommend.termine.length && (
-      <p>
-        <a class="btn ghost" href={`/termine?kreis=${encodeURIComponent(k)}`}>
-          Alle {kommend.gesamt} Termine anzeigen →
-        </a>
-      </p>
-    )
-  }
+
+  <div class="zweispaltig">
+    <div>
+      <TerminListe termine={kommend.termine} />
+      {
+        kommend.gesamt > kommend.termine.length && (
+          <a class="mehr" href={`/termine?kreis=${encodeURIComponent(k)}`}>
+            Alle {kommend.gesamt} Termine {imKreis(k)} <Icon name="pfeil" />
+          </a>
+        )
+      }
+    </div>
+    <aside class="seitenleiste">
+      <h2>Orte {imKreis(k)}</h2>
+      <ul class="kreisliste">
+        {
+          mitTerminen.map((o) => (
+            <li>
+              <a href={`/orte/${o.slug}`}>{o.name}</a>
+              <span class="n">{o.anzahlKommend}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </aside>
+  </div>
 </Base>

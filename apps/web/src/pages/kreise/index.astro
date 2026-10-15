@@ -1,35 +1,38 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { listeOrte } from '../../lib/api';
-import { LANDKREISE, kreisSlug } from '../../lib/anzeige';
+import { LANDKREISE, anzahl, kreisKurz, kreisSlug } from '../../lib/anzeige';
+import type { LandkreisKuerzel } from '@kirmes/core';
 
 const orte = await listeOrte();
-const kreise = Object.entries(LANDKREISE)
-  .map(([k, name]) => {
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
+  .map((k) => {
     const imKreis = orte.filter((o) => o.landkreis === k);
-    return { k, name, orte: imKreis.length, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0) };
+    return { k, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0), orte: imKreis.length };
   })
-  .filter((x) => x.orte > 0)
-  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  .filter((x) => x.n > 0)
+  .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
 
 <Base
-  title="Kirmes nach Landkreis – Thüringen"
-  description="Kirmes-Termine in Thüringen nach Landkreis: Eichsfeld, Gotha, Ilm-Kreis, Weimarer Land, Wartburgkreis und mehr."
+  title="Kirmes nach Landkreis – Kirmeskalender Thüringen"
+  description="Kirmes-Termine in Thüringen nach Landkreis und kreisfreier Stadt: Eichsfeld, Gotha, Ilm-Kreis, Weimarer Land, Wartburgkreis und mehr."
 >
-  <section class="hero"><h1>Landkreise</h1></section>
-  <div class="grid">
+  <section class="einstieg">
+    <h1>Kirmes nach Landkreis</h1>
+    <p class="unterzeile">
+      Alle Landkreise und kreisfreien Städte, in denen Kirmes-Termine eingetragen sind.
+    </p>
+  </section>
+  <nav class="kreisraster" aria-label="Landkreise">
     {
       kreise.map((x) => (
-        <a class="card card-link" href={`/kreise/${kreisSlug(x.k)}`}>
-          <strong>{x.name}</strong> <span class="badge">{x.k}</span>
-          <br />
-          <span class="muted small">
-            {x.orte} Orte · {x.n} kommende Termine
-          </span>
+        <a href={`/kreise/${kreisSlug(x.k)}`}>
+          <strong>{kreisKurz(x.k)}</strong>
+          <span>{anzahl(x.n, 'Termin', 'Termine', 'derzeit keine')}</span>
         </a>
       ))
     }
-  </div>
+  </nav>
 </Base>

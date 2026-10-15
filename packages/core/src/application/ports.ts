@@ -23,6 +23,7 @@ export interface Seite<T> {
 /** Driven Port: wird in der Infrastruktur (PostgreSQL) implementiert. */
 export interface TerminRepository {
   suche(filter: TerminFilter): Promise<Seite<Termin>>;
+  finde(id: string): Promise<Termin | null>;
   speichere(termin: NeuerTermin): Promise<Termin>;
 }
 

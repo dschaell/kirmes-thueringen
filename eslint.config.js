@@ -47,7 +47,12 @@ export default tseslint.config(
       ],
     },
   },
-  { files: ['**/infrastructure/postgres/{migrate,seed}.ts'], rules: { 'no-console': 'off' } },
+  {
+    files: [
+      '**/infrastructure/postgres/{migrate,orte,beispiele,termine-import,links,admin-cli}.ts',
+    ],
+    rules: { 'no-console': 'off' },
+  },
   {
     files: ['**/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: { module: 'writable' } },
@@ -55,7 +60,18 @@ export default tseslint.config(
   { files: ['**/test/**'], rules: { '@typescript-eslint/no-non-null-assertion': 'off' } },
   {
     files: ['scripts/**/*.mjs', 'apps/web/*.mjs'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Buffer: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
   },
   prettier,
 );

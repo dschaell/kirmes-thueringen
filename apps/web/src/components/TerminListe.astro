@@ -1,62 +1,130 @@
 ---
+/**
+ * Terminliste wie im Veranstaltungskalender einer Zeitung: Überschrift je Tag, darunter kompakte Zeilen.
+ * „Route“ öffnet Google Maps bzw. auf Apple-Geräten Apple Karten (siehe Skript unten).
+ */
 import type { TerminDto } from '../lib/api';
-import { KATEGORIEN, kreisName, monatName } from '../lib/anzeige';
+import {
+  KATEGORIEN,
+  monatName,
+  relativerTag,
+  routenLinks,
+  tagMonat,
+  wochentag,
+} from '../lib/anzeige';
+import Icon from './Icon.astro';
 
 interface Props {
   termine: TerminDto[];
+  /** Ort in jeder Zeile verlinken (auf Ortsseiten überflüssig) */
   ortLinks?: boolean;
-  gruppieren?: boolean;
+  /** Zwischenüberschriften je Monat */
+  monate?: boolean;
+  /** Erklärung zu unbestätigten Terminen über der Liste */
+  hinweis?: boolean;
 }
-const { termine, ortLinks = true, gruppieren = true } = Astro.props;
+const { termine, ortLinks = true, monate = true, hinweis = true } = Astro.props;
 
-const gruppen = new Map<string, TerminDto[]>();
+type Tag = { datum: string; termine: TerminDto[] };
+const gruppen: { monat: string; tage: Tag[] }[] = [];
 for (const t of termine) {
-  const key = gruppieren ? monatName(t.datum) : '';
-  gruppen.set(key, [...(gruppen.get(key) ?? []), t]);
+  const monat = monate ? monatName(t.datum) : '';
+  let g = gruppen.at(-1);
+  if (!g || g.monat !== monat) gruppen.push((g = { monat, tage: [] }));
+  let tag = g.tage.at(-1);
+  if (!tag || tag.datum !== t.datum) g.tage.push((tag = { datum: t.datum, termine: [] }));
+  tag.termine.push(t);
 }
-const wt = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', timeZone: 'UTC' });
-const mon = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { month: 'short', timeZone: 'UTC' });
+const unbestaetigt = termine.some((t) => !t.bestaetigt);
 ---
 
-{termine.length === 0 && <p class="leer">Keine Termine gefunden.</p>}
+{termine.length === 0 && <p class="leer">Für diesen Zeitraum sind keine Termine eingetragen.</p>}
 {
-  [...gruppen].map(([monat, liste]) => (
-    <section>
-      {monat && <h2 class="monat">{monat}</h2>}
-      <ul class="liste">
-        {liste.map((t) => (
-          <li class="termin" id={t.id}>
-            <div class="kal" aria-hidden="true">
-              <div class="wt">{wt(t.datum)}</div>
-              <div class="tag">{+t.datum.slice(8, 10)}</div>
-              <div class="mon">{mon(t.datum)}</div>
-            </div>
-            <div>
-              <h3>
-                {KATEGORIEN[t.kategorie].emoji} {t.titel}
-              </h3>
-              <div class="meta">
-                <span>
-                  📍 {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
-                  <span title={kreisName(t.ort.landkreis)}> ({t.ort.landkreis})</span>
-                </span>
-                {t.veranstaltungsort && <span>🏛️ {t.veranstaltungsort}</span>}
-                {t.beginn && <span>🕗 {t.beginn} Uhr</span>}
-                {!t.bestaetigt && (
-                  <span
-                    class="badge warn"
-                    title="Datum aus Vorjahren hochgerechnet – noch nicht vom Veranstalter bestätigt"
+  hinweis && unbestaetigt && (
+    <p class="hinweis-liste">
+      Termine ohne{' '}
+      <span class="bestaetigt">
+        <Icon name="haken" groesse={14} />
+        bestätigt
+      </span>{' '}
+      stammen aus öffentlichen Ankündigungen und sind noch nicht vom Veranstalter bestätigt.
+    </p>
+  )
+}
+{
+  gruppen.map((g) => (
+    <>
+      {g.monat && gruppen.length > 1 && <h2 class="monat">{g.monat}</h2>}
+      {g.tage.map((tag) => (
+        <section class="tag" aria-labelledby={`tag-${tag.datum}`}>
+          <h3 class="tag-kopf" id={`tag-${tag.datum}`}>
+            <span>
+              {wochentag(tag.datum)}, {tagMonat(tag.datum)}
+            </span>
+            {relativerTag(tag.datum) && <span class="relativ">{relativerTag(tag.datum)}</span>}
+          </h3>
+          <ul class="eintraege">
+            {tag.termine.map((t) => {
+              const route = routenLinks(t);
+              return (
+                <li class="eintrag">
+                  <span class:list={['zeit', { offen: !t.beginn }]}>{t.beginn ?? 'ganztags'}</span>
+                  <div>
+                    <a class="titel" href={`/termin/${t.id}`}>
+                      {t.titel}
+                    </a>
+                    {t.kategorie !== 'kirmes' && (
+                      <span class={`kat kat-${t.kategorie}`}>{KATEGORIEN[t.kategorie].kurz}</span>
+                    )}
+                    {t.muttizettel && (
+                      <span class="kat kat-muttizettel" title="Unter 18 nur mit Muttizettel">
+                        Muttizettel
+                      </span>
+                    )}
+                    {t.bestaetigt && (
+                      <span class="bestaetigt" title="Vom Veranstalter bestätigt">
+                        <Icon name="haken" groesse={14} />
+                        bestätigt
+                      </span>
+                    )}
+                    <div class="wo">
+                      {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
+                      {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
+                    </div>
+                    {t.band && (
+                      <div class="band">
+                        <Icon name="musik" groesse={14} />
+                        <span class="sr-only">Musik: </span>
+                        {t.band}
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    class="route"
+                    href={route.google}
+                    data-apple={route.apple}
+                    rel="noopener"
+                    target="_blank"
+                    aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
                   >
-                    unbestätigt
-                  </span>
-                )}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+                    <Icon name="route" groesse={16} />
+                    Route
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </>
   ))
 }
+
+<script>
+  // Auf iPhone, iPad und Mac Apple Karten öffnen, sonst Google Maps.
+  if (/iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-apple]')) {
+      a.href = a.dataset.apple!;
+    }
+  }
+</script>

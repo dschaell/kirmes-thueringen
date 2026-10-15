@@ -28,6 +28,14 @@ export interface TerminDto {
   kategorie: Kategorie;
   bestaetigt: boolean;
   ort: OrtDto;
+  /** Von der Kirmesgesellschaft hinterlegter Festplatz */
+  festplatz: { lat: number; lon: number } | null;
+  /** Band oder DJ des Abends */
+  band: string | null;
+  /** Hinweise der Kirmesgesellschaft (Eintritt, Programm, Einlass …) */
+  info: string | null;
+  /** Minderjährige brauchen eine Erziehungsbeauftragung (Muttizettel) */
+  muttizettel: boolean;
 }
 
 export interface TerminSeite {
@@ -103,8 +111,62 @@ export async function alleTermine(s: Omit<TerminSuche, 'limit' | 'offset'>): Pro
   }
 }
 
+export const findeTermin = (id: string): Promise<TerminDto | null> =>
+  hole<TerminDto>(`/api/v1/termine/${encodeURIComponent(id)}`);
+
 export const listeOrte = async (): Promise<OrtUebersichtDto[]> =>
   (await hole<OrtUebersichtDto[]>('/api/v1/orte')) ?? [];
 
 export const findeOrt = (slug: string): Promise<OrtDto | null> =>
   hole<OrtDto>(`/api/v1/orte/${encodeURIComponent(slug)}`);
+
+/**
+ * Verwaltung: leitet eine Anfrage der Bearbeitungsseite mit dem Link-Token an die API weiter.
+ * Antwortet mit Status und JSON der API (401 bei ungültigem Link). `pfad` ist relativ zu
+ * /api/v1/verwaltung/ und wird von den aufrufenden Routen fest vorgegeben.
+ */
+export async function verwaltung(
+  methode: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  pfad: string,
+  authorization: string | null,
+  optionen: { body?: unknown; query?: Record<string, string> } = {},
+): Promise<Response> {
+  const url = new URL(`/api/v1/verwaltung/${pfad}`, API_URL);
+  for (const [k, v] of Object.entries(optionen.query ?? {})) url.searchParams.set(k, v);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: methode,
+      headers: {
+        ...(authorization && { authorization }),
+        ...(optionen.body !== undefined && { 'content-type': 'application/json' }),
+      },
+      body: optionen.body !== undefined ? JSON.stringify(optionen.body) : undefined,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new ApiNichtErreichbar({ cause: e });
+  }
+  return new Response(res.status === 204 ? null : await res.text(), {
+    status: res.status,
+    headers: {
+      'content-type': res.headers.get('content-type') ?? 'application/json',
+      'cache-control': 'no-store',
+    },
+  });
+}
+
+/** JSON-Body der Bearbeitungsseite lesen (max. 4 KB). */
+export async function leseJson(request: Request): Promise<{ body: unknown } | Response> {
+  const text = await request.text();
+  if (text.length > 4_096) return new Response(null, { status: 413 });
+  try {
+    return { body: JSON.parse(text) };
+  } catch {
+    return new Response(null, { status: 400 });
+  }
+}
+
+/** Termin-IDs sind UUIDs – alles andere geht gar nicht erst an die API. */
+export const istTerminId = (id: string | undefined): id is string =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id ?? '');

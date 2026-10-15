@@ -1,0 +1,111 @@
+---
+/** Anmeldung der Redaktion: E-Mail, Passwort und Einmalcode aus der Authenticator-App. */
+import Base from '../../layouts/Base.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { anmelden, feld, setzeSitzung } from '../../lib/admin';
+
+let fehler: string | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const r = await anmelden(feld(f, 'email'), feld(f, 'passwort'), feld(f, 'code'));
+  if ('token' in r) {
+    setzeSitzung(Astro.cookies, r.token, r.stunden);
+    return Astro.redirect('/admin', 303);
+  }
+  fehler = r.fehler;
+  Astro.response.status = 401;
+}
+---
+
+<Base title="Anmelden – Redaktion" description="Anmeldung für die Redaktion" noindex>
+  <section class="einstieg">
+    <h1>Redaktion</h1>
+    <p class="unterzeile">Nur für die Redaktion des Kirmeskalenders.</p>
+  </section>
+  {
+    fehler && (
+      <p class="meldung" role="alert">
+        {fehler}
+      </p>
+    )
+  }
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <label
+      >E-Mail<input name="email" type="email" required autocomplete="username webauthn" /></label
+    >
+    <label
+      >Passwort<input
+        name="passwort"
+        type="password"
+        required
+        autocomplete="current-password"
+      /></label
+    >
+    <label
+      >Code aus der Authenticator-App<input
+        name="code"
+        inputmode="numeric"
+        pattern="[0-9]{6}"
+        maxlength="6"
+        required
+        autocomplete="one-time-code"
+      /></label
+    >
+    <div><button class="knopf" type="submit">Anmelden</button></div>
+  </form>
+
+  <section class="passkey-anmeldung" id="passkey-bereich" hidden>
+    <p class="leise">oder</p>
+    <button class="knopf zweit" type="button" id="passkey-anmelden">Mit Passkey anmelden</button>
+    <p class="leise klein" id="passkey-status" role="status" aria-live="polite"></p>
+  </section>
+</Base>
+
+<script>
+  import {
+    browserSupportsWebAuthn,
+    browserSupportsWebAuthnAutofill,
+    startAuthentication,
+    WebAuthnAbortService,
+  } from '@simplewebauthn/browser';
+  import { passkeyFehler, postJson } from '../../lib/passkey-client';
+
+  const bereich = document.getElementById('passkey-bereich');
+  const knopf = document.getElementById('passkey-anmelden') as HTMLButtonElement | null;
+  const status = document.getElementById('passkey-status');
+
+  /** Holt eine Challenge, lässt das Gerät signieren und meldet an. */
+  async function anmelden(autofill: boolean) {
+    const opt = await postJson('/admin/anmelden/passkey-optionen');
+    if (!opt.ok) {
+      if (!autofill && status) status.textContent = String(opt.daten.fehler ?? '');
+      return;
+    }
+    const antwort = await startAuthentication({
+      optionsJSON: opt.daten.optionen as never,
+      useBrowserAutofill: autofill,
+    });
+    if (status) status.textContent = 'Prüfe …';
+    const r = await postJson('/admin/anmelden/passkey', { vorgang: opt.daten.vorgang, antwort });
+    if (r.ok) location.assign(String(r.daten.weiter ?? '/admin'));
+    else if (status) status.textContent = String(r.daten.fehler ?? 'Anmeldung fehlgeschlagen.');
+  }
+
+  if (bereich && knopf && status && browserSupportsWebAuthn()) {
+    bereich.hidden = false;
+    knopf.addEventListener('click', async () => {
+      WebAuthnAbortService.cancelCeremony(); // laufende Autofill-Anfrage beenden
+      status.textContent = 'Bitte am Gerät bestätigen …';
+      try {
+        await anmelden(false);
+      } catch (e) {
+        status.textContent = passkeyFehler(e);
+      }
+    });
+    // Passkeys direkt im E-Mail-Feld vorschlagen, wo der Browser das kann
+    browserSupportsWebAuthnAutofill()
+      .then((ja) => (ja ? anmelden(true) : undefined))
+      .catch(() => {});
+  }
+</script>
