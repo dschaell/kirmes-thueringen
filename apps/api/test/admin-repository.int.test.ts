@@ -11,6 +11,7 @@ import {
 } from '../src/infrastructure/postgres/admin-repository.js';
 import { PgBearbeitungslinks } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { erstellePool } from '../src/infrastructure/postgres/pool.js';
+import { PgPasskeys } from '../src/infrastructure/postgres/passkey-repository.js';
 import { testDatenbankUrl } from './test-datenbank.js';
 
 const url = testDatenbankUrl();
@@ -44,6 +45,43 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     await pool.query("DELETE FROM mitteilung WHERE titel LIKE 'IT %'");
     await pool.query("DELETE FROM admin WHERE email = 'it@test.invalid'");
     await pool.end();
+  });
+
+  it('Passkeys: anlegen, finden, Nutzung merken, nur eigene löschen', async () => {
+    const repo = new PgPasskeys(pool);
+    const credentialId = 'it-passkey-ABCDEFGHIJKLMNOP';
+    const info = await repo.lege({
+      adminId,
+      credentialId,
+      publicKey: new Uint8Array([1, 2, 3]),
+      zaehler: 0,
+      transports: ['internal', 'hybrid'],
+      name: 'IT-Gerät',
+    });
+    expect(info).toMatchObject({ name: 'IT-Gerät', zuletztGenutzt: null });
+    const p = await repo.findeNachCredential(credentialId);
+    expect(p).toMatchObject({ adminId, zaehler: 0, transports: ['internal', 'hybrid'] });
+    expect([...p!.publicKey]).toEqual([1, 2, 3]);
+    await repo.merkeNutzung(info.id, 7);
+    const [nachher] = await repo.liste(adminId);
+    expect(nachher).toMatchObject({ zaehler: 7 });
+    expect(nachher!.zuletztGenutzt).not.toBeNull();
+    expect(await repo.findeNachCredential('gibt-es-nicht-1234567')).toBeNull();
+    // gleiche Credential-ID zweimal ist ausgeschlossen
+    await expect(
+      repo.lege({
+        adminId,
+        credentialId,
+        publicKey: new Uint8Array([1]),
+        zaehler: 0,
+        transports: [],
+        name: 'x',
+      }),
+    ).rejects.toThrow();
+    expect(await repo.loesche('999999', info.id)).toBe(false);
+    expect(await repo.loesche(adminId, 'kein-id')).toBe(false);
+    expect(await repo.loesche(adminId, info.id)).toBe(true);
+    expect(await repo.liste(adminId)).toEqual([]);
   });
 
   it('Konto und Sitzung: anlegen, prüfen, ablaufen, beenden', async () => {

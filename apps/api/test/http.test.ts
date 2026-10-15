@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Passkeys,
   Redaktion,
   type TerminVerwaltung,
   type Mitteilung,
@@ -16,9 +17,12 @@ import {
   type Termin,
   type TerminFilter,
   type TerminRepository,
+  type Passkey,
 } from '@kirmes/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { baueApp, istInternesNetz } from '../src/interfaces/http/app.js';
+import { SimpleWebAuthn, SpeicherChallenges } from '../src/infrastructure/webauthn.js';
+import { SoftwareAuthenticator } from './software-authenticator.js';
 
 const termin: Termin = {
   id: '6f1c0b6e-3d2a-4c1b-9f00-0123456789ab',
@@ -88,6 +92,40 @@ const terminVerwaltung: TerminVerwaltung = {
 const SITZUNG = 'S'.repeat(43);
 let mitteilung: Mitteilung | null = null;
 
+// Passkeys mit echtem WebAuthn-Adapter und Speicher-Repository
+const ORIGIN = 'http://localhost:4321';
+const gespeichertePasskeys: Passkey[] = [];
+let passkeysAktiv: Passkeys | undefined;
+const neuePasskeys = (gesperrt = false) =>
+  new Passkeys(
+    {
+      liste: async (a) => gespeichertePasskeys.filter((p) => p.adminId === a),
+      findeNachCredential: async (c) =>
+        gespeichertePasskeys.find((p) => p.credentialId === c) ?? null,
+      lege: async (p) => {
+        const neu = {
+          ...p,
+          id: String(gespeichertePasskeys.length + 1),
+          erstelltAm: 'heute',
+          zuletztGenutzt: null,
+        };
+        gespeichertePasskeys.push(neu);
+        return { id: neu.id, name: neu.name, erstelltAm: 'heute', zuletztGenutzt: null };
+      },
+      merkeNutzung: async () => {},
+      loesche: async (a, id) => {
+        const i = gespeichertePasskeys.findIndex((p) => p.adminId === a && p.id === id);
+        return i >= 0 && gespeichertePasskeys.splice(i, 1).length > 0;
+      },
+    },
+    new SimpleWebAuthn(ORIGIN),
+    new SpeicherChallenges(),
+    { lege: async () => {}, pruefe: async () => null, beende: async () => {} },
+    { merkeLogin: async () => {} },
+    { neuesToken: () => SITZUNG },
+    { gesperrt: () => gesperrt, fehlschlag: () => {}, erfolg: () => {} },
+  );
+
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
   app = await baueApp({
@@ -129,6 +167,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
         },
         { gesperrt: (e) => e === 'gesperrt@x.de', fehlschlag: () => {}, erfolg: () => {} },
       ),
+      passkeys: passkeysAktiv,
       redaktion: new Redaktion(
         {
           liste: async () => [],
@@ -519,6 +558,7 @@ describe('Admin-Bereich', () => {
     await setup();
     expect((await app.inject({ url: '/api/v1/admin/ich', headers: auth })).json()).toEqual({
       adminId: '1',
+      passkeys: false,
     });
     const m = await app.inject({
       method: 'POST',
@@ -675,6 +715,93 @@ describe('Admin-Bereich', () => {
         payload: { name: '', landkreis: 'XX' },
       }),
     ).toBe(400);
+  });
+});
+
+describe('Passkeys (WebAuthn)', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  const post = (url: string, payload: object = {}, headers = {}) =>
+    app.inject({ method: 'POST', url, payload, headers });
+
+  it('einrichten, auflisten, anmelden, löschen – mit echten Signaturen', async () => {
+    passkeysAktiv = neuePasskeys();
+    await setup();
+    passkeysAktiv = undefined;
+    const geraet = new SoftwareAuthenticator(ORIGIN);
+
+    // Einrichtung nur mit Sitzung
+    expect((await post('/api/v1/admin/passkeys/optionen')).statusCode).toBe(401);
+    const opt = (await post('/api/v1/admin/passkeys/optionen', {}, auth)).json();
+    expect(opt.optionen.rp.id).toBe('localhost');
+    const neu = await post(
+      '/api/v1/admin/passkeys',
+      {
+        vorgang: opt.vorgang,
+        antwort: geraet.registriere(opt.optionen.challenge),
+        name: 'MacBook',
+      },
+      auth,
+    );
+    expect(neu.statusCode).toBe(201);
+    expect(neu.json()).toMatchObject({ id: '1', name: 'MacBook' });
+    expect(
+      (await app.inject({ url: '/api/v1/admin/passkeys', headers: auth })).json(),
+    ).toHaveLength(1);
+    expect((await app.inject({ url: '/api/v1/admin/ich', headers: auth })).json().passkeys).toBe(
+      true,
+    );
+    // Vorgang ist verbraucht
+    const nochmal = await post(
+      '/api/v1/admin/passkeys',
+      { vorgang: opt.vorgang, antwort: geraet.registriere(opt.optionen.challenge) },
+      auth,
+    );
+    expect(nochmal.statusCode).toBe(400);
+
+    // Anmeldung ohne Sitzung
+    const a = (await post('/api/v1/admin/passkey-anmeldung/optionen')).json();
+    const ok = await post('/api/v1/admin/passkey-anmeldung', {
+      vorgang: a.vorgang,
+      antwort: geraet.melde(a.optionen.challenge),
+    });
+    expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
+    expect(ok.headers['cache-control']).toBe('no-store');
+
+    // Phishing-Seite: gleiche Challenge, falsche Herkunft
+    const b = (await post('/api/v1/admin/passkey-anmeldung/optionen')).json();
+    const phishing = await post('/api/v1/admin/passkey-anmeldung', {
+      vorgang: b.vorgang,
+      antwort: geraet.melde(b.optionen.challenge, { origin: 'https://evil.example' }),
+    });
+    expect(phishing.statusCode).toBe(401);
+    expect(
+      (await post('/api/v1/admin/passkey-anmeldung', { vorgang: 'x', antwort: 'kein objekt' }))
+        .statusCode,
+    ).toBe(400);
+
+    // Löschen
+    expect(
+      (await app.inject({ method: 'DELETE', url: '/api/v1/admin/passkeys/9', headers: auth }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'DELETE', url: '/api/v1/admin/passkeys/1', headers: auth }))
+        .statusCode,
+    ).toBe(204);
+  });
+
+  it('meldet eine Sperre nach zu vielen Fehlversuchen mit 429', async () => {
+    passkeysAktiv = neuePasskeys(true);
+    await setup();
+    passkeysAktiv = undefined;
+    const r = await post('/api/v1/admin/passkey-anmeldung', { vorgang: 'x', antwort: {} });
+    expect(r.statusCode).toBe(429);
+    expect(r.headers['retry-after']).toBe('900');
+  });
+
+  it('ohne WEBSITE_URL gibt es keine Passkey-Endpunkte', async () => {
+    await setup();
+    expect((await post('/api/v1/admin/passkey-anmeldung/optionen')).statusCode).toBe(404);
   });
 });
 

@@ -7,6 +7,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const CSRF_COOKIE = 'kirmes_csrf';
 export const CSRF_FELD = 'csrf_token';
+export const CSRF_HEADER = 'x-csrf-token';
 
 /** Vorhandenes Token lesen oder ein neues setzen. */
 export function csrfToken(cookies: AstroCookies): string {

@@ -7,6 +7,7 @@ import type {
   AdminTerminFormular,
   MitteilungEingabe,
   OrtEingabe,
+  Passkeys,
   Redaktion,
   Termin,
   Validierungsfehler,
@@ -17,6 +18,8 @@ export interface AdminAbhaengigkeiten {
   anmeldung: AdminAnmeldung;
   redaktion: Redaktion;
   terminDto: (t: Termin) => unknown;
+  /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
+  passkeys?: Passkeys;
 }
 
 const problem = (status: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -72,6 +75,7 @@ const zeileSchema = {
 declare module 'fastify' {
   interface FastifyRequest {
     adminId?: string;
+    adminEmail?: string;
   }
 }
 
@@ -101,11 +105,41 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     },
   );
 
+  // Anmeldung mit Passkey (ohne Sitzung): Optionen holen, dann signierte Antwort prüfen
+  const passkeys = d.passkeys;
+  const ANTWORT = { type: 'object', maxProperties: 10 } as const;
+  if (passkeys) {
+    app.post('/api/v1/admin/passkey-anmeldung/optionen', async (_req, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      return passkeys.starteAnmeldung();
+    });
+    app.post<{ Body: { vorgang: string; antwort: unknown } }>(
+      '/api/v1/admin/passkey-anmeldung',
+      {
+        bodyLimit: 64 * 1024,
+        schema: { body: objekt(['vorgang', 'antwort'], { vorgang: TEXT(64), antwort: ANTWORT }) },
+      },
+      async (req, reply) => {
+        const r = await passkeys.beendeAnmeldung(req.body.vorgang, req.body.antwort);
+        reply.header('Cache-Control', 'no-store');
+        if (r.ok) return r.value;
+        req.log.warn({ grund: r.error }, 'Passkey-Anmeldung fehlgeschlagen');
+        return r.error === 'GESPERRT'
+          ? reply
+              .status(429)
+              .header('Retry-After', '900')
+              .send(problem(429, 'Zu viele Fehlversuche – bitte 15 Minuten warten.'))
+          : reply.status(401).send(problem(401, 'Dieser Passkey ist hier nicht eingerichtet.'));
+      },
+    );
+  }
+
   // Alle weiteren Admin-Endpunkte: Sitzung prüfen
   const geschuetzt = async (req: FastifyRequest, reply: FastifyReply) => {
     const s = await d.anmeldung.pruefe(sitzungsToken(req.headers.authorization));
     if (!s) return reply.status(401).send(problem(401, 'Bitte anmelden.'));
     req.adminId = s.adminId;
+    req.adminEmail = s.email;
     reply.header('Cache-Control', 'no-store');
   };
   const admin = (req: FastifyRequest) => req.adminId ?? '';
@@ -114,7 +148,45 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     // onRequest: Anmeldung prüfen, BEVOR Eingaben validiert werden (keine Rückschlüsse für Nicht-Angemeldete)
     r.addHook('onRequest', geschuetzt);
 
-    r.get('/api/v1/admin/ich', async (req) => ({ adminId: admin(req) }));
+    r.get('/api/v1/admin/ich', async (req) => ({ adminId: admin(req), passkeys: !!passkeys }));
+
+    // Passkeys des angemeldeten Admins
+    if (passkeys) {
+      r.get('/api/v1/admin/passkeys', (req) => passkeys.liste(admin(req)));
+      r.post('/api/v1/admin/passkeys/optionen', (req) =>
+        passkeys.starteEinrichtung({ adminId: admin(req), email: req.adminEmail ?? '' }),
+      );
+      r.post<{ Body: { vorgang: string; antwort: unknown; name?: string } }>(
+        '/api/v1/admin/passkeys',
+        {
+          bodyLimit: 64 * 1024,
+          schema: {
+            body: objekt(['vorgang', 'antwort'], {
+              vorgang: TEXT(64),
+              antwort: ANTWORT,
+              name: TEXT(200),
+            }),
+          },
+        },
+        async (req, reply) => {
+          const p = await passkeys.beendeEinrichtung(
+            admin(req),
+            req.body.vorgang,
+            req.body.antwort,
+            req.body.name ?? '',
+          );
+          return p.ok ? reply.status(201).send(p.value) : ungueltig(reply, p.error);
+        },
+      );
+      r.delete<{ Params: { id: string } }>(
+        '/api/v1/admin/passkeys/:id',
+        { schema: { params: ID } },
+        async (req, reply) =>
+          (await passkeys.loesche(admin(req), req.params.id))
+            ? reply.status(204).send()
+            : nichtGefunden(reply),
+      );
+    }
     r.post('/api/v1/admin/abmelden', async (req, reply) => {
       await d.anmeldung.abmelden(sitzungsToken(req.headers.authorization));
       return reply.status(204).send();

@@ -1,6 +1,6 @@
 import { defineMiddleware, sequence } from 'astro:middleware';
 import { adminApi } from './lib/admin';
-import { CSRF_COOKIE, CSRF_FELD, csrfGueltig, csrfToken } from './lib/csrf';
+import { CSRF_COOKIE, CSRF_FELD, CSRF_HEADER, csrfGueltig, csrfToken } from './lib/csrf';
 import { ApiNichtErreichbar } from './lib/api';
 
 // Sicherheits-Header setzt server.mjs für jede Antwort (auch statische Dateien).
@@ -47,15 +47,21 @@ const redaktion = defineMiddleware(async (ctx, next) => {
   const pfad = ctx.url.pathname;
   if (!pfad.startsWith('/admin')) return next();
 
-  // CSRF: jedes Formular-POST im Redaktionsbereich braucht das Token aus dem eigenen Cookie
+  // CSRF: jedes POST im Redaktionsbereich braucht das Token aus dem eigenen Cookie –
+  // Formulare im Feld „csrf_token“, JSON-Aufrufe (Passkeys) im Header „X-CSRF-Token“
   if (ctx.request.method === 'POST') {
-    const formular = await ctx.request
-      .clone()
-      .formData()
-      .catch(() => null);
+    const istJson = (ctx.request.headers.get('content-type') ?? '').startsWith('application/json');
+    const gesendet = istJson
+      ? ctx.request.headers.get(CSRF_HEADER)
+      : (
+          await ctx.request
+            .clone()
+            .formData()
+            .catch(() => null)
+        )?.get(CSRF_FELD);
     if (
       !gleicheHerkunft(ctx.request) ||
-      !csrfGueltig(ctx.cookies.get(CSRF_COOKIE)?.value, formular?.get(CSRF_FELD))
+      !csrfGueltig(ctx.cookies.get(CSRF_COOKIE)?.value, gesendet)
     ) {
       return new Response(
         'Sitzung abgelaufen oder ungültiges Formular. Bitte die Seite neu laden.',
@@ -68,7 +74,8 @@ const redaktion = defineMiddleware(async (ctx, next) => {
   }
   ctx.locals.csrf = csrfToken(ctx.cookies);
 
-  if (pfad !== '/admin/anmelden') {
+  // Anmeldeseite und ihre Passkey-Endpunkte sind ohne Sitzung erreichbar
+  if (pfad !== '/admin/anmelden' && !pfad.startsWith('/admin/anmelden/')) {
     const ich = await adminApi<{ adminId: string }>(ctx.cookies, 'GET', 'ich');
     if (ich.status !== 200) return ctx.redirect('/admin/anmelden', 303);
     ctx.locals.adminId = ich.daten?.adminId;

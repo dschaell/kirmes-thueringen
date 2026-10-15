@@ -87,3 +87,24 @@ export const feld = (f: FormData, name: string) => {
   const v = f.get(name);
   return typeof v === 'string' ? v.trim() : '';
 };
+
+/** JSON-Antwort der Redaktions-Endpunkte (nie gecacht). */
+export const jsonAntwort = (status: number, daten: unknown) =>
+  new Response(JSON.stringify(daten), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+
+/** JSON-Body einer Anfrage (bis 64 KB) oder null. */
+export async function jsonBody(request: Request): Promise<Record<string, unknown> | null> {
+  const text = await request.text().catch(() => '');
+  if (!text || text.length > 64 * 1024) return null;
+  try {
+    const wert: unknown = JSON.parse(text);
+    return wert && typeof wert === 'object' && !Array.isArray(wert)
+      ? (wert as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}

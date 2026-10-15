@@ -5,6 +5,8 @@ export interface Konfiguration {
   databaseUrl: string;
   dbSsl: boolean;
   logLevel: string;
+  /** Adresse der Website – Relying Party für Passkeys (RP-ID = Hostname) */
+  websiteUrl: string | null;
 }
 
 export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfiguration {
@@ -16,5 +18,6 @@ export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfigu
     databaseUrl,
     dbSsl: env.DB_SSL === 'true',
     logLevel: env.LOG_LEVEL ?? 'info',
+    websiteUrl: env.WEBSITE_URL || null,
   };
 }

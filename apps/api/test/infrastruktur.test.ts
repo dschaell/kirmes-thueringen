@@ -13,7 +13,11 @@ describe('ladeKonfiguration', () => {
       databaseUrl: 'postgres://x',
       dbSsl: false,
       logLevel: 'info',
+      websiteUrl: null,
     });
+    expect(
+      ladeKonfiguration({ DATABASE_URL: 'x', WEBSITE_URL: 'https://kirmes.example' }).websiteUrl,
+    ).toBe('https://kirmes.example');
   });
 });
 

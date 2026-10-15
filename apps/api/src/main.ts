@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Passkeys,
   Redaktion,
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
@@ -31,6 +32,8 @@ import {
   PgTerminRepository,
 } from './infrastructure/postgres/termin-repository.js';
 import { SystemUhr } from './infrastructure/system-uhr.js';
+import { PgPasskeys } from './infrastructure/postgres/passkey-repository.js';
+import { SimpleWebAuthn, SpeicherChallenges } from './infrastructure/webauthn.js';
 import { baueApp } from './interfaces/http/app.js';
 
 const k = ladeKonfiguration();
@@ -48,6 +51,21 @@ const links = new PgBearbeitungslinks(pool);
 const terminVerwaltung = new PgTerminVerwaltung(pool);
 const mitteilungen = new PgMitteilungen(pool);
 const krypto = new NodeKryptografie();
+const konten = new PgAdminKonten(pool);
+const sitzungen = new PgSitzungen(pool);
+// Passkeys: eigene, großzügige Sperre – Fehlversuche ohne gültige Signatur sollen die
+// Redaktion nicht aussperren (Passwort + Einmalcode bleibt ohnehin als Rückfallweg).
+const passkeys = k.websiteUrl
+  ? new Passkeys(
+      new PgPasskeys(pool),
+      new SimpleWebAuthn(k.websiteUrl),
+      new SpeicherChallenges(),
+      sitzungen,
+      konten,
+      krypto,
+      new SpeicherAnmeldeversuche(100, 100),
+    )
+  : undefined;
 const app = await baueApp({
   sucheTermine: new SucheTermine(termine, uhr),
   findeTermin: new FindeTermin(termine),
@@ -57,12 +75,8 @@ const app = await baueApp({
   verwalteTermine: new VerwalteTermine(links, terminVerwaltung, termine, uhr),
   aktuelleMitteilung: () => mitteilungen.aktuelle(),
   admin: {
-    anmeldung: new AdminAnmeldung(
-      new PgAdminKonten(pool),
-      krypto,
-      new PgSitzungen(pool),
-      new SpeicherAnmeldeversuche(),
-    ),
+    anmeldung: new AdminAnmeldung(konten, krypto, sitzungen, new SpeicherAnmeldeversuche()),
+    passkeys,
     redaktion: new Redaktion(
       mitteilungen,
       new PgOrtVerwaltung(pool),

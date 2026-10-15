@@ -13,6 +13,7 @@ services:
     profiles: !reset []
     environment:
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
+      WEBSITE_URL: https://${DOMAIN:?}
 
   api:
     profiles: !reset []
