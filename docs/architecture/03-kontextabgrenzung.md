@@ -17,3 +17,8 @@ flowchart LR
   S -- "iCal-Feed" --> K([Kalender-Apps])
   Q([Öffentliche Ankündigungen<br/>Instagram, Facebook, Amtsblatt]) -. "Recherche der Redaktion,<br/>CSV-Import" .-> S
 ```
+
+**OpenStreetMap (aktiv):** Das Ortsverzeichnis (3.076 Orte mit Koordinaten) stammt aus einem
+einmaligen Batch-Abruf über die Overpass-API (`scripts/ortsverzeichnis.mjs`) – im Betrieb gibt es
+**kein Geocoding im Request-Pfad**. Der Browser lädt Kartenkacheln von `tile.openstreetmap.org` nur
+auf `/karte` und der Bearbeitungsseite; die Adresssuche (Nominatim) nur auf der Bearbeitungsseite.

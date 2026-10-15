@@ -13,8 +13,9 @@
 
 ## Organisatorisch
 
-| Randbedingung                    | Erläuterung                                                                                                             |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| GitHub (öffentliches Repository) | Code, Issues, CI/CD; keine Secrets im Repo                                                                              |
-| Trunk-based mit Pull Requests    | `main` geschützt, Merge nur bei grünem Quality Gate                                                                     |
-| Nur eigene Recherche             | Keine Übernahme fremder Terminsammlungen (Datenbankherstellerrecht, §§ 87a ff. UrhG); Quelle je Termin wird gespeichert |
+| Randbedingung                    | Erläuterung                                                                                                                                                                   |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub (öffentliches Repository) | Code, Issues, CI/CD; keine Secrets im Repo                                                                                                                                    |
+| Trunk-based mit Pull Requests    | `main` geschützt, Merge nur bei grünem Quality Gate                                                                                                                           |
+| OpenStreetMap-Daten (ODbL)       | Ortsverzeichnis mit Koordinaten aus OSM: Quellenangabe „© OpenStreetMap-Mitwirkende“ im Footer und auf jeder Karte; Kacheln nach der OSM-Tile-Usage-Policy (kein Massenabruf) |
+| Nur eigene Recherche             | Keine Übernahme fremder Terminsammlungen (Datenbankherstellerrecht, §§ 87a ff. UrhG); Quelle je Termin wird gespeichert                                                       |

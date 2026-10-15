@@ -4,6 +4,7 @@ import type {
   Ort,
   OrtRepository,
   OrtUebersicht,
+  Kartenausschnitt,
 } from '@kirmes/core';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
@@ -14,6 +15,8 @@ SELECT o.slug, o.name, o.landkreis,
        count(t.id) FILTER (WHERE t.datum >= $1::date) AS kommend
   FROM ort o
   LEFT JOIN termin t ON t.ort_id = o.id
+ -- Kartenausschnitt optional; && nutzt den GiST-Index auf ort.lage
+ WHERE ($2::float8 IS NULL OR o.lage && ST_MakeEnvelope($2, $3, $4, $5, 4326)::geography)
  GROUP BY o.id
  ORDER BY o.name`;
 
@@ -39,8 +42,14 @@ const zuOrt = (z: Zeile): Ort => ({
 export class PgOrtRepository implements OrtRepository {
   constructor(private readonly db: pg.Pool) {}
 
-  async liste(ab: KalenderDatum): Promise<OrtUebersicht[]> {
-    const { rows } = await abfrage<Zeile & { kommend: string }>(this.db, SQL_LISTE, [ab]);
+  async liste(ab: KalenderDatum, a?: Kartenausschnitt | null): Promise<OrtUebersicht[]> {
+    const { rows } = await abfrage<Zeile & { kommend: string }>(this.db, SQL_LISTE, [
+      ab,
+      a?.minLon ?? null,
+      a?.minLat ?? null,
+      a?.maxLon ?? null,
+      a?.maxLat ?? null,
+    ]);
     return rows.map((z) => ({ ort: zuOrt(z), anzahlKommend: Number(z.kommend) }));
   }
 

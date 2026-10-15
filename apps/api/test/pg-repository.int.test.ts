@@ -424,6 +424,22 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     expect((await repo.finde(t.id))?.beginn).toBe('18:00');
   });
 
+  it('Kartenausschnitt: nur Orte im Rechteck (GiST-Index)', async () => {
+    const { PgOrtRepository } = await import('../src/infrastructure/postgres/ort-repository.js');
+    const orte = new PgOrtRepository(pool);
+    const rund = { minLon: 10.7, minLat: 50.8, maxLon: 10.9, maxLat: 50.95 };
+    const drin = await orte.liste(d('2026-01-01'), rund);
+    expect(drin.map((o) => o.ort.slug)).toContain('it-muehlberg');
+    expect(drin.map((o) => o.ort.slug)).not.toContain('it-ulla'); // ohne Koordinate
+    const fern = await orte.liste(d('2026-01-01'), {
+      minLon: 12,
+      minLat: 50.2,
+      maxLon: 12.1,
+      maxLat: 50.3,
+    });
+    expect(fern.map((o) => o.ort.slug)).not.toContain('it-muehlberg');
+  });
+
   it('Festplatz-Übersicht nennt die Veranstaltungsorte aus den Terminen', async () => {
     const u = await new PgFestplatzRepository(pool).uebersicht('it-muehlberg');
     expect(u?.veranstaltungsorte).toContain('Reitstall');

@@ -1,0 +1,123 @@
+---
+/**
+ * Kartenansicht: alle Orte mit kommenden Kirmes-Terminen auf einer OpenStreetMap-Karte.
+ * Die Karte ist eine Ergänzung – darunter steht immer die Liste, falls Kacheln oder JavaScript fehlen.
+ */
+import Base from '../layouts/Base.astro';
+import { listeOrte } from '../lib/api';
+import { kreisKurz } from '../lib/anzeige';
+
+const orte = (await listeOrte())
+  .filter((o) => o.anzahlKommend > 0 && o.koordinate)
+  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+const punkte = orte.map((o) => ({
+  s: o.slug,
+  n: o.name,
+  a: o.anzahlKommend,
+  lat: o.koordinate!.lat,
+  lon: o.koordinate!.lon,
+}));
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+---
+
+<Base
+  title="Kirmes-Karte Thüringen – Kirmes in deiner Nähe"
+  description="Karte aller Thüringer Orte mit kommenden Kirmes-Terminen – finde die Kirmes in deiner Nähe."
+>
+  <section class="einstieg">
+    <h1>Kirmes in deiner Nähe</h1>
+    <p class="unterzeile">
+      {
+        orte.length === 0
+          ? 'Gerade sind keine kommenden Termine eingetragen.'
+          : `${orte.length} ${orte.length === 1 ? 'Ort' : 'Orte'} mit kommenden Terminen. Punkt antippen für die Termine.`
+      }
+    </p>
+  </section>
+
+  <div id="karte" class="karte gross" data-punkte={JSON.stringify(punkte)} hidden></div>
+  <p class="leise klein" id="karte-hinweis" hidden>
+    Die Karte konnte nicht geladen werden – hier die Liste.
+  </p>
+
+  <section aria-labelledby="h-liste">
+    <h2 id="h-liste">Alle Orte mit kommenden Terminen</h2>
+    {
+      orte.length === 0 ? (
+        <p class="leer">
+          Noch nichts eingetragen. <a href="/termin-melden">Termin melden</a>
+        </p>
+      ) : (
+        <ul class="ortliste">
+          {orte.map((o) => (
+            <li>
+              <a href={`/orte/${o.slug}`}>{o.name}</a>
+              <span class="kz">{kreisKurz(o.landkreis)}</span>
+              <span class="leise klein">
+                {' · '}
+                {o.anzahlKommend} {o.anzahlKommend === 1 ? 'Termin' : 'Termine'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</Base>
+
+<script>
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+
+  interface Punkt {
+    s: string;
+    n: string;
+    a: number;
+    lat: number;
+    lon: number;
+  }
+  const el = document.getElementById('karte');
+  const punkte = JSON.parse(el?.dataset.punkte ?? '[]') as Punkt[];
+  if (el && punkte.length > 0) {
+    el.hidden = false;
+    const karte = L.map(el, { scrollWheelZoom: false }).setView([50.9, 11.0], 8);
+    const kacheln = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+    }).addTo(karte);
+    let fehler = 0;
+    kacheln.on('tileerror', () => {
+      if (++fehler === 3) {
+        el.hidden = true;
+        document.getElementById('karte-hinweis')!.hidden = false;
+      }
+    });
+    const farbe =
+      getComputedStyle(document.documentElement).getPropertyValue('--rot').trim() || '#a5161c';
+    const grenzen: L.LatLngTuple[] = [];
+    for (const p of punkte) {
+      // Inhalt per DOM, nie als HTML-Text – Ortsnamen kommen aus der Datenbank
+      const inhalt = document.createElement('div');
+      const link = document.createElement('a');
+      link.href = `/orte/${encodeURIComponent(p.s)}`;
+      link.textContent = p.n;
+      const anzahl = document.createElement('div');
+      anzahl.textContent = `${p.a} ${p.a === 1 ? 'Termin' : 'Termine'}`;
+      inhalt.append(link, anzahl);
+      L.circleMarker([p.lat, p.lon], {
+        radius: 7 + Math.min(p.a, 6),
+        color: '#fff',
+        weight: 2,
+        fillColor: farbe,
+        fillOpacity: 0.9,
+      })
+        .bindPopup(inhalt)
+        .bindTooltip(p.n)
+        .addTo(karte);
+      grenzen.push([p.lat, p.lon]);
+    }
+    if (grenzen.length > 1) karte.fitBounds(grenzen, { padding: [30, 30], maxZoom: 12 });
+    else karte.setView(grenzen[0]!, 12);
+  }
+</script>

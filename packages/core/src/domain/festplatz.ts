@@ -29,6 +29,37 @@ export function parseKoordinate(
   return ok({ lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6 });
 }
 
+/** Rechteckiger Kartenausschnitt (WGS84), z. B. der sichtbare Bereich einer Karte. */
+export interface Kartenausschnitt {
+  readonly minLon: number;
+  readonly minLat: number;
+  readonly maxLon: number;
+  readonly maxLat: number;
+}
+
+/**
+ * „minLon,minLat,maxLon,maxLat“ (Reihenfolge wie GeoJSON/OSM). Der Ausschnitt muss Thüringen
+ * berühren und darf höchstens 5° breit/hoch sein – sonst ist es keine sinnvolle Kartenabfrage.
+ */
+export function parseKartenausschnitt(text: string): Result<Kartenausschnitt, Validierungsfehler> {
+  const fehler = (meldung: string): Result<never, Validierungsfehler> =>
+    err({ feld: 'bbox', code: 'AUSSCHNITT_UNGUELTIG', meldung });
+  const teile = text.split(',').map((t) => Number(t.trim()));
+  if (teile.length !== 4 || teile.some((z) => !Number.isFinite(z))) {
+    return fehler('bbox: vier Zahlen „minLon,minLat,maxLon,maxLat“ erwartet.');
+  }
+  const [minLon, minLat, maxLon, maxLat] = teile as [number, number, number, number];
+  if (minLon >= maxLon || minLat >= maxLat)
+    return fehler('bbox: Minimum muss kleiner als Maximum sein.');
+  if (maxLon - minLon > 5 || maxLat - minLat > 5)
+    return fehler('bbox: Ausschnitt zu groß (max. 5°).');
+  const r = THUERINGEN_RAHMEN;
+  if (maxLat < r.latMin || minLat > r.latMax || maxLon < r.lonMin || minLon > r.lonMax) {
+    return fehler('bbox: Ausschnitt liegt nicht in Thüringen.');
+  }
+  return ok({ minLon, minLat, maxLon, maxLat });
+}
+
 /** Ein Festplatz ist der konkrete Ort einer Veranstaltung (Festzelt, Saal, Sportplatz …). */
 export interface Festplatz {
   /** '' = Standard-Festplatz des Ortes (gilt für Termine ohne passenden Veranstaltungsort) */

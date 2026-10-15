@@ -31,7 +31,7 @@
 | **Datenbank nicht erreichbar** | Adapter übersetzt Verbindungsfehler (`ECONNREFUSED`, SQLSTATE `08xxx`, `57P0x`, Timeout) in `PersistenzNichtVerfuegbar` → `503` + `Retry-After: 30`; `/health/ready` → `503`, damit der Orchestrator keinen Traffic schickt. Pool: Connect-Timeout 3 s, `statement_timeout` 5 s. |
 | SQL-/Constraint-Fehler         | `500` „Interner Fehler“ **ohne** Details nach außen; vollständig im Log                                                                                                                                                                                                          |
 | Fehler im Pool (Idle-Client)   | `pool.on('error')` → Log; Prozess bleibt stabil                                                                                                                                                                                                                                  |
-| OpenStreetMap nicht erreichbar | Karte zeigt Hinweis; Listen, Suche, Ortsseiten funktionieren weiter                                                                                                                                                                                                              |
+| OpenStreetMap nicht erreichbar | `/karte` blendet die Karte nach Kachelfehlern aus, die Ortsliste steht immer darunter; Listen, Suche, Ortsseiten unabhängig                                                                                                                                                      |
 | Frontend ohne JavaScript       | Ortsseiten und Landkreisseiten sind statisches HTML                                                                                                                                                                                                                              |
 | Shutdown (SIGTERM)             | `app.close()` beendet laufende Requests, dann `pool.end()`                                                                                                                                                                                                                       |
 
@@ -80,7 +80,7 @@
 | Nachvollziehbarkeit        | Jede Änderung mit Link-ID, Zeit und Werten in `aenderungsprotokoll`                                                                                          |
 | Widerruf                   | `npm run link -- sperren <id>` – sofort wirksam                                                                                                              |
 | Fachliche Plausibilität    | Koordinaten nur innerhalb Thüringens (vertauschte Breite/Länge werden erkannt)                                                                               |
-| Datenschutz                | Kartenkacheln/Adresssuche (OpenStreetMap) und Standort nur auf der Bearbeitungsseite; eigene CSP dafür                                                       |
+| Datenschutz                | Kartenkacheln (OpenStreetMap) nur auf `/karte` und der Bearbeitungsseite, Adresssuche und Standort nur dort; je eigene CSP                                   |
 
 ### Redaktionszugang (Admin)
 

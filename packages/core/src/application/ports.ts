@@ -1,3 +1,4 @@
+import type { Kartenausschnitt } from '../domain/festplatz.js';
 import type { Datumsbereich, KalenderDatum } from '../domain/datum.js';
 import type { LandkreisKuerzel } from '../domain/landkreis.js';
 import type { Kategorie, NeuerTermin, Ort, Termin } from '../domain/termin.js';
@@ -36,7 +37,8 @@ export interface OrtUebersicht {
 
 /** Driven Port: Orte lesen. */
 export interface OrtRepository {
-  liste(ab: KalenderDatum): Promise<OrtUebersicht[]>;
+  /** @param ausschnitt nur Orte in diesem Kartenausschnitt (null = alle) */
+  liste(ab: KalenderDatum, ausschnitt?: Kartenausschnitt | null): Promise<OrtUebersicht[]>;
   finde(slug: string): Promise<Ort | null>;
 }
 

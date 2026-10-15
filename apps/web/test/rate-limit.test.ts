@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error – reines ESM-JavaScript des Website-Servers
 import { clientIp, erstelleRateLimit, istIntern, ladeGrenzen } from '../rate-limit.mjs';
 
 const anfrage = (url: string, ip: string, xff?: string) => ({

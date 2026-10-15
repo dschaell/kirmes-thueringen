@@ -324,11 +324,33 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
-  app.get('/api/v1/orte', async (_req, reply) => {
-    const orte = await d.listeOrte.ausfuehren();
-    reply.header('Cache-Control', 'public, max-age=300');
-    return orte.map((o) => ({ ...o.ort, anzahlKommend: o.anzahlKommend }));
-  });
+  app.get<{ Querystring: { bbox?: string } }>(
+    '/api/v1/orte',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { bbox: { type: 'string', maxLength: 100 } },
+        },
+      },
+    },
+    async (req, reply) => {
+      let orte;
+      if (req.query.bbox !== undefined) {
+        const r = await d.listeOrte.imAusschnitt(req.query.bbox);
+        if (!r.ok) {
+          return reply
+            .status(400)
+            .type('application/problem+json')
+            .send(problem(400, 'Ungültiger Kartenausschnitt', { fehler: r.error }));
+        }
+        orte = r.value;
+      } else orte = await d.listeOrte.ausfuehren();
+      reply.header('Cache-Control', 'public, max-age=300');
+      return orte.map((o) => ({ ...o.ort, anzahlKommend: o.anzahlKommend }));
+    },
+  );
 
   app.get<{ Params: { slug: string } }>(
     '/api/v1/orte/:slug',
