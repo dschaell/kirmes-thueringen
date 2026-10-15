@@ -3,9 +3,8 @@
  * über ein Jahr. Jeder Termin läuft durch die Domänen-Factory `validiereTermin` – keine Rohdaten
  * am Core vorbei. Fester Seed → reproduzierbar. Nur gegen Test- oder Lastdatenbanken.
  *
- *   DATABASE_URL=…/kirmes_perf npm run lastdaten -w @kirmes/api -- 10000 900
+ * Kommandozeile: lastdaten-cli.ts
  */
-import { pathToFileURL } from 'node:url';
 import { LANDKREISE, validiereTermin, type NeuerTermin } from '@kirmes/core';
 import type pg from 'pg';
 
@@ -109,23 +108,11 @@ export async function erzeugeLastdaten(
   }
 }
 
-/** Kommandozeile – verweigert jede Datenbank, die nicht auf _test oder _perf endet. */
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const url = process.env.DATABASE_URL ?? '';
-  const name = new URL(url).pathname.slice(1);
-  if (!/_(test|perf)$/.test(name)) {
-    console.error(`Abgebrochen: Lastdaten nur in *_test oder *_perf, nicht in „${name}“.`);
-    process.exit(2);
+/** Lastdaten nur in Datenbanken, deren Name auf _test oder _perf endet – nie in die Arbeitsdaten. */
+export function istLastdatenbank(url: string): boolean {
+  try {
+    return /_(test|perf)$/.test(new URL(url).pathname.slice(1));
+  } catch {
+    return false;
   }
-  const { erstellePool } = await import('./pool.js');
-  const pool = erstellePool({
-    connectionString: url,
-    ssl: false,
-    maxVerbindungen: 2,
-    statementTimeoutMs: 60_000,
-  });
-  const [termine, orte] = process.argv.slice(2).map(Number);
-  const e = await erzeugeLastdaten(pool, { termine: termine || 10_000, orte: orte || 900 });
-  process.stdout.write(`✔ ${e.orte} Orte und ${e.termine} Termine angelegt\n`);
-  await pool.end();
 }

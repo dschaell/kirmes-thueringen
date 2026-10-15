@@ -1,7 +1,11 @@
 /** EXPLAIN-Regressionstest: Freitextsuche nutzt den Trigramm-Index statt eines Seq Scans. */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { erstellePool } from '../src/infrastructure/postgres/pool.js';
-import { erzeugeLastdaten, LAST_PRAEFIX } from '../src/infrastructure/postgres/lastdaten.js';
+import {
+  erzeugeLastdaten,
+  istLastdatenbank,
+  LAST_PRAEFIX,
+} from '../src/infrastructure/postgres/lastdaten.js';
 import {
   PgTerminRepository,
   SQL_SUCHE_EXPLAIN,
@@ -95,5 +99,24 @@ describe.runIf(url)('Suche bei 10.000 Terminen (PostgreSQL)', () => {
     expect(await zaehle('belconda')).toBeGreaterThan(0);
     expect(await zaehle('frühschoppen')).toBeGreaterThan(0);
     expect(await zaehle('lastgrund')).toBeGreaterThan(0);
+  });
+
+  it('bricht bei einem Fehler komplett ab (Rollback)', async () => {
+    // ohne Orte gibt es keinen Ort für die Termine → Fehler mitten im Einfügen
+    await expect(erzeugeLastdaten(pool, { termine: 1, orte: 0 })).rejects.toThrow();
+    // die vorherigen Lastdaten sind unverändert da (DELETE wurde zurückgerollt)
+    const { rows } = await pool.query('SELECT count(*)::int AS n FROM ort WHERE slug LIKE $1', [
+      `${LAST_PRAEFIX}%`,
+    ]);
+    expect(rows[0].n).toBe(900);
+  });
+});
+
+describe('Schutz der Arbeitsdatenbank', () => {
+  it('Lastdaten nur in *_test oder *_perf', () => {
+    expect(istLastdatenbank('postgres://h:5432/kirmes_test')).toBe(true);
+    expect(istLastdatenbank('postgres://h:5432/kirmes_perf')).toBe(true);
+    expect(istLastdatenbank('postgres://h:5432/kirmes')).toBe(false);
+    expect(istLastdatenbank('kein-url')).toBe(false);
   });
 });
