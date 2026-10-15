@@ -7,6 +7,7 @@
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import { besucherIp, sendeMeldung, type MeldungsErgebnis } from '../lib/meldung';
+import { CSRF_FELD, FORMULAR_COOKIE, csrfGueltig, csrfToken } from '../lib/csrf';
 
 // TODO: echte Kontaktadresse eintragen
 const KONTAKT = 'termine@kirmeskalender-thueringen.de';
@@ -26,7 +27,9 @@ const FELDER = [
 type Werte = Partial<Record<(typeof FELDER)[number], string>>;
 
 let werte: Werte = { ort: Astro.url.searchParams.get('ort') ?? '' };
-let ergebnis: MeldungsErgebnis | null = null;
+let ergebnis: MeldungsErgebnis | { status: 'abgelaufen' } | null = null;
+// CSRF: Formulare nur von dieser Seite (Token im eigenen Cookie + verstecktes Feld)
+const erwartet = Astro.cookies.get(FORMULAR_COOKIE)?.value;
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const text = (n: string) => {
@@ -35,23 +38,28 @@ if (Astro.request.method === 'POST') {
   };
   werte = Object.fromEntries(FELDER.map((n) => [n, text(n)]));
   const geladen = Number(text('geladen'));
-  ergebnis = await sendeMeldung(
-    {
-      ...Object.fromEntries(Object.entries(werte).filter(([, v]) => v !== '')),
-      art: werte.art === 'link' ? 'link' : 'termin',
-      falle: text('webseite'),
-      dauerMs: Number.isFinite(geladen) ? Math.max(0, Date.now() - geladen) : 0,
-    },
-    besucherIp(Astro.request, Astro.clientAddress),
-  );
+  ergebnis = !csrfGueltig(erwartet, f.get(CSRF_FELD))
+    ? { status: 'abgelaufen' }
+    : await sendeMeldung(
+        {
+          ...Object.fromEntries(Object.entries(werte).filter(([, v]) => v !== '')),
+          art: werte.art === 'link' ? 'link' : 'termin',
+          falle: text('webseite'),
+          dauerMs: Number.isFinite(geladen) ? Math.max(0, Date.now() - geladen) : 0,
+        },
+        besucherIp(Astro.request, Astro.clientAddress),
+      );
   if (ergebnis.status === 'gesendet') werte = {};
-  if (ergebnis.status !== 'gesendet')
-    Astro.response.status = ergebnis.status === 'fehler' ? 400 : 503;
+  if (ergebnis.status !== 'gesendet') {
+    Astro.response.status =
+      ergebnis.status === 'fehler' ? 400 : ergebnis.status === 'abgelaufen' ? 403 : 503;
+  }
 }
 Astro.response.headers.set('Cache-Control', 'no-store');
 const fehlerZu = (feld: string) =>
   ergebnis?.status === 'fehler' ? ergebnis.fehler.find((x) => x.feld === feld)?.meldung : undefined;
 const art = werte.art === 'link' ? 'link' : 'termin';
+const csrf = csrfToken(Astro.cookies, { cookie: FORMULAR_COOKIE, pfad: '/termin-melden' });
 const geladen = Date.now();
 ---
 
@@ -85,6 +93,14 @@ const geladen = Date.now();
       )
     }
     {
+      ergebnis?.status === 'abgelaufen' && (
+        <p class="meldung" role="alert">
+          Das Formular war zu lange geöffnet. Bitte noch einmal auf „Senden“ klicken – eure Angaben
+          stehen noch drin.
+        </p>
+      )
+    }
+    {
       ergebnis?.status === 'zu-viele' && (
         <p class="meldung" role="alert">
           Zu viele Meldungen in kurzer Zeit – bitte später noch einmal versuchen oder direkt an{' '}
@@ -105,6 +121,7 @@ const geladen = Date.now();
   <form class="melden" method="post" action="/termin-melden#rueckmeldung" id="melden">
     <input type="hidden" name="art" value="termin" />
     <input type="hidden" name="geladen" value={geladen} />
+    <input type="hidden" name="csrf_token" value={csrf} />
     <!-- Falle für Bots: für Menschen unsichtbar und nicht erreichbar -->
     <label class="falle" aria-hidden="true">
       Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
@@ -211,6 +228,7 @@ const geladen = Date.now();
   <form class="melden" method="post" action="/termin-melden#rueckmeldung">
     <input type="hidden" name="art" value="link" />
     <input type="hidden" name="geladen" value={geladen} />
+    <input type="hidden" name="csrf_token" value={csrf} />
     <label class="falle" aria-hidden="true">
       Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
     </label>

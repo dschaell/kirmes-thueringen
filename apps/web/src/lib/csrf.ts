@@ -9,16 +9,22 @@ export const CSRF_COOKIE = 'kirmes_csrf';
 export const CSRF_FELD = 'csrf_token';
 export const CSRF_HEADER = 'x-csrf-token';
 
-/** Vorhandenes Token lesen oder ein neues setzen. */
-export function csrfToken(cookies: AstroCookies): string {
-  const vorhanden = cookies.get(CSRF_COOKIE)?.value;
+/**
+ * Vorhandenes Token lesen oder ein neues setzen. Standard: Redaktionsbereich; öffentliche
+ * Formulare nutzen ein eigenes Cookie mit eigenem Pfad.
+ */
+export function csrfToken(
+  cookies: AstroCookies,
+  { cookie = CSRF_COOKIE, pfad = '/admin' }: { cookie?: string; pfad?: string } = {},
+): string {
+  const vorhanden = cookies.get(cookie)?.value;
   if (vorhanden && /^[A-Za-z0-9_-]{43}$/.test(vorhanden)) return vorhanden;
   const neu = randomBytes(32).toString('base64url');
-  cookies.set(CSRF_COOKIE, neu, {
+  cookies.set(cookie, neu, {
     httpOnly: true,
     secure: import.meta.env.PROD,
     sameSite: 'strict',
-    path: '/admin',
+    path: pfad,
     maxAge: 12 * 3600,
   });
   return neu;
@@ -31,3 +37,6 @@ export function csrfGueltig(erwartet: string | undefined, gesendet: unknown): bo
   const b = Buffer.from(gesendet);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+/** Cookie für die öffentlichen Formulare (Termin melden). */
+export const FORMULAR_COOKIE = 'kirmes_formular';
