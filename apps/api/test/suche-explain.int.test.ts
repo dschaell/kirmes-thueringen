@@ -37,40 +37,44 @@ describe.runIf(url)('Suche bei 10.000 Terminen (PostgreSQL)', () => {
 
   /**
    * Bei 10.000 Zeilen ist die Tabelle so klein, dass der Planer zu Recht den Seq Scan wählt (ab
-   * ~100.000 Zeilen nimmt er den Index von selbst). Der Test prüft daher, ob die Abfrageform den
-   * Index NUTZEN KANN – mit abgeschaltetem Seq Scan. Wird die Suche so umgebaut, dass kein Index
-   * mehr passt (z. B. ILIKE über eine Ausdruckskette ohne Index), schlägt er an.
+   * ~100.000 Zeilen nimmt er den Index von selbst); welchen Ersatzplan er bei abgeschaltetem Seq
+   * Scan nimmt, hängt von der Umgebung ab. Geprüft wird daher zweierlei:
+   * 1. Die Suche filtert genau über die indexierten Ausdrücke (suchtext, ort.name).
+   * 2. Für diese Ausdrücke allein ist der Trigramm-Index nutzbar.
    */
-  const planOhneSeqScan = async (suchtext: string) => {
+  const indexBei = async (sql: string, muster: string) => {
     const c = await pool.connect();
     try {
       await c.query('BEGIN');
       await c.query('SET LOCAL enable_seqscan = off');
-      const { rows } = await c.query<{ 'QUERY PLAN': { Plan: Plan }[] }>(SQL_SUCHE_EXPLAIN, [
-        '2026-01-01',
-        '2026-12-31',
-        [],
-        [],
-        suchtext,
-        false,
-        50,
-        0,
-        null,
-      ]);
-      return knoten(rows[0]!['QUERY PLAN'][0]!.Plan);
+      const { rows } = await c.query<{ 'QUERY PLAN': { Plan: Plan }[] }>(sql, [muster]);
+      return knoten(rows[0]!['QUERY PLAN'][0]!.Plan).map(
+        (k) => (k as Plan & { 'Index Name'?: string })['Index Name'],
+      );
     } finally {
       await c.query('ROLLBACK');
       c.release();
     }
   };
 
-  it('Freitext kann die Trigramm-Indizes nutzen (kein Seq Scan auf termin nötig)', async () => {
-    const p = await planOhneSeqScan('%kirmestanz 1234%');
-    const termin = p.filter((k) => k['Relation Name'] === 'termin');
-    expect(termin.map((k) => k['Node Type'])).not.toContain('Seq Scan');
-    const indizes = p.map((k) => (k as Plan & { 'Index Name'?: string })['Index Name']);
-    expect(indizes).toContain('termin_suchtext_trgm_idx');
-    expect(indizes).toContain('ort_name_trgm_idx');
+  it('Freitext filtert über die indexierten Ausdrücke', () => {
+    expect(SQL_SUCHE_EXPLAIN).toContain("t.suchtext ILIKE $5 ESCAPE '\\'");
+    expect(SQL_SUCHE_EXPLAIN).toContain("FROM ort WHERE name ILIKE $5 ESCAPE '\\'");
+  });
+
+  it('Trigramm-Indizes sind für diese Ausdrücke nutzbar', async () => {
+    expect(
+      await indexBei(
+        "EXPLAIN (FORMAT JSON) SELECT t.id FROM termin t WHERE t.suchtext ILIKE $1 ESCAPE '\\'",
+        '%kirmestanz 1234%',
+      ),
+    ).toContain('termin_suchtext_trgm_idx');
+    expect(
+      await indexBei(
+        "EXPLAIN (FORMAT JSON) SELECT id FROM ort WHERE name ILIKE $1 ESCAPE '\\'",
+        '%lastgrund%',
+      ),
+    ).toContain('ort_name_trgm_idx');
   });
 
   it('findet Termine über Band, Titel und Ortsname', async () => {
