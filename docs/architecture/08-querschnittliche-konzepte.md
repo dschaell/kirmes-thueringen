@@ -100,3 +100,22 @@
 
 Nur Klartext (Darstellung per `textContent`, nie als HTML), Links nur `https://` oder seitenintern.
 Ob eine Mitteilung gelesen wurde, speichert nur der Browser des Besuchers (`localStorage`, keine Cookies).
+
+Welche Mitteilung die neueste ist, entscheidet der Zeitstempel `veroeffentlicht_am` (bei
+Gleichstand die höhere `id`) – nie die für die Anzeige formatierte Spalte gleichen Namens, die
+nur minutengenau ist (Issue #25). Im SQL daher immer `ORDER BY mitteilung.veroeffentlicht_am`.
+
+### Strukturierte Daten (JSON-LD)
+
+Terminseiten betten schema.org-`Event` als `<script type="application/ld+json">` ein. Weil Titel,
+Band und Hinweise von außen kommen, wird jedes `<` im JSON als `\u003c` geschrieben – ein Titel
+mit `</script>` kann den Block nicht verlassen (Issue #22, Kap. 8.5 A03).
+
+### Gestaltung
+
+- Schriften (Bitter, Source Sans 3) und Icons liegen auf dem eigenen Server (`@fontsource`,
+  SVG-Icon-Komponente) – keine Anfragen an Google Fonts oder CDNs, passend zur CSP und zum
+  Datenschutz (Issue #21).
+- Vorschaubilder (`og.png`, App-Icons) erzeugt `scripts/bilder-erzeugen.mjs` aus dem SVG-Logo.
+- Farben als CSS-Variablen in `styles/global.css`, helles und dunkles Farbschema; Tippflächen auf
+  Touch-Geräten ≥ 44 px (Issue #30), Druckansicht für die Muttizettel-Vorlage (Issue #32).
