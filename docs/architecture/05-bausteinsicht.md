@@ -147,14 +147,16 @@ erDiagram
   termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text band "≤ 120" text info "≤ 500, öffentlich" boolean muttizettel text kategorie "CHECK" boolean bestaetigt text quelle "intern" bigint eingetragen_durch FK }
 ```
 
-| Index / Constraint                      | Zweck                                                     |
-| --------------------------------------- | --------------------------------------------------------- |
-| `ort_landkreis_idx`                     | Filter nach Landkreis (Regionen-Tagging)                  |
-| `ort_lage_idx` (GiST)                   | Umkreissuche / Kartenausschnitt                           |
-| `termin_datum_idx`                      | Zeitraumfilter, Sortierung                                |
-| `termin_ort_datum_idx`                  | Ortsseiten                                                |
-| `UNIQUE (ort_id, datum, titel)`         | Idempotenter Import, keine Dubletten                      |
-| `CHECK kategorie IN (…)`, Längen-CHECKs | Letzte Verteidigungslinie zusätzlich zur Core-Validierung |
+| Index / Constraint                      | Zweck                                                                                     |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ort_landkreis_idx`                     | Filter nach Landkreis (Regionen-Tagging)                                                  |
+| `ort_lage_idx` (GiST)                   | Umkreissuche / Kartenausschnitt                                                           |
+| `termin_datum_idx`                      | Zeitraumfilter, Sortierung                                                                |
+| `termin_ort_datum_idx`                  | Ortsseiten                                                                                |
+| `termin_suchtext_trgm_idx` (GIN)        | Freitext `ILIKE '%…%'` über Titel, Veranstaltungsort, Band (generierte Spalte `suchtext`) |
+| `ort_name_trgm_idx` (GIN)               | Freitext über den Ortsnamen                                                               |
+| `UNIQUE (ort_id, datum, titel)`         | Idempotenter Import, keine Dubletten                                                      |
+| `CHECK kategorie IN (…)`, Längen-CHECKs | Letzte Verteidigungslinie zusätzlich zur Core-Validierung                                 |
 
 Schemaänderungen erfolgen ausschließlich über nummerierte Migrationen in `db/migrations/`
 (je Datei eine Transaktion, protokolliert in `schema_migration`). Die Landkreise werden aus dem
