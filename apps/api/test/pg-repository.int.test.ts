@@ -358,7 +358,9 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       landkreis: 'GTH',
       bezeichnung: 'IT',
     };
-    const vorher = await pool.query('SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL');
+    const vorher = await pool.query(
+      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+    );
     await expect(
       new PgFestplatzRepository(pool).speichere(
         'it-gibtsnicht',
@@ -397,7 +399,9 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         { ...durch, ortSlug: 'it-ulla' },
       ),
     ).toBe(false);
-    const nachher = await pool.query('SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL');
+    const nachher = await pool.query(
+      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+    );
     expect(nachher.rows[0].n).toBe(vorher.rows[0].n);
   });
 

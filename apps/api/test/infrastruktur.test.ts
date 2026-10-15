@@ -14,6 +14,7 @@ describe('ladeKonfiguration', () => {
       dbSsl: false,
       logLevel: 'info',
       websiteUrl: null,
+      smtp: null,
     });
     expect(
       ladeKonfiguration({ DATABASE_URL: 'x', WEBSITE_URL: 'https://kirmes.example' }).websiteUrl,

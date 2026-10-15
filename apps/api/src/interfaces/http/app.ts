@@ -14,6 +14,8 @@ import {
   type TerminFormular,
   type Termin,
   type Validierungsfehler,
+  type MeldeAnRedaktion,
+  type MeldungEingabe,
 } from '@kirmes/core';
 import { adminRouten, type AdminAbhaengigkeiten } from './admin-routen.js';
 import Fastify, { type FastifyError, type FastifyReply, type FastifyServerOptions } from 'fastify';
@@ -29,6 +31,8 @@ export interface AppAbhaengigkeiten {
   aktuelleMitteilung: () => Promise<Mitteilung | null>;
   /** Redaktionszugang; ohne diese Abhängigkeit gibt es keine Admin-Endpunkte */
   admin?: Omit<AdminAbhaengigkeiten, 'terminDto'>;
+  /** Meldungen an die Redaktion per E-Mail; fehlt sie, antwortet der Endpunkt mit 503 */
+  meldungen?: MeldeAnRedaktion;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -202,6 +206,71 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     (await d.datenbankErreichbar())
       ? { status: 'ok' }
       : reply.status(503).send({ status: 'datenbank nicht erreichbar' }),
+  );
+
+  // Meldung an die Redaktion (Termin melden, Link anfordern) – Versand per SMTP
+  const T = (max: number) => ({ type: 'string', maxLength: max });
+  app.post<{ Body: MeldungEingabe }>(
+    '/api/v1/meldungen',
+    {
+      bodyLimit: 16 * 1024,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: {
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['art', 'ort', 'absender', 'email'],
+          properties: {
+            art: { type: 'string', enum: ['termin', 'link'] },
+            ort: T(200),
+            landkreis: T(100),
+            datum: T(20),
+            zeit: T(10),
+            titel: T(300),
+            veranstaltungsort: T(200),
+            info: T(4000),
+            absender: T(200),
+            email: T(300),
+            falle: T(500),
+            dauerMs: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      if (!d.meldungen) {
+        return reply
+          .status(503)
+          .type('application/problem+json')
+          .send(problem(503, 'Meldungen per E-Mail sind gerade nicht möglich.'));
+      }
+      // Hinter der Website (internes Netz) zählt die IP der Besucher, die die Website mitschickt
+      const weitergeleitet = req.headers['x-kirmes-client-ip'];
+      const herkunft =
+        istInternesNetz(req.socket.remoteAddress) && typeof weitergeleitet === 'string'
+          ? weitergeleitet.slice(0, 64)
+          : req.ip;
+      try {
+        const r = await d.meldungen.melde(req.body, herkunft);
+        if (r.ok) return reply.status(202).send({ angenommen: true });
+        if (r.error === 'ZU_VIELE') {
+          return reply
+            .status(429)
+            .type('application/problem+json')
+            .send(problem(429, 'Zu viele Meldungen – bitte später noch einmal versuchen.'));
+        }
+        return reply
+          .status(400)
+          .type('application/problem+json')
+          .send(problem(400, 'Ungültige Eingabe', { fehler: r.error }));
+      } catch (e) {
+        req.log.error({ err: e }, 'Meldung konnte nicht versendet werden');
+        return reply
+          .status(502)
+          .type('application/problem+json')
+          .send(problem(502, 'Die Meldung konnte gerade nicht versendet werden.'));
+      }
+    },
   );
 
   app.get('/api/v1/landkreise', async () =>

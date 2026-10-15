@@ -1,10 +1,58 @@
 ---
-export const prerender = true;
+/**
+ * Termin melden / Link für den Festplatz anfordern. Das Formular schickt die Meldung über den
+ * Server per E-Mail (Brevo) an die Redaktion – ohne eigenes E-Mail-Programm, auch ohne JavaScript.
+ * Ist kein Versand möglich, bleibt der Weg über mailto.
+ */
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
+import { besucherIp, sendeMeldung, type MeldungsErgebnis } from '../lib/meldung';
 
 // TODO: echte Kontaktadresse eintragen
 const KONTAKT = 'termine@kirmeskalender-thueringen.de';
+
+const FELDER = [
+  'art',
+  'ort',
+  'landkreis',
+  'datum',
+  'zeit',
+  'titel',
+  'veranstaltungsort',
+  'info',
+  'absender',
+  'email',
+] as const;
+type Werte = Partial<Record<(typeof FELDER)[number], string>>;
+
+let werte: Werte = { ort: Astro.url.searchParams.get('ort') ?? '' };
+let ergebnis: MeldungsErgebnis | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const text = (n: string) => {
+    const v = f.get(n);
+    return typeof v === 'string' ? v : '';
+  };
+  werte = Object.fromEntries(FELDER.map((n) => [n, text(n)]));
+  const geladen = Number(text('geladen'));
+  ergebnis = await sendeMeldung(
+    {
+      ...Object.fromEntries(Object.entries(werte).filter(([, v]) => v !== '')),
+      art: werte.art === 'link' ? 'link' : 'termin',
+      falle: text('webseite'),
+      dauerMs: Number.isFinite(geladen) ? Math.max(0, Date.now() - geladen) : 0,
+    },
+    besucherIp(Astro.request, Astro.clientAddress),
+  );
+  if (ergebnis.status === 'gesendet') werte = {};
+  if (ergebnis.status !== 'gesendet')
+    Astro.response.status = ergebnis.status === 'fehler' ? 400 : 503;
+}
+Astro.response.headers.set('Cache-Control', 'no-store');
+const fehlerZu = (feld: string) =>
+  ergebnis?.status === 'fehler' ? ergebnis.fehler.find((x) => x.feld === feld)?.meldung : undefined;
+const art = werte.art === 'link' ? 'link' : 'termin';
+const geladen = Date.now();
 ---
 
 <Base
@@ -17,43 +65,136 @@ const KONTAKT = 'termine@kirmeskalender-thueringen.de';
       Für Kirmesgesellschaften, Vereine und Veranstalter – kostenlos. Neue Termine, Korrekturen oder
       einfach die Bestätigung, dass ein Termin stimmt: Alles hilft.
     </p>
-    <p>
-      Am schnellsten geht es mit dem Formular. Es öffnet euer E-Mail-Programm mit einer fertigen
-      Nachricht. Ihr könnt auch direkt schreiben an <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a>.
-    </p>
   </section>
-  <form class="melden" id="melden" data-kontakt={KONTAKT}>
+
+  <div id="rueckmeldung" class="rueckmeldung">
+    {
+      ergebnis?.status === 'gesendet' && (
+        <p class="meldung erfolg" role="status">
+          <Icon name="haken" />
+          Danke! Eure Meldung ist bei uns angekommen. Wir prüfen sie und melden uns bei Rückfragen
+          per E-Mail.
+        </p>
+      )
+    }
+    {
+      ergebnis?.status === 'fehler' && (
+        <p class="meldung" role="alert">
+          Bitte die markierten Angaben prüfen.
+        </p>
+      )
+    }
+    {
+      ergebnis?.status === 'zu-viele' && (
+        <p class="meldung" role="alert">
+          Zu viele Meldungen in kurzer Zeit – bitte später noch einmal versuchen oder direkt an{' '}
+          <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a> schreiben.
+        </p>
+      )
+    }
+    {
+      ergebnis?.status === 'nicht-moeglich' && (
+        <p class="meldung" role="alert">
+          Das Senden klappt gerade nicht. Bitte schreibt uns direkt an{' '}
+          <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a> – eure Angaben stehen noch im Formular.
+        </p>
+      )
+    }
+  </div>
+
+  <form class="melden" method="post" action="/termin-melden#rueckmeldung" id="melden">
+    <input type="hidden" name="art" value="termin" />
+    <input type="hidden" name="geladen" value={geladen} />
+    <!-- Falle für Bots: für Menschen unsichtbar und nicht erreichbar -->
+    <label class="falle" aria-hidden="true">
+      Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+    </label>
     <div class="zwei">
-      <label>Ort *<input name="ort" required placeholder="z. B. Mühlberg" /></label>
-      <label>Landkreis<input name="kreis" placeholder="z. B. Gotha" /></label>
+      <label
+        >Ort *<input
+          name="ort"
+          required
+          maxlength="120"
+          placeholder="z. B. Mühlberg"
+          value={art === 'termin' ? werte.ort : ''}
+          aria-invalid={fehlerZu('ort') ? 'true' : undefined}
+        />{fehlerZu('ort') && <span class="feldfehler">{fehlerZu('ort')}</span>}</label
+      >
+      <label
+        >Landkreis<input
+          name="landkreis"
+          maxlength="60"
+          placeholder="z. B. Gotha"
+          value={werte.landkreis}
+        /></label
+      >
     </div>
     <div class="zwei">
-      <label>Datum *<input name="datum" type="date" required /></label>
-      <label>Uhrzeit<input name="zeit" type="time" /></label>
+      <label
+        >Datum *<input
+          name="datum"
+          type="date"
+          required
+          value={werte.datum}
+          aria-invalid={fehlerZu('datum') ? 'true' : undefined}
+        />{fehlerZu('datum') && <span class="feldfehler">{fehlerZu('datum')}</span>}</label
+      >
+      <label>Uhrzeit<input name="zeit" type="time" value={werte.zeit} /></label>
     </div>
     <label
       >Veranstaltung *<input
         name="titel"
         required
-        placeholder="z. B. Kirmestanz mit „Band XY“"
-      /></label
+        maxlength="200"
+        placeholder="z. B. Kirmestanz"
+        value={werte.titel}
+        aria-invalid={fehlerZu('titel') ? 'true' : undefined}
+      />{fehlerZu('titel') && <span class="feldfehler">{fehlerZu('titel')}</span>}</label
     >
     <label
       >Veranstaltungsort<input
-        name="location"
+        name="veranstaltungsort"
+        maxlength="120"
         placeholder="z. B. Festzelt, Kulturhaus, Saal"
+        value={werte.veranstaltungsort}
       /></label
     >
     <label
       >Weitere Infos<textarea
         name="info"
         rows="4"
-        placeholder="Programm, Eintritt, Link zur Kirmesgesellschaft …"></textarea></label
+        maxlength="2000"
+        placeholder="Band, Programm, Eintritt, Muttizettel nötig? Link zur Kirmesgesellschaft …"
+        set:text={art === 'termin' ? (werte.info ?? '') : ''}
+      /></label
     >
-    <label>Dein Name / Kirmesgesellschaft *<input name="absender" required /></label>
+    <div class="zwei">
+      <label
+        >Euer Name / Kirmesgesellschaft *<input
+          name="absender"
+          required
+          maxlength="120"
+          autocomplete="organization"
+          value={werte.absender}
+        /></label
+      >
+      <label
+        >E-Mail für Rückfragen *<input
+          name="email"
+          type="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+          value={werte.email}
+          aria-invalid={fehlerZu('email') ? 'true' : undefined}
+        />{fehlerZu('email') && <span class="feldfehler">{fehlerZu('email')}</span>}</label
+      >
+    </div>
     <p class="klein leise">
-      Beim Absenden öffnet sich dein E-Mail-Programm mit einer vorbereiteten Nachricht an {KONTAKT}.
-      Wir prüfen jede Meldung vor der Veröffentlichung.
+      Die Meldung geht per E-Mail an die Redaktion. Wir prüfen jede Meldung vor der Veröffentlichung
+      und nutzen eure E-Mail-Adresse nur für Rückfragen dazu. Mehr dazu im <a href="/datenschutz"
+        >Datenschutz</a
+      >.
     </p>
     <div><button class="knopf" type="submit">Termin senden</button></div>
   </form>
@@ -63,44 +204,48 @@ const KONTAKT = 'termine@kirmeskalender-thueringen.de';
     <p>
       Jeder Termin hat einen Knopf „Route“, der Google Maps oder Apple Karten öffnet. Ohne genaue
       Angabe führt er nur in den Ort. Damit eure Gäste direkt am Festzelt, Saal oder Sportplatz
-      ankommen, könnt ihr den Platz selbst eintragen:
-    </p>
-    <ol>
-      <li>Schreibt uns, für welchen Ort ihr zuständig seid.</li>
-      <li>Ihr bekommt einen persönlichen Link – ohne Anmeldung und ohne Passwort.</li>
-      <li>
-        Über den Link setzt ihr den Pin auf der Karte, gebt die Adresse ein oder nutzt direkt vor
-        Ort euren Handy-Standort.
-      </li>
-    </ol>
-    <p>
-      <a
-        class="knopf zweit"
-        href={`mailto:${KONTAKT}?subject=${encodeURIComponent('Link für den Festplatz')}`}
-        ><Icon name="ort" />Link anfordern</a
-      >
+      ankommen, könnt ihr den Platz selbst eintragen: Ihr bekommt einen persönlichen Link – ohne
+      Anmeldung und ohne Passwort – und setzt damit den Pin auf der Karte.
     </p>
   </section>
+  <form class="melden" method="post" action="/termin-melden#rueckmeldung">
+    <input type="hidden" name="art" value="link" />
+    <input type="hidden" name="geladen" value={geladen} />
+    <label class="falle" aria-hidden="true">
+      Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+    </label>
+    <div class="zwei">
+      <label
+        >Für welchen Ort? *<input
+          name="ort"
+          required
+          maxlength="120"
+          value={art === 'link' ? werte.ort : (werte.ort ?? '')}
+        /></label
+      >
+      <label>Landkreis<input name="landkreis" maxlength="60" /></label>
+    </div>
+    <div class="zwei">
+      <label
+        >Kirmesgesellschaft *<input
+          name="absender"
+          required
+          maxlength="120"
+          autocomplete="organization"
+        /></label
+      >
+      <label
+        >E-Mail für den Link *<input
+          name="email"
+          type="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+        /></label
+      >
+    </div>
+    <div>
+      <button class="knopf zweit" type="submit"><Icon name="ort" />Link anfordern</button>
+    </div>
+  </form>
 </Base>
-
-<script>
-  const form = document.getElementById('melden') as HTMLFormElement;
-  const KONTAKT = form.dataset.kontakt ?? '';
-  const ort = new URLSearchParams(location.search).get('ort');
-  if (ort) (form.elements.namedItem('ort') as HTMLInputElement).value = ort;
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(form));
-    const body = [
-      `Ort: ${f.ort}${f.kreis ? ` (${f.kreis})` : ''}`,
-      `Datum: ${f.datum}${f.zeit ? `, ${f.zeit} Uhr` : ''}`,
-      `Veranstaltung: ${f.titel}`,
-      f.location && `Veranstaltungsort: ${f.location}`,
-      f.info && `Infos: ${f.info}`,
-      `Gemeldet von: ${f.absender}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    location.href = `mailto:${KONTAKT}?subject=${encodeURIComponent(`Kirmes-Termin: ${f.ort} ${f.datum}`)}&body=${encodeURIComponent(body)}`;
-  });
-</script>

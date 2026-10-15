@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  MeldeAnRedaktion,
   Passkeys,
   Redaktion,
   type TerminVerwaltung,
@@ -96,6 +97,7 @@ let mitteilung: Mitteilung | null = null;
 const ORIGIN = 'http://localhost:4321';
 const gespeichertePasskeys: Passkey[] = [];
 let passkeysAktiv: Passkeys | undefined;
+let meldungenAktiv: MeldeAnRedaktion | undefined;
 const neuePasskeys = (gesperrt = false) =>
   new Passkeys(
     {
@@ -146,6 +148,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       uhr,
     ),
     aktuelleMitteilung: async () => mitteilung,
+    meldungen: meldungenAktiv,
     admin: {
       anmeldung: new AdminAnmeldung(
         {
@@ -802,6 +805,56 @@ describe('Passkeys (WebAuthn)', () => {
   it('ohne WEBSITE_URL gibt es keine Passkey-Endpunkte', async () => {
     await setup();
     expect((await post('/api/v1/admin/passkey-anmeldung/optionen')).statusCode).toBe(404);
+  });
+});
+
+describe('Meldungen an die Redaktion', () => {
+  const meldung = {
+    art: 'termin',
+    ort: 'Ulla',
+    datum: '2026-11-07',
+    titel: 'Kirmestanz',
+    absender: 'KG Ulla',
+    email: 'kg@ulla.de',
+    dauerMs: 10_000,
+  };
+  const post = (payload: object, headers: Record<string, string> = {}) =>
+    app.inject({ method: 'POST', url: '/api/v1/meldungen', payload, headers });
+
+  it('nimmt Meldungen an, prüft Eingaben und begrenzt je Besucher-IP', async () => {
+    const herkunft: string[] = [];
+    let fehlerBeimSenden = false;
+    meldungenAktiv = new MeldeAnRedaktion(
+      {
+        sende: async () => {
+          if (fehlerBeimSenden) throw new Error('SMTP weg');
+        },
+      },
+      {
+        erlaube: (k) => {
+          herkunft.push(k);
+          return k !== '9.9.9.9';
+        },
+      },
+      { erlaube: () => true },
+    );
+    await setup();
+    meldungenAktiv = undefined;
+    // Aufrufe der Website kommen aus dem internen Netz und nennen die Besucher-IP
+    const r = await post(meldung, { 'x-kirmes-client-ip': '1.2.3.4' });
+    expect(r.statusCode).toBe(202);
+    expect(herkunft).toEqual(['1.2.3.4']);
+    expect((await post({ ...meldung, email: 'kaputt' })).statusCode).toBe(400);
+    expect((await post({ ...meldung, art: 'werbung' })).statusCode).toBe(400);
+    expect((await post({ ...meldung, an: 'opfer@x.de' })).statusCode).toBe(400);
+    expect((await post(meldung, { 'x-kirmes-client-ip': '9.9.9.9' })).statusCode).toBe(429);
+    fehlerBeimSenden = true;
+    expect((await post(meldung)).statusCode).toBe(502);
+  });
+
+  it('ohne SMTP-Konfiguration: 503 (die Website zeigt dann mailto)', async () => {
+    await setup();
+    expect((await post(meldung)).statusCode).toBe(503);
   });
 });
 

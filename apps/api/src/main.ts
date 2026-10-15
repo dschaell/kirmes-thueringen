@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  MeldeAnRedaktion,
   Passkeys,
   Redaktion,
 } from '@kirmes/core';
@@ -34,6 +35,7 @@ import {
 import { SystemUhr } from './infrastructure/system-uhr.js';
 import { PgPasskeys } from './infrastructure/postgres/passkey-repository.js';
 import { SimpleWebAuthn, SpeicherChallenges } from './infrastructure/webauthn.js';
+import { SmtpPostausgang, SpeicherDrosselung, smtpTransport } from './infrastructure/post.js';
 import { baueApp } from './interfaces/http/app.js';
 
 const k = ladeKonfiguration();
@@ -74,6 +76,14 @@ const app = await baueApp({
   verwalteFestplaetze: new VerwalteFestplaetze(links, new PgFestplatzRepository(pool)),
   verwalteTermine: new VerwalteTermine(links, terminVerwaltung, termine, uhr),
   aktuelleMitteilung: () => mitteilungen.aktuelle(),
+  // Meldungen: je Besucher 5 pro Stunde, insgesamt 100 pro Stunde
+  meldungen: k.smtp
+    ? new MeldeAnRedaktion(
+        new SmtpPostausgang(k.smtp, smtpTransport(k.smtp)),
+        new SpeicherDrosselung(5, 3_600_000),
+        new SpeicherDrosselung(100, 3_600_000),
+      )
+    : undefined,
   admin: {
     anmeldung: new AdminAnmeldung(konten, krypto, sitzungen, new SpeicherAnmeldeversuche()),
     passkeys,
@@ -89,7 +99,11 @@ const app = await baueApp({
   datenbankErreichbar: () => datenbankErreichbar(pool),
   logger: {
     level: k.logLevel,
-    redact: ['req.headers.authorization', 'req.headers.cookie'],
+    redact: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'req.headers["x-kirmes-client-ip"]',
+    ],
   },
 });
 

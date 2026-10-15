@@ -934,3 +934,28 @@ dialog.mitteilung h2 {
     margin-block: -11px;
   }
 }
+
+/* Spam-Falle in Formularen: für Menschen unsichtbar, für Screenreader ausgeblendet */
+.falle {
+  position: absolute !important;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.feldfehler {
+  color: var(--rot);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+input[aria-invalid='true'] {
+  border-color: var(--rot);
+}
+.meldung.erfolg {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.rueckmeldung {
+  scroll-margin-top: 16px;
+}
