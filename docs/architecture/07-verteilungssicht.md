@@ -68,3 +68,5 @@ Ein Integrationstest prüft, dass die Rolle kein `DROP`, `CREATE`, `ALTER` oder 
 **TLS zur Datenbank:** Die Datenbank ist nur im internen Docker-Netz desselben Hosts erreichbar,
 ohne Port nach außen. TLS bringt dort keinen Schutzgewinn. Für eine externe Datenbank lässt es sich
 mit `DB_SSL=true` erzwingen.
+
+Betrieb (Backup, Restore-Test, Secret-Wechsel, Störungen): [Betriebshandbuch](../betrieb/betriebshandbuch.md).
