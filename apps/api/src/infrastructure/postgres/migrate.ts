@@ -3,6 +3,7 @@ import { LANDKREISE } from '@kirmes/core';
 import { readdir, readFile } from 'node:fs/promises';
 import { ladeKonfiguration } from '../../config.js';
 import { erstellePool } from './pool.js';
+import { APP_ROLLE, richteAppLoginEin } from './app-rolle.js';
 
 const VERZEICHNIS = new URL('../../../../../db/migrations/', import.meta.url);
 
@@ -45,6 +46,13 @@ try {
     );
   }
   console.log(`✔ ${Object.keys(LANDKREISE).length} Landkreise synchronisiert`);
+
+  // Login der API ohne DDL-Rechte (nur wenn ein Passwort gesetzt ist, z. B. in Docker/Produktion)
+  const appPasswort = process.env.APP_DB_PASSWORD;
+  if (appPasswort) {
+    await richteAppLoginEin(client, appPasswort);
+    console.log(`✔ Rolle ${APP_ROLLE} eingerichtet (nur Daten, kein DDL)`);
+  }
 } finally {
   client.release();
   await pool.end();
