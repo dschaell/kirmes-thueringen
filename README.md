@@ -56,7 +56,7 @@ Server-Umzug: [docs/betrieb/server-umzug.md](docs/betrieb/server-umzug.md)
 
 Die Pipeline [`security-and-quality.yml`](.github/workflows/security-and-quality.yml) prüft jeden
 Push und Pull Request: Secret Scanning (TruffleHog) · SAST (Semgrep, eigene SQL-Injection-Regeln) ·
-SCA (npm audit, OWASP Dependency-Check) · DAST (OWASP ZAP gegen Web und API) · Lint/Typen ·
+SCA (npm audit, OSV-Scanner) · DAST (OWASP ZAP gegen Web und API) · Lint/Typen ·
 Tests mit Coverage-Gate und -Ratchet. Ein Merge ist nur bei grünem **Quality Gate** möglich.
 
 Repository-Einrichtung (Labels, Branch Protection, Backlog): `./scripts/setup-github.sh`
