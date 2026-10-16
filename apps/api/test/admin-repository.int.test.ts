@@ -140,9 +140,22 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
   });
 
   it('Vorschläge: Bands und Titel aus allen Terminen, häufigste zuerst (#62)', async () => {
-    const v = await terminVorschlaege(pool);
-    expect(Array.isArray(v.bands) && Array.isArray(v.titel)).toBe(true);
-    expect(v.bands.every((b) => b.length > 0)).toBe(true);
+    // eigene Testdaten – die Datenbank kann (wie in der CI) sonst leer sein
+    const ort = await pool.query<{ id: string }>("SELECT id FROM ort WHERE slug = 'it-admin-ort'");
+    await pool.query(
+      `INSERT INTO termin (ort_id, datum, titel, kategorie, band)
+       VALUES ($1, '2026-10-30', 'IT-Vorschlag', 'party', 'IT-Band-Vorschlag'),
+              ($1, '2026-10-31', 'IT-Vorschlag', 'party', 'IT-Band-Vorschlag')`,
+      [ort.rows[0]!.id],
+    );
+    try {
+      const v = await terminVorschlaege(pool);
+      expect(v.bands).toContain('IT-Band-Vorschlag');
+      expect(v.titel).toContain('IT-Vorschlag');
+      expect(v.bands.every((b) => b.length > 0)).toBe(true);
+    } finally {
+      await pool.query("DELETE FROM termin WHERE titel = 'IT-Vorschlag'");
+    }
   });
 
   it('Mitteilungen: nur veröffentlichte, neueste zuerst', async () => {
