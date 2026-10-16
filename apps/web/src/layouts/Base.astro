@@ -2,6 +2,7 @@
 import '@fontsource-variable/bitter';
 import '@fontsource-variable/source-sans-3';
 import '../styles/global.css';
+import { ohneSchraegstrich } from '../lib/anzeige';
 
 interface Props {
   title: string;
@@ -11,8 +12,8 @@ interface Props {
   noindex?: boolean;
 }
 const { title, description, jsonLd = [], noindex = false } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
-const pfad = Astro.url.pathname;
+const pfad = ohneSchraegstrich(Astro.url.pathname);
+const canonical = new URL(pfad, Astro.site);
 const nav = [
   ['/termine', 'Termine'],
   ['/orte', 'Orte A–Z'],

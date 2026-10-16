@@ -26,7 +26,6 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     k,
     n: orte.filter((o) => o.landkreis === k).reduce((s, o) => s + o.anzahlKommend, 0),
   }))
-  .filter((x) => x.n > 0)
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 const jahr = h.slice(0, 4);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
@@ -91,7 +90,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           kreise.map((x) => (
             <li>
               <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
-              <span class="n">{x.n}</span>
+              {x.n > 0 && <span class="n">{x.n}</span>}
             </li>
           ))
         }
