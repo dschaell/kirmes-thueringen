@@ -12,6 +12,7 @@ import {
   type NeuerOrt,
   type OrtEingabe,
 } from '../domain/redaktion.js';
+import { validiereSpeisen, type Speise } from '../domain/speisen.js';
 import {
   validiereTermin,
   type Hinweis,
@@ -198,6 +199,20 @@ export class Redaktion {
       b,
     );
     return gespeichert ? ok({ hinweise: v.value.hinweise }) : err('NICHT_GEFUNDEN');
+  }
+
+  /** Mittagstisch eines Termins setzen (Issue #66) – ersetzt die bisherigen Gerichte. */
+  async setzeSpeisen(
+    id: string,
+    ortSlug: string,
+    zeilen: readonly { name: string; preis: string }[],
+    adminId: string,
+  ): Promise<Result<Speise[], Validierungsfehler[] | 'NICHT_GEFUNDEN'>> {
+    const b = await this.berechtigungFuer(ortSlug, adminId);
+    if (!b) return err('NICHT_GEFUNDEN');
+    const v = validiereSpeisen(zeilen);
+    if (!v.ok) return v;
+    return (await this.termine.setzeSpeisen(id, v.value, b)) ? v : err('NICHT_GEFUNDEN');
   }
 
   async aendereTermin(

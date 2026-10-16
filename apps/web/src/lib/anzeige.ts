@@ -148,3 +148,11 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     url: new URL(`/termin/${t.id}`, site).href,
   };
 }
+
+/** 950 → „9,50 €“ (Mittagstisch, Issue #66) */
+export const preisText = (cent: number) =>
+  (cent / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+
+/** Gericht als Textzeile: „Rostbrätel mit Brot – 7,50 €“ */
+export const speiseZeile = (s: { name: string; preisCent: number | null }) =>
+  s.preisCent == null ? s.name : `${s.name} – ${preisText(s.preisCent)}`;

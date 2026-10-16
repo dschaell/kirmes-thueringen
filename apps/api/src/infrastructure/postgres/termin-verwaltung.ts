@@ -1,4 +1,4 @@
-import type { Berechtigung, NeuerTermin, Termin, TerminVerwaltung } from '@kirmes/core';
+import type { Berechtigung, NeuerTermin, Speise, Termin, TerminVerwaltung } from '@kirmes/core';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
 
@@ -40,6 +40,16 @@ const SQL_LOESCHEN = `
 DELETE FROM termin t USING ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id, t.titel, t.datum::text AS datum`;
+
+const SQL_TERMIN_DES_ORTES = `
+SELECT t.ort_id::text FROM termin t JOIN ort o ON o.id = t.ort_id
+ WHERE t.id = $1::uuid AND o.slug = $2 FOR UPDATE OF t`;
+
+/** Gerichte in der übergebenen Reihenfolge (position = 1, 2, …) */
+const SQL_SPEISEN_EINFUEGEN = `
+INSERT INTO termin_speise (termin_id, position, name, preis_cent)
+SELECT $1::uuid, s.nr, s.name, s.preis
+  FROM unnest($2::text[], $3::int[]) WITH ORDINALITY AS s(name, preis, nr)`;
 
 const SQL_PROTOKOLL = `
 INSERT INTO aenderungsprotokoll (link_id, admin_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4, $5)`;
@@ -111,7 +121,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
               durch.adminId ?? null,
               t.band,
               t.info,
-              t.muttizettel ?? false,
+              t.muttizettel,
             ],
             durch,
             'termin_geaendert',
@@ -136,6 +146,35 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       if (e instanceof NichtGefunden) return false; // ROLLBACK ist schon passiert
       throw e;
     }
+  }
+
+  async setzeSpeisen(
+    id: string,
+    speisen: readonly Speise[],
+    durch: Berechtigung,
+  ): Promise<boolean> {
+    return this.inTransaktion(async (c) => {
+      // Termin muss zum Ort der Berechtigung gehören – sonst nichts ändern
+      const t = await c.query<{ ort_id: string }>(SQL_TERMIN_DES_ORTES, [id, durch.ortSlug]);
+      const ortId = t.rows[0]?.ort_id;
+      if (!ortId) return false;
+      await c.query('DELETE FROM termin_speise WHERE termin_id = $1::uuid', [id]);
+      if (speisen.length) {
+        await c.query(SQL_SPEISEN_EINFUEGEN, [
+          id,
+          speisen.map((s) => s.name),
+          speisen.map((s) => s.preisCent),
+        ]);
+      }
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        durch.adminId ?? null,
+        ortId,
+        'mittagstisch_gesetzt',
+        { id, speisen },
+      ]);
+      return true;
+    });
   }
 
   bestaetige(id: string, durch: Berechtigung): Promise<boolean> {

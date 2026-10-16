@@ -556,6 +556,36 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         return t.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, t.error);
       },
     );
+    // Mittagstisch eines Termins (Issue #66) – ersetzt die bisherigen Gerichte
+    r.put<{
+      Params: { id: string };
+      Body: { ortSlug: string; speisen: { name: string; preis: string }[] };
+    }>(
+      '/api/v1/admin/termine/:id/speisen',
+      {
+        schema: {
+          params: ID,
+          body: objekt(['ortSlug', 'speisen'], {
+            ortSlug: TEXT(120),
+            speisen: {
+              type: 'array',
+              maxItems: 30,
+              items: objekt(['name', 'preis'], { name: TEXT(200), preis: TEXT(20) }),
+            },
+          }),
+        },
+      },
+      async (req, reply) => {
+        const s = await d.redaktion.setzeSpeisen(
+          req.params.id,
+          req.body.ortSlug,
+          req.body.speisen,
+          admin(req),
+        );
+        if (s.ok) return { speisen: s.value };
+        return s.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, s.error);
+      },
+    );
     r.put<{ Params: { id: string }; Body: AdminTerminFormular }>(
       '/api/v1/admin/termine/:id',
       { schema: { params: ID, body: terminSchema } },

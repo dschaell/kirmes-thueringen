@@ -1,4 +1,5 @@
 /** iCalendar (RFC 5545) für Kalender-Abo und Einzeltermine. */
+import { speiseZeile } from './anzeige';
 import type { TerminDto } from './api';
 
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
@@ -32,6 +33,7 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
         [
           t.band && `Musik: ${t.band}`,
           t.info,
+          t.speisen?.length ? `Mittagstisch:\n${t.speisen.map(speiseZeile).join('\n')}` : null,
           (t.bestaetigt ? '' : 'Noch nicht vom Veranstalter bestätigt. ') + 'Angaben ohne Gewähr.',
         ]
           .filter(Boolean)

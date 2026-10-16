@@ -95,6 +95,7 @@ const terminVerwaltung: TerminVerwaltung = {
   legeAlle: async (ts) =>
     ts.map((t) => ({ ...termin, titel: t.titel, datum: t.datum, band: t.band, info: t.info })),
   aendere: async (id) => (geaendert.push(`aendere:${id}`), id === termin.id),
+  setzeSpeisen: async (id) => id === termin.id,
   aendereAlle: async (aenderungen, loeschen) =>
     [...aenderungen.map((x) => x.id), ...loeschen].every((id) => id === termin.id),
   bestaetige: async (id) => id === termin.id,
@@ -334,6 +335,20 @@ describe('GET /api/v1/termine/:id', () => {
       (await app.inject('/api/v1/termine/00000000-0000-4000-8000-000000000000')).statusCode,
     ).toBe(404);
     expect((await app.inject("/api/v1/termine/1'%20OR%201=1")).statusCode).toBe(404);
+  });
+  it('liefert den Mittagstisch in der Einzelansicht (#66)', async () => {
+    class MitMittagstisch extends FakeRepo {
+      override async finde(id: string) {
+        const t = await super.finde(id);
+        return t && { ...t, speisen: [{ name: 'Rostbrätel', preisCent: 750 }] };
+      }
+    }
+    await setup(new MitMittagstisch());
+    expect((await app.inject(`/api/v1/termine/${termin.id}`)).json().speisen).toEqual([
+      { name: 'Rostbrätel', preisCent: 750 },
+    ]);
+    // Listen enthalten keinen Mittagstisch
+    expect((await app.inject('/api/v1/termine')).json().termine[0].speisen).toBeUndefined();
   });
 });
 
@@ -1268,6 +1283,28 @@ describe('Ganze Kirmes bearbeiten (Issue #65)', () => {
       (await post({ ortSlug: 'muehlberg', zeilen: [{ ...zeile, id: 'kaputt' }] })).statusCode,
     ).toBe(400);
     expect((await post({ ortSlug: 'muehlberg', zeilen: [] })).statusCode).toBe(400);
+  });
+});
+
+describe('Mittagstisch (Issue #66)', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  const put = (id: string, payload: object, headers: object = auth) =>
+    app.inject({ method: 'PUT', url: `/api/v1/admin/termine/${id}/speisen`, headers, payload });
+  it('setzt Gerichte mit Preis, prüft Eingaben und Ort', async () => {
+    await setup();
+    const speisen = [{ name: 'Rostbrätel mit Brot', preis: '7,50' }];
+    expect((await put(termin.id, { ortSlug: 'muehlberg', speisen }, {})).statusCode).toBe(401);
+    const ok = await put(termin.id, { ortSlug: 'muehlberg', speisen });
+    expect(ok.json()).toEqual({ speisen: [{ name: 'Rostbrätel mit Brot', preisCent: 750 }] });
+    expect(
+      (await put(termin.id, { ortSlug: 'muehlberg', speisen: [{ name: 'X', preis: 'viel' }] }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (await put('11111111-1111-4111-8111-111111111111', { ortSlug: 'muehlberg', speisen }))
+        .statusCode,
+    ).toBe(404);
+    expect((await put(termin.id, { ortSlug: 'muehlberg', speisen: 'x' })).statusCode).toBe(400);
   });
 });
 
