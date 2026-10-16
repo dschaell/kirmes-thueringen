@@ -1,0 +1,15 @@
+{
+  "ohneJavaScript": true,
+  "listeUndStift": true,
+  "alleFelderMitMittagstischAtomar": true,
+  "plaetzeAuswahl": true,
+  "sucheBandDatumVergangenheit": true,
+  "paginierung": [25, 6],
+  "bestaetigenMitRueckfrage": true,
+  "loeschenMitRueckfrage": true,
+  "ortsfunktionenErreichbar": true,
+  "cspOhneUnsafeInline": true,
+  "mobile375HellDunkel": true,
+  "desktop1280": true,
+  "browserFehler": []
+}

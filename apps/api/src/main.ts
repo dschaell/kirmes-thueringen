@@ -16,6 +16,7 @@ import {
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
+  RedaktionsTermine,
   RedaktionsFestplaetze,
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
@@ -148,6 +149,7 @@ const app = await baueApp({
       )
     : undefined,
   admin: {
+    terminListe: new RedaktionsTermine(termine, sitzungen, uhr),
     anmeldung: new AdminAnmeldung(sitzungen),
     passkeys,
     einrichtung,

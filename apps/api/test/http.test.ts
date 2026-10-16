@@ -19,6 +19,7 @@ import {
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
+  RedaktionsTermine,
   type TerminVerwaltung,
   type Mitteilung,
   type FestplatzRepository,
@@ -196,6 +197,7 @@ const einladungenRepo = () => {
   };
 };
 
+let terminListeAktiv: RedaktionsTermine | undefined;
 let terminVorschlaegeAktiv: Vorschlaege | undefined;
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
@@ -220,6 +222,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     meldungen: meldungenAktiv,
     terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
+      terminListe: terminListeAktiv,
       anmeldung: new AdminAnmeldung({
         lege: async () => {},
         pruefe: async (t) =>
@@ -1514,5 +1517,83 @@ describe('Assistent: öffentliche Eingabehilfen und transienter IP-Schlüssel', 
     } finally {
       terminVorschlaegeAktiv = undefined;
     }
+  });
+});
+
+describe('Sitzungspflichtige Redaktionsliste', () => {
+  const baueListe = (repo: FakeRepo, gueltig = true) =>
+    new RedaktionsTermine(
+      repo,
+      {
+        pruefe: async () => (gueltig ? { adminId: '1', name: 'Test', rolle: 'redaktion' } : null),
+        lege: async () => {},
+        beende: async () => {},
+      },
+      uhr,
+    );
+  afterEach(() => {
+    terminListeAktiv = undefined;
+  });
+  it('ohne Sitzung kein Lesen oder Validierungsdetail', async () => {
+    const repo = new FakeRepo();
+    terminListeAktiv = baueListe(repo);
+    await setup(repo);
+    expect((await app.inject('/api/v1/admin/termine?limit=ungültig')).statusCode).toBe(401);
+    expect(repo.filter).toBeNull();
+  });
+  it('Redaktion filtert Ort/Titel/Band und Datum, paginiert und erhält Termine als DTO', async () => {
+    const repo = new FakeRepo();
+    terminListeAktiv = baueListe(repo);
+    await setup(repo);
+    const r = await app.inject({
+      url: '/api/v1/admin/termine?q=Belconda&datum=2026-10-18&zeitraum=alle&limit=10&offset=20',
+      headers: { authorization: `Sitzung ${REDAKTION_SITZUNG}` },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['cache-control']).toBe('no-store');
+    expect(r.json()).toMatchObject({ gesamt: 1, termine: [{ id: termin.id }] });
+    expect(repo.filter).toMatchObject({
+      suchtext: 'Belconda',
+      limit: 10,
+      offset: 20,
+      bereich: { von: '2026-10-18', bis: '2026-10-18' },
+    });
+  });
+  it('ungültige Daten, Grenzen und fremde Eigenschaften werden abgewiesen', async () => {
+    const repo = new FakeRepo();
+    terminListeAktiv = baueListe(repo);
+    await setup(repo);
+    for (const q of [
+      'datum=2026-02-30',
+      'limit=0',
+      'limit=101',
+      'offset=-1',
+      'q=' + 'x'.repeat(101),
+      'unbekannt=1',
+      'zeitraum=unsinn',
+    ])
+      expect(
+        (
+          await app.inject({
+            url: '/api/v1/admin/termine?' + q,
+            headers: { authorization: `Sitzung ${SITZUNG}` },
+          })
+        ).statusCode,
+      ).toBe(400);
+    expect(repo.filter).toBeNull();
+  });
+  it('Sitzung wird im Use Case erneut geprüft', async () => {
+    const repo = new FakeRepo();
+    terminListeAktiv = baueListe(repo, false);
+    await setup(repo);
+    expect(
+      (
+        await app.inject({
+          url: '/api/v1/admin/termine',
+          headers: { authorization: `Sitzung ${SITZUNG}` },
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(repo.filter).toBeNull();
   });
 });

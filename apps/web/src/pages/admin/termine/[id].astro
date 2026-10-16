@@ -1,0 +1,224 @@
+---
+import AdminLayout from '../../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../../lib/admin';
+import { findeTermin } from '../../../lib/api';
+import { KATEGORIEN } from '../../../lib/anzeige';
+const id = Astro.params.id ?? '';
+const t = await findeTermin(id);
+if (!t) {
+  Astro.response.status = 404;
+}
+let fehler: string[] = [];
+let werte = {
+  datum: t?.datum ?? '',
+  beginn: t?.beginn ?? '',
+  titel: t?.titel ?? '',
+  band: t?.band ?? '',
+  veranstaltungsort: t?.veranstaltungsort ?? '',
+  info: t?.info ?? '',
+  kategorie: t?.kategorie ?? '',
+  bestaetigt: t?.bestaetigt ?? false,
+  muttizettel: t?.muttizettel ?? false,
+};
+let speisen = (t?.speisen ?? []).map((s) => ({
+  name: s.name,
+  preis: s.preisCent === null ? '' : (s.preisCent / 100).toFixed(2).replace('.', ','),
+}));
+let gerichte = Math.min(20, Math.max(3, speisen.length + 1));
+if (Astro.request.method === 'POST' && t) {
+  const f = await Astro.request.formData();
+  werte = {
+    datum: feld(f, 'datum'),
+    beginn: feld(f, 'beginn'),
+    titel: feld(f, 'titel'),
+    band: feld(f, 'band'),
+    veranstaltungsort: feld(f, 'veranstaltungsort'),
+    info: feld(f, 'info'),
+    kategorie: feld(f, 'kategorie'),
+    bestaetigt: f.has('bestaetigt'),
+    muttizettel: f.has('muttizettel'),
+  };
+  const namen = f
+    .getAll('speise')
+    .slice(0, 20)
+    .map((v) => (typeof v === 'string' ? v : ''));
+  const preise = f
+    .getAll('preis')
+    .slice(0, 20)
+    .map((v) => (typeof v === 'string' ? v : ''));
+  speisen = namen.map((name, i) => ({ name, preis: preise[i] ?? '' }));
+  if (feld(f, 'aktion') === 'gericht') gerichte = Math.min(20, namen.length + 1);
+  else {
+    const r = await adminApi(Astro.cookies, 'PUT', `termine/${encodeURIComponent(id)}`, {
+      ...werte,
+      beginn: werte.beginn || null,
+      ortSlug: t.ort.slug,
+      speisen,
+    });
+    if (r.status < 300) return Astro.redirect('/admin?gespeichert=1', 303);
+    fehler = r.fehler;
+    Astro.response.status = r.status;
+    gerichte = Math.max(gerichte, speisen.length);
+  }
+}
+const v = await adminApi<{ bands: string[]; titel: string[] }>(Astro.cookies, 'GET', 'vorschlaege');
+const plaetze = t
+  ? await adminApi<{ festplaetze: { name: string }[]; veranstaltungsorte: string[] }>(
+      Astro.cookies,
+      'GET',
+      `orte/${encodeURIComponent(t.ort.slug)}/festplaetze`,
+    )
+  : null;
+---
+
+<AdminLayout titel={t ? 'Termin bearbeiten' : 'Termin nicht gefunden'} fehler={fehler}>
+  {
+    t && (
+      <>
+        <p>
+          <strong>{t.ort.name}</strong> ·{' '}
+          <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a>
+        </p>
+        <form class="melden" method="post">
+          <CsrfFeld />
+          <div class="zwei">
+            <>
+              <label>
+                Datum
+                <input type="date" name="datum" required value={werte.datum} />
+              </label>
+              <label>
+                Uhrzeit
+                <input type="time" name="beginn" value={werte.beginn} />
+              </label>
+            </>
+          </div>
+          <label>
+            Veranstaltung
+            <input
+              name="titel"
+              required
+              maxlength="200"
+              list="titel-bearbeiten"
+              value={werte.titel}
+            />
+          </label>
+          <div class="zwei">
+            <>
+              <label>
+                Band / DJ
+                <input name="band" maxlength="120" list="bands-bearbeiten" value={werte.band} />
+              </label>
+              <label>
+                Wo genau?
+                <input
+                  name="veranstaltungsort"
+                  maxlength="120"
+                  list="plaetze-bearbeiten"
+                  value={werte.veranstaltungsort}
+                />
+              </label>
+            </>
+          </div>
+          <label>
+            Art
+            <select name="kategorie">
+              {Object.entries(KATEGORIEN).map(([k, info]) => (
+                <option value={k} selected={werte.kategorie === k}>
+                  {info.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Hinweise (öffentlich)
+            <textarea name="info" maxlength="500" rows="3" set:text={werte.info} />
+          </label>
+          <label>
+            <input type="checkbox" name="muttizettel" checked={werte.muttizettel} /> Unter 18 nur
+            mit Muttizettel
+          </label>
+          <label>
+            <input type="checkbox" name="bestaetigt" checked={werte.bestaetigt} /> Vom Veranstalter
+            bestätigt
+          </label>
+          <fieldset class="mittagstisch">
+            <>
+              <legend>Mittagstisch (freiwillig)</legend>
+              <p class="klein leise">
+                Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren.
+              </p>
+            </>
+            {Array.from({ length: gerichte }, (_, i) => (
+              <div class="zwei">
+                <label>
+                  Gericht {i + 1}
+                  <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
+                </label>
+                <label>
+                  Preis (€)
+                  <input
+                    name="preis"
+                    inputmode="decimal"
+                    maxlength="20"
+                    value={speisen[i]?.preis ?? ''}
+                  />
+                </label>
+              </div>
+            ))}
+            {gerichte < 20 && (
+              <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
+                + Weiteres Gericht
+              </button>
+            )}
+          </fieldset>
+          <div class="knopfreihe">
+            <>
+              <button class="knopf" name="aktion" value="speichern">
+                Alle Änderungen speichern
+              </button>
+              <a href="/admin">Abbrechen</a>
+            </>
+          </div>
+        </form>
+        <datalist id="bands-bearbeiten">
+          {(v.daten?.bands ?? []).map((b) => (
+            <option value={b} />
+          ))}
+        </datalist>
+        <datalist id="titel-bearbeiten">
+          {(v.daten?.titel ?? []).map((t) => (
+            <option value={t} />
+          ))}
+        </datalist>
+        <datalist id="plaetze-bearbeiten">
+          {[
+            ...new Set([
+              ...(plaetze?.daten?.festplaetze ?? []).map((p) => p.name),
+              ...(plaetze?.daten?.veranstaltungsorte ?? []),
+            ]),
+          ].map((p) => (
+            <option value={p} />
+          ))}
+        </datalist>
+      </>
+    )
+  }
+</AdminLayout>
+<style>
+  .mittagstisch {
+    min-width: 0;
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+  }
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+</style>

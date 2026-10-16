@@ -40,7 +40,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
 );
 ---
 
-<AdminLayout titel="Orte" meldung={meldung} fehler={fehler}>
+<AdminLayout titel="Orte & Plätze" meldung={meldung} fehler={fehler}>
   {
     neuerSlug && (
       <p class="kasten">
@@ -77,7 +77,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
               <td class="klein">{o.anzahlKommend} Termine</td>
               <td>
                 <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
-                  Termine
+                  Termine & Plätze
                 </a>
               </td>
             </tr>

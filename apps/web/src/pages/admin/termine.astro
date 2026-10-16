@@ -8,6 +8,11 @@ if (Astro.url.searchParams.get('modus') === 'wochenende')
     `/admin/kirmes-eintragen?ort=${encodeURIComponent(Astro.url.searchParams.get('ort') ?? '')}`,
     303,
   );
+if (Astro.request.method === 'GET' && Astro.url.searchParams.get('bearbeiten'))
+  return Astro.redirect(
+    `/admin/termine/${encodeURIComponent(Astro.url.searchParams.get('bearbeiten') ?? '')}`,
+    303,
+  );
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';
@@ -44,6 +49,8 @@ if (Astro.request.method === 'POST' && ort) {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
   const id = feld(f, 'id');
+  if (aktion === 'loeschen' || aktion === 'bestaetigen')
+    return Astro.redirect(`/admin/termine/${encodeURIComponent(id)}/aktion?aktion=${aktion}`, 303);
   const formular = {
     ortSlug: ort.slug,
     datum: feld(f, 'datum'),
@@ -925,10 +932,7 @@ const titelVorschlaege = [
                   </td>
                   <td>
                     <div class="klein-knoepfe">
-                      <a
-                        class="knopf zweit"
-                        href={`/admin/termine?ort=${ort.slug}&bearbeiten=${t.id}`}
-                      >
+                      <a class="knopf zweit" href={`/admin/termine/${t.id}`}>
                         Ändern
                       </a>
                       <form method="post">
