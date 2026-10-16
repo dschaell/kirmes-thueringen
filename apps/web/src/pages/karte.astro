@@ -78,7 +78,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   }
   const el = document.getElementById('karte');
   const punkte = JSON.parse(el?.dataset.punkte ?? '[]') as Punkt[];
-  if (el && punkte.length > 0) {
+  // Karte immer zeigen – auch ohne Termine sieht man Thüringen (Issue #53)
+  if (el) {
     el.hidden = false;
     const karte = L.map(el, { scrollWheelZoom: false }).setView([50.9, 11.0], 8);
     const kacheln = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -118,6 +119,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       grenzen.push([p.lat, p.lon]);
     }
     if (grenzen.length > 1) karte.fitBounds(grenzen, { padding: [30, 30], maxZoom: 12 });
-    else karte.setView(grenzen[0]!, 12);
+    else if (grenzen.length === 1) karte.setView(grenzen[0]!, 12);
   }
 </script>
