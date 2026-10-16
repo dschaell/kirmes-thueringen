@@ -1,0 +1,19 @@
+{
+  "ohneJavaScript": true,
+  "mobile": "375 px hell/dunkel",
+  "vorschlag": "895dced6-a221-46c2-b5e1-04c030acaf65",
+  "uebernommeneTermine": 6,
+  "echtePasskeySignatur": true,
+  "mailpit": true,
+  "ablehnenBleibtUnsichtbar": true,
+  "csrf403": true,
+  "festplatzLinkErhalten": true,
+  "kontaktEntfernt": true,
+  "speisen": [
+    {
+      "name": "Klöße",
+      "preis_cent": 950
+    }
+  ],
+  "browserFehler": []
+}

@@ -74,6 +74,7 @@ export interface TerminEingabe {
 
 /** Validierte Eingabe, bereit zum Speichern. */
 export interface NeuerTermin {
+  readonly speisen?: readonly Speise[];
   readonly ortSlug: string;
   readonly landkreis: LandkreisKuerzel;
   readonly datum: KalenderDatum;

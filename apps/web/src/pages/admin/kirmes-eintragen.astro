@@ -1,0 +1,32 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import KirmesAssistent from '../../components/KirmesAssistent.astro';
+import { assistent } from '../../lib/assistent';
+import { adminApi } from '../../lib/admin';
+import { listeOrte } from '../../lib/api';
+const stand = await assistent(Astro, true);
+if (stand instanceof Response) return stand;
+const [orte, v, p] = await Promise.all([
+  listeOrte(),
+  adminApi<{ bands: string[]; titel: string[] }>(Astro.cookies, 'GET', 'vorschlaege'),
+  stand.ortSlug
+    ? adminApi<{ festplaetze: { name: string }[] }>(
+        Astro.cookies,
+        'GET',
+        `orte/${encodeURIComponent(stand.ortSlug)}/festplaetze`,
+      )
+    : null,
+]);
+---
+
+<AdminLayout titel={stand.vorschlag ? 'Vorschlag prüfen' : 'Kirmes eintragen'}>
+  <KirmesAssistent
+    stand={stand}
+    redaktion
+    csrf={Astro.locals.csrf ?? ''}
+    orte={orte}
+    bands={v.daten?.bands}
+    titel={v.daten?.titel}
+    plaetze={p?.daten?.festplaetze?.map((p) => p.name)}
+  />
+</AdminLayout>

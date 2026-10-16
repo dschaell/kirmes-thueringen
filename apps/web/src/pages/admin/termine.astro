@@ -3,6 +3,11 @@
  * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
  * gezeigt und können angelegt, geändert, bestätigt und gelöscht werden. ?bearbeiten=<id> füllt das Formular.
  */
+if (Astro.url.searchParams.get('modus') === 'wochenende')
+  return Astro.redirect(
+    `/admin/kirmes-eintragen?ort=${encodeURIComponent(Astro.url.searchParams.get('ort') ?? '')}`,
+    303,
+  );
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';

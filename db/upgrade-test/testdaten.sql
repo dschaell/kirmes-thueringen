@@ -40,3 +40,16 @@ INSERT INTO veranstalter (name) VALUES ('KG Elleben');
 
 INSERT INTO aenderungsprotokoll (aktion, details, admin_id)
 SELECT 'termin_angelegt', '{"titel":"Kirmestanz"}'::jsonb, id FROM admin WHERE name = 'Ryan';
+
+-- Neue Vorschlagstabellen ab 013: bei älteren Basisständen noch nicht vorhanden.
+DO $$
+BEGIN
+  IF to_regclass('public.vorschlag') IS NOT NULL THEN
+    INSERT INTO vorschlag(id, ort_id, kontakt_name, kontakt_email, nachricht)
+    SELECT 'ef000000-0000-4000-8000-000000000001', id, 'KG Test', 'test@example.org', 'Bitte prüfen'
+      FROM ort WHERE slug = 'ut-elleben';
+    INSERT INTO vorschlag_termin(vorschlag_id, position, datum, titel, kategorie, speisen)
+    VALUES ('ef000000-0000-4000-8000-000000000001', 1, '2027-09-26', 'Frühschoppen', 'tradition',
+      '[{"name":"Klöße", "preisCent":950}]');
+  END IF;
+END $$;

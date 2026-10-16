@@ -1,3 +1,5 @@
+import { Vorschlaege } from '@kirmes/core';
+import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
 import {
   FindeOrt,
@@ -109,7 +111,27 @@ const einrichtung =
         k.websiteUrl,
       )
     : undefined;
+const vorschlagsRepo = new PgVorschlaege(pool);
+await vorschlagsRepo.raeumeAuf();
+const aufraeumen = setInterval(() => {
+  void vorschlagsRepo
+    .raeumeAuf()
+    .catch(() => app.log.error('Vorschläge konnten nicht aufgeräumt werden'));
+}, 24 * 3600_000);
+aufraeumen.unref();
 const app = await baueApp({
+  terminVorschlaege:
+    postausgang && k.websiteUrl
+      ? new Vorschlaege(
+          vorschlagsRepo,
+          orte,
+          sitzungen,
+          postausgang,
+          new SpeicherDrosselung(5, 3_600_000),
+          new SpeicherDrosselung(100, 3_600_000),
+          k.websiteUrl,
+        )
+      : undefined,
   sucheTermine: new SucheTermine(termine, uhr),
   findeTermin: new FindeTermin(termine),
   listeOrte: new ListeOrte(orte, uhr),
@@ -162,6 +184,7 @@ pool.on('error', (e) => app.log.error({ err: e }, 'Fehler im DB-Pool'));
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info({ signal }, 'Fahre herunter');
+    clearInterval(aufraeumen);
     await app.close();
     await pool.end();
     process.exit(0);

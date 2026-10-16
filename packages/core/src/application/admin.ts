@@ -271,7 +271,9 @@ export class Redaktion {
   }
 
   private validiere(f: AdminTerminFormular, b: Berechtigung) {
-    return validiereTermin({
+    const speisen = validiereSpeisen(f.speisen ?? []);
+    if (!speisen.ok) return speisen;
+    const v = validiereTermin({
       ortSlug: b.ortSlug,
       landkreis: b.landkreis,
       datum: f.datum,
@@ -284,5 +286,11 @@ export class Redaktion {
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,
     });
+    return v.ok
+      ? ok({
+          ...v.value,
+          termin: { ...v.value.termin, ...(f.speisen ? { speisen: speisen.value } : {}) },
+        })
+      : v;
   }
 }

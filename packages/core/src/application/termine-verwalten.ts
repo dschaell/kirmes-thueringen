@@ -30,6 +30,7 @@ export interface TerminVerwaltung {
 
 /** Was eine Kirmesgesellschaft eingibt – Ort und Landkreis ergeben sich aus ihrem Link. */
 export interface TerminFormular {
+  speisen?: { name: string; preis: string }[];
   datum: string;
   beginn?: string | null;
   titel: string;

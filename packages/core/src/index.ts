@@ -19,3 +19,4 @@ export * from './application/passkeys.js';
 export * from './application/meldungen.js';
 export * from './application/einrichtung.js';
 export * from './application/mitglieder.js';
+export * from './application/vorschlaege.js';
