@@ -76,9 +76,9 @@ export const datumLangJahr = (iso: string) => fmtLangJahr.format(new Date(iso));
 export const tagMonat = (iso: string) => fmtTag.format(new Date(iso));
 export const wochentag = (iso: string) => fmtWochentag.format(new Date(iso));
 
-/** Heute in Thüringer Ortszeit (YYYY-MM-DD). */
-export const heute = () =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date());
+/** Heute in Thüringer Ortszeit (YYYY-MM-DD) – auch im Browser und auf Servern mit UTC. */
+export const heute = (jetzt: Date = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(jetzt);
 
 export const plusTage = (iso: string, tage: number) =>
   new Date(Date.parse(iso) + tage * 86_400_000).toISOString().slice(0, 10);
