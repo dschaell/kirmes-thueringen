@@ -12,6 +12,22 @@ Lokal gelten dieselben Befehle ohne die Prod-Datei. Umzug auf einen neuen Server
 - **Pipeline:** Jeder Pull Request durchläuft Secrets-, Lint-, Test-, SAST-, SCA- und DAST-Prüfung.
 - **Dependabot** schlägt Updates vor; erst mergen, wenn die Pipeline grün ist.
 
+## Updates ohne Datenverlust (Issue #59)
+
+Ein Update darf Zugänge (Konten, Passkeys, Rollen, Sitzungen) und Daten der Nutzer nie ändern oder
+löschen. Dreifach abgesichert:
+
+1. **Migrations-Sperre** (`npm run lint`, CI): neue Migrationen (> 010) mit `DROP`, `DELETE`,
+   `TRUNCATE`, `UPDATE`, `RENAME`, Typänderung oder `SET NOT NULL` schlagen fehl. Ausnahme nur nach
+   Rücksprache mit Kommentar `-- datenaenderung-freigegeben: #<issue>`.
+2. **Upgrade-Test** (CI, jeder PR): Basis-Stand migrieren, Testdaten aus
+   `db/upgrade-test/testdaten.sql` laden, auf den PR-Stand migrieren, jede Zeile vergleichen.
+   Lokal: `DATABASE_URL=… node scripts/upgrade-test.mjs main`. Neue Tabellen mit Nutzerdaten dort
+   ergänzen.
+3. **Sicherung vor jedem Update** (Server): Dienst `sicherung-vor-update` schreibt vor den Migrationen
+   `/root/kirmes-backups/vor-update-<Zeitpunkt>.dump` (30 Tage). Scheitert sie, startet das Update
+   nicht. Zurückspielen wie unten beschrieben.
+
 ## Backup und Wiederherstellung
 
 | Aufgabe                           | Befehl                                                                                                                                                        |
