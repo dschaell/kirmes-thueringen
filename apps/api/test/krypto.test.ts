@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hashePasswort,
   NodeKryptografie,
+  base32Kodieren,
   neuesTotpGeheimnis,
   otpauthUrl,
   SpeicherAnmeldeversuche,
@@ -10,6 +11,22 @@ import {
 
 // RFC 6238, Anhang B: Geheimnis „12345678901234567890“ (ASCII) in Base32
 const RFC_GEHEIMNIS = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+
+describe('TOTP-Geheimnis (#51)', () => {
+  it('hat 32 Base32-Zeichen = genau 20 Byte, wie Authenticator-Apps es erwarten', () => {
+    for (let i = 0; i < 50; i++) {
+      const g = neuesTotpGeheimnis();
+      expect(g).toMatch(/^[A-Z2-7]{32}$/);
+    }
+    expect(neuesTotpGeheimnis()).not.toBe(neuesTotpGeheimnis());
+  });
+  it('kodiert nach RFC 4648 (Testvektoren)', () => {
+    expect(base32Kodieren(Buffer.from('12345678901234567890'))).toBe(RFC_GEHEIMNIS);
+    expect(base32Kodieren(Buffer.from('f'))).toBe('MY');
+    expect(base32Kodieren(Buffer.from('foobar'))).toBe('MZXW6YTBOI');
+    expect(base32Kodieren(Buffer.alloc(0))).toBe('');
+  });
+});
 
 describe('TOTP (RFC 6238)', () => {
   it.each([
@@ -34,7 +51,7 @@ describe('TOTP (RFC 6238)', () => {
 
   it('erzeugt Base32-Geheimnisse und otpauth-Links', () => {
     const g = neuesTotpGeheimnis();
-    expect(g).toMatch(/^[A-Z2-7]{20}$/);
+    expect(g).toMatch(/^[A-Z2-7]{32}$/);
     expect(otpauthUrl('a@b.de', g)).toContain(`secret=${g}`);
   });
 });
