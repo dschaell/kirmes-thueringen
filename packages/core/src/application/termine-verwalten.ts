@@ -12,6 +12,15 @@ export interface TerminVerwaltung {
   legeAlle(t: NeuerTermin[], durch: Berechtigung): Promise<Termin[]>;
   /** false, wenn der Termin nicht existiert oder zu einem anderen Ort gehört */
   aendere(id: string, t: NeuerTermin, durch: Berechtigung): Promise<boolean>;
+  /**
+   * Mehrere Termine ändern und/oder löschen in EINER Transaktion. false (und nichts geändert),
+   * wenn ein Termin nicht existiert oder zu einem anderen Ort gehört.
+   */
+  aendereAlle(
+    aenderungen: { id: string; termin: NeuerTermin }[],
+    loeschen: string[],
+    durch: Berechtigung,
+  ): Promise<boolean>;
   bestaetige(id: string, durch: Berechtigung): Promise<boolean>;
   loesche(id: string, durch: Berechtigung): Promise<boolean>;
 }

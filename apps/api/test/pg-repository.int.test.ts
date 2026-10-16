@@ -290,6 +290,60 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     ]);
   });
 
+  it('Ganze Kirmes bearbeiten: ändern und löschen in einer Transaktion (#65)', async () => {
+    const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
+    const t = (datum: string, titel: string) => ({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d(datum),
+      beginn: '20:00',
+      titel,
+      veranstaltungsort: null,
+      kategorie: 'party' as const,
+      bestaetigt: false,
+      band: null,
+      info: null,
+      muttizettel: false,
+    });
+    const v = new PgTerminVerwaltung(pool);
+    const [a, b] = await v.legeAlle(
+      [t('2026-10-23', 'ZZSAM A'), t('2026-10-24', 'ZZSAM B')],
+      durch,
+    );
+    const titel = async () =>
+      (await repo.suche({ ...basis, suchtext: 'ZZSAM', ortSlug: 'it-ulla' })).eintraege
+        .map((x) => x.titel)
+        .sort();
+
+    // ein fremder Termin in der Liste → nichts geändert, nichts gelöscht
+    expect(
+      await v.aendereAlle(
+        [{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }],
+        ['99999999-9999-4999-8999-999999999999', b!.id],
+        durch,
+      ),
+    ).toBe(false);
+    expect(await titel()).toEqual(['ZZSAM A', 'ZZSAM B']);
+    // Termin eines anderen Ortes zählt als fremd
+    expect(
+      await v.aendereAlle([{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }], [], {
+        ...durch,
+        ortSlug: 'it-anderer-ort',
+      }),
+    ).toBe(false);
+
+    expect(
+      await v.aendereAlle([{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }], [b!.id], durch),
+    ).toBe(true);
+    expect(await titel()).toEqual(['ZZSAM A neu']);
+    // Datenbankfehler (keine UUID) werden nicht verschluckt – und rollen zurück
+    await expect(
+      v.aendereAlle([{ id: 'keine-uuid', termin: t('2026-10-23', 'X') }], [], durch),
+    ).rejects.toThrow();
+    expect(await titel()).toEqual(['ZZSAM A neu']);
+    await v.loesche(a!.id, durch);
+  });
+
   it('Kirmeswochenende: alle Abende mit Band und Hinweisen – oder gar keiner', async () => {
     const durch = {
       linkId: null,

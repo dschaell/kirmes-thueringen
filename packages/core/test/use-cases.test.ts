@@ -58,7 +58,8 @@ describe('baueFilter', () => {
         von: '2026-10-01',
         bis: '2026-10-31',
         landkreise: ['gth', 'IK'],
-        kategorien: ['familie'],
+        // frühere Bezeichnung „kinder“ und doppelte Angabe → einmal „familie“
+        kategorien: ['familie', 'kinder'],
         q: '  Mühlberg ',
         nurBestaetigt: true,
         limit: 10,

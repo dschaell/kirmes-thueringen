@@ -983,3 +983,13 @@ input[aria-invalid='true'] {
   height: 320px;
   border: 0;
 }
+
+/* Alle Termine bearbeiten (Issue #65) */
+.haekchen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.haekchen .loeschen {
+  color: var(--rot);
+}

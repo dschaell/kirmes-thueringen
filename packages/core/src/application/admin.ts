@@ -12,7 +12,13 @@ import {
   type NeuerOrt,
   type OrtEingabe,
 } from '../domain/redaktion.js';
-import { validiereTermin, type Hinweis, type Ort, type Termin } from '../domain/termin.js';
+import {
+  validiereTermin,
+  type Hinweis,
+  type NeuerTermin,
+  type Ort,
+  type Termin,
+} from '../domain/termin.js';
 import type { Berechtigung } from './festplaetze.js';
 import { erkenneKategorie } from './recherche.js';
 import { validiereAlle, type TerminFormular, type TerminVerwaltung } from './termine-verwalten.js';
@@ -166,6 +172,32 @@ export class Redaktion {
       termine: await this.termine.legeAlle(v.value.termine, b),
       hinweise: v.value.hinweise,
     });
+  }
+
+  /**
+   * Ganze Kirmes eines Ortes auf einmal bearbeiten (Issue #65): jede Zeile mit ID, ändern oder
+   * löschen. Alles wird geprüft und in einer Transaktion gespeichert – oder gar nichts.
+   */
+  async bearbeiteKirmes(
+    ortSlug: string,
+    zeilen: (Omit<AdminTerminFormular, 'ortSlug'> & { id: string; loeschen?: boolean })[],
+    adminId: string,
+  ): Promise<Result<{ hinweise: Hinweis[] }, Validierungsfehler[] | 'NICHT_GEFUNDEN'>> {
+    const b = await this.berechtigungFuer(ortSlug, adminId);
+    if (!b) return err('NICHT_GEFUNDEN');
+    const bleiben = zeilen.filter((z) => !z.loeschen);
+    // Nur löschen ist erlaubt – dann gibt es nichts zu prüfen
+    const v = bleiben.length
+      ? validiereAlle(bleiben, (z) => this.validiere({ ...z, ortSlug }, b))
+      : ok({ termine: [], hinweise: [] });
+    if (!v.ok) return v;
+    const gespeichert = await this.termine.aendereAlle(
+      // validiereAlle liefert die Termine in derselben Reihenfolge wie die Zeilen
+      bleiben.map((z, i) => ({ id: z.id, termin: v.value.termine[i] as NeuerTermin })),
+      zeilen.filter((z) => z.loeschen).map((z) => z.id),
+      b,
+    );
+    return gespeichert ? ok({ hinweise: v.value.hinweise }) : err('NICHT_GEFUNDEN');
   }
 
   async aendereTermin(

@@ -525,6 +525,37 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           : ungueltig(reply, t.error);
       },
     );
+    // Ganze Kirmes eines Ortes auf einmal bearbeiten (Issue #65) – alles oder nichts
+    const sammelZeile = {
+      ...zeileSchema,
+      required: ['id', 'datum', 'titel'],
+      properties: {
+        ...zeileSchema.properties,
+        id: { type: 'string', pattern: '^[0-9a-fA-F-]{36}$' },
+        loeschen: { type: 'boolean' },
+      },
+    };
+    r.post<{
+      Body: {
+        ortSlug: string;
+        zeilen: (Omit<AdminTerminFormular, 'ortSlug'> & { id: string; loeschen?: boolean })[];
+      };
+    }>(
+      '/api/v1/admin/termine/sammel',
+      {
+        schema: {
+          body: objekt(['ortSlug', 'zeilen'], {
+            ortSlug: TEXT(120),
+            zeilen: { type: 'array', minItems: 1, maxItems: 80, items: sammelZeile },
+          }),
+        },
+      },
+      async (req, reply) => {
+        const t = await d.redaktion.bearbeiteKirmes(req.body.ortSlug, req.body.zeilen, admin(req));
+        if (t.ok) return t.value;
+        return t.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, t.error);
+      },
+    );
     r.put<{ Params: { id: string }; Body: AdminTerminFormular }>(
       '/api/v1/admin/termine/:id',
       { schema: { params: ID, body: terminSchema } },
