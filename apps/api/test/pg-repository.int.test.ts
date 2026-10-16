@@ -290,6 +290,55 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     ]);
   });
 
+  it('Bearbeiten: Termin und Mittagstisch in einer Transaktion, inklusive Rollback', async () => {
+    const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
+    const v = new PgTerminVerwaltung(pool);
+    const eingabe: NeuerTermin = {
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d('2027-09-19'),
+      beginn: '10:00',
+      titel: 'ZZStift Frühschoppen',
+      kategorie: 'tradition',
+      bestaetigt: false,
+      band: null,
+      info: null,
+      muttizettel: false,
+      veranstaltungsort: null,
+    };
+    const t = await v.lege(eingabe, durch);
+    expect(
+      await v.aendere(
+        t.id,
+        { ...eingabe, titel: 'ZZStift geändert', speisen: [{ name: 'Klöße', preisCent: 950 }] },
+        durch,
+      ),
+    ).toBe(true);
+    expect(await repo.finde(t.id)).toMatchObject({
+      titel: 'ZZStift geändert',
+      speisen: [{ name: 'Klöße', preisCent: 950 }],
+    });
+    await expect(
+      v.aendere(
+        t.id,
+        { ...eingabe, titel: 'ZZStift ungültig', speisen: [{ name: 'Klöße', preisCent: -1 }] },
+        durch,
+      ),
+    ).rejects.toThrow();
+    expect(await repo.finde(t.id)).toMatchObject({
+      titel: 'ZZStift geändert',
+      speisen: [{ name: 'Klöße', preisCent: 950 }],
+    });
+    expect(await v.aendere(t.id, { ...eingabe, speisen: [] }, { ...durch, ortSlug: 'fremd' })).toBe(
+      false,
+    );
+    expect((await repo.finde(t.id))?.speisen).toHaveLength(1);
+    expect(await v.aendere(t.id, { ...eingabe, speisen: [] }, durch)).toBe(true);
+    expect((await repo.finde(t.id))?.speisen).toEqual([]);
+    expect(await v.aendere(t.id, eingabe, durch)).toBe(true);
+    await v.loesche(t.id, durch);
+  });
+
   it('Mittagstisch: ersetzen, in Reihenfolge laden, nur im eigenen Ort (#66)', async () => {
     const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
     const v = new PgTerminVerwaltung(pool);

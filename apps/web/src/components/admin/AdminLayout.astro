@@ -14,12 +14,12 @@ const vorschlaege = Astro.locals.adminId
   ? await adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl')
   : null;
 const nav = [
-  ['/admin', 'Übersicht'],
-  ['/admin/termine', 'Termine'],
-  ['/admin/kirmes-eintragen', 'Kirmes eintragen'],
+  ['/admin', 'Termine'],
   ['/admin/vorschlaege', `Vorschläge (${vorschlaege?.daten?.anzahl ?? '–'})`],
+  ['/admin/orte', 'Orte & Plätze'],
+];
+const mehr = [
   ['/admin/mitteilungen', 'Mitteilungen'],
-  ['/admin/orte', 'Orte'],
   ['/admin/links', 'Bearbeitungslinks'],
   ['/admin/passkeys', 'Passkeys'],
   ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Mitglieder']] : []),
@@ -40,10 +40,20 @@ const nav = [
           </a>
         ))
       }
-      <form method="post" action="/admin/abmelden">
-        <CsrfFeld />
-        <button class="knopf zweit" type="submit">Abmelden</button>
-      </form>
+      <details class="mehr-nav">
+        <summary>Mehr</summary><div>
+          {
+            mehr.map(([href, label]) => (
+              <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+                {label}
+              </a>
+            ))
+          }
+          <form method="post" action="/admin/abmelden">
+            <CsrfFeld /><button class="knopf zweit" type="submit">Abmelden</button>
+          </form>
+        </div>
+      </details>
     </nav>
   </section>
   {
@@ -64,6 +74,22 @@ const nav = [
 </Base>
 
 <style is:global>
+  .mehr-nav {
+    margin-left: auto;
+  }
+  .mehr-nav summary {
+    cursor: pointer;
+    padding: 10px;
+    min-height: 44px;
+    font-weight: 600;
+  }
+  .mehr-nav > div {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    align-items: center;
+  }
   .admin-kopf h1 {
     margin-bottom: 0.3em;
   }

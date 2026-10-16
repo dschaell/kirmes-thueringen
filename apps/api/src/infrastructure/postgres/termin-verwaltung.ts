@@ -74,27 +74,40 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
   }
 
   aendere(id: string, t: NeuerTermin, durch: Berechtigung): Promise<boolean> {
-    return this.mitProtokoll(
-      SQL_AENDERN,
-      [
-        id,
-        durch.ortSlug,
-        t.datum,
-        t.beginn,
-        t.titel,
-        t.veranstaltungsort,
-        t.kategorie,
-        durch.linkId,
-        t.bestaetigt,
-        durch.adminId ?? null,
-        t.band,
-        t.info,
-        t.muttizettel ?? false,
-      ],
-      durch,
-      'termin_geaendert',
-      { id, ...t },
-    );
+    return this.inTransaktion(async (c) => {
+      const geaendert = await this.protokolliertIn(
+        c,
+        SQL_AENDERN,
+        [
+          id,
+          durch.ortSlug,
+          t.datum,
+          t.beginn,
+          t.titel,
+          t.veranstaltungsort,
+          t.kategorie,
+          durch.linkId,
+          t.bestaetigt,
+          durch.adminId ?? null,
+          t.band,
+          t.info,
+          t.muttizettel ?? false,
+        ],
+        durch,
+        'termin_geaendert',
+        { id, ...t },
+      );
+      if (geaendert && t.speisen !== undefined) {
+        await c.query('DELETE FROM termin_speise WHERE termin_id = $1::uuid', [id]);
+        if (t.speisen.length)
+          await c.query(SQL_SPEISEN_EINFUEGEN, [
+            id,
+            t.speisen.map((s) => s.name),
+            t.speisen.map((s) => s.preisCent),
+          ]);
+      }
+      return geaendert;
+    });
   }
 
   async aendereAlle(

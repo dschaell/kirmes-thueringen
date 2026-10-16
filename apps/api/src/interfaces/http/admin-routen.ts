@@ -14,6 +14,8 @@ import type {
   OrtEingabe,
   Passkeys,
   Redaktion,
+  RedaktionsTermine,
+  RedaktionsFilter,
   RedaktionsFestplaetze,
   Rolle,
   Sitzung,
@@ -25,6 +27,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 export interface AdminAbhaengigkeiten {
   anmeldung: AdminAnmeldung;
   redaktion: Redaktion;
+  terminListe?: RedaktionsTermine;
   terminDto: (t: Termin) => unknown;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
   passkeys?: Passkeys;
@@ -494,6 +497,35 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         return o.ok ? reply.status(201).send(o.value) : ungueltig(reply, o.error);
       },
     );
+
+    if (d.terminListe) {
+      const liste = d.terminListe;
+      r.get<{ Querystring: RedaktionsFilter }>(
+        '/api/v1/admin/termine',
+        {
+          schema: {
+            querystring: objekt([], {
+              q: TEXT(100),
+              datum: TEXT(10),
+              zeitraum: { type: 'string', enum: ['kommend', 'vergangen', 'alle'] },
+              limit: { type: 'integer', minimum: 1, maximum: 100 },
+              offset: { type: 'integer', minimum: 0, maximum: 1_000_000 },
+            }),
+          },
+        },
+        async (req, reply) => {
+          const ergebnis = await liste.liste(sitzungsToken(req.headers.authorization), req.query);
+          if (ergebnis.ok)
+            return {
+              gesamt: ergebnis.value.gesamt,
+              termine: ergebnis.value.eintraege.map(d.terminDto),
+            };
+          return ergebnis.error === 'VERBOTEN'
+            ? reply.status(403).send(problem(403, 'Bitte anmelden.'))
+            : ungueltig(reply, ergebnis.error);
+        },
+      );
+    }
 
     // Termine (jeder Ort)
     r.post<{ Body: AdminTerminFormular }>(

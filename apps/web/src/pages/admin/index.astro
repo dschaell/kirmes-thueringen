@@ -1,49 +1,213 @@
 ---
 import AdminLayout from '../../components/admin/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
 import { adminApi } from '../../lib/admin';
-import { listeOrte, sucheTermine } from '../../lib/api';
-import { heute } from '../../lib/anzeige';
-
-const [termine, orte, links, mitteilungen] = await Promise.all([
-  sucheTermine({ von: heute(), limit: 1 }),
-  listeOrte(),
-  adminApi<{ gesperrtAm: string | null }[]>(Astro.cookies, 'GET', 'links'),
-  adminApi<{ veroeffentlichtAm: string | null; titel: string }[]>(
-    Astro.cookies,
-    'GET',
-    'mitteilungen',
-  ),
+import type { TerminSeite } from '../../lib/api';
+import { datumLangJahr } from '../../lib/anzeige';
+const p = Astro.url.searchParams;
+const q = (p.get('q') ?? '').slice(0, 100);
+const datum = p.get('datum') ?? '';
+const zeitraum = p.get('zeitraum') ?? 'kommend';
+const offsetText = p.get('offset') ?? '0';
+const offset = /^\d{1,7}$/.test(offsetText) ? Number(offsetText) : 0;
+const parameter = new URLSearchParams({ q, datum, zeitraum, limit: '25', offset: String(offset) });
+const [seite, v] = await Promise.all([
+  adminApi<TerminSeite>(Astro.cookies, 'GET', `termine?${parameter}`),
+  adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
 ]);
-const aktiveLinks = (links.daten ?? []).filter((l) => !l.gesperrtAm).length;
-const aktuell = (mitteilungen.daten ?? []).find((m) => m.veroeffentlichtAm);
+if (seite.status >= 400) Astro.response.status = seite.status;
+const daten = seite.daten ?? { termine: [], gesamt: 0 };
+const seitenLink = (neu: number) => {
+  const x = new URLSearchParams(parameter);
+  x.set('offset', String(neu));
+  return `/admin?${x}#terminliste`;
+};
+const meldung = p.has('gespeichert')
+  ? 'Termin gespeichert.'
+  : p.has('bestaetigt')
+    ? 'Termin bestätigt.'
+    : p.has('geloescht')
+      ? 'Termin gelöscht.'
+      : null;
 ---
 
-<AdminLayout titel="Übersicht">
-  <div class="kreisraster">
-    <a href="/admin/termine"><strong>Kommende Termine</strong><span>{termine.gesamt}</span></a>
-    <a href="/orte"
-      ><strong>Orte mit Terminen</strong><span
-        >{orte.filter((o) => o.anzahlKommend > 0).length}</span
-      ></a
+<AdminLayout titel="Termine" fehler={seite.fehler} meldung={meldung}>
+  <div class="hauptaktionen">
+    <a class="knopf" href="/admin/kirmes-eintragen"><Icon name="kalender" />Kirmes eintragen</a>
+    <a class="knopf zweit" href="/admin/vorschlaege">Vorschläge prüfen ({v.daten?.anzahl ?? '–'})</a
     >
-    <a href="/admin/links"><strong>Aktive Bearbeitungslinks</strong><span>{aktiveLinks}</span></a>
-    <a href="/admin/mitteilungen"
-      ><strong>Aktuelle Mitteilung</strong><span>{aktuell ? aktuell.titel : 'keine'}</span></a
-    >
+    <a class="knopf zweit" href="#terminsuche"><Icon name="suche" />Termin suchen</a>
   </div>
-
-  <h2>Was möchtest du tun?</h2>
-  <ul class="lesetext">
-    <li>
-      <a href="/admin/termine">Termin eintragen</a> – auch per Text aus Instagram oder Facebook (Recherche-Assistent).
-    </li>
-    <li>
-      <a href="/admin/mitteilungen">Mitteilung schreiben</a> – erscheint einmal als Hinweis für alle Besucher.
-    </li>
-    <li>
-      <a href="/admin/links">Link für eine Kirmesgesellschaft erstellen</a> – damit sie Termine und Festplatz
-      selbst pflegt.
-    </li>
-    <li><a href="/admin/orte">Ort anlegen</a>, falls einer im Ortsverzeichnis fehlt.</li>
-  </ul>
+  <section aria-labelledby="terminliste" class="terminliste">
+    <h2 id="terminliste">Alle angelegten Termine</h2>
+    <form class="melden listensuche" id="terminsuche" method="get" action="/admin#terminliste">
+      <label
+        >Ort, Veranstaltung oder Band<input
+          name="q"
+          type="search"
+          maxlength="100"
+          value={q}
+          placeholder="z. B. Alkersleben oder Kirmestanz"
+        /></label
+      >
+      <div class="zwei">
+        <label
+          >Zeitraum<select name="zeitraum"
+            >{
+              [
+                ['kommend', 'Kommende Termine'],
+                ['vergangen', 'Vergangene Termine'],
+                ['alle', 'Alle Termine'],
+              ].map(([wert, text]) => (
+                <option value={wert} selected={zeitraum === wert}>
+                  {text}
+                </option>
+              ))
+            }</select
+          ></label
+        >
+        <label
+          >Genaues Datum (freiwillig)<input type="date" name="datum" value={datum} /><span
+            class="klein leise">Ein Datum durchsucht den gesamten Bestand.</span
+          ></label
+        >
+      </div>
+      <div class="knopfreihe">
+        <button class="knopf zweit">Suchen</button><a href="/admin">Suche zurücksetzen</a>
+      </div>
+    </form>
+    <p class="klein leise">
+      {daten.gesamt} Termine{
+        daten.termine.length > 0 && ` · ${offset + 1}–${offset + daten.termine.length}`
+      }
+    </p>
+    {
+      daten.termine.length === 0 && !seite.fehler.length && (
+        <p class="leer">
+          Hier wurden keine Termine gefunden.{' '}
+          <a href="/admin?zeitraum=alle">Alle Termine anzeigen</a>.
+        </p>
+      )
+    }
+    <ul class="terminkarten">
+      {
+        daten.termine.map((t) => (
+          <li>
+            <div>
+              <>
+                <p class="klein leise">
+                  {datumLangJahr(t.datum)}
+                  {t.beginn && ` · ${t.beginn} Uhr`}
+                </p>
+                <h3>{t.titel}</h3>
+                <p>
+                  {t.ort.name}
+                  {t.band && ` · ${t.band}`}
+                </p>
+                <p class="klein leise">
+                  {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
+                </p>
+              </>
+            </div>
+            <div class="terminaktionen">
+              <a
+                class="knopf zweit"
+                href={`/admin/termine/${t.id}`}
+                aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
+              >
+                <Icon name="stift" />
+                Bearbeiten
+              </a>
+              {!t.bestaetigt && (
+                <a class="klein" href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen`}>
+                  Bestätigen
+                </a>
+              )}
+              <a class="klein" href={`/admin/termine/${t.id}/aktion?aktion=loeschen`}>
+                Löschen
+              </a>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+    <nav class="seiten" aria-label="Ergebnisseiten">
+      {
+        offset > 0 && (
+          <a class="knopf zweit" href={seitenLink(Math.max(0, offset - 25))}>
+            Zurück
+          </a>
+        )
+      }
+      {
+        offset + 25 < daten.gesamt && (
+          <a class="knopf zweit" href={seitenLink(offset + 25)}>
+            Weitere Termine
+          </a>
+        )
+      }
+    </nav>
+  </section>
 </AdminLayout>
+<style>
+  .hauptaktionen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 24px 0 36px;
+  }
+  .hauptaktionen a {
+    min-height: 48px;
+  }
+  .listensuche {
+    max-width: 720px;
+  }
+  .terminkarten {
+    list-style: none;
+    padding: 0;
+  }
+  .terminkarten li {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--linie);
+  }
+  .terminkarten h3,
+  .terminkarten p {
+    margin: 0 0 6px;
+  }
+  .terminkarten h3 {
+    font-size: 1.2rem;
+  }
+  .terminaktionen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+  .terminaktionen a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .seiten,
+  .knopfreihe {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  @media (max-width: 600px) {
+    .hauptaktionen {
+      display: grid;
+    }
+    .terminkarten li {
+      display: block;
+    }
+    .terminaktionen {
+      margin-top: 12px;
+    }
+  }
+</style>

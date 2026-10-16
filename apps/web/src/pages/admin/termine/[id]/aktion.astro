@@ -1,0 +1,79 @@
+---
+import AdminLayout from '../../../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../../../lib/admin';
+import { findeTermin } from '../../../../lib/api';
+import { datumLangJahr } from '../../../../lib/anzeige';
+const t = await findeTermin(Astro.params.id ?? '');
+const aktion = Astro.url.searchParams.get('aktion');
+const loeschen = aktion === 'loeschen';
+const gueltig = t && (loeschen || aktion === 'bestaetigen');
+let fehler: string[] = [];
+if (!gueltig) Astro.response.status = 404;
+if (Astro.request.method === 'POST' && gueltig) {
+  const f = await Astro.request.formData();
+  if (feld(f, 'rueckfrage') !== 'ja') {
+    fehler = ['Bitte die Rückfrage bestätigen.'];
+    Astro.response.status = 400;
+  } else {
+    const r = loeschen
+      ? await adminApi(
+          Astro.cookies,
+          'DELETE',
+          `termine/${t.id}?ort=${encodeURIComponent(t.ort.slug)}`,
+        )
+      : await adminApi(Astro.cookies, 'POST', `termine/${t.id}/bestaetigen`, {
+          ortSlug: t.ort.slug,
+        });
+    if (r.status < 300)
+      return Astro.redirect(`/admin?${loeschen ? 'geloescht' : 'bestaetigt'}=1`, 303);
+    fehler = r.fehler;
+    Astro.response.status = r.status;
+  }
+}
+---
+
+<AdminLayout
+  titel={!gueltig
+    ? 'Termin nicht gefunden'
+    : loeschen
+      ? 'Termin wirklich löschen?'
+      : 'Termin bestätigen?'}
+  fehler={fehler}
+>
+  {
+    gueltig && (
+      <form class="melden" method="post">
+        <CsrfFeld />
+        <p>
+          <br />
+          {t.ort.name} · {datumLangJahr(t.datum)}
+          {t.beginn && ` · ${t.beginn} Uhr`}
+        </p>
+        <p>
+          {loeschen
+            ? 'Der Termin und sein Mittagstisch werden aus dem Kalender entfernt.'
+            : 'Bitte nur bestätigen, wenn die Angaben vom Veranstalter bestätigt wurden.'}
+        </p>
+        <label>
+          <input type="checkbox" required name="rueckfrage" value="ja" />
+          {loeschen ? 'Ja, diesen Termin löschen.' : 'Ja, vom Veranstalter bestätigt.'}
+        </label>
+        <div class="knopfreihe">
+          <>
+            <button class="knopf">{loeschen ? 'Jetzt löschen' : 'Jetzt bestätigen'}</button>
+            <a href="/admin">Abbrechen</a>
+          </>
+        </div>
+      </form>
+    )
+  }
+</AdminLayout>
+<style>
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+</style>

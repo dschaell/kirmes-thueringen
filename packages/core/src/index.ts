@@ -20,3 +20,4 @@ export * from './application/meldungen.js';
 export * from './application/einrichtung.js';
 export * from './application/mitglieder.js';
 export * from './application/vorschlaege.js';
+export * from './application/redaktions-termine.js';

@@ -269,7 +269,11 @@ export async function assistent(
             ortSlug: s.ortSlug,
             zeilen: zeilen.map((z) => ({ ...z, bestaetigt: s.bestaetigt })),
           });
-      if (r.status < 300) return ctx.redirect('/admin/vorschlaege?gespeichert=1', 303);
+      if (r.status < 300)
+        return ctx.redirect(
+          s.vorschlag ? '/admin/vorschlaege?gespeichert=1' : '/admin?gespeichert=1',
+          303,
+        );
       s.fehler = r.fehler;
       ctx.response.status = r.status;
     } else {
