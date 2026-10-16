@@ -115,6 +115,13 @@ jobs:
           else
             echo "Basis-Branch hat noch keine Tests – Ratchet übersprungen."
           fi
+      - name: Upgrade-Test – ein Update darf Zugänge und Daten nicht verändern (Issue #59)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          node scripts/upgrade-test.mjs "$BASE_SHA"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with: { name: coverage, path: coverage/, retention-days: 14 }
