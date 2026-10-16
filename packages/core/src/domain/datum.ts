@@ -39,7 +39,8 @@ export interface Datumsbereich {
   readonly bis: KalenderDatum;
 }
 
-export const MAX_BEREICH_TAGE = 366;
+/** Zwei Jahre – reicht für „ein Jahr zurück bis ein Jahr voraus“ in der Suche (Issue #68). */
+export const MAX_BEREICH_TAGE = 731;
 
 export function erstelleDatumsbereich(
   von: KalenderDatum,
