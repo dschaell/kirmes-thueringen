@@ -5,14 +5,12 @@
  *   npm run admin -- passwort <email>     → neues Passwort setzen
  *   npm run admin -- zweiter-faktor <email> → neues Geheimnis für die Authenticator-App (altes ungültig)
  *   npm run admin -- abmelden <email>     → alle Sitzungen beenden
- *   npm run admin -- startwerte <email>   → ADMIN_*-Werte für den Erststart auf dem Server (ohne DB)
  *
- * Fragen und Hinweise gehen auf stderr, damit `startwerte … >> .env.server` nur die Werte schreibt.
+ * Auf dem Server richtet man den ersten Zugang im Browser ein: /admin/einrichten.
  */
 import { createInterface } from 'node:readline';
 import { ladeKonfiguration } from '../../config.js';
 import { hashePasswort, neuesTotpGeheimnis, otpauthUrl } from '../krypto.js';
-import { hashFuerEnv } from './erststart.js';
 import { erstellePool } from './pool.js';
 
 /**
@@ -21,7 +19,7 @@ import { erstellePool } from './pool.js';
  */
 const rl = createInterface({
   input: process.stdin,
-  output: process.stderr,
+  output: process.stdout,
   terminal: process.stdin.isTTY,
 });
 let verdeckt = false;
@@ -33,11 +31,11 @@ const schreibe = (rl as unknown as { _writeToOutput: (s: string) => void })._wri
 /** Zeilen werden gepuffert – auch wenn beide Passwörter auf einmal eingefügt werden. */
 const zeilen = rl[Symbol.asyncIterator]();
 async function frageVerdeckt(frage: string): Promise<string> {
-  process.stderr.write(frage);
+  process.stdout.write(frage);
   verdeckt = true;
   const { value } = await zeilen.next();
   verdeckt = false;
-  if (!process.stdin.isTTY) process.stderr.write('\n');
+  if (!process.stdin.isTTY) process.stdout.write('\n');
   return typeof value === 'string' ? value : '';
 }
 
@@ -50,39 +48,20 @@ async function neuesPasswort(): Promise<string> {
 }
 
 function zeigeZweitenFaktor(email: string, geheimnis: string) {
-  console.error(
+  console.log(
     '\nZweiter Faktor – in der Authenticator-App (Google Authenticator, Authy, 1Password …):',
   );
-  console.error('  „Konto hinzufügen“ → „Schlüssel eingeben“');
-  console.error(`  Konto:     ${email}`);
-  console.error(`  Schlüssel: ${geheimnis.match(/.{4}/g)?.join(' ')}`);
-  console.error(`  (oder als Link: ${otpauthUrl(email, geheimnis)})\n`);
+  console.log('  „Konto hinzufügen“ → „Schlüssel eingeben“');
+  console.log(`  Konto:     ${email}`);
+  console.log(`  Schlüssel: ${geheimnis.match(/.{4}/g)?.join(' ')}`);
+  console.log(`  (oder als Link: ${otpauthUrl(email, geheimnis)})\n`);
 }
 
 const [befehl, emailRoh] = process.argv.slice(2);
 const email = emailRoh?.trim().toLowerCase();
 if (!befehl || !email || !/^[^@\s]+@[^@\s]+$/.test(email)) {
-  console.log('Aufruf: admin anlegen|passwort|zweiter-faktor|abmelden|startwerte <email>');
+  console.log('Aufruf: admin anlegen|passwort|zweiter-faktor|abmelden <email>');
   process.exit(1);
-}
-
-if (befehl === 'startwerte') {
-  // Braucht keine Datenbank: Werte werden verschlüsselt (SOPS) und beim Deploy von migrate genutzt
-  try {
-    const hash = await neuesPasswort();
-    const geheimnis = neuesTotpGeheimnis();
-    console.log(`ADMIN_EMAIL=${email}`);
-    console.log(`ADMIN_PASSWORT_HASH=${hashFuerEnv(hash)}`);
-    console.log(`ADMIN_TOTP_GEHEIMNIS=${geheimnis}`);
-    zeigeZweitenFaktor(email, geheimnis);
-    console.error('Danach .env.server neu verschlüsseln (scripts/server-env-verschluesseln.sh).');
-  } catch (e) {
-    console.error(`✖ ${(e as Error).message}`);
-    process.exitCode = 1;
-  } finally {
-    rl.close();
-  }
-  process.exit();
 }
 
 const k = ladeKonfiguration();

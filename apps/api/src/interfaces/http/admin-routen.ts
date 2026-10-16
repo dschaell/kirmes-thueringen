@@ -4,6 +4,7 @@
  */
 import type {
   AdminAnmeldung,
+  Ersteinrichtung,
   AdminTerminFormular,
   MitteilungEingabe,
   OrtEingabe,
@@ -20,6 +21,8 @@ export interface AdminAbhaengigkeiten {
   terminDto: (t: Termin) => unknown;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
   passkeys?: Passkeys;
+  /** Erster Zugang im Browser – braucht E-Mail-Versand und WEBSITE_URL */
+  einrichtung?: Ersteinrichtung;
 }
 
 const problem = (status: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -133,6 +136,95 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       },
     );
   }
+
+  // Ersten Zugang einrichten (ohne Sitzung, nur solange es keinen Admin gibt) – Issue #48
+  const einrichtung = d.einrichtung;
+  const LINK = {
+    type: 'object',
+    properties: { link: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } },
+  } as const;
+  const einrichtungsFehler = (reply: FastifyReply, fehler: string) =>
+    fehler === 'SCHON_EINGERICHTET'
+      ? reply.status(409).send(problem(409, 'Der Redaktionszugang ist bereits eingerichtet.'))
+      : fehler === 'ZU_VIELE'
+        ? reply
+            .status(429)
+            .header('Retry-After', '3600')
+            .send(
+              problem(
+                429,
+                'Es wurden schon mehrere Links verschickt – bitte ins Postfach schauen.',
+              ),
+            )
+        : reply
+            .status(404)
+            .send(
+              problem(
+                404,
+                'Der Link ist abgelaufen oder wurde schon benutzt. Bitte neu anfordern.',
+              ),
+            );
+
+  app.get('/api/v1/admin/einrichtung', async (_req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    return { offen: einrichtung ? await einrichtung.offen() : false, moeglich: !!einrichtung };
+  });
+  app.post('/api/v1/admin/einrichtung', async (req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    if (!einrichtung) {
+      return reply.status(503).send(problem(503, 'E-Mail-Versand ist nicht eingerichtet.'));
+    }
+    try {
+      const r = await einrichtung.sendeLink();
+      if (r.ok) return reply.status(202).send({ verschickt: true });
+      return einrichtungsFehler(reply, r.error);
+    } catch (e) {
+      req.log.error({ err: e }, 'Einrichtungslink konnte nicht versendet werden');
+      return reply
+        .status(502)
+        .send(problem(502, 'Die E-Mail konnte gerade nicht versendet werden.'));
+    }
+  });
+  app.get<{ Params: { link: string } }>(
+    '/api/v1/admin/einrichtung/:link',
+    { schema: { params: LINK } },
+    async (req, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      if (!einrichtung) return nichtGefunden(reply);
+      const r = await einrichtung.pruefeLink(req.params.link);
+      if (!r.ok) return einrichtungsFehler(reply, r.error);
+      return r.value;
+    },
+  );
+  app.post<{
+    Params: { link: string };
+    Body: { email: string; passwort: string; passwortWiederholung: string; code: string };
+  }>(
+    '/api/v1/admin/einrichtung/:link',
+    {
+      schema: {
+        params: LINK,
+        body: objekt(['email', 'passwort', 'passwortWiederholung', 'code'], {
+          email: TEXT(200),
+          passwort: TEXT(200),
+          passwortWiederholung: TEXT(200),
+          code: TEXT(10),
+        }),
+      },
+    },
+    async (req, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      if (!einrichtung) return nichtGefunden(reply);
+      const r = await einrichtung.schliesseAb(req.params.link, req.body);
+      if (r.ok) {
+        req.log.info('Erster Redaktionszugang eingerichtet');
+        return r.value;
+      }
+      return Array.isArray(r.error)
+        ? ungueltig(reply, r.error)
+        : einrichtungsFehler(reply, r.error);
+    },
+  );
 
   // Alle weiteren Admin-Endpunkte: Sitzung prüfen
   const geschuetzt = async (req: FastifyRequest, reply: FastifyReply) => {

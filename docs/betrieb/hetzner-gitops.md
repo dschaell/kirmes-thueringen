@@ -45,22 +45,17 @@ mehr ändern, ohne die Rollen in der Datenbank mit umzustellen.
 
 ## Erststart (leere Datenbank)
 
-Auf dem Server führt niemand CLIs aus. Deshalb erledigt `migrate` beim Deploy:
+Auf dem Server führt niemand CLIs aus:
 
-- **Ortsverzeichnis** (`ORTE_LADEN=ja` im Stack): lädt `db/seed/orte.json`, idempotent.
-- **Erster Redaktionszugang** aus `ADMIN_EMAIL`, `ADMIN_PASSWORT_HASH`, `ADMIN_TOTP_GEHEIMNIS` –
-  nur solange es noch gar keinen Admin gibt. Danach werden die Werte ignoriert.
-
-Werte erzeugen (Passwort verdeckt eingeben; Hinweise zum zweiten Faktor erscheinen im Terminal,
-nur die drei Variablen landen in der Datei):
-
-```bash
-npm run -s admin -w @kirmes/api -- startwerte deine@adresse.de >> .env.server
-scripts/server-env-verschluesseln.sh ~/Documents/server-deployments
-```
-
-Den angezeigten Schlüssel sofort in der Authenticator-App eintragen. Nach der ersten Anmeldung
-einen Passkey einrichten (Redaktion → Passkeys).
+- **Ortsverzeichnis:** `migrate` lädt beim Deploy `db/seed/orte.json` (`ORTE_LADEN=ja` im Stack,
+  idempotent).
+- **Erster Redaktionszugang – im Browser:** `https://kirmeskalender-thueringen.de/admin/einrichten`
+  → „Einrichtungslink senden“. Der Link geht immer an das Redaktionspostfach (`MAIL_AN`), ist
+  30 Minuten gültig und nur einmal nutzbar. Dort Anmelde-E-Mail und Passwort festlegen, die
+  Authenticator-App per QR-Code verbinden und mit einem Code bestätigen. Danach ist man
+  angemeldet und richtet am besten gleich einen Passkey ein.
+- Sobald ein Admin existiert, ist `/admin/einrichten` gesperrt. Weitere Zugänge oder ein neues
+  Passwort gehen über die CLI (`npm run admin`) bzw. die Redaktion.
 
 ## Fehlersuche
 

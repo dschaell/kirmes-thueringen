@@ -1,7 +1,6 @@
 import node from '@astrojs/node';
 import { defineConfig } from 'astro/config';
 
-// TODO: echte Domain eintragen, sobald registriert
 export default defineConfig({
   site: 'https://kirmeskalender-thueringen.de',
   // Seiten werden pro Anfrage aus der API gerendert → Änderungen in der Datenbank sind sofort sichtbar.
