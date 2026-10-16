@@ -4,9 +4,18 @@ import { readdir, readFile } from 'node:fs/promises';
 import { ladeKonfiguration } from '../../config.js';
 import { erstellePool } from './pool.js';
 import { APP_ROLLE, richteAppLoginEin } from './app-rolle.js';
+import {
+  ladeAdminStart,
+  ladeOrte,
+  legeErstenAdminAn,
+  leseOrtsverzeichnis,
+  sollOrteLaden,
+} from './erststart.js';
 
 const VERZEICHNIS = new URL('../../../../../db/migrations/', import.meta.url);
 
+// Fehlkonfiguration früh erkennen – vor jeder Änderung an der Datenbank
+const adminStart = ladeAdminStart();
 const k = ladeKonfiguration();
 const pool = erstellePool({
   connectionString: k.databaseUrl,
@@ -52,6 +61,22 @@ try {
   if (appPasswort) {
     await richteAppLoginEin(client, appPasswort);
     console.log(`✔ Rolle ${APP_ROLLE} eingerichtet (nur Daten, kein DDL)`);
+  }
+
+  // Erststart auf dem Server (Issue #42): Ortsverzeichnis und erster Redaktionszugang
+  if (sollOrteLaden()) {
+    const { orte, verworfen } = await leseOrtsverzeichnis();
+    if (verworfen) console.warn(`⚠ ${verworfen} Orte außerhalb Thüringens verworfen`);
+    console.log(
+      `✔ ${await ladeOrte(client, orte)} Orte geladen (© OpenStreetMap-Mitwirkende, ODbL)`,
+    );
+  }
+  if (adminStart) {
+    console.log(
+      (await legeErstenAdminAn(client, adminStart))
+        ? `✔ Erster Redaktionszugang ${adminStart.email} angelegt`
+        : '✔ Redaktionszugang vorhanden – ADMIN_* werden ignoriert',
+    );
   }
 } finally {
   client.release();

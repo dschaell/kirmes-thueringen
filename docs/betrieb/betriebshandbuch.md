@@ -4,6 +4,8 @@ Für den Server (Docker Compose mit `docker-compose.yml` + `docker-compose.prod.
 Lokal gelten dieselben Befehle ohne die Prod-Datei. Umzug auf einen neuen Server:
 [server-umzug.md](server-umzug.md). E-Mail: [e-mail-brevo.md](e-mail-brevo.md).
 
+> Server und Deployment (GitOps, Secrets, Erststart): siehe [hetzner-gitops.md](hetzner-gitops.md).
+
 ## Täglich automatisch
 
 - **Backup:** Der Dienst `backup` sichert die Datenbank täglich per `pg_dump` (14 Tage).
