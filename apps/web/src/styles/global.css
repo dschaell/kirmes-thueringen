@@ -478,11 +478,11 @@ legend {
   margin-left: 6px;
   vertical-align: 2px;
 }
-.kat.kat-kinder {
+.kat.kat-familie {
   color: #1f6a8a;
   border-color: #b9d6e2;
 }
-.kat.kat-brauchtum {
+.kat.kat-tradition {
   color: var(--gruen);
   border-color: #bfd8c5;
 }
@@ -491,11 +491,11 @@ legend {
   border-color: #d5c6e8;
 }
 @media (prefers-color-scheme: dark) {
-  .kat.kat-kinder {
+  .kat.kat-familie {
     color: #8cc8e3;
     border-color: #2b4a57;
   }
-  .kat.kat-brauchtum {
+  .kat.kat-tradition {
     border-color: #2f4a37;
   }
   .kat.kat-party {
@@ -961,4 +961,35 @@ input[aria-invalid='true'] {
 }
 .rueckmeldung {
   scroll-margin-top: 16px;
+}
+
+/* Google-Maps-Karte mit Einwilligung (Issue #62) */
+.google-karte {
+  margin: 16px 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--flaeche);
+}
+.google-karte-hinweis {
+  padding: 14px 16px;
+}
+.google-karte-hinweis > :first-child {
+  margin-top: 0;
+}
+.google-karte iframe {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 0;
+}
+
+/* Alle Termine bearbeiten (Issue #65) */
+.haekchen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.haekchen .loeschen {
+  color: var(--rot);
 }

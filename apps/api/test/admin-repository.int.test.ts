@@ -9,7 +9,11 @@ import {
   PgOrtVerwaltung,
   PgSitzungen,
 } from '../src/infrastructure/postgres/admin-repository.js';
-import { PgBearbeitungslinks } from '../src/infrastructure/postgres/festplatz-repository.js';
+import {
+  PgBearbeitungslinks,
+  PgFestplatzRepository,
+} from '../src/infrastructure/postgres/festplatz-repository.js';
+import { terminVorschlaege } from '../src/infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool } from '../src/infrastructure/postgres/pool.js';
 import { PgPasskeys } from '../src/infrastructure/postgres/passkey-repository.js';
 import { testDatenbankUrl } from './test-datenbank.js';
@@ -109,6 +113,49 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     expect(await sitzungen.pruefe(alt)).toBeNull();
     await sitzungen.beende(token);
     expect(await sitzungen.pruefe(token)).toBeNull();
+  });
+
+  it('Plätze durch die Redaktion: Protokoll mit Admin-ID (#62)', async () => {
+    const repo = new PgFestplatzRepository(pool);
+    const durch = {
+      linkId: null,
+      adminId,
+      ortSlug: 'it-admin-ort',
+      landkreis: 'GTH',
+      bezeichnung: 'Redaktion',
+    };
+    await repo.speichere(
+      'it-admin-ort',
+      { name: 'IT-Kirche', koordinate: { lat: 50.95, lon: 10.7 } },
+      durch,
+    );
+    const u = await repo.uebersicht('it-admin-ort');
+    expect(u?.festplaetze.map((f) => f.name)).toContain('IT-Kirche');
+    const p = await pool.query(
+      `SELECT admin_id::text, link_id FROM aenderungsprotokoll
+        WHERE aktion = 'festplatz_gespeichert' AND details->>'name' = 'IT-Kirche'`,
+    );
+    expect(p.rows.at(-1)).toEqual({ admin_id: adminId, link_id: null });
+    expect(await repo.loesche('it-admin-ort', 'IT-Kirche', durch)).toBe(true);
+  });
+
+  it('Vorschläge: Bands und Titel aus allen Terminen, häufigste zuerst (#62)', async () => {
+    // eigene Testdaten – die Datenbank kann (wie in der CI) sonst leer sein
+    const ort = await pool.query<{ id: string }>("SELECT id FROM ort WHERE slug = 'it-admin-ort'");
+    await pool.query(
+      `INSERT INTO termin (ort_id, datum, titel, kategorie, band)
+       VALUES ($1, '2026-10-30', 'IT-Vorschlag', 'party', 'IT-Band-Vorschlag'),
+              ($1, '2026-10-31', 'IT-Vorschlag', 'party', 'IT-Band-Vorschlag')`,
+      [ort.rows[0]!.id],
+    );
+    try {
+      const v = await terminVorschlaege(pool);
+      expect(v.bands).toContain('IT-Band-Vorschlag');
+      expect(v.titel).toContain('IT-Vorschlag');
+      expect(v.bands.every((b) => b.length > 0)).toBe(true);
+    } finally {
+      await pool.query("DELETE FROM termin WHERE titel = 'IT-Vorschlag'");
+    }
   });
 
   it('Mitteilungen: nur veröffentlichte, neueste zuerst', async () => {

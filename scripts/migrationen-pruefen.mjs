@@ -57,8 +57,11 @@ async function main() {
     process.argv[2] ?? fileURLToPath(new URL('../db/migrations/', import.meta.url));
   const dateien = (await readdir(verzeichnis)).filter((f) => f.endsWith('.sql')).sort();
   const fehler = [];
-  for (const d of dateien)
-    fehler.push(...pruefeMigration(d, await readFile(`${verzeichnis}/${d}`, 'utf8')));
+  const texte = new Map();
+  for (const d of dateien) {
+    texte.set(d, await readFile(`${verzeichnis}/${d}`, 'utf8'));
+    fehler.push(...pruefeMigration(d, texte.get(d)));
+  }
   if (fehler.length) {
     console.error('✖ Migrationen ändern oder löschen Daten (Issue #59):');
     for (const f of fehler) console.error(`  ${f}`);
@@ -67,7 +70,15 @@ async function main() {
     );
     process.exit(1);
   }
-  console.log(`✔ ${dateien.length} Migrationen geprüft – keine Datenänderung`);
+  const freigegeben = dateien.filter(
+    (d) => Number(/^(\d+)_/.exec(d)?.[1]) > BASIS && FREIGABE.test(texte.get(d) ?? ''),
+  );
+  console.log(
+    `✔ ${dateien.length} Migrationen geprüft` +
+      (freigegeben.length
+        ? ` – freigegebene Datenänderung: ${freigegeben.join(', ')}`
+        : ' – keine Datenänderung'),
+  );
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await main();

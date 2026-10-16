@@ -58,7 +58,8 @@ DELETE FROM festplatz f USING ort o
  WHERE o.slug = $1 AND f.ort_id = o.id AND f.name = $2
 RETURNING f.ort_id`;
 const SQL_PROTOKOLL = `
-INSERT INTO aenderungsprotokoll (link_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4)`;
+INSERT INTO aenderungsprotokoll (link_id, ort_id, aktion, details, admin_id)
+VALUES ($1, $2, $3, $4, $5::bigint)`;
 
 export class PgFestplatzRepository implements FestplatzRepository {
   constructor(private readonly db: pg.Pool) {}
@@ -105,7 +106,13 @@ export class PgFestplatzRepository implements FestplatzRepository {
       ]);
       const ortId = r.rows[0]?.ort_id;
       if (!ortId) throw new Error(`Ort ${ortSlug} nicht gefunden`);
-      await c.query(SQL_PROTOKOLL, [durch.linkId, ortId, 'festplatz_gespeichert', f]);
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        ortId,
+        'festplatz_gespeichert',
+        f,
+        durch.adminId ?? null,
+      ]);
     });
   }
 
@@ -114,7 +121,13 @@ export class PgFestplatzRepository implements FestplatzRepository {
       const r = await c.query<{ ort_id: string }>(SQL_LOESCHEN, [ortSlug, name]);
       const ortId = r.rows[0]?.ort_id;
       if (!ortId) return false;
-      await c.query(SQL_PROTOKOLL, [durch.linkId, ortId, 'festplatz_geloescht', { name }]);
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        ortId,
+        'festplatz_geloescht',
+        { name },
+        durch.adminId ?? null,
+      ]);
       return true;
     });
   }

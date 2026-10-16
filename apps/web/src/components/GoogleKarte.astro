@@ -1,0 +1,73 @@
+---
+/**
+ * Google-Maps-Karte mit Einwilligung (2-Klick, Issue #62): Vor dem Klick wird nichts von Google
+ * geladen. Erst dann entsteht das eingebettete Kartenfenster – dabei erhält Google die IP-Adresse
+ * und kann Cookies setzen. „Immer laden“ merkt sich nur dieser Browser (localStorage, kein Cookie).
+ */
+interface Props {
+  lat: number;
+  lon: number;
+  titel: string;
+  /** true = genauer Platz, false = nur der Ort */
+  genau?: boolean;
+}
+const { lat, lon, titel, genau = true } = Astro.props;
+const quelle = `https://maps.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}&z=${genau ? 17 : 14}&output=embed&hl=de`;
+---
+
+<figure class="google-karte" data-quelle={quelle} data-titel={titel}>
+  <div class="google-karte-hinweis">
+    <p>
+      <strong>Karte von Google Maps</strong> – beim Laden werden Daten (u. a. deine IP-Adresse) an Google
+      übertragen und Google kann Cookies setzen. Mehr im <a href="/datenschutz#google-maps"
+        >Datenschutz</a
+      >.
+    </p>
+    <div class="knopfreihe">
+      <button class="knopf zweit" type="button" data-laden>Karte laden</button>
+    </div>
+    <label class="klein">
+      <input type="checkbox" data-immer /> Google-Karten künftig immer laden (nur in diesem Browser)
+    </label>
+  </div>
+</figure>
+
+<script>
+  const SCHLUESSEL = 'kirmes-google-karten';
+  const immer = () => {
+    try {
+      return localStorage.getItem(SCHLUESSEL) === 'ja';
+    } catch {
+      return false;
+    }
+  };
+  function lade(f: HTMLElement) {
+    const quelle = f.dataset.quelle ?? '';
+    // Nur Google-Maps-Einbettungen zulassen (Quelle kommt vom Server, trotzdem prüfen)
+    if (!quelle.startsWith('https://maps.google.com/maps?')) return;
+    const frame = document.createElement('iframe');
+    frame.src = quelle;
+    frame.title = f.dataset.titel ?? 'Karte';
+    frame.loading = 'lazy';
+    frame.referrerPolicy = 'no-referrer-when-downgrade';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    f.replaceChildren(frame);
+  }
+  for (const f of document.querySelectorAll<HTMLElement>('.google-karte')) {
+    if (immer()) {
+      lade(f);
+      continue;
+    }
+    f.querySelector('[data-laden]')?.addEventListener('click', () => {
+      const merken = f.querySelector<HTMLInputElement>('[data-immer]')?.checked;
+      if (merken) {
+        try {
+          localStorage.setItem(SCHLUESSEL, 'ja');
+        } catch {
+          /* privater Modus – dann eben nur dieses Mal */
+        }
+      }
+      lade(f);
+    });
+  }
+</script>

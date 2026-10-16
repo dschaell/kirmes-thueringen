@@ -98,13 +98,19 @@ export function validiereOrt(e: OrtEingabe): Result<NeuerOrt, Validierungsfehler
  * (…/@50.87,10.82,17z · ?q=50.87,10.82 · !3d50.87!4d10.82 · ?ll=…).
  */
 export function koordinateAusText(text: string): { lat: number; lon: number } | null {
+  // Reihenfolge: gesetzter Pin (!3d…!4d) vor Suchparameter vor Kartenmitte (@…) – die Mitte des
+  // Ausschnitts liegt oft neben dem eigentlichen Ort (Issue #62)
   const m =
-    /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(text) ??
-    /[?&](?:q|query|ll|daddr|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i.exec(text) ??
     /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(text) ??
+    /[?&](?:q|query|ll|daddr|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i.exec(text) ??
+    /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(text) ??
     /^\s*(-?\d+[.,]\d+)\s*[,;\s]\s*(-?\d+[.,]\d+)\s*$/.exec(text);
   if (!m) return null;
   const [, a = '', b = ''] = m;
   // Die Muster lassen nur Dezimalzahlen zu – Number() ist hier immer endlich.
   return { lat: Number(a.replace(',', '.')), lon: Number(b.replace(',', '.')) };
 }
+
+/** Kurzlink aus „Teilen → Link kopieren“ in Google Maps (muss aufgelöst werden, enthält keine Koordinaten). */
+export const istKartenKurzlink = (text: string) =>
+  /^\s*https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+\S*\s*$/.test(text);

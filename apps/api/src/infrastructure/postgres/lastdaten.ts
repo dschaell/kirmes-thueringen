@@ -79,7 +79,7 @@ export async function erzeugeLastdaten(
         beginn: `${String(10 + Math.floor(r() * 12)).padStart(2, '0')}:00`,
         titel: `${wahl(TITEL)} ${zeilen.length}`,
         veranstaltungsort: wahl(['Festzelt', 'Saal', 'Sportplatz', 'Kulturhaus', null]),
-        kategorie: 'kirmes',
+        kategorie: 'party',
         bestaetigt: r() < 0.5,
         band: wahl(BANDS),
       });

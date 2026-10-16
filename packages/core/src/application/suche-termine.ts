@@ -1,7 +1,7 @@
 import { erstelleDatumsbereich, parseDatum, plusTage } from '../domain/datum.js';
 import { parseLandkreis, type LandkreisKuerzel } from '../domain/landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
-import { istOrtSlug, KATEGORIEN, type Kategorie, type Termin } from '../domain/termin.js';
+import { istOrtSlug, kategorieAus, type Kategorie, type Termin } from '../domain/termin.js';
 import type { Seite, TerminFilter, TerminRepository, Uhr } from './ports.js';
 
 /** Rohe Anfrage, wie sie von außen (HTTP, CLI) kommt. */
@@ -41,10 +41,16 @@ export function baueFilter(a: SucheAnfrage, uhr: Uhr): Result<TerminFilter, Vali
   }
 
   const kategorien: Kategorie[] = [];
-  for (const k of a.kategorien ?? []) {
-    if ((KATEGORIEN as readonly string[]).includes(k)) kategorien.push(k as Kategorie);
-    else
-      fehler.push({ feld: 'kategorien', code: 'KATEGORIE_UNBEKANNT', meldung: `Unbekannt: ${k}` });
+  for (const roh of a.kategorien ?? []) {
+    // Auch frühere Bezeichnungen aus alten Links (?kategorie=kinder) verstehen
+    const k = kategorieAus(roh);
+    if (!k) {
+      fehler.push({
+        feld: 'kategorien',
+        code: 'KATEGORIE_UNBEKANNT',
+        meldung: `Unbekannt: ${roh}`,
+      });
+    } else if (!kategorien.includes(k)) kategorien.push(k);
   }
 
   const q = a.q?.trim() || null;

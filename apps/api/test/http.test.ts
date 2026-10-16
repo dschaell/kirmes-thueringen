@@ -11,6 +11,7 @@ import {
   Ersteinrichtung,
   Mitgliederverwaltung,
   Registrierung,
+  RedaktionsFestplaetze,
   type EinladungInfo,
   type Mitglied,
   type Rolle,
@@ -40,7 +41,7 @@ const termin: Termin = {
   beginn: '20:00',
   titel: 'Kirmestanz',
   veranstaltungsort: 'Reitstall',
-  kategorie: 'kirmes',
+  kategorie: 'party',
   bestaetigt: true,
   festplatz: { lat: 50.87, lon: 10.82 },
   band: 'Belconda',
@@ -94,6 +95,8 @@ const terminVerwaltung: TerminVerwaltung = {
   legeAlle: async (ts) =>
     ts.map((t) => ({ ...termin, titel: t.titel, datum: t.datum, band: t.band, info: t.info })),
   aendere: async (id) => (geaendert.push(`aendere:${id}`), id === termin.id),
+  aendereAlle: async (aenderungen, loeschen) =>
+    [...aenderungen.map((x) => x.id), ...loeschen].every((id) => id === termin.id),
   bestaetige: async (id) => id === termin.id,
   loesche: async (id) => id === termin.id,
 };
@@ -108,6 +111,8 @@ let passkeysAktiv: Passkeys | undefined;
 let meldungenAktiv: MeldeAnRedaktion | undefined;
 let einrichtungAktiv: Ersteinrichtung | undefined;
 let beitrittAktiv: Beitritt | undefined;
+let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
+let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const neuePasskeys = (gesperrt = false) =>
   new Passkeys(
@@ -225,6 +230,8 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
         neuesToken: () => 'E'.repeat(43),
       }),
       beitritt: beitrittAktiv,
+      festplaetze: festplaetzeAktiv,
+      vorschlaege: vorschlaegeAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -273,7 +280,7 @@ describe('GET /api/v1/termine', () => {
     expect(res.json()).toMatchObject({ gesamt: 1, termine: [{ titel: 'Kirmestanz' }] });
     expect(repo.filter).toMatchObject({
       landkreise: ['GTH', 'IK'],
-      kategorien: ['kinder', 'kirmes'],
+      kategorien: ['familie', 'party'],
       suchtext: 'Mühlberg',
       nurBestaetigt: true,
       limit: 5,
@@ -1219,6 +1226,117 @@ describe('Mitglieder und Einladungen', () => {
         })
       ).statusCode,
     ).toBe(404);
+  });
+});
+
+describe('Ganze Kirmes bearbeiten (Issue #65)', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  const zeile = {
+    id: termin.id,
+    datum: '2026-10-17',
+    titel: 'Kirmestanz',
+    beginn: '20:00',
+    band: 'Belconda',
+  };
+  const post = (payload: object, headers: object = auth) =>
+    app.inject({ method: 'POST', url: '/api/v1/admin/termine/sammel', headers, payload });
+
+  it('speichert alle Zeilen, prüft Eingaben und Zugehörigkeit', async () => {
+    await setup();
+    expect((await post({ ortSlug: 'muehlberg', zeilen: [zeile] }, {})).statusCode).toBe(401);
+    expect((await post({ ortSlug: 'muehlberg', zeilen: [zeile] })).statusCode).toBe(200);
+    expect(
+      (await post({ ortSlug: 'muehlberg', zeilen: [{ ...zeile, loeschen: true }] })).statusCode,
+    ).toBe(200);
+    // fremder Termin → nichts gespeichert
+    expect(
+      (
+        await post({
+          ortSlug: 'muehlberg',
+          zeilen: [
+            zeile,
+            { ...zeile, id: '99999999-9999-4999-8999-999999999999', titel: 'Kirmesparty' },
+          ],
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect((await post({ ortSlug: 'gibtsnicht', zeilen: [zeile] })).statusCode).toBe(404);
+    expect(
+      (await post({ ortSlug: 'muehlberg', zeilen: [{ ...zeile, titel: '' }] })).statusCode,
+    ).toBe(400);
+    expect(
+      (await post({ ortSlug: 'muehlberg', zeilen: [{ ...zeile, id: 'kaputt' }] })).statusCode,
+    ).toBe(400);
+    expect((await post({ ortSlug: 'muehlberg', zeilen: [] })).statusCode).toBe(400);
+  });
+});
+
+describe('Plätze und Vorschläge (Redaktion, Issue #62)', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  it('legt Plätze per Google-Maps-Link an, listet und löscht sie', async () => {
+    const gespeichert: string[] = [];
+    festplaetzeAktiv = new RedaktionsFestplaetze(
+      {
+        uebersicht: async (o) =>
+          o === 'muehlberg' ? { ort: termin.ort, festplaetze: [], veranstaltungsorte: [] } : null,
+        speichere: async (_o, f) => void gespeichert.push(f.name),
+        loesche: async (_o, n) => n === 'Kirche',
+      },
+      async (o) => (o === 'muehlberg' ? 'GTH' : null),
+      { aufloesen: async () => null },
+    );
+    vorschlaegeAktiv = async () => ({ bands: ['Belconda'], titel: ['Kirmestanz'] });
+    await setup();
+    festplaetzeAktiv = undefined;
+    vorschlaegeAktiv = undefined;
+    const url = '/api/v1/admin/orte/muehlberg/festplaetze';
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await app.inject({ url, headers: auth })).statusCode).toBe(200);
+    expect(
+      (await app.inject({ url: '/api/v1/admin/orte/gibtsnicht/festplaetze', headers: auth }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ url: '/api/v1/admin/orte/../festplaetze', headers: auth })).statusCode,
+    ).toBe(404);
+    const neu = await app.inject({
+      method: 'POST',
+      url,
+      headers: auth,
+      payload: { name: 'Kirche', standort: '50.95, 10.70' },
+    });
+    expect(neu.statusCode).toBe(201);
+    expect(gespeichert).toEqual(['Kirche']);
+    const falsch = await app.inject({
+      method: 'POST',
+      url,
+      headers: auth,
+      payload: { name: 'Kirche', standort: 'irgendwo' },
+    });
+    expect(falsch.statusCode).toBe(400);
+    expect(falsch.json().fehler[0].feld).toBe('standort');
+    expect(
+      (await app.inject({ method: 'DELETE', url: `${url}?name=Kirche`, headers: auth })).statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `${url}?name=Zelt`, headers: auth })).statusCode,
+    ).toBe(404);
+    expect((await app.inject({ url: '/api/v1/admin/vorschlaege', headers: auth })).json()).toEqual({
+      bands: ['Belconda'],
+      titel: ['Kirmestanz'],
+    });
+  });
+
+  it('ohne Konfiguration: keine Plätze-Routen, leere Vorschläge', async () => {
+    await setup();
+    expect(
+      (await app.inject({ url: '/api/v1/admin/orte/muehlberg/festplaetze', headers: auth }))
+        .statusCode,
+    ).toBe(404);
+    expect((await app.inject({ url: '/api/v1/admin/vorschlaege', headers: auth })).json()).toEqual({
+      bands: [],
+      titel: [],
+    });
   });
 });
 

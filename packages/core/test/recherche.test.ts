@@ -34,17 +34,26 @@ describe('normDatum / normUhrzeit', () => {
   ])('%s → %s', (roh, hhmm) => expect(normUhrzeit(roh)).toBe(hhmm));
 });
 
-describe('erkenneKategorie', () => {
+describe('erkenneKategorie (drei Arten, Issue #64)', () => {
   it.each([
-    ['Kindertanz', 'kinder'],
-    ['Kirmesbeerdigung', 'brauchtum'],
-    ['Tanz in den Mai mit „Vincent“', 'mai'],
-    ['Kirmestanz mit „Belconda“', 'kirmes'],
+    ['Kindertanz', 'familie'],
+    ['Kinderkirmes', 'familie'],
+    ['Familiennachmittag', 'familie'],
+    ['Kirmesbeerdigung', 'tradition'],
+    ['Kirmesgottesdienst', 'tradition'],
+    ['Ständchen', 'tradition'],
+    ['Kirmesumzug', 'tradition'],
+    ['Frühschoppen mit den „Thanas“', 'tradition'],
+    ['Traditionelles Frühshoppen', 'tradition'],
+    ['Früh-Schoppen', 'tradition'],
+    ['Kirmesausklang', 'tradition'],
+    ['Osterfeuer mit Tanz', 'tradition'],
+    ['Kirmestanz mit „Belconda“', 'party'],
+    ['Kirmestanz', 'party'],
+    ['Kirmesparty', 'party'],
     ['Discoparty mit DJ Holler', 'party'],
-    ['Frühschoppen mit den „Thanas“', 'fruehschoppen'],
-    ['Herbstball', 'tanz'],
-    ['Osterfeuer mit Tanz', 'ostern'],
-    ['Maisprung', 'mai'],
+    ['Tanz in den Mai mit „Vincent“', 'party'],
+    ['Herbstball', 'party'],
   ])('%s → %s', (titel, k) => expect(erkenneKategorie(titel)).toBe(k));
 });
 
@@ -87,7 +96,7 @@ describe('leseRecherche', () => {
             beginn: '20:00',
             titel: 'Kirmestanz',
             veranstaltungsort: 'Festzelt',
-            kategorie: 'kirmes',
+            kategorie: 'party',
             bestaetigt: true,
             quelle: 'instagram.com/p/…',
             band: null,
@@ -104,7 +113,7 @@ describe('leseRecherche', () => {
             beginn: null,
             titel: 'Kindertanz',
             veranstaltungsort: null,
-            kategorie: 'kinder',
+            kategorie: 'familie',
             bestaetigt: false,
             quelle: null,
             band: null,

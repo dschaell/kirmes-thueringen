@@ -67,7 +67,7 @@ describe('validiereTermin', () => {
     datum: '2026-10-18',
     beginn: '20:00',
     titel: '  Kirmestanz mit „Belconda“ ',
-    kategorie: 'kirmes',
+    kategorie: 'party',
   };
 
   it('liefert normalisierten Termin ohne Hinweise im Herbst', () => {
@@ -86,7 +86,12 @@ describe('validiereTermin', () => {
   });
 
   it('warnt nicht bei Kindertanz im Frühjahr', () => {
-    const r = validiereTermin({ ...basis, datum: '2026-05-02', kategorie: 'kinder' });
+    const r = validiereTermin({
+      ...basis,
+      titel: 'Kindertanz',
+      datum: '2026-05-02',
+      kategorie: 'familie',
+    });
     expect(r.ok && r.value.hinweise).toEqual([]);
   });
 

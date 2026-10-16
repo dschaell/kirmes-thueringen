@@ -1,5 +1,6 @@
 import type { Berechtigung, NeuerTermin, Termin, TerminVerwaltung } from '@kirmes/core';
 import type pg from 'pg';
+import { abfrage } from './pool.js';
 
 /*
  * Schreibzugriffe der Kirmesgesellschaften und der Redaktion. Jede Anweisung prüft im WHERE, dass der
@@ -43,6 +44,9 @@ RETURNING t.ort_id, t.titel, t.datum::text AS datum`;
 const SQL_PROTOKOLL = `
 INSERT INTO aenderungsprotokoll (link_id, admin_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4, $5)`;
 
+/** Ein Termin der Sammeländerung fehlt – bricht die Transaktion ab. */
+class NichtGefunden extends Error {}
+
 export class PgTerminVerwaltung implements TerminVerwaltung {
   constructor(private readonly db: pg.Pool) {}
 
@@ -81,6 +85,57 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       'termin_geaendert',
       { id, ...t },
     );
+  }
+
+  async aendereAlle(
+    aenderungen: { id: string; termin: NeuerTermin }[],
+    loeschen: string[],
+    durch: Berechtigung,
+  ): Promise<boolean> {
+    try {
+      await this.inTransaktion(async (c) => {
+        for (const { id, termin: t } of aenderungen) {
+          const gefunden = await this.protokolliertIn(
+            c,
+            SQL_AENDERN,
+            [
+              id,
+              durch.ortSlug,
+              t.datum,
+              t.beginn,
+              t.titel,
+              t.veranstaltungsort,
+              t.kategorie,
+              durch.linkId,
+              t.bestaetigt,
+              durch.adminId ?? null,
+              t.band,
+              t.info,
+              t.muttizettel ?? false,
+            ],
+            durch,
+            'termin_geaendert',
+            { id, ...t },
+          );
+          if (!gefunden) throw new NichtGefunden();
+        }
+        for (const id of loeschen) {
+          const gefunden = await this.protokolliertIn(
+            c,
+            SQL_LOESCHEN,
+            [id, durch.ortSlug],
+            durch,
+            'termin_geloescht',
+            { id },
+          );
+          if (!gefunden) throw new NichtGefunden();
+        }
+      });
+      return true;
+    } catch (e) {
+      if (e instanceof NichtGefunden) return false; // ROLLBACK ist schon passiert
+      throw e;
+    }
   }
 
   bestaetige(id: string, durch: Berechtigung): Promise<boolean> {
@@ -144,19 +199,29 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     aktion: string,
     details: object,
   ): Promise<boolean> {
-    return this.inTransaktion(async (c) => {
-      const r = await c.query<{ ort_id: string }>(sql, werte);
-      const zeile = r.rows[0];
-      if (!zeile) return false;
-      await c.query(SQL_PROTOKOLL, [
-        durch.linkId,
-        durch.adminId ?? null,
-        zeile.ort_id,
-        aktion,
-        { ...details, ...zeile },
-      ]);
-      return true;
-    });
+    return this.inTransaktion((c) => this.protokolliertIn(c, sql, werte, durch, aktion, details));
+  }
+
+  /** Anweisung + Protokolleintrag in einer laufenden Transaktion; false = kein Treffer. */
+  private async protokolliertIn(
+    c: pg.PoolClient,
+    sql: string,
+    werte: unknown[],
+    durch: Berechtigung,
+    aktion: string,
+    details: object,
+  ): Promise<boolean> {
+    const r = await c.query<{ ort_id: string }>(sql, werte);
+    const zeile = r.rows[0];
+    if (!zeile) return false;
+    await c.query(SQL_PROTOKOLL, [
+      durch.linkId,
+      durch.adminId ?? null,
+      zeile.ort_id,
+      aktion,
+      { ...details, ...zeile },
+    ]);
+    return true;
   }
 
   private async inTransaktion<T>(arbeit: (c: pg.PoolClient) => Promise<T>): Promise<T> {
@@ -173,4 +238,27 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       c.release();
     }
   }
+}
+
+/**
+ * Vorschläge für die Eingabe (Issue #62): Bands/DJs und Veranstaltungstitel aus allen bisherigen
+ * Terminen, häufigste zuerst – damit niemand dieselben Namen immer wieder tippen muss.
+ */
+export async function terminVorschlaege(
+  db: pg.Pool,
+): Promise<{ bands: string[]; titel: string[] }> {
+  const [bands, titel] = await Promise.all([
+    abfrage<{ wert: string }>(
+      db,
+      `SELECT band AS wert FROM termin WHERE band IS NOT NULL AND band <> ''
+        GROUP BY band ORDER BY count(*) DESC, band LIMIT 300`,
+      [],
+    ),
+    abfrage<{ wert: string }>(
+      db,
+      `SELECT titel AS wert FROM termin GROUP BY titel ORDER BY count(*) DESC, titel LIMIT 300`,
+      [],
+    ),
+  ]);
+  return { bands: bands.rows.map((r) => r.wert), titel: titel.rows.map((r) => r.wert) };
 }

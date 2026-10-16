@@ -101,7 +101,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '20:00',
       titel: 'ZZTEST Kirmestanz 100%',
       veranstaltungsort: 'Reitstall',
-      kategorie: 'kirmes',
+      kategorie: 'party',
       bestaetigt: true,
     });
     await repo.speichere({
@@ -111,7 +111,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: null,
       titel: 'ZZTEST Kindertanz',
       veranstaltungsort: null,
-      kategorie: 'kinder',
+      kategorie: 'familie',
       bestaetigt: false,
     });
 
@@ -132,8 +132,8 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     });
     expect(gth.eintraege.map((t) => t.ort.slug)).toEqual(['it-muehlberg']);
 
-    const kat = await repo.suche({ ...basis, suchtext: 'ZZTEST', kategorien: ['kinder'] });
-    expect(kat.eintraege.map((t) => t.kategorie)).toEqual(['kinder']);
+    const kat = await repo.suche({ ...basis, suchtext: 'ZZTEST', kategorien: ['familie'] });
+    expect(kat.eintraege.map((t) => t.kategorie)).toEqual(['familie']);
   });
 
   it('behandelt Sonderzeichen in der Suche wörtlich (kein Wildcard, keine Injection)', async () => {
@@ -153,7 +153,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         beginn: null,
         titel: 'x',
         veranstaltungsort: null,
-        kategorie: 'kirmes',
+        kategorie: 'party',
         bestaetigt: false,
       }),
     ).rejects.toBeInstanceOf(OrtNichtGefunden);
@@ -246,7 +246,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         beginn: '20:00',
         titel: 'ZZTEST Neu',
         veranstaltungsort: 'Saal',
-        kategorie: 'kirmes',
+        kategorie: 'party',
         bestaetigt: true,
       },
       durch,
@@ -262,7 +262,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'ZZTEST Geändert',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: true,
         },
         durch,
@@ -290,6 +290,60 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     ]);
   });
 
+  it('Ganze Kirmes bearbeiten: ändern und löschen in einer Transaktion (#65)', async () => {
+    const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
+    const t = (datum: string, titel: string) => ({
+      ortSlug: 'it-ulla',
+      landkreis: 'WL',
+      datum: d(datum),
+      beginn: '20:00',
+      titel,
+      veranstaltungsort: null,
+      kategorie: 'party' as const,
+      bestaetigt: false,
+      band: null,
+      info: null,
+      muttizettel: false,
+    });
+    const v = new PgTerminVerwaltung(pool);
+    const [a, b] = await v.legeAlle(
+      [t('2026-10-23', 'ZZSAM A'), t('2026-10-24', 'ZZSAM B')],
+      durch,
+    );
+    const titel = async () =>
+      (await repo.suche({ ...basis, suchtext: 'ZZSAM', ortSlug: 'it-ulla' })).eintraege
+        .map((x) => x.titel)
+        .sort();
+
+    // ein fremder Termin in der Liste → nichts geändert, nichts gelöscht
+    expect(
+      await v.aendereAlle(
+        [{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }],
+        ['99999999-9999-4999-8999-999999999999', b!.id],
+        durch,
+      ),
+    ).toBe(false);
+    expect(await titel()).toEqual(['ZZSAM A', 'ZZSAM B']);
+    // Termin eines anderen Ortes zählt als fremd
+    expect(
+      await v.aendereAlle([{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }], [], {
+        ...durch,
+        ortSlug: 'it-anderer-ort',
+      }),
+    ).toBe(false);
+
+    expect(
+      await v.aendereAlle([{ id: a!.id, termin: t('2026-10-23', 'ZZSAM A neu') }], [b!.id], durch),
+    ).toBe(true);
+    expect(await titel()).toEqual(['ZZSAM A neu']);
+    // Datenbankfehler (keine UUID) werden nicht verschluckt – und rollen zurück
+    await expect(
+      v.aendereAlle([{ id: 'keine-uuid', termin: t('2026-10-23', 'X') }], [], durch),
+    ).rejects.toThrow();
+    expect(await titel()).toEqual(['ZZSAM A neu']);
+    await v.loesche(a!.id, durch);
+  });
+
   it('Kirmeswochenende: alle Abende mit Band und Hinweisen – oder gar keiner', async () => {
     const durch = {
       linkId: null,
@@ -310,7 +364,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '20:00',
       titel,
       veranstaltungsort: 'Saal',
-      kategorie: 'kirmes' as const,
+      kategorie: 'party' as const,
       bestaetigt: true,
       band,
       info,
@@ -377,7 +431,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'x',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: false,
         },
         durch,
@@ -393,7 +447,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'x',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: false,
         },
         { ...durch, ortSlug: 'it-ulla' },
@@ -413,7 +467,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '18:00',
       titel: 'ZZTEST Weihnachtstanz',
       veranstaltungsort: 'Saal',
-      kategorie: 'tanz',
+      kategorie: 'party',
       bestaetigt: false,
     });
     expect(t).toMatchObject({

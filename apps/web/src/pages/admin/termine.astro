@@ -18,11 +18,16 @@ import {
   wochentag,
 } from '../../lib/anzeige';
 import { wochenendVorlage, type WochenendZeile } from '../../lib/wochenende';
+import type { Kategorie } from '@kirmes/core';
+
+const istKategorie = (k: string): k is Kategorie => k in KATEGORIEN;
 
 const p = Astro.url.searchParams;
 const ortSlug = p.get('ort') ?? '';
 const ort = ortSlug ? await findeOrt(ortSlug) : null;
 const wochenendModus = p.get('modus') === 'wochenende';
+/** Alle Termine des Ortes auf einmal bearbeiten (Issue #65) */
+const alleModus = p.get('modus') === 'alle';
 const ab = /^\d{4}-\d{2}-\d{2}$/.test(p.get('ab') ?? '') ? p.get('ab')! : null;
 
 let meldung: string | null = null;
@@ -46,19 +51,86 @@ if (Astro.request.method === 'POST' && ort) {
     info: feld(f, 'info') || null,
     muttizettel: f.get('muttizettel') === 'ja',
   };
+  if (aktion === 'sammel') {
+    const werte = (n: string) => f.getAll(n).map((v) => (typeof v === 'string' ? v.trim() : ''));
+    // Checkboxen senden nur angehakte Werte – jede trägt ihre Zeilennummer
+    const angehakt = (n: string) => new Set(werte(n));
+    const [ids, datum, beginn, titel, kat, band, vo, info] = [
+      's-id',
+      's-datum',
+      's-beginn',
+      's-titel',
+      's-kat',
+      's-band',
+      's-vo',
+      's-info',
+    ].map(werte);
+    const [mutti, best, weg] = ['s-mutti', 's-best', 's-loeschen'].map(angehakt);
+    const zeilenSammel = ids!.map((id, i) => ({
+      id,
+      datum: datum![i] ?? '',
+      beginn: beginn![i] || null,
+      titel: titel![i] ?? '',
+      kategorie: istKategorie(kat![i] ?? '') ? kat![i] : null,
+      band: band![i] || null,
+      veranstaltungsort: vo![i] || null,
+      info: info![i] || null,
+      muttizettel: mutti!.has(String(i)),
+      bestaetigt: best!.has(String(i)),
+      loeschen: weg!.has(String(i)),
+    }));
+    const rs = await adminApi<{ hinweise: { meldung: string }[] }>(
+      Astro.cookies,
+      'POST',
+      'termine/sammel',
+      { ortSlug: ort.slug, zeilen: zeilenSammel },
+    );
+    if (rs.status < 300) {
+      const geloescht = zeilenSammel.filter((z) => z.loeschen).length;
+      meldung = [
+        `Alle Änderungen gespeichert${geloescht ? ` (${geloescht} gelöscht)` : ''}.`,
+        ...(rs.daten?.hinweise ?? []).map((h) => h.meldung),
+      ].join(' ');
+    } else fehler = rs.fehler;
+  }
+  if (aktion === 'platz' || aktion === 'platz-loeschen') {
+    const r =
+      aktion === 'platz'
+        ? await adminApi(Astro.cookies, 'POST', `orte/${ort.slug}/festplaetze`, {
+            name: feld(f, 'platzname'),
+            standort: feld(f, 'standort'),
+          })
+        : await adminApi(
+            Astro.cookies,
+            'DELETE',
+            `orte/${ort.slug}/festplaetze?name=${encodeURIComponent(feld(f, 'platzname'))}`,
+          );
+    if (r.status < 300) {
+      meldung =
+        aktion === 'platz'
+          ? `Platz „${feld(f, 'platzname') || 'Hauptfestplatz'}“ gespeichert – Termine mit diesem Veranstaltungsort führen jetzt genau dorthin.`
+          : 'Platz gelöscht.';
+    } else fehler = r.fehler;
+  }
   const spalte = (name: string) =>
     f.getAll(name).map((v) => (typeof v === 'string' ? v.trim() : ''));
   if (aktion === 'wochenende') {
     const titel = spalte('z-titel');
     // Checkboxen senden nur angehakte Werte – daher trägt jede ihre Zeilennummer
     const mutti = new Set(spalte('z-mutti'));
-    const [datum, beginn, band, vo, info] = ['z-datum', 'z-beginn', 'z-band', 'z-vo', 'z-info'].map(
-      spalte,
-    );
+    const [datum, beginn, band, vo, info, kat] = [
+      'z-datum',
+      'z-beginn',
+      'z-band',
+      'z-vo',
+      'z-info',
+      'z-kat',
+    ].map(spalte);
     zeilen = titel.map((t, i) => ({
       datum: datum![i] ?? '',
       beginn: beginn![i] ?? '',
       titel: t,
+      kategorie: istKategorie(kat![i] ?? '') ? (kat![i] as Kategorie) : '',
       band: band![i] ?? '',
       veranstaltungsort: vo![i] ?? '',
       info: info![i] ?? '',
@@ -69,58 +141,63 @@ if (Astro.request.method === 'POST' && ort) {
   // Zeilen ohne Veranstaltung bleiben leer und werden nicht gespeichert
   const gefuellt = zeilen.filter((z) => z.titel);
   const r =
-    aktion === 'wochenende'
-      ? gefuellt.length === 0
-        ? { status: 400, daten: null, fehler: ['Bitte mindestens eine Veranstaltung eintragen.'] }
-        : await adminApi<{ hinweise: { meldung: string }[] }>(
-            Astro.cookies,
-            'POST',
-            'termine/wochenende',
-            {
-              ortSlug: ort.slug,
-              zeilen: gefuellt.map((z) => ({
-                datum: z.datum,
-                beginn: z.beginn || null,
-                titel: z.titel,
-                veranstaltungsort: z.veranstaltungsort || null,
-                band: z.band || null,
-                info: z.info || null,
-                muttizettel: z.muttizettel,
-                bestaetigt: wochenendBestaetigt,
-              })),
-            },
-          )
-      : aktion === 'speichern' && id
-        ? await adminApi<{ hinweise: { meldung: string }[] }>(
-            Astro.cookies,
-            'PUT',
-            `termine/${encodeURIComponent(id)}`,
-            formular,
-          )
-        : aktion === 'speichern'
-          ? await adminApi<{ hinweise: { meldung: string }[] }>(
+    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel'
+      ? { status: 299, daten: null, fehler: fehler }
+      : aktion === 'wochenende'
+        ? gefuellt.length === 0
+          ? { status: 400, daten: null, fehler: ['Bitte mindestens eine Veranstaltung eintragen.'] }
+          : await adminApi<{ hinweise: { meldung: string }[] }>(
               Astro.cookies,
               'POST',
-              'termine',
+              'termine/wochenende',
+              {
+                ortSlug: ort.slug,
+                zeilen: gefuellt.map((z) => ({
+                  datum: z.datum,
+                  beginn: z.beginn || null,
+                  titel: z.titel,
+                  kategorie: z.kategorie || null,
+                  veranstaltungsort: z.veranstaltungsort || null,
+                  band: z.band || null,
+                  info: z.info || null,
+                  muttizettel: z.muttizettel,
+                  bestaetigt: wochenendBestaetigt,
+                })),
+              },
+            )
+        : aktion === 'speichern' && id
+          ? await adminApi<{ hinweise: { meldung: string }[] }>(
+              Astro.cookies,
+              'PUT',
+              `termine/${encodeURIComponent(id)}`,
               formular,
             )
-          : aktion === 'bestaetigen'
-            ? await adminApi(
+          : aktion === 'speichern'
+            ? await adminApi<{ hinweise: { meldung: string }[] }>(
                 Astro.cookies,
                 'POST',
-                `termine/${encodeURIComponent(id)}/bestaetigen`,
-                {
-                  ortSlug: ort.slug,
-                },
+                'termine',
+                formular,
               )
-            : aktion === 'loeschen'
+            : aktion === 'bestaetigen'
               ? await adminApi(
                   Astro.cookies,
-                  'DELETE',
-                  `termine/${encodeURIComponent(id)}?ort=${encodeURIComponent(ort.slug)}`,
+                  'POST',
+                  `termine/${encodeURIComponent(id)}/bestaetigen`,
+                  {
+                    ortSlug: ort.slug,
+                  },
                 )
-              : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
-  if (r.status < 300) {
+              : aktion === 'loeschen'
+                ? await adminApi(
+                    Astro.cookies,
+                    'DELETE',
+                    `termine/${encodeURIComponent(id)}?ort=${encodeURIComponent(ort.slug)}`,
+                  )
+                : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+  if (r.status === 299) {
+    // Platz-Aktion: Meldung/Fehler oben schon gesetzt
+  } else if (r.status < 300) {
     const hinweise = (r.daten as { hinweise?: { meldung: string }[] } | null)?.hinweise ?? [];
     meldung = [
       {
@@ -146,7 +223,11 @@ const leereZeilen = zeilen.length ? Math.max(2, 8 - zeilen.length) : 0;
 
 const h = heute();
 const termine: TerminDto[] = ort
-  ? await alleTermine({ ort: ort.slug, von: plusTage(h, -30), bis: plusTage(h, 335) })
+  ? // Zwei Abfragen (max. 366 Tage je Abfrage): auch die Kirmes im nächsten Jahr ist bearbeitbar
+    [
+      ...(await alleTermine({ ort: ort.slug, von: plusTage(h, -30), bis: plusTage(h, 335) })),
+      ...(await alleTermine({ ort: ort.slug, von: plusTage(h, 336), bis: plusTage(h, 700) })),
+    ]
   : [];
 const bearbeiten = p.get('bearbeiten') && ort ? await findeTermin(p.get('bearbeiten')!) : null;
 const zuBearbeiten = bearbeiten && bearbeiten.ort.slug === ort?.slug ? bearbeiten : null;
@@ -156,7 +237,33 @@ const treffer =
   !ort && suche
     ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
     : [];
-const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).filter(Boolean))];
+// Plätze des Ortes (Kirche, Festzelt …) mit Standort – Issue #62
+interface Platz {
+  name: string;
+  koordinate: { lat: number; lon: number };
+}
+const plaetze = ort
+  ? ((
+      await adminApi<{ festplaetze: Platz[] }>(Astro.cookies, 'GET', `orte/${ort.slug}/festplaetze`)
+    ).daten?.festplaetze ?? [])
+  : [];
+const googleSuche = ort
+  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ort.name}, Thüringen`)}`
+  : '';
+const veranstaltungsorte = [
+  ...new Set([
+    ...plaetze.map((p) => p.name).filter(Boolean),
+    ...termine.map((t) => t.veranstaltungsort).filter(Boolean),
+  ]),
+];
+// Vorschläge aus ALLEN bisherigen Terminen (Bands/DJs spielen oft mehrfach) – nichts doppelt tippen
+const vorschlaege = (
+  await adminApi<{ bands: string[]; titel: string[] }>(Astro.cookies, 'GET', 'vorschlaege')
+).daten ?? { bands: [], titel: [] };
+const bands = [...new Set([...termine.map((t) => t.band).filter(Boolean), ...vorschlaege.bands])];
+const titelVorschlaege = [
+  ...new Set([...zeilen.map((z) => z.titel).filter(Boolean), ...vorschlaege.titel]),
+];
 ---
 
 <AdminLayout titel={ort ? `Termine in ${ort.name}` : 'Termine'} meldung={meldung} fehler={fehler}>
@@ -221,9 +328,92 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
           <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
         </p>
 
+        <details class="filter plaetze" open={plaetze.length === 0}>
+          <summary>
+            <Icon name="route" />
+            Plätze in {ort.name} ({plaetze.length}) – für die genaue Route
+          </summary>
+          <p class="leise klein">
+            Einmal pro Ort anlegen, z. B. „Kirche“, „Festzelt“, „Kulturhaus“. Termine, deren „Wo
+            genau?“ gleich heißt, führen dann per „Route“ genau dorthin. Ein Platz ohne Namen gilt
+            für alle übrigen Termine des Ortes.
+          </p>
+          {plaetze.length > 0 && (
+            <table class="admin-tabelle">
+              <tbody>
+                {plaetze.map((pl) => (
+                  <tr>
+                    <td>
+                      <strong>{pl.name || 'Hauptfestplatz'}</strong>
+                    </td>
+                    <td class="klein">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${pl.koordinate.lat},${pl.koordinate.lon}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        In Google Maps prüfen
+                      </a>
+                    </td>
+                    <td>
+                      <form method="post">
+                        <CsrfFeld />
+                        <input type="hidden" name="aktion" value="platz-loeschen" />
+                        <input type="hidden" name="platzname" value={pl.name} />
+                        <button class="knopf zweit" type="submit">
+                          Löschen
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <form class="melden" method="post">
+            <CsrfFeld />
+            <input type="hidden" name="aktion" value="platz" />
+            <div class="zwei">
+              <label>
+                Name des Platzes
+                <input
+                  name="platzname"
+                  maxlength="120"
+                  list="vo-liste"
+                  placeholder="z. B. Kirche – leer = Hauptfestplatz"
+                />
+              </label>
+              <label>
+                Standort aus Google Maps *
+                <input
+                  name="standort"
+                  required
+                  maxlength="2000"
+                  placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+                />
+              </label>
+            </div>
+            <p class="leise klein">
+              So geht's:{' '}
+              <a href={googleSuche} target="_blank" rel="noopener">
+                {ort.name} in Google Maps öffnen
+              </a>
+              , lange auf die Stelle tippen (Pin setzen), „Teilen“ → „Link kopieren“, hier einfügen.
+            </p>
+            <div>
+              <button class="knopf zweit" type="submit">
+                Platz speichern
+              </button>
+            </div>
+          </form>
+        </details>
+
         {!zuBearbeiten && (
           <nav class="umschalter" aria-label="Art der Eingabe">
-            <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!wochenendModus && 'page'}>
+            <a
+              href={`/admin/termine?ort=${ort.slug}`}
+              aria-current={!wochenendModus && !alleModus && 'page'}
+            >
               Einzelner Termin
             </a>
             <a
@@ -232,7 +422,130 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
             >
               Ganzes Kirmeswochenende
             </a>
+            {termine.length > 0 && (
+              <a
+                href={`/admin/termine?ort=${ort.slug}&modus=alle`}
+                aria-current={alleModus && 'page'}
+              >
+                Alle Termine bearbeiten
+              </a>
+            )}
           </nav>
+        )}
+
+        {alleModus && !zuBearbeiten && (
+          <section aria-labelledby="alle-kopf">
+            <h2 id="alle-kopf">Alle Termine in {ort.name} bearbeiten</h2>
+            {termine.length === 0 ? (
+              <p class="leer">Noch keine Termine.</p>
+            ) : (
+              <form class="melden wochenende" method="post" id="alle">
+                <CsrfFeld />
+                <input type="hidden" name="aktion" value="sammel" />
+                <p class="leise klein">
+                  Jedes Feld lässt sich direkt ändern. „Löschen“ anhaken, um einen Termin zu
+                  entfernen. Gespeichert wird alles zusammen – oder bei einem Fehler gar nichts.
+                </p>
+                <ol class="we-zeilen">
+                  {termine.map((t, i) => (
+                    <li class="we-zeile">
+                      <input type="hidden" name="s-id" value={t.id} />
+                      <div class="we-zeit">
+                        <label>
+                          Datum
+                          <input name="s-datum" type="date" required value={t.datum} />
+                        </label>
+                        <label>
+                          Beginn
+                          <input name="s-beginn" type="time" value={t.beginn ?? ''} />
+                        </label>
+                        <span class="we-tag leise klein" aria-hidden="true">
+                          {wochentag(t.datum)}, {tagMonat(t.datum)}
+                        </span>
+                      </div>
+                      <div class="zwei">
+                        <label>
+                          Veranstaltung
+                          <input
+                            name="s-titel"
+                            required
+                            maxlength="200"
+                            list="titel-liste"
+                            value={t.titel}
+                          />
+                        </label>
+                        <label>
+                          Art
+                          <select name="s-kat">
+                            {Object.entries(KATEGORIEN).map(([k, v]) => (
+                              <option value={k} selected={t.kategorie === k}>
+                                {v.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div class="zwei">
+                        <label>
+                          Band / DJ
+                          <input
+                            name="s-band"
+                            maxlength="120"
+                            list="band-liste"
+                            value={t.band ?? ''}
+                          />
+                        </label>
+                        <label>
+                          Wo genau?
+                          <input
+                            name="s-vo"
+                            maxlength="120"
+                            list="vo-liste"
+                            value={t.veranstaltungsort ?? ''}
+                          />
+                        </label>
+                      </div>
+                      <label>
+                        Hinweise (öffentlich)
+                        <textarea name="s-info" maxlength="500" rows="2" set:text={t.info ?? ''} />
+                      </label>
+                      <div class="haekchen">
+                        <label class="klein">
+                          <input
+                            type="checkbox"
+                            name="s-mutti"
+                            value={String(i)}
+                            checked={t.muttizettel}
+                          />{' '}
+                          Muttizettel
+                        </label>
+                        <label class="klein">
+                          <input
+                            type="checkbox"
+                            name="s-best"
+                            value={String(i)}
+                            checked={t.bestaetigt}
+                          />{' '}
+                          Vom Veranstalter bestätigt
+                        </label>
+                        <label class="klein loeschen">
+                          <input type="checkbox" name="s-loeschen" value={String(i)} /> Löschen
+                        </label>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                <div class="knopfreihe">
+                  <button class="knopf" type="submit">
+                    Alle Änderungen speichern
+                  </button>
+                  <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
+                    Abbrechen
+                  </a>
+                </div>
+              </form>
+            )}
+          </section>
         )}
 
         {wochenendModus && !zuBearbeiten && (
@@ -275,19 +588,38 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
                           </span>
                         )}
                       </div>
-                      <label>
-                        Veranstaltung
-                        <input
-                          name="z-titel"
-                          maxlength="200"
-                          value={z?.titel ?? ''}
-                          placeholder="z. B. Kirmestanz"
-                        />
-                      </label>
+                      <div class="zwei">
+                        <label>
+                          Veranstaltung
+                          <input
+                            name="z-titel"
+                            list="titel-liste"
+                            maxlength="200"
+                            value={z?.titel ?? ''}
+                            placeholder="z. B. Kirmestanz"
+                          />
+                        </label>
+                        <label>
+                          Art
+                          <select name="z-kat">
+                            <option value="">automatisch erkennen</option>
+                            {Object.entries(KATEGORIEN).map(([k, v]) => (
+                              <option value={k} selected={z?.kategorie === k}>
+                                {v.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                       <div class="zwei">
                         <label>
                           Band / DJ
-                          <input name="z-band" maxlength="120" value={z?.band ?? ''} />
+                          <input
+                            name="z-band"
+                            maxlength="120"
+                            list="band-liste"
+                            value={z?.band ?? ''}
+                          />
                         </label>
                         <label>
                           Wo genau?
@@ -334,8 +666,10 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
           </section>
         )}
 
-        {!wochenendModus && <h2>{zuBearbeiten ? 'Termin ändern' : 'Neuer Termin'}</h2>}
-        {!wochenendModus && (
+        {!wochenendModus && !alleModus && (
+          <h2>{zuBearbeiten ? 'Termin ändern' : 'Neuer Termin'}</h2>
+        )}
+        {!wochenendModus && !alleModus && (
           <details class="filter" open={!zuBearbeiten}>
             <summary>
               <Icon name="suche" />
@@ -355,7 +689,7 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
           </details>
         )}
 
-        {!wochenendModus && (
+        {!wochenendModus && !alleModus && (
           <form class="melden" method="post" id="terminformular">
             <CsrfFeld />
             <input type="hidden" name="aktion" value="speichern" />
@@ -371,7 +705,13 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
             </div>
             <label>
               Veranstaltung *
-              <input name="titel" required maxlength="200" value={zuBearbeiten?.titel ?? ''} />
+              <input
+                name="titel"
+                required
+                maxlength="200"
+                list="titel-liste"
+                value={zuBearbeiten?.titel ?? ''}
+              />
             </label>
             <div class="zwei">
               <label>
@@ -398,7 +738,12 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
             <div class="zwei">
               <label>
                 Band / DJ
-                <input name="band" maxlength="120" value={zuBearbeiten?.band ?? ''} />
+                <input
+                  name="band"
+                  maxlength="120"
+                  list="band-liste"
+                  value={zuBearbeiten?.band ?? ''}
+                />
               </label>
               <label>
                 Hinweise (öffentlich)
@@ -446,13 +791,24 @@ const veranstaltungsorte = [...new Set(termine.map((t) => t.veranstaltungsort).f
             </div>
           </form>
         )}
-        {wochenendModus && (
+        {(wochenendModus || alleModus) && (
           <datalist id="vo-liste">
             {veranstaltungsorte.map((v) => (
               <option value={v!} />
             ))}
           </datalist>
         )}
+
+        <datalist id="band-liste">
+          {bands.map((b) => (
+            <option value={b!} />
+          ))}
+        </datalist>
+        <datalist id="titel-liste">
+          {titelVorschlaege.map((t) => (
+            <option value={t} />
+          ))}
+        </datalist>
 
         <h2>Termine in {ort.name}</h2>
         {termine.length === 0 ? (

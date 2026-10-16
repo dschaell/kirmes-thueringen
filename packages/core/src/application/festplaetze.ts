@@ -1,5 +1,6 @@
 import { validiereFestplatz, type Festplatz } from '../domain/festplatz.js';
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
+import { istKartenKurzlink, koordinateAusText } from '../domain/redaktion.js';
 import type { Ort } from '../domain/termin.js';
 
 /** Wer darf bearbeiten? Ergebnis einer erfolgreichen Link-Prüfung – gilt immer nur für einen Ort. */
@@ -70,5 +71,65 @@ export class VerwalteFestplaetze {
     const b = await this.links.pruefe(token);
     if (!b) return err(VERWEIGERT);
     return ok(await this.repo.loesche(b.ortSlug, name.trim(), b));
+  }
+}
+
+// ── Plätze durch die Redaktion (Issue #62) ─────────────────────────────────────────────
+/** Löst Kurzlinks von Google Maps auf (nur Google-Hosts). null = nicht auflösbar. */
+export interface Kartenlinks {
+  aufloesen(kurzlink: string): Promise<string | null>;
+}
+
+/**
+ * Die Redaktion legt Plätze eines Ortes an (Kirche, Festzelt, Saal …) – per Google-Maps-Link oder
+ * Koordinaten. Termine finden ihren Platz über den Veranstaltungsort (gleicher Name); ein Platz ohne
+ * Namen ist der Hauptfestplatz des Ortes.
+ */
+export class RedaktionsFestplaetze {
+  constructor(
+    private readonly repo: FestplatzRepository,
+    private readonly landkreis: (ortSlug: string) => Promise<string | null>,
+    private readonly links: Kartenlinks,
+  ) {}
+
+  private async berechtigung(ortSlug: string, adminId: string): Promise<Berechtigung | null> {
+    const lk = await this.landkreis(ortSlug);
+    return lk ? { linkId: null, adminId, ortSlug, landkreis: lk, bezeichnung: 'Redaktion' } : null;
+  }
+
+  uebersicht(ortSlug: string) {
+    return this.repo.uebersicht(ortSlug);
+  }
+
+  async speichere(
+    ortSlug: string,
+    e: { name: string; standort: string },
+    adminId: string,
+  ): Promise<Result<Festplatz, Validierungsfehler[]>> {
+    const b = await this.berechtigung(ortSlug, adminId);
+    if (!b)
+      return err([{ feld: 'ortSlug', code: 'ORT_UNBEKANNT', meldung: 'Ort nicht gefunden.' }]);
+    const roh = e.standort.trim();
+    const text = istKartenKurzlink(roh) ? ((await this.links.aufloesen(roh)) ?? '') : roh;
+    const k = koordinateAusText(text);
+    if (!k) {
+      return err([
+        {
+          feld: 'standort',
+          code: 'STANDORT',
+          meldung:
+            'Standort nicht erkannt – in Google Maps den Pin setzen, „Teilen → Link kopieren“ und hier einfügen (oder Koordinaten wie 50.8475, 11.0412).',
+        },
+      ]);
+    }
+    const v = validiereFestplatz({ name: e.name, lat: k.lat, lon: k.lon });
+    if (!v.ok) return v;
+    await this.repo.speichere(ortSlug, v.value, b);
+    return ok(v.value);
+  }
+
+  async loesche(ortSlug: string, name: string, adminId: string): Promise<boolean> {
+    const b = await this.berechtigung(ortSlug, adminId);
+    return b ? this.repo.loesche(ortSlug, name.trim(), b) : false;
   }
 }

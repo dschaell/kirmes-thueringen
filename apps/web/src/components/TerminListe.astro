@@ -73,7 +73,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     <a class="titel" href={`/termin/${t.id}`}>
                       {t.titel}
                     </a>
-                    {t.kategorie !== 'kirmes' && (
+                    {t.kategorie !== 'party' && (
                       <span class={`kat kat-${t.kategorie}`}>{KATEGORIEN[t.kategorie].kurz}</span>
                     )}
                     {t.muttizettel && (
