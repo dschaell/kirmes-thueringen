@@ -13,6 +13,7 @@ import {
   kreisSlug,
   plusTage,
   relativerTag,
+  preisText,
   routenLinks,
 } from '../../lib/anzeige';
 
@@ -95,6 +96,22 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           <Icon name="info" />
           <span>{t.info}</span>
         </p>
+      )
+    }
+
+    {
+      t.speisen && t.speisen.length > 0 && (
+        <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
+          <h2 id="mittagstisch-kopf">Mittagstisch</h2>
+          <ul>
+            {t.speisen.map((s) => (
+              <li>
+                <span>{s.name}</span>
+                {s.preisCent != null && <span class="preis">{preisText(s.preisCent)}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
       )
     }
 

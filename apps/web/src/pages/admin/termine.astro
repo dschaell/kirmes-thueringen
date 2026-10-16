@@ -51,6 +51,16 @@ if (Astro.request.method === 'POST' && ort) {
     info: feld(f, 'info') || null,
     muttizettel: f.get('muttizettel') === 'ja',
   };
+  if (aktion === 'speisen') {
+    const namen = f.getAll('sp-name').map((v) => (typeof v === 'string' ? v : ''));
+    const preise = f.getAll('sp-preis').map((v) => (typeof v === 'string' ? v : ''));
+    const rsp = await adminApi(Astro.cookies, 'PUT', `termine/${encodeURIComponent(id)}/speisen`, {
+      ortSlug: ort.slug,
+      speisen: namen.map((name, i) => ({ name, preis: preise[i] ?? '' })),
+    });
+    if (rsp.status < 300) meldung = 'Mittagstisch gespeichert.';
+    else fehler = rsp.fehler;
+  }
   if (aktion === 'sammel') {
     const werte = (n: string) => f.getAll(n).map((v) => (typeof v === 'string' ? v.trim() : ''));
     // Checkboxen senden nur angehakte Werte – jede trägt ihre Zeilennummer
@@ -141,7 +151,7 @@ if (Astro.request.method === 'POST' && ort) {
   // Zeilen ohne Veranstaltung bleiben leer und werden nicht gespeichert
   const gefuellt = zeilen.filter((z) => z.titel);
   const r =
-    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel'
+    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel' || aktion === 'speisen'
       ? { status: 299, daten: null, fehler: fehler }
       : aktion === 'wochenende'
         ? gefuellt.length === 0
@@ -528,6 +538,12 @@ const titelVorschlaege = [
                           />{' '}
                           Vom Veranstalter bestätigt
                         </label>
+                        <a
+                          class="klein"
+                          href={`/admin/termine?ort=${ort.slug}&bearbeiten=${t.id}#mittagstisch`}
+                        >
+                          Mittagstisch
+                        </a>
                         <label class="klein loeschen">
                           <input type="checkbox" name="s-loeschen" value={String(i)} /> Löschen
                         </label>
@@ -790,6 +806,73 @@ const titelVorschlaege = [
               )}
             </div>
           </form>
+        )}
+        {zuBearbeiten && !wochenendModus && !alleModus && (
+          <section id="mittagstisch" aria-labelledby="mt-kopf">
+            <h2 id="mt-kopf">Mittagstisch</h2>
+            <p class="leise klein">
+              Z. B. beim Frühschoppen: Gericht und Preis. Leere Zeilen werden ignoriert; ohne
+              Gerichte erscheint nichts auf der Terminseite.
+            </p>
+            <form class="melden" method="post">
+              <CsrfFeld />
+              <input type="hidden" name="aktion" value="speisen" />
+              <input type="hidden" name="id" value={zuBearbeiten.id} />
+              <ol class="speisen-zeilen">
+                {[
+                  ...(zuBearbeiten.speisen ?? []),
+                  ...Array.from(
+                    { length: Math.max(3, 6 - (zuBearbeiten.speisen?.length ?? 0)) },
+                    () => null,
+                  ),
+                ].map((sp, i) => (
+                  <li class="zwei">
+                    <label>
+                      Gericht {i + 1}
+                      <input
+                        name="sp-name"
+                        maxlength="120"
+                        list="speisen-liste"
+                        value={sp?.name ?? ''}
+                        placeholder={i === 0 ? 'z. B. Rostbrätel mit Brot' : ''}
+                      />
+                    </label>
+                    <label>
+                      Preis (€)
+                      <input
+                        name="sp-preis"
+                        inputmode="decimal"
+                        maxlength="10"
+                        value={
+                          sp?.preisCent != null
+                            ? (sp.preisCent / 100).toFixed(2).replace('.', ',')
+                            : ''
+                        }
+                        placeholder="7,50"
+                      />
+                    </label>
+                  </li>
+                ))}
+              </ol>
+              <datalist id="speisen-liste">
+                {[
+                  'Rostbrätel mit Brot',
+                  'Thüringer Rostbratwurst',
+                  'Klöße mit Rouladen und Rotkraut',
+                  'Schnitzel mit Kartoffelsalat',
+                  'Erbsensuppe',
+                  'Kaffee und Kuchen',
+                ].map((v) => (
+                  <option value={v} />
+                ))}
+              </datalist>
+              <div>
+                <button class="knopf" type="submit">
+                  Mittagstisch speichern
+                </button>
+              </div>
+            </form>
+          </section>
         )}
         {(wochenendModus || alleModus) && (
           <datalist id="vo-liste">

@@ -5,6 +5,7 @@ export * from './domain/termin.js';
 export * from './domain/festplatz.js';
 export * from './domain/text.js';
 export * from './domain/redaktion.js';
+export * from './domain/speisen.js';
 export * from './application/ports.js';
 export * from './application/suche-termine.js';
 export * from './application/lege-termin-an.js';

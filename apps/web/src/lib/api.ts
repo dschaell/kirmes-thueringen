@@ -36,6 +36,8 @@ export interface TerminDto {
   info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung (Muttizettel) */
   muttizettel: boolean;
+  /** Mittagstisch – nur in der Einzelansicht (Issue #66) */
+  speisen?: { name: string; preisCent: number | null }[];
 }
 
 export interface TerminSeite {

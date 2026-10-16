@@ -2,6 +2,7 @@ import { monatVon, parseDatum, type KalenderDatum } from './datum.js';
 import type { Koordinate } from './festplatz.js';
 import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
+import type { Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
 /** Drei klare Arten (Issue #64): Tanz & Party, Familien & Kinder, Tradition. */
@@ -53,6 +54,8 @@ export interface Termin {
   readonly info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */
   readonly muttizettel: boolean;
+  /** Mittagstisch (nur bei der Einzelansicht geladen) */
+  readonly speisen?: readonly Speise[];
 }
 
 export interface TerminEingabe {

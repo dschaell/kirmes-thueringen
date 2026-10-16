@@ -290,6 +290,60 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     ]);
   });
 
+  it('Mittagstisch: ersetzen, in Reihenfolge laden, nur im eigenen Ort (#66)', async () => {
+    const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
+    const v = new PgTerminVerwaltung(pool);
+    const [t] = await v.legeAlle(
+      [
+        {
+          ortSlug: 'it-ulla',
+          landkreis: 'WL',
+          datum: d('2026-10-25'),
+          beginn: '10:00',
+          titel: 'ZZMT Frühschoppen',
+          veranstaltungsort: null,
+          kategorie: 'tradition',
+          bestaetigt: true,
+          band: null,
+          info: null,
+          muttizettel: false,
+        },
+      ],
+      durch,
+    );
+    const id = t!.id;
+    expect(
+      await v.setzeSpeisen(
+        id,
+        [
+          { name: 'Rostbrätel mit Brot', preisCent: 750 },
+          { name: 'Kaffee und Kuchen', preisCent: null },
+        ],
+        durch,
+      ),
+    ).toBe(true);
+    expect((await repo.finde(id))?.speisen).toEqual([
+      { name: 'Rostbrätel mit Brot', preisCent: 750 },
+      { name: 'Kaffee und Kuchen', preisCent: null },
+    ]);
+    // ersetzen statt anhängen
+    expect(await v.setzeSpeisen(id, [{ name: 'Erbsensuppe', preisCent: 450 }], durch)).toBe(true);
+    expect((await repo.finde(id))?.speisen).toEqual([{ name: 'Erbsensuppe', preisCent: 450 }]);
+    // fremder Ort → nichts geändert
+    expect(await v.setzeSpeisen(id, [], { ...durch, ortSlug: 'it-anderer-ort' })).toBe(false);
+    expect((await repo.finde(id))?.speisen).toHaveLength(1);
+    // leere Liste entfernt den Mittagstisch
+    expect(await v.setzeSpeisen(id, [], durch)).toBe(true);
+    expect((await repo.finde(id))?.speisen).toEqual([]);
+    // Löschen des Termins nimmt den Mittagstisch mit (CASCADE)
+    await v.loesche(id, durch);
+    const rest = await pool.query(
+      'SELECT count(*)::int AS n FROM termin_speise WHERE termin_id = $1',
+      [id],
+    );
+    expect(rest.rows[0].n).toBe(0);
+  });
+
   it('Ganze Kirmes bearbeiten: ändern und löschen in einer Transaktion (#65)', async () => {
     const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
     const t = (datum: string, titel: string) => ({

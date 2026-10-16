@@ -114,6 +114,8 @@ const terminDto = (t: Termin) => ({
   band: t.band,
   muttizettel: t.muttizettel,
   info: t.info,
+  // Mittagstisch nur in der Einzelansicht
+  ...(t.speisen && { speisen: t.speisen }),
 });
 
 /** „Authorization: Bearer <token>“ → token */

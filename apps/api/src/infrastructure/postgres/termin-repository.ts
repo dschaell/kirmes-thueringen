@@ -119,6 +119,9 @@ const zuTermin = (z: Zeile): Termin => ({
   festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,
 });
 
+const SQL_SPEISEN = `
+SELECT name, preis_cent FROM termin_speise WHERE termin_id = $1::uuid ORDER BY position`;
+
 export class OrtNichtGefunden extends Error {
   constructor(slug: string) {
     super(`Ort „${slug}“ existiert nicht.`);
@@ -150,7 +153,15 @@ export class PgTerminRepository implements TerminRepository {
 
   async finde(id: string): Promise<Termin | null> {
     const { rows } = await this.abfrage<Zeile>(SQL_FINDE, [id]);
-    return rows[0] ? zuTermin(rows[0]) : null;
+    if (!rows[0]) return null;
+    // Mittagstisch nur in der Einzelansicht (Issue #66)
+    const speisen = await this.abfrage<{ name: string; preis_cent: number | null }>(SQL_SPEISEN, [
+      id,
+    ]);
+    return {
+      ...zuTermin(rows[0]),
+      speisen: speisen.rows.map((s) => ({ name: s.name, preisCent: s.preis_cent })),
+    };
   }
 
   async speichere(t: NeuerTermin): Promise<Termin> {

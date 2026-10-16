@@ -993,3 +993,29 @@ input[aria-invalid='true'] {
 .haekchen .loeschen {
   color: var(--rot);
 }
+
+/* Mittagstisch (Issue #66) */
+.mittagstisch {
+  margin: 8px 0 24px;
+}
+.mittagstisch ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.mittagstisch li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dotted var(--linie);
+}
+.mittagstisch .preis {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.speisen-zeilen {
+  list-style: none;
+  padding: 0;
+}

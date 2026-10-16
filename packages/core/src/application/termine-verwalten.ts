@@ -1,3 +1,4 @@
+import type { Speise } from '../domain/speisen.js';
 import { plusTage } from '../domain/datum.js';
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
 import { validiereTermin, type Hinweis, type NeuerTermin, type Termin } from '../domain/termin.js';
@@ -21,6 +22,8 @@ export interface TerminVerwaltung {
     loeschen: string[],
     durch: Berechtigung,
   ): Promise<boolean>;
+  /** Mittagstisch eines Termins ersetzen (Issue #66); false = Termin nicht gefunden/fremder Ort */
+  setzeSpeisen(id: string, speisen: readonly Speise[], durch: Berechtigung): Promise<boolean>;
   bestaetige(id: string, durch: Berechtigung): Promise<boolean>;
   loesche(id: string, durch: Berechtigung): Promise<boolean>;
 }
