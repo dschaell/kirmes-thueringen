@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { listeOrte, type OrtUebersichtDto } from '../../lib/api';
+import { anzahl } from '../../lib/anzeige';
 
 // Nur Orte mit kommenden Terminen – das Ortsverzeichnis enthält alle 3.000+ Thüringer Orte.
 const orte = (await listeOrte()).filter((o) => o.anzahlKommend > 0);
@@ -21,13 +22,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 
 <Base
   title={`Kirmesorte in Thüringen von A bis Z – Kirmeskalender Thüringen`}
-  description={`Alle ${orte.length} Thüringer Orte mit Kirmes von A bis Z – mit Terminen für Kirmestanz, Kindertanz und Brauchtum.`}
+  description={`Thüringer Orte mit Kirmes von A bis Z – mit Terminen für Kirmestanz, Kindertanz und Brauchtum.`}
 >
   <section class="einstieg">
     <h1>Orte von A bis Z</h1>
-    <p class="unterzeile">
-      {orte.length} Orte mit kommenden Kirmes-Terminen. Die Zahl zeigt, wie viele es sind.
-    </p>
+    {
+      orte.length > 0 && (
+        <p class="unterzeile">
+          {anzahl(orte.length, 'Ort', 'Orte')} mit kommenden Kirmes-Terminen.
+        </p>
+      )
+    }
   </section>
   {
     orte.length === 0 && (

@@ -55,6 +55,19 @@ export const kreisAusSlug = (slug: string): LandkreisKuerzel | undefined =>
   (Object.keys(LANDKREISE) as LandkreisKuerzel[]).find((k) => kreisSlug(k) === slug);
 
 /** „1 Termin“, „3 Termine“, „kein Termin“ */
+/** „12 kommende Termine in 5 Orten.“ – grammatisch richtig auch für 0 und 1 (Issue #53). */
+export function kreisZusammenfassung(termine: number, orte: number): string {
+  if (termine === 0) return 'Noch keine kommenden Termine eingetragen.';
+  const t =
+    termine === 1 ? '1 kommender Termin' : `${termine.toLocaleString('de-DE')} kommende Termine`;
+  const o = orte === 1 ? 'einem Ort' : `${orte.toLocaleString('de-DE')} Orten`;
+  return `${t} in ${o}.`;
+}
+
+/** Pfad ohne abschließenden „/“ (außer „/“) – vorgerenderte Seiten kommen sonst mit „/“ an (#54). */
+export const ohneSchraegstrich = (pfad: string) =>
+  pfad.length > 1 ? pfad.replace(/\/+$/, '') : pfad;
+
 export const anzahl = (
   n: number,
   einzahl: string,

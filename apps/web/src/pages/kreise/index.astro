@@ -10,7 +10,6 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     const imKreis = orte.filter((o) => o.landkreis === k);
     return { k, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0), orte: imKreis.length };
   })
-  .filter((x) => x.n > 0)
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
@@ -22,7 +21,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
   <section class="einstieg">
     <h1>Kirmes nach Landkreis</h1>
     <p class="unterzeile">
-      Alle Landkreise und kreisfreien Städte, in denen Kirmes-Termine eingetragen sind.
+      Alle Landkreise und kreisfreien Städte Thüringens – mit der Zahl der kommenden Termine.
     </p>
   </section>
   <nav class="kreisraster" aria-label="Landkreise">
