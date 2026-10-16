@@ -90,13 +90,9 @@ Datenbank-Migrationen laufen dabei automatisch (Dienst `migrate`, bevor die API 
 
 ## 6. Redaktionszugang einrichten
 
-```bash
-cd /opt/kirmes
-docker compose run --rm -it migrate node apps/api/dist/infrastructure/postgres/admin-cli.js anlegen deine@email.de
-```
-
-Passwort festlegen (mind. 12 Zeichen), dann den angezeigten Schlüssel in eine Authenticator-App
-eintragen (Google Authenticator, Authy, 1Password …). Anmeldung unter `https://DOMAIN/admin`.
+Im Browser `https://DOMAIN/admin/einrichten` öffnen → „Einrichtungslink senden“ (geht an `MAIL_AN`)
+→ Link öffnen, Namen wählen, Passkey anlegen. Kein Passwort (ADR 023). Weitere Mitglieder lädt ein
+Admin unter `/admin/mitglieder` ein; im Notfall lokal: `npm run admin -- einladen admin`.
 
 ## 6a. Bearbeitungslinks für Kirmesgesellschaften
 

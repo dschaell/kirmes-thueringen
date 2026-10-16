@@ -11,7 +11,14 @@ import {
   type AuthenticationResponseJSON,
   type RegistrationResponseJSON,
 } from '@simplewebauthn/server';
-import type { Challenges, Passkey, RegistrierterSchluessel, WebAuthn } from '@kirmes/core';
+import type {
+  ChallengeZweck,
+  Challenges,
+  KontoKennung,
+  Passkey,
+  RegistrierterSchluessel,
+  WebAuthn,
+} from '@kirmes/core';
 
 export class SimpleWebAuthn implements WebAuthn {
   private readonly rpID: string;
@@ -26,12 +33,17 @@ export class SimpleWebAuthn implements WebAuthn {
     this.origin = u.origin;
   }
 
-  async registrierungsOptionen(admin: { id: string; email: string }, vorhandene: Passkey[]) {
+  async registrierungsOptionen(
+    konto: KontoKennung,
+    vorhandene: Pick<Passkey, 'credentialId' | 'transports'>[],
+  ) {
     const optionen = await generateRegistrationOptions({
       rpName: this.rpName,
       rpID: this.rpID,
-      userName: admin.email,
-      userID: new TextEncoder().encode(`admin-${admin.id}`),
+      // Nur der selbst gewählte Anzeigename und eine Zufallskennung – keine E-Mail
+      userName: konto.name,
+      userDisplayName: konto.name,
+      userID: new TextEncoder().encode(konto.kennung),
       attestationType: 'none',
       excludeCredentials: vorhandene.map((p) => ({ id: p.credentialId, transports: p.transports })),
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
@@ -104,7 +116,13 @@ export class SimpleWebAuthn implements WebAuthn {
 export class SpeicherChallenges implements Challenges {
   private readonly offen = new Map<
     string,
-    { zweck: string; challenge: string; adminId: string | null; bis: number }
+    {
+      zweck: string;
+      challenge: string;
+      adminId: string | null;
+      daten?: Record<string, string>;
+      bis: number;
+    }
   >();
 
   constructor(
@@ -113,20 +131,25 @@ export class SpeicherChallenges implements Challenges {
     private readonly jetzt: () => number = Date.now,
   ) {}
 
-  lege(zweck: 'einrichten' | 'anmelden', challenge: string, adminId: string | null): string {
+  lege(
+    zweck: ChallengeZweck,
+    challenge: string,
+    adminId: string | null,
+    daten?: Record<string, string>,
+  ): string {
     const t = this.jetzt();
     for (const [k, v] of this.offen) if (v.bis < t) this.offen.delete(k);
     // Überfüllt: die älteste offene Challenge verdrängen (Map behält die Einfügereihenfolge)
     if (this.offen.size >= this.max) this.offen.delete([...this.offen.keys()][0] ?? '');
     const vorgang = randomBytes(24).toString('base64url');
-    this.offen.set(vorgang, { zweck, challenge, adminId, bis: t + this.gueltigMs });
+    this.offen.set(vorgang, { zweck, challenge, adminId, daten, bis: t + this.gueltigMs });
     return vorgang;
   }
 
-  nimm(vorgang: string, zweck: 'einrichten' | 'anmelden') {
+  nimm(vorgang: string, zweck: ChallengeZweck) {
     const c = this.offen.get(vorgang);
     this.offen.delete(vorgang);
     if (!c || c.zweck !== zweck || c.bis < this.jetzt()) return null;
-    return { challenge: c.challenge, adminId: c.adminId };
+    return { challenge: c.challenge, adminId: c.adminId, daten: c.daten };
   }
 }

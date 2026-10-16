@@ -16,9 +16,9 @@ import Base from '../layouts/Base.astro';
   <h2>Kurz gesagt</h2>
   <p>
     Kein Tracking, keine Werbung, keine externen Schriften oder Skripte. Wir setzen nur technisch
-    notwendige Cookies: beim Formular „Termin melden“ ein Schutz gegen gefälschte Absendungen (CSRF,
-    gilt nur für diese Seite) und im Redaktionsbereich die Anmeldung. Rechtsgrundlage ist § 25 Abs.
-    2 Nr. 2 TDDDG.
+    notwendige Cookies: bei den Formularen „Termin melden“ und „Mitmachen“ ein Schutz gegen
+    gefälschte Absendungen (CSRF, gilt nur für diese Seiten) und im Redaktionsbereich die Anmeldung.
+    Rechtsgrundlage ist § 25 Abs. 2 Nr. 2 TDDDG.
   </p>
   <h2>Hosting und Zugriffsdaten</h2>
   <p>
@@ -38,6 +38,16 @@ import Base from '../layouts/Base.astro';
     schicken (Art. 6 Abs. 1 lit. b und f DSGVO) und löschen die E-Mail, sobald die Meldung
     bearbeitet ist. Zum Schutz vor Missbrauch wird eure IP-Adresse kurz im Arbeitsspeicher gezählt
     (höchstens eine Stunde, nicht gespeichert).
+  </p>
+  <h2>Redaktion: Mitmachen und Anmeldung</h2>
+  <p>
+    Eine Anfrage über „Mitmachen“ (Name, E-Mail, optional Region und Nachricht) schicken wir per
+    E-Mail an das Redaktionspostfach (Brevo, siehe oben) und speichern sie nicht in der Datenbank.
+    Mitglieder der Redaktion melden sich nur mit einem Passkey an. Gespeichert werden dafür nur der
+    selbst gewählte Anzeigename, die Rolle, der öffentliche Schlüssel des Passkeys, eine zufällige
+    Kennung und die Zeitpunkte von Anlage und letzter Anmeldung – keine E-Mail-Adresse, kein
+    Passwort, keine biometrischen Daten (Face ID/Touch ID bleiben auf eurem Gerät). Wird ein
+    Mitglied entfernt, werden diese Daten gelöscht (Art. 6 Abs. 1 lit. b und f DSGVO).
   </p>
   <h2>Bearbeitungsseite für Kirmesgesellschaften</h2>
   <p>

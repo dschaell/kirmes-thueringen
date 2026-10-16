@@ -74,15 +74,27 @@ const redaktion = defineMiddleware(async (ctx, next) => {
   }
   ctx.locals.csrf = csrfToken(ctx.cookies);
 
-  // Anmeldeseite (mit Passkey-Endpunkten) und die Ersteinrichtung sind ohne Sitzung erreichbar
+  // Ohne Sitzung erreichbar: Anmeldung, Ersteinrichtung, Einladung und deren Passkey-Endpunkte
   const ohneSitzung =
     pfad === '/admin/anmelden' ||
     pfad.startsWith('/admin/anmelden/') ||
-    pfad === '/admin/einrichten';
+    pfad === '/admin/einrichten' ||
+    pfad === '/admin/einladung' ||
+    pfad.startsWith('/admin/zugang/');
   if (!ohneSitzung) {
-    const ich = await adminApi<{ adminId: string }>(ctx.cookies, 'GET', 'ich');
-    if (ich.status !== 200) return ctx.redirect('/admin/anmelden', 303);
-    ctx.locals.adminId = ich.daten?.adminId;
+    const ich = await adminApi<{ adminId: string; name: string; rolle: 'admin' | 'redaktion' }>(
+      ctx.cookies,
+      'GET',
+      'ich',
+    );
+    if (ich.status !== 200 || !ich.daten) return ctx.redirect('/admin/anmelden', 303);
+    ctx.locals.adminId = ich.daten.adminId;
+    ctx.locals.name = ich.daten.name;
+    ctx.locals.rolle = ich.daten.rolle;
+    // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
+    if (pfad.startsWith('/admin/mitglieder') && ich.daten.rolle !== 'admin') {
+      return ctx.redirect('/admin', 303);
+    }
   }
   const res = await next();
   res.headers.set('Cache-Control', 'no-store');

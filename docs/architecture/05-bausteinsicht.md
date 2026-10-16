@@ -97,11 +97,12 @@ class LegeTerminAn {
 Schreibende Use Cases bekommen den **Akteur** als Parameter und prüfen Rechte über Ports – der Core
 kennt weder Cookies noch HTTP-Header:
 
-| Akteur             | Nachweis                                        | Port(s) im Core                                                    | Darf                                      |
-| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- |
-| Kirmesgesellschaft | persönlicher Bearbeitungslink (Token, nur Hash) | `Bearbeitungslinks.pruefe(token) → Berechtigung`                   | Termine und Festplätze **ihres** Ortes    |
-| Redaktion (Admin)  | Sitzung nach Passwort + TOTP oder Passkey       | `AdminKonten`, `Kryptografie`, `Sitzungen`, `Passkeys`, `WebAuthn` | alles: Orte, Termine, Mitteilungen, Links |
-| Besucher           | –                                               | –                                                                  | lesen, Meldung an die Redaktion senden    |
+| Akteur             | Nachweis                                        | Port(s) im Core                                                 | Darf                                   |
+| ------------------ | ----------------------------------------------- | --------------------------------------------------------------- | -------------------------------------- |
+| Kirmesgesellschaft | persönlicher Bearbeitungslink (Token, nur Hash) | `Bearbeitungslinks.pruefe(token) → Berechtigung`                | Termine und Festplätze **ihres** Ortes |
+| Redaktion          | Sitzung nach Passkey, Rolle `redaktion`         | `Sitzungen`, `Passkeys`, `WebAuthn`                             | Orte, Termine, Mitteilungen, Links     |
+| Admin              | Sitzung nach Passkey, Rolle `admin`             | zusätzlich `MitgliederRepository`, `Einladungen`, `KontoAnlage` | alles + Mitglieder einladen/verwalten  |
+| Besucher           | –                                               | –                                                               | lesen, Meldung an die Redaktion senden |
 
 `Berechtigung` (Ort, Link- bzw. Admin-ID) fließt bis in die Persistenz: Jede Schreibanweisung prüft
 im `WHERE` den Ort und schreibt einen Eintrag ins `aenderungsprotokoll` (wer, was, wann).
@@ -122,7 +123,9 @@ werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treibe
 | `GET/PUT/DELETE /api/v1/verwaltung/festplaetze` | Festplätze des eigenen Ortes (Header `Authorization: Bearer <Link-Token>`)                                              | 200 · 204 · 400 · 401                |
 | `…/api/v1/verwaltung/termine`                   | Termine des eigenen Ortes (Bearbeitungslink); `POST …/wochenende` legt bis zu 20 auf einmal an                          | 200 · 201 · 204 · 400 · 401 · 404    |
 | `GET /api/v1/mitteilungen/aktuell`              | Neueste veröffentlichte Mitteilung                                                                                      | 200 · 404                            |
-| `POST /api/v1/admin/anmelden`                   | Redaktion: E-Mail + Passwort + Einmalcode → Sitzung                                                                     | 200 · 401 · 429                      |
+| `POST /api/v1/admin/passkey-anmeldung`          | Redaktion: signierte Passkey-Antwort → Sitzung                                                                          | 200 · 401 · 429                      |
+| `/api/v1/admin/einladung/:token[/optionen]`     | Einladung prüfen / Passkey anlegen → Mitglied + Sitzung                                                                 | 200 · 400 · 404 · 409                |
+| `/api/v1/admin/mitglieder`, `/einladungen`      | nur Admin: Mitglieder, Rollen, Einladungen                                                                              | 200 · 201 · 204 · 403 · 409          |
 | `…/api/v1/admin/*`                              | Redaktion: Mitteilungen, Orte, Termine aller Orte (auch `termine/wochenende`), Links (`Authorization: Sitzung <token>`) | 200 · 201 · 204 · 400 · 401 · 404    |
 | `GET /health/live`                              | Prozess lebt                                                                                                            | 200                                  |
 | `GET /health/ready`                             | DB erreichbar                                                                                                           | 200 · 503                            |

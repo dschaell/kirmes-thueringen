@@ -101,10 +101,10 @@ sequenceDiagram
   participant W as Website /admin
   participant A as API
   participant D as PostgreSQL
-  B->>W: POST /admin/anmelden (E-Mail, Passwort, Code) + CSRF-Token
+  B->>W: POST /admin/anmelden/passkey (signierte Passkey-Antwort) + CSRF-Token
   W->>A: POST /api/v1/admin/anmelden
   A->>A: Sperre prüfen (5 je E-Mail / 30 gesamt in 15 min)
-  A->>D: Konto laden, scrypt + TOTP prüfen (gleiche Rechenzeit bei unbekannter E-Mail)
+  A->>D: Passkey zur Credential-ID laden, Signatur, Herkunft, Benutzerverifikation und Zähler prüfen
   A->>D: Sitzung anlegen (nur SHA-256 des Tokens)
   A-->>W: Token
   W-->>B: Cookie kirmes_admin (HttpOnly, Secure, SameSite=Strict, Path=/admin)

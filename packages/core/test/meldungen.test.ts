@@ -55,6 +55,40 @@ describe('Meldung an die Redaktion', () => {
     expect(gesendet[0]?.betreff).toBe('Link für den Festplatz: Ulla');
   });
 
+  it('Mitmachen-Anfrage: ohne Ort möglich, Antwortadresse der anfragenden Person', async () => {
+    const { m, gesendet } = aufbau();
+    const ohne = await m.melde(
+      { art: 'mitmachen', ort: '', absender: 'Moni', email: 'moni@example.org', dauerMs: 9000 },
+      'ip',
+    );
+    expect(ohne.ok).toBe(true);
+    expect(gesendet[0]).toMatchObject({
+      betreff: 'Mitmachen in der Redaktion: Moni',
+      antwortAn: 'moni@example.org',
+    });
+    expect(gesendet[0]?.text).toContain('Einladung erzeugen');
+    await m.melde(
+      {
+        art: 'mitmachen',
+        ort: 'Ilm-Kreis',
+        info: 'Ich kenne viele Kirmesgesellschaften.',
+        absender: 'Jo',
+        email: 'jo@example.org',
+        dauerMs: 9000,
+      },
+      'ip2',
+    );
+    expect(gesendet[1]?.text).toContain('Region / Ort: Ilm-Kreis');
+    expect(gesendet[1]?.text).toContain('Ich kenne viele Kirmesgesellschaften.');
+    const ohneName = await m.melde(
+      { art: 'mitmachen', ort: '', absender: '', email: 'x@y.de', dauerMs: 9000 },
+      'ip3',
+    );
+    expect(!ohneName.ok && ohneName.error).toEqual([
+      expect.objectContaining({ feld: 'absender', meldung: 'Name fehlt.' }),
+    ]);
+  });
+
   it('prüft Pflichtfelder, Datum, Uhrzeit, E-Mail und Längen', async () => {
     const { m, gesendet } = aufbau();
     const r = await m.melde(

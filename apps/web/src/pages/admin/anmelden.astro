@@ -1,22 +1,10 @@
 ---
-/** Anmeldung der Redaktion: E-Mail, Passwort und Einmalcode aus der Authenticator-App. */
+/** Anmeldung der Redaktion – nur mit Passkey (Issue #56). */
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
-import { anmelden, feld, setzeSitzung } from '../../lib/admin';
-import { einrichtungsStatus } from '../../lib/einrichtung';
+import { einrichtungsStatus } from '../../lib/zugang';
 
-let fehler: string | null = null;
-if (Astro.request.method === 'POST') {
-  const f = await Astro.request.formData();
-  const r = await anmelden(feld(f, 'email'), feld(f, 'passwort'), feld(f, 'code'));
-  if ('token' in r) {
-    setzeSitzung(Astro.cookies, r.token, r.stunden);
-    return Astro.redirect('/admin', 303);
-  }
-  fehler = r.fehler;
-  Astro.response.status = 401;
-}
-// Noch kein Zugang angelegt? Dann auf die Ersteinrichtung hinweisen.
+// Noch kein Admin? Dann auf die Ersteinrichtung hinweisen.
 const ersteinrichtung = (await einrichtungsStatus()).offen;
 ---
 
@@ -28,94 +16,56 @@ const ersteinrichtung = (await einrichtungsStatus()).offen;
   {
     ersteinrichtung && (
       <p class="kasten">
-        Es gibt noch keinen Redaktionszugang. <a href="/admin/einrichten">Jetzt einrichten</a>
+        Es gibt noch keinen Admin. <a href="/admin/einrichten">Jetzt einrichten</a>
       </p>
     )
   }
-  {
-    fehler && (
-      <p class="meldung" role="alert">
-        {fehler}
-      </p>
-    )
-  }
-  <form class="melden" method="post">
-    <CsrfFeld />
-    <label
-      >E-Mail<input name="email" type="email" required autocomplete="username webauthn" /></label
-    >
-    <label
-      >Passwort<input
-        name="passwort"
-        type="password"
-        required
-        autocomplete="current-password"
-      /></label
-    >
-    <label
-      >Code aus der Authenticator-App<input
-        name="code"
-        inputmode="numeric"
-        pattern="[0-9]{6}"
-        maxlength="6"
-        required
-        autocomplete="one-time-code"
-      /></label
-    >
-    <div><button class="knopf" type="submit">Anmelden</button></div>
-  </form>
-
-  <section class="passkey-anmeldung" id="passkey-bereich" hidden>
-    <p class="leise">oder</p>
-    <button class="knopf zweit" type="button" id="passkey-anmelden">Mit Passkey anmelden</button>
+  <CsrfFeld />
+  <section class="passkey-anmeldung" id="passkey-bereich">
+    <button class="knopf" type="button" id="passkey-anmelden">Mit Passkey anmelden</button>
     <p class="leise klein" id="passkey-status" role="status" aria-live="polite"></p>
   </section>
+  <p class="leise">
+    Noch nicht dabei? <a href="/redaktion-mitmachen">In der Redaktion mitmachen</a>
+  </p>
 </Base>
 
 <script>
-  import {
-    browserSupportsWebAuthn,
-    browserSupportsWebAuthnAutofill,
-    startAuthentication,
-    WebAuthnAbortService,
-  } from '@simplewebauthn/browser';
+  import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
   import { passkeyFehler, postJson } from '../../lib/passkey-client';
 
-  const bereich = document.getElementById('passkey-bereich');
   const knopf = document.getElementById('passkey-anmelden') as HTMLButtonElement | null;
   const status = document.getElementById('passkey-status');
 
-  /** Holt eine Challenge, lässt das Gerät signieren und meldet an. */
-  async function anmelden(autofill: boolean) {
-    const opt = await postJson('/admin/anmelden/passkey-optionen');
-    if (!opt.ok) {
-      if (!autofill && status) status.textContent = String(opt.daten.fehler ?? '');
-      return;
+  if (knopf && status) {
+    if (!browserSupportsWebAuthn()) {
+      knopf.disabled = true;
+      status.textContent =
+        'Dieser Browser kann keine Passkeys. Bitte ein aktuelles Handy oder einen aktuellen Browser nutzen.';
     }
-    const antwort = await startAuthentication({
-      optionsJSON: opt.daten.optionen as never,
-      useBrowserAutofill: autofill,
-    });
-    if (status) status.textContent = 'Prüfe …';
-    const r = await postJson('/admin/anmelden/passkey', { vorgang: opt.daten.vorgang, antwort });
-    if (r.ok) location.assign(String(r.daten.weiter ?? '/admin'));
-    else if (status) status.textContent = String(r.daten.fehler ?? 'Anmeldung fehlgeschlagen.');
-  }
-
-  if (bereich && knopf && status && browserSupportsWebAuthn()) {
-    bereich.hidden = false;
     knopf.addEventListener('click', async () => {
-      WebAuthnAbortService.cancelCeremony(); // laufende Autofill-Anfrage beenden
+      knopf.disabled = true;
       status.textContent = 'Bitte am Gerät bestätigen …';
       try {
-        await anmelden(false);
+        // Challenge holen, Gerät signieren lassen (Face ID/Touch ID/PIN), anmelden
+        const opt = await postJson('/admin/anmelden/passkey-optionen');
+        if (!opt.ok) {
+          status.textContent = String(opt.daten.fehler ?? 'Das hat nicht geklappt.');
+          return;
+        }
+        const antwort = await startAuthentication({ optionsJSON: opt.daten.optionen as never });
+        status.textContent = 'Prüfe …';
+        const r = await postJson('/admin/anmelden/passkey', {
+          vorgang: opt.daten.vorgang,
+          antwort,
+        });
+        if (r.ok) location.assign(String(r.daten.weiter ?? '/admin'));
+        else status.textContent = String(r.daten.fehler ?? 'Anmeldung fehlgeschlagen.');
       } catch (e) {
         status.textContent = passkeyFehler(e);
+      } finally {
+        knopf.disabled = false;
       }
     });
-    // Passkeys direkt im E-Mail-Feld vorschlagen, wo der Browser das kann
-    browserSupportsWebAuthnAutofill()
-      .then((ja) => (ja ? anmelden(true) : undefined))
-      .catch(() => {});
   }
 </script>

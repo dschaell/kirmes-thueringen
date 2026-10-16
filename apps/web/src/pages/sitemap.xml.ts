@@ -11,6 +11,7 @@ export const GET: APIRoute = async ({ site }) => {
     '/orte',
     '/kreise',
     '/termin-melden',
+    '/redaktion-mitmachen',
     '/ueber-die-kirmes',
     '/muttizettel',
     '/karte',

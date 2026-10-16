@@ -49,13 +49,14 @@ Auf dem Server führt niemand CLIs aus:
 
 - **Ortsverzeichnis:** `migrate` lädt beim Deploy `db/seed/orte.json` (`ORTE_LADEN=ja` im Stack,
   idempotent).
-- **Erster Redaktionszugang – im Browser:** `https://kirmeskalender-thueringen.de/admin/einrichten`
+- **Erster Admin – im Browser:** `https://kirmeskalender-thueringen.de/admin/einrichten`
   → „Einrichtungslink senden“. Der Link geht immer an das Redaktionspostfach (`MAIL_AN`), ist
-  30 Minuten gültig und nur einmal nutzbar. Dort Anmelde-E-Mail und Passwort festlegen, die
-  Authenticator-App per QR-Code verbinden und mit einem Code bestätigen. Danach ist man
-  angemeldet und richtet am besten gleich einen Passkey ein.
-- Sobald ein Admin existiert, ist `/admin/einrichten` gesperrt. Weitere Zugänge oder ein neues
-  Passwort gehen über die CLI (`npm run admin`) bzw. die Redaktion.
+  30 Minuten gültig und nur einmal nutzbar. Dort einen Namen wählen und einen **Passkey** anlegen
+  (Face ID / Touch ID / PIN) – kein Passwort.
+- Weitere Mitglieder: Anfrage über `/redaktion-mitmachen` kommt per Mail; ein Admin erzeugt unter
+  „Mitglieder“ einen Einladungslink (7 Tage, einmalig) und schickt ihn selbst.
+- Sobald ein Admin existiert, ist `/admin/einrichten` gesperrt. Sind alle Admins weg, öffnet sie
+  sich wieder (Notweg über das Postfach).
 
 ## Fehlersuche
 

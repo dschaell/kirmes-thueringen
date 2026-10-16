@@ -1,56 +1,38 @@
 /**
- * Ersten Redaktionszugang im Browser einrichten (Issue #48) – ohne Server-Shell und ohne Skripte.
+ * Ersten Admin im Browser einrichten (Issues #48, #56) – ohne Server-Shell, nur mit Passkey.
  *
  * Solange es keinen Admin gibt, kann jede Person einen Einrichtungslink anfordern. Der Link geht
  * aber immer an das feste Redaktionspostfach (nie an eine eingegebene Adresse). Wer den Link
- * öffnet, beweist damit Zugriff auf dieses Postfach. Abgeschlossen wird erst, wenn auch ein Code
- * aus der Authenticator-App stimmt – so ist der zweite Faktor sicher eingerichtet.
- * Sobald ein Admin existiert, ist die Einrichtung gesperrt, auch mit gültigem Link.
+ * öffnet, beweist damit Zugriff auf dieses Postfach, wählt einen Anzeigenamen und legt einen
+ * Passkey an. Sobald ein Admin existiert, ist die Einrichtung gesperrt, auch mit gültigem Link.
+ * Dient zugleich als Notfallweg, falls alle Admins entfernt wurden.
  */
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
-import { SITZUNG_STUNDEN, type Sitzungen } from './admin.js';
 import type { Drosselung, Postausgang } from './meldungen.js';
+import type { Registrierung, RegistrierungsFehler } from './mitglieder.js';
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
 export interface ErsterAdmin {
   gibtEs(): Promise<boolean>;
-  /** Legt das Konto nur an, solange es noch keinen Admin gibt; sonst null. */
-  legeAn(email: string, passwortHash: string, totpGeheimnis: string): Promise<string | null>;
 }
-export interface EinrichtungsKrypto {
-  hashePasswort(passwort: string): Promise<string>;
-  neuesTotpGeheimnis(): string;
-  pruefeEinmalcode(geheimnis: string, code: string): boolean;
-  neuesToken(): string;
-}
-/** Kurzlebige Einrichtungslinks; das TOTP-Geheimnis hängt am Link (bleibt beim Neuladen gleich). */
+/** Kurzlebige Einrichtungslinks (nur im Arbeitsspeicher). */
 export interface Einrichtungslinks {
-  lege(totpGeheimnis: string): string;
-  finde(link: string): { totpGeheimnis: string } | null;
+  lege(): string;
+  gueltig(link: string): boolean;
   verbrauche(link: string): void;
 }
 
 // ── Use Case ────────────────────────────────────────────────────────────────────────────
-export const PASSWORT_MIN = 12;
 export const EINRICHTUNG_MINUTEN = 30;
 export type EinrichtungsFehler = 'SCHON_EINGERICHTET' | 'ZU_VIELE' | 'LINK_UNGUELTIG';
-export interface Abschluss {
-  email: string;
-  passwort: string;
-  passwortWiederholung: string;
-  code: string;
-}
-
-const EMAIL = /^[^@\s]+@[^@\s]+$/;
 
 export class Ersteinrichtung {
   constructor(
     private readonly admins: ErsterAdmin,
-    private readonly krypto: EinrichtungsKrypto,
     private readonly links: Einrichtungslinks,
     private readonly post: Postausgang,
     private readonly drosselung: Drosselung,
-    private readonly sitzungen: Sitzungen,
+    private readonly registrierung: Registrierung,
     private readonly websiteUrl: string,
   ) {}
 
@@ -62,15 +44,15 @@ export class Ersteinrichtung {
   async sendeLink(): Promise<Result<void, EinrichtungsFehler>> {
     if (!(await this.offen())) return err('SCHON_EINGERICHTET');
     if (!this.drosselung.erlaube('einrichtung')) return err('ZU_VIELE');
-    const link = this.links.lege(this.krypto.neuesTotpGeheimnis());
+    const link = this.links.lege();
     const url = `${this.websiteUrl.replace(/\/+$/, '')}/admin/einrichten?link=${encodeURIComponent(link)}`;
     await this.post.sende({
       betreff: 'Redaktionszugang einrichten – Kirmeskalender Thüringen',
       text: [
         'Hallo,',
         '',
-        'für den Kirmeskalender wurde die Einrichtung des Redaktionszugangs angefordert.',
-        `Über diesen Link legst du Anmelde-E-Mail, Passwort und Authenticator-App fest (${EINRICHTUNG_MINUTEN} Minuten gültig, nur einmal nutzbar):`,
+        'für den Kirmeskalender wurde die Einrichtung des Admin-Zugangs angefordert.',
+        `Über diesen Link legst du deinen Passkey an (${EINRICHTUNG_MINUTEN} Minuten gültig, nur einmal nutzbar):`,
         '',
         url,
         '',
@@ -80,56 +62,35 @@ export class Ersteinrichtung {
     return ok(undefined);
   }
 
-  /** Daten für die Einrichtungsseite (TOTP-Geheimnis für den QR-Code). */
-  async pruefeLink(link: string): Promise<Result<{ totpGeheimnis: string }, EinrichtungsFehler>> {
+  async pruefeLink(link: string): Promise<Result<void, EinrichtungsFehler>> {
     if (!(await this.offen())) return err('SCHON_EINGERICHTET');
-    const l = this.links.finde(link);
-    return l ? ok({ totpGeheimnis: l.totpGeheimnis }) : err('LINK_UNGUELTIG');
+    return this.links.gueltig(link) ? ok(undefined) : err('LINK_UNGUELTIG');
+  }
+
+  async starte(
+    link: string,
+    name: string,
+  ): Promise<
+    Result<{ vorgang: string; optionen: unknown }, EinrichtungsFehler | Validierungsfehler[]>
+  > {
+    const p = await this.pruefeLink(link);
+    if (!p.ok) return p;
+    return this.registrierung.starte(name, 'admin', `einrichtung:${link}`);
   }
 
   async schliesseAb(
     link: string,
-    a: Abschluss,
+    vorgang: string,
+    antwort: unknown,
   ): Promise<
-    Result<{ token: string; stunden: number }, EinrichtungsFehler | Validierungsfehler[]>
+    Result<{ token: string; stunden: number }, EinrichtungsFehler | RegistrierungsFehler>
   > {
-    const l = this.links.finde(link);
-    if (!l) return err('LINK_UNGUELTIG');
-    if (!(await this.offen())) return err('SCHON_EINGERICHTET');
-
-    const email = a.email.trim().toLowerCase();
-    const fehler: Validierungsfehler[] = [];
-    if (!EMAIL.test(email) || email.length > 200) {
-      fehler.push({ feld: 'email', code: 'EMAIL', meldung: 'Bitte eine gültige E-Mail-Adresse.' });
-    }
-    if (a.passwort.length < PASSWORT_MIN) {
-      fehler.push({
-        feld: 'passwort',
-        code: 'PASSWORT_KURZ',
-        meldung: `Das Passwort braucht mindestens ${PASSWORT_MIN} Zeichen.`,
-      });
-    } else if (a.passwort !== a.passwortWiederholung) {
-      fehler.push({
-        feld: 'passwortWiederholung',
-        code: 'PASSWORT_UNGLEICH',
-        meldung: 'Die Passwörter stimmen nicht überein.',
-      });
-    }
-    if (!this.krypto.pruefeEinmalcode(l.totpGeheimnis, a.code.trim())) {
-      fehler.push({
-        feld: 'code',
-        code: 'CODE',
-        meldung: 'Der Code aus der Authenticator-App stimmt nicht – bitte den aktuellen eingeben.',
-      });
-    }
-    if (fehler.length) return err(fehler);
-
-    const hash = await this.krypto.hashePasswort(a.passwort);
-    const id = await this.admins.legeAn(email, hash, l.totpGeheimnis);
-    if (!id) return err('SCHON_EINGERICHTET'); // gleichzeitig hat jemand anderes abgeschlossen
+    if (!this.links.gueltig(link)) return err('LINK_UNGUELTIG');
+    const r = await this.registrierung.beende(vorgang, antwort, `einrichtung:${link}`, {
+      art: 'erster-admin',
+    });
+    if (!r.ok) return r.error === 'VERGEBEN' ? err('SCHON_EINGERICHTET') : r;
     this.links.verbrauche(link);
-    const token = this.krypto.neuesToken();
-    await this.sitzungen.lege(id, token, SITZUNG_STUNDEN);
-    return ok({ token, stunden: SITZUNG_STUNDEN });
+    return ok({ token: r.value.token, stunden: r.value.stunden });
   }
 }

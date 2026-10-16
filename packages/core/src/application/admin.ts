@@ -1,6 +1,6 @@
 /**
- * Redaktionszugang (Admin): Anmeldung mit Passwort + Einmalcode und alle Redaktionsaufgaben.
- * Kryptografie, Speicherung und Zeit liegen hinter Ports – der Core kennt weder scrypt noch Cookies.
+ * Redaktionszugang: Sitzung, Rollen und alle Redaktionsaufgaben. Angemeldet wird nur mit Passkey.
+ * Speicherung und Zufall liegen hinter Ports – der Core kennt weder WebAuthn noch Cookies.
  */
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
 import {
@@ -18,32 +18,32 @@ import { erkenneKategorie } from './recherche.js';
 import { validiereAlle, type TerminFormular, type TerminVerwaltung } from './termine-verwalten.js';
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
-export interface AdminKonto {
-  id: string;
-  email: string;
-  passwortHash: string;
-  totpGeheimnis: string;
+/** Admin verwaltet zusätzlich die Mitglieder; Redaktion pflegt Termine, Orte, Mitteilungen. */
+export type Rolle = 'admin' | 'redaktion';
+export const ROLLEN: readonly Rolle[] = ['admin', 'redaktion'];
+/** Angemeldetes Mitglied – ohne personenbezogene Daten außer dem selbst gewählten Namen. */
+export interface Sitzung {
+  adminId: string;
+  name: string;
+  rolle: Rolle;
 }
 export interface AdminKonten {
-  findeNachEmail(email: string): Promise<AdminKonto | null>;
   merkeLogin(id: string): Promise<void>;
 }
-/** Kryptografie (scrypt, TOTP, Zufall) – Implementierung in der Infrastruktur. */
+/** Zufall für Sitzungen und Links – Implementierung in der Infrastruktur. */
 export interface Kryptografie {
-  pruefePasswort(passwort: string, hash: string): Promise<boolean>;
-  pruefeEinmalcode(geheimnis: string, code: string): boolean;
   neuesToken(): string;
 }
 export interface Sitzungen {
   lege(adminId: string, token: string, stunden: number): Promise<void>;
-  pruefe(token: string): Promise<{ adminId: string; email: string } | null>;
+  pruefe(token: string): Promise<Sitzung | null>;
   beende(token: string): Promise<void>;
 }
-/** Zählt Fehlversuche (je E-Mail und insgesamt) gegen das Durchprobieren von Passwörtern. */
+/** Zählt Fehlversuche gegen das Durchprobieren. */
 export interface Anmeldeversuche {
-  gesperrt(email: string): boolean;
-  fehlschlag(email: string): void;
-  erfolg(email: string): void;
+  gesperrt(schluessel: string): boolean;
+  fehlschlag(schluessel: string): void;
+  erfolg(schluessel: string): void;
 }
 export interface MitteilungRepository {
   liste(): Promise<Mitteilung[]>;
@@ -71,46 +71,14 @@ export interface LinkVerwaltung {
   sperre(id: string): Promise<boolean>;
 }
 
-// ── Anmeldung ───────────────────────────────────────────────────────────────────────────
+// ── Sitzung ────────────────────────────────────────────────────────────────────────────
+/** Angemeldet wird nur mit Passkey (siehe passkeys.ts); hier wird die Sitzung geprüft/beendet. */
 export const SITZUNG_STUNDEN = 12;
-export type AnmeldeFehler = 'UNGUELTIG' | 'GESPERRT';
 
 export class AdminAnmeldung {
-  constructor(
-    private readonly konten: AdminKonten,
-    private readonly krypto: Kryptografie,
-    private readonly sitzungen: Sitzungen,
-    private readonly versuche: Anmeldeversuche,
-  ) {}
+  constructor(private readonly sitzungen: Sitzungen) {}
 
-  /**
-   * Gleiche Antwort für „unbekannte E-Mail“, „falsches Passwort“ und „falscher Code“,
-   * damit niemand herausfinden kann, welche E-Mail ein Konto hat.
-   */
-  async anmelden(
-    email: string,
-    passwort: string,
-    code: string,
-  ): Promise<Result<{ token: string; stunden: number }, AnmeldeFehler>> {
-    const e = email.trim().toLowerCase();
-    if (this.versuche.gesperrt(e)) return err('GESPERRT');
-    const konto = await this.konten.findeNachEmail(e);
-    const passwortOk = await this.krypto.pruefePasswort(
-      passwort,
-      konto?.passwortHash ?? 'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA', // gleiche Rechenzeit
-    );
-    if (!konto || !passwortOk || !this.krypto.pruefeEinmalcode(konto.totpGeheimnis, code.trim())) {
-      this.versuche.fehlschlag(e);
-      return err('UNGUELTIG');
-    }
-    this.versuche.erfolg(e);
-    const token = this.krypto.neuesToken();
-    await this.sitzungen.lege(konto.id, token, SITZUNG_STUNDEN);
-    await this.konten.merkeLogin(konto.id);
-    return ok({ token, stunden: SITZUNG_STUNDEN });
-  }
-
-  pruefe(token: string) {
+  pruefe(token: string): Promise<Sitzung | null> {
     return token ? this.sitzungen.pruefe(token) : Promise.resolve(null);
   }
 

@@ -1,6 +1,6 @@
 /** Integrationstests des Redaktionszugangs gegen PostgreSQL (nur mit DATABASE_URL). */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { hashePasswort, NodeKryptografie } from '../src/infrastructure/krypto.js';
+import { NodeKryptografie } from '../src/infrastructure/krypto.js';
 import {
   ortLandkreis,
   PgAdminKonten,
@@ -29,11 +29,9 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
   beforeAll(async () => {
     await pool.query("DELETE FROM ort WHERE slug LIKE 'it-admin-%'");
     await pool.query("DELETE FROM mitteilung WHERE titel LIKE 'IT %'");
-    await pool.query("DELETE FROM admin WHERE email = 'it@test.invalid'");
+    await pool.query("DELETE FROM admin WHERE name = 'IT Redaktion'");
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO admin (email, passwort_hash, totp_geheimnis) VALUES ('it@test.invalid', $1, 'GEZDGNBVGY3TQOJQ')
-       RETURNING id::text`,
-      [await hashePasswort('integrationstest-1234')],
+      `INSERT INTO admin (name, rolle) VALUES ('IT Redaktion', 'redaktion') RETURNING id::text`,
     );
     adminId = r.rows[0]!.id;
     await pool.query(
@@ -43,7 +41,7 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
   afterAll(async () => {
     await pool.query("DELETE FROM ort WHERE slug LIKE 'it-admin-%'");
     await pool.query("DELETE FROM mitteilung WHERE titel LIKE 'IT %'");
-    await pool.query("DELETE FROM admin WHERE email = 'it@test.invalid'");
+    await pool.query("DELETE FROM admin WHERE name = 'IT Redaktion'");
     await pool.end();
   });
 
@@ -59,6 +57,11 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       name: 'IT-Gerät',
     });
     expect(info).toMatchObject({ name: 'IT-Gerät', zuletztGenutzt: null });
+    expect(await repo.konto(adminId)).toEqual({
+      kennung: expect.any(String),
+      name: 'IT Redaktion',
+    });
+    expect(await repo.konto('x')).toBeNull();
     const p = await repo.findeNachCredential(credentialId);
     expect(p).toMatchObject({ adminId, zaehler: 0, transports: ['internal', 'hybrid'] });
     expect([...p!.publicKey]).toEqual([1, 2, 3]);
@@ -86,16 +89,18 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
 
   it('Konto und Sitzung: anlegen, prüfen, ablaufen, beenden', async () => {
     const konten = new PgAdminKonten(pool);
-    const konto = await konten.findeNachEmail('it@test.invalid');
-    expect(konto?.id).toBe(adminId);
-    expect(await krypto.pruefePasswort('integrationstest-1234', konto!.passwortHash)).toBe(true);
-    expect(await konten.findeNachEmail('niemand@test.invalid')).toBeNull();
     await konten.merkeLogin(adminId);
+    const login = await pool.query('SELECT letzter_login FROM admin WHERE id = $1', [adminId]);
+    expect(login.rows[0].letzter_login).not.toBeNull();
 
     const sitzungen = new PgSitzungen(pool);
     const token = krypto.neuesToken();
     await sitzungen.lege(adminId, token, 12);
-    expect(await sitzungen.pruefe(token)).toEqual({ adminId, email: 'it@test.invalid' });
+    expect(await sitzungen.pruefe(token)).toEqual({
+      adminId,
+      name: 'IT Redaktion',
+      rolle: 'redaktion',
+    });
     expect(await sitzungen.pruefe(krypto.neuesToken())).toBeNull();
     expect(await sitzungen.pruefe("' OR 1=1 --")).toBeNull();
     // abgelaufene Sitzung

@@ -16,12 +16,15 @@ const nav = [
   ['/admin/orte', 'Orte'],
   ['/admin/links', 'Bearbeitungslinks'],
   ['/admin/passkeys', 'Passkeys'],
+  ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Mitglieder']] : []),
 ];
 ---
 
 <Base title={`${titel} – Redaktion`} description="Redaktionsbereich" noindex>
   <section class="einstieg admin-kopf">
-    <p class="brotkrumen">Redaktion</p>
+    <p class="brotkrumen">
+      Redaktion · {Astro.locals.name} ({Astro.locals.rolle === 'admin' ? 'Admin' : 'Redaktion'})
+    </p>
     <h1>{titel}</h1>
     <nav class="admin-nav" aria-label="Redaktion">
       {

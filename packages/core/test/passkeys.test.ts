@@ -31,6 +31,7 @@ function aufbau() {
       p.zaehler = zaehler;
       p.zuletztGenutzt = 'jetzt';
     },
+    konto: async (id) => (id === '1' || id === '2' ? { kennung: `k${id}`, name: 'Ryan' } : null),
     loesche: async (adminId, id) => {
       const i = passkeys.findIndex((p) => p.adminId === adminId && p.id === id);
       return i >= 0 && passkeys.splice(i, 1).length === 1;
@@ -87,12 +88,13 @@ function aufbau() {
   return { pk, passkeys, sitzungen, logins };
 }
 
-const admin = { adminId: '1', email: 'a@x.de' };
+/** Optionen für einen weiteren Passkey – im Test gibt es Konto 1 immer */
+const starte = async (pk: Passkeys, id = '1') => (await pk.starteEinrichtung(id))!;
 
 describe('Passkeys einrichten', () => {
   it('legt einen Passkey an – Challenge nur einmal verwendbar', async () => {
     const { pk } = aufbau();
-    const { vorgang, optionen } = await pk.starteEinrichtung(admin);
+    const { vorgang, optionen } = await starte(pk);
     expect(optionen).toEqual({ challenge: 'reg' });
     const r = await pk.beendeEinrichtung(
       '1',
@@ -108,12 +110,12 @@ describe('Passkeys einrichten', () => {
 
   it('lehnt fremde Vorgänge, ungültige Antworten und zu lange Namen ab', async () => {
     const { pk } = aufbau();
-    const { vorgang } = await pk.starteEinrichtung(admin);
+    const { vorgang } = await starte(pk);
     expect((await pk.beendeEinrichtung('2', vorgang, { cred: 'c', ok: true }, '')).ok).toBe(false);
-    const v2 = (await pk.starteEinrichtung(admin)).vorgang;
+    const v2 = (await starte(pk)).vorgang;
     const falsch = await pk.beendeEinrichtung('1', v2, { cred: 'c', ok: false }, '');
     expect(!falsch.ok && falsch.error[0]?.code).toBe('UNGUELTIG');
-    const v3 = (await pk.starteEinrichtung(admin)).vorgang;
+    const v3 = (await starte(pk)).vorgang;
     const lang = await pk.beendeEinrichtung('1', v3, { cred: 'c', ok: true }, 'x'.repeat(61));
     expect(!lang.ok && lang.error[0]?.code).toBe('NAME_LAENGE');
   });
@@ -121,21 +123,30 @@ describe('Passkeys einrichten', () => {
   it('begrenzt die Anzahl und löscht nur eigene Passkeys', async () => {
     const { pk } = aufbau();
     for (let i = 0; i < MAX_PASSKEYS; i++) {
-      const { vorgang } = await pk.starteEinrichtung(admin);
+      const { vorgang } = await starte(pk);
       await pk.beendeEinrichtung('1', vorgang, { cred: `c${i}`, ok: true }, '');
     }
-    const { vorgang } = await pk.starteEinrichtung(admin);
+    const { vorgang } = await starte(pk);
     const zuViel = await pk.beendeEinrichtung('1', vorgang, { cred: 'neu', ok: true }, '');
     expect(!zuViel.ok && zuViel.error[0]?.code).toBe('ZU_VIELE');
-    expect(await pk.loesche('2', '1')).toBe(false);
-    expect(await pk.loesche('1', '1')).toBe(true);
+    expect(await pk.loesche('2', '1')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
+    expect(await pk.loesche('1', '1')).toEqual({ ok: true, value: true });
+  });
+
+  it('der letzte Passkey bleibt, unbekannte Konten bekommen keine Optionen', async () => {
+    const { pk, passkeys } = aufbau();
+    const { vorgang } = await starte(pk);
+    await pk.beendeEinrichtung('1', vorgang, { cred: 'c1', ok: true }, 'Mac');
+    expect(await pk.loesche('1', passkeys[0]!.id)).toEqual({ ok: false, error: 'LETZTER' });
+    expect(await pk.liste('1')).toHaveLength(1);
+    expect(await pk.starteEinrichtung('99')).toBeNull();
   });
 });
 
 describe('Mit Passkey anmelden', () => {
   async function mitPasskey() {
     const a = aufbau();
-    const { vorgang } = await a.pk.starteEinrichtung(admin);
+    const { vorgang } = await starte(a.pk);
     await a.pk.beendeEinrichtung('1', vorgang, { cred: 'c1', ok: true }, 'Mac');
     return a;
   }

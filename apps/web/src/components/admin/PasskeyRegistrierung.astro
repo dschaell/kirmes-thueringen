@@ -1,0 +1,78 @@
+---
+/**
+ * Neues Mitglied: Name wählen und Passkey anlegen (Ersteinrichtung oder Einladung, Issue #56).
+ * Gespeichert werden nur der Name und der öffentliche Schlüssel – keine E-Mail, kein Passwort.
+ */
+import CsrfFeld from './CsrfFeld.astro';
+
+interface Props {
+  art: 'einrichtung' | 'einladung';
+  token: string;
+  knopf: string;
+}
+const { art, token, knopf } = Astro.props;
+---
+
+<form class="melden" id="registrierung" data-art={art} data-token={token}>
+  <CsrfFeld />
+  <label>
+    Dein Name in der Redaktion
+    <input
+      name="name"
+      required
+      maxlength="60"
+      autocomplete="nickname"
+      placeholder="z. B. Ryan oder KG Mühlberg"
+    />
+    <span class="leise klein">Sehen nur andere Mitglieder. Ein Vorname oder Spitzname reicht.</span>
+  </label>
+  <div><button class="knopf" type="submit">{knopf}</button></div>
+  <p class="leise klein" id="registrierung-status" role="status" aria-live="polite"></p>
+</form>
+<noscript>
+  <p class="meldung">Für den Passkey wird JavaScript gebraucht.</p>
+</noscript>
+
+<script>
+  import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
+  import { passkeyFehler, postJson } from '../../lib/passkey-client';
+
+  const form = document.getElementById('registrierung') as HTMLFormElement | null;
+  const status = document.getElementById('registrierung-status');
+  if (form && status) {
+    if (!browserSupportsWebAuthn()) {
+      status.textContent =
+        'Dieser Browser kann keine Passkeys. Bitte ein aktuelles Handy oder einen aktuellen Browser nutzen.';
+    }
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const knopf = form.querySelector('button');
+      const art = form.dataset.art;
+      const token = form.dataset.token;
+      const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+      if (knopf) knopf.disabled = true;
+      status.textContent = 'Bitte am Gerät bestätigen …';
+      try {
+        const opt = await postJson('/admin/zugang/optionen', { art, token, name });
+        if (!opt.ok) {
+          status.textContent = String(opt.daten.fehler ?? 'Das hat nicht geklappt.');
+          return;
+        }
+        const antwort = await startRegistration({ optionsJSON: opt.daten.optionen as never });
+        status.textContent = 'Prüfe …';
+        const r = await postJson('/admin/zugang/abschliessen', {
+          art,
+          token,
+          vorgang: opt.daten.vorgang,
+          antwort,
+        });
+        if (r.ok) location.assign(String(r.daten.weiter ?? '/admin'));
+        else status.textContent = String(r.daten.fehler ?? 'Das hat nicht geklappt.');
+      } catch (e) {
+        status.textContent = passkeyFehler(e);
+      } finally {
+        if (knopf) knopf.disabled = false;
+      }
+    });
+  }
+</script>

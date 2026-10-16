@@ -6,10 +6,7 @@ import {
   slugAus,
   validiereMitteilung,
   validiereOrt,
-  type AdminKonten,
-  type Anmeldeversuche,
   type Berechtigung,
-  type Kryptografie,
   type Mitteilung,
   type MitteilungRepository,
   type NeuerTermin,
@@ -64,74 +61,20 @@ describe('validiereOrt / slugAus / koordinateAusText', () => {
   ])('%s', (text, erwartet) => expect(koordinateAusText(text)).toEqual(erwartet));
 });
 
-describe('AdminAnmeldung', () => {
-  const konto = { id: '1', email: 'admin@x.de', passwortHash: 'H', totpGeheimnis: 'G' };
-  function aufbau() {
-    const fehl: string[] = [];
-    const sitzungen: string[] = [];
-    let gesperrt = false;
-    const konten: AdminKonten = {
-      findeNachEmail: async (e) => (e === konto.email ? konto : null),
-      merkeLogin: async () => {},
-    };
-    const geprueft: string[] = [];
-    const krypto: Kryptografie = {
-      pruefePasswort: async (p, h) => (geprueft.push(h), p === 'richtig' && h === 'H'),
-      pruefeEinmalcode: (_g, c) => c === '123456',
-      neuesToken: () => 'TOKEN',
-    };
+describe('AdminAnmeldung (Sitzung)', () => {
+  it('prüft und beendet Sitzungen – angemeldet wird nur mit Passkey', async () => {
+    const beendet: string[] = [];
     const s: Sitzungen = {
-      lege: async (id, t) => void sitzungen.push(`${id}:${t}`),
-      pruefe: async (t) => (t === 'TOKEN' ? { adminId: '1', email: konto.email } : null),
-      beende: async () => {},
+      lege: async () => {},
+      pruefe: async (t) => (t === 'TOKEN' ? { adminId: '1', name: 'Ryan', rolle: 'admin' } : null),
+      beende: async (t) => void beendet.push(t),
     };
-    const v: Anmeldeversuche = {
-      gesperrt: () => gesperrt,
-      fehlschlag: (e) => void fehl.push(e),
-      erfolg: () => {},
-    };
-    const a = new AdminAnmeldung(konten, krypto, s, v);
-    return { a, fehl, sitzungen, geprueft, sperren: () => (gesperrt = true) };
-  }
-
-  it('meldet erfolgreich an und legt eine Sitzung an', async () => {
-    const { a, sitzungen } = aufbau();
-    expect(await a.anmelden(' Admin@X.de ', 'richtig', ' 123456 ')).toEqual({
-      ok: true,
-      value: { token: 'TOKEN', stunden: 12 },
-    });
-    expect(sitzungen).toEqual(['1:TOKEN']);
-    expect(await a.pruefe('TOKEN')).toEqual({ adminId: '1', email: 'admin@x.de' });
+    const a = new AdminAnmeldung(s);
+    expect(await a.pruefe('TOKEN')).toEqual({ adminId: '1', name: 'Ryan', rolle: 'admin' });
+    expect(await a.pruefe('anders')).toBeNull();
     expect(await a.pruefe('')).toBeNull();
-  });
-
-  it('antwortet gleich bei unbekannter E-Mail, falschem Passwort und falschem Code', async () => {
-    const { a, fehl, geprueft } = aufbau();
-    expect(await a.anmelden('wer@x.de', 'richtig', '123456')).toEqual({
-      ok: false,
-      error: 'UNGUELTIG',
-    });
-    expect(await a.anmelden('admin@x.de', 'falsch', '123456')).toEqual({
-      ok: false,
-      error: 'UNGUELTIG',
-    });
-    expect(await a.anmelden('admin@x.de', 'richtig', '000000')).toEqual({
-      ok: false,
-      error: 'UNGUELTIG',
-    });
-    expect(fehl).toHaveLength(3);
-    // auch bei unbekannter E-Mail wird ein Passwort-Hash geprüft (gleiche Rechenzeit)
-    expect(geprueft).toHaveLength(3);
-  });
-
-  it('verweigert während einer Sperre ohne Prüfung', async () => {
-    const { a, sperren, geprueft } = aufbau();
-    sperren();
-    expect(await a.anmelden('admin@x.de', 'richtig', '123456')).toEqual({
-      ok: false,
-      error: 'GESPERRT',
-    });
-    expect(geprueft).toHaveLength(0);
+    await a.abmelden('TOKEN');
+    expect(beendet).toEqual(['TOKEN']);
   });
 });
 

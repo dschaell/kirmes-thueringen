@@ -7,7 +7,13 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Beitritt,
   Ersteinrichtung,
+  Mitgliederverwaltung,
+  Registrierung,
+  type EinladungInfo,
+  type Mitglied,
+  type Rolle,
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
@@ -101,9 +107,12 @@ const gespeichertePasskeys: Passkey[] = [];
 let passkeysAktiv: Passkeys | undefined;
 let meldungenAktiv: MeldeAnRedaktion | undefined;
 let einrichtungAktiv: Ersteinrichtung | undefined;
+let beitrittAktiv: Beitritt | undefined;
+const REDAKTION_SITZUNG = 'R'.repeat(43);
 const neuePasskeys = (gesperrt = false) =>
   new Passkeys(
     {
+      konto: async (a) => (a === '1' ? { kennung: 'kennung-1', name: 'Ryan' } : null),
       liste: async (a) => gespeichertePasskeys.filter((p) => p.adminId === a),
       findeNachCredential: async (c) =>
         gespeichertePasskeys.find((p) => p.credentialId === c) ?? null,
@@ -131,6 +140,55 @@ const neuePasskeys = (gesperrt = false) =>
     { gesperrt: () => gesperrt, fehlschlag: () => {}, erfolg: () => {} },
   );
 
+/** Mitglieder und Einladungen im Speicher (je setup() frisch) */
+let mitglieder: Mitglied[] = [];
+const mitgliederRepo = () => {
+  mitglieder = [
+    { id: '1', name: 'Ryan', rolle: 'admin', erstelltAm: 'a', letzterLogin: null, passkeys: 1 },
+    { id: '2', name: 'Moni', rolle: 'redaktion', erstelltAm: 'b', letzterLogin: null, passkeys: 1 },
+  ];
+  return {
+    liste: async () => mitglieder,
+    setzeRolle: async (id: string, rolle: Rolle) => {
+      const m = mitglieder.find((x) => x.id === id);
+      if (m) m.rolle = rolle;
+      return !!m;
+    },
+    entferne: async (id: string) => {
+      const n = mitglieder.length;
+      mitglieder = mitglieder.filter((x) => x.id !== id);
+      return mitglieder.length < n;
+    },
+    anzahlAdmins: async () => mitglieder.filter((x) => x.rolle === 'admin').length,
+  };
+};
+let einladungen = new Map<string, { info: EinladungInfo; genutzt: boolean }>();
+const einladungenRepo = () => {
+  einladungen = new Map();
+  return {
+    lege: async (token: string, rolle: Rolle) => {
+      const info = {
+        id: String(einladungen.size + 1),
+        rolle,
+        erstelltAm: 'heute',
+        laeuftAb: 'bald',
+      };
+      einladungen.set(token, { info, genutzt: false });
+      return info;
+    },
+    finde: async (token: string) => {
+      const e = einladungen.get(token);
+      return e && !e.genutzt ? { id: e.info.id, rolle: e.info.rolle } : null;
+    },
+    offene: async () => [...einladungen.values()].filter((e) => !e.genutzt).map((e) => e.info),
+    widerrufe: async (id: string) => {
+      for (const [t, e] of einladungen)
+        if (e.info.id === id && !e.genutzt) return einladungen.delete(t);
+      return false;
+    },
+  };
+};
+
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
   app = await baueApp({
@@ -153,26 +211,20 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     aktuelleMitteilung: async () => mitteilung,
     meldungen: meldungenAktiv,
     admin: {
-      anmeldung: new AdminAnmeldung(
-        {
-          findeNachEmail: async (e) =>
-            e === 'admin@x.de'
-              ? { id: '1', email: e, passwortHash: 'H', totpGeheimnis: 'G' }
+      anmeldung: new AdminAnmeldung({
+        lege: async () => {},
+        pruefe: async (t) =>
+          t === SITZUNG
+            ? { adminId: '1', name: 'Ryan', rolle: 'admin' }
+            : t === REDAKTION_SITZUNG
+              ? { adminId: '2', name: 'Moni', rolle: 'redaktion' }
               : null,
-          merkeLogin: async () => {},
-        },
-        {
-          pruefePasswort: async (p) => p === 'richtig',
-          pruefeEinmalcode: (_g, c) => c === '123456',
-          neuesToken: () => SITZUNG,
-        },
-        {
-          lege: async () => {},
-          pruefe: async (t) => (t === SITZUNG ? { adminId: '1', email: 'admin@x.de' } : null),
-          beende: async () => {},
-        },
-        { gesperrt: (e) => e === 'gesperrt@x.de', fehlschlag: () => {}, erfolg: () => {} },
-      ),
+        beende: async () => {},
+      }),
+      mitglieder: new Mitgliederverwaltung(mitgliederRepo(), einladungenRepo(), {
+        neuesToken: () => 'E'.repeat(43),
+      }),
+      beitritt: beitrittAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -531,23 +583,15 @@ describe('Mitteilungen (öffentlich)', () => {
 
 describe('Admin-Bereich', () => {
   const auth = { authorization: `Sitzung ${SITZUNG}` };
-  const anmelden = (body: object) =>
-    app.inject({ method: 'POST', url: '/api/v1/admin/anmelden', payload: body });
 
-  it('meldet an – nur mit Passwort UND Einmalcode', async () => {
+  it('es gibt keine Anmeldung mit Passwort mehr', async () => {
     await setup();
-    const ok = await anmelden({ email: 'admin@x.de', passwort: 'richtig', code: '123456' });
-    expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
-    expect(ok.headers['cache-control']).toBe('no-store');
-    expect(
-      (await anmelden({ email: 'admin@x.de', passwort: 'richtig', code: '000000' })).statusCode,
-    ).toBe(401);
-    expect(
-      (await anmelden({ email: 'admin@x.de', passwort: 'falsch', code: '123456' })).statusCode,
-    ).toBe(401);
-    expect(
-      (await anmelden({ email: 'gesperrt@x.de', passwort: 'richtig', code: '123456' })).statusCode,
-    ).toBe(429);
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/anmelden',
+      payload: { email: 'a@x.de', passwort: 'x', code: '123456' },
+    });
+    expect(r.statusCode).toBe(404);
   });
 
   it('schützt alle Admin-Endpunkte', async () => {
@@ -561,6 +605,12 @@ describe('Admin-Bereich', () => {
       ['POST', '/api/v1/admin/termine/wochenende'],
       ['GET', '/api/v1/admin/links'],
       ['POST', '/api/v1/admin/links/1/sperren'],
+      ['GET', '/api/v1/admin/mitglieder'],
+      ['PUT', '/api/v1/admin/mitglieder/2/rolle'],
+      ['DELETE', '/api/v1/admin/mitglieder/2'],
+      ['GET', '/api/v1/admin/einladungen'],
+      ['POST', '/api/v1/admin/einladungen'],
+      ['DELETE', '/api/v1/admin/einladungen/1'],
     ];
     for (const [method, url] of routen) {
       for (const headers of [
@@ -578,6 +628,8 @@ describe('Admin-Bereich', () => {
     await setup();
     expect((await app.inject({ url: '/api/v1/admin/ich', headers: auth })).json()).toEqual({
       adminId: '1',
+      name: 'Ryan',
+      rolle: 'admin',
       passkeys: false,
     });
     const m = await app.inject({
@@ -804,6 +856,21 @@ describe('Passkeys (WebAuthn)', () => {
       (await app.inject({ method: 'DELETE', url: '/api/v1/admin/passkeys/9', headers: auth }))
         .statusCode,
     ).toBe(404);
+    // Der einzige Passkey bleibt – sonst wäre keine Anmeldung mehr möglich
+    const letzter = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/admin/passkeys/1',
+      headers: auth,
+    });
+    expect(letzter.statusCode).toBe(409);
+    // Mit einem zweiten Gerät darf der erste gehen
+    const opt2 = (await post('/api/v1/admin/passkeys/optionen', {}, auth)).json();
+    const zweites = new SoftwareAuthenticator(ORIGIN);
+    await post(
+      '/api/v1/admin/passkeys',
+      { vorgang: opt2.vorgang, antwort: zweites.registriere(opt2.optionen.challenge) },
+      auth,
+    );
     expect(
       (await app.inject({ method: 'DELETE', url: '/api/v1/admin/passkeys/1', headers: auth }))
         .statusCode,
@@ -875,22 +942,35 @@ describe('Meldungen an die Redaktion', () => {
   });
 });
 
-describe('Ersten Redaktionszugang einrichten', () => {
+/** Registrierung mit echtem WebAuthn-Adapter; angelegte Konten landen in `konten` */
+function registrierungFuerTest(
+  konten: { name: string; rolle: Rolle }[],
+  einladungGenutzt?: (id: string) => boolean,
+) {
+  return new Registrierung(
+    new SimpleWebAuthn(ORIGIN),
+    new SpeicherChallenges(),
+    {
+      lege: async (k, _s, _n, b) => {
+        if (b.art === 'erster-admin' && konten.some((x) => x.rolle === 'admin')) return null;
+        if (b.art === 'einladung' && einladungGenutzt && !einladungGenutzt(b.einladungId))
+          return null;
+        konten.push({ name: k.name, rolle: k.rolle });
+        return String(konten.length + 10);
+      },
+    },
+    { lege: async () => {}, pruefe: async () => null, beende: async () => {} },
+    { neuesToken: () => SITZUNG, neueKennung: () => 'kennung' },
+  );
+}
+
+describe('Ersten Admin einrichten (Passkey)', () => {
   function einrichtung({ gesendetFehler = false } = {}) {
-    const admins: string[] = [];
+    const konten: { name: string; rolle: Rolle }[] = [];
     const post: { text: string }[] = [];
     let zaehler = 0;
     einrichtungAktiv = new Ersteinrichtung(
-      {
-        gibtEs: async () => admins.length > 0,
-        legeAn: async (email) => (admins.length ? null : (admins.push(email), '1')),
-      },
-      {
-        hashePasswort: async (p) => `hash:${p}`,
-        neuesTotpGeheimnis: () => 'JBSWY3DPEHPK3PXP',
-        pruefeEinmalcode: (_g, c) => c === '123456',
-        neuesToken: () => SITZUNG,
-      },
+      { gibtEs: async () => konten.some((k) => k.rolle === 'admin') },
       new SpeicherEinrichtungslinks(),
       {
         sende: async (n) => {
@@ -899,108 +979,246 @@ describe('Ersten Redaktionszugang einrichten', () => {
         },
       },
       { erlaube: () => ++zaehler <= 2 },
-      { lege: async () => {}, pruefe: async () => null, beende: async () => {} },
-      'https://kirmes.example',
+      registrierungFuerTest(konten),
+      'http://localhost:4321',
     );
-    return { admins, post };
+    return { konten, post };
   }
   const linkAus = (text: string) => /link=([A-Za-z0-9_-]{43})/.exec(text)?.[1] ?? '';
-  const abschluss = {
-    email: 'neu@example.org',
-    passwort: 'ein-langes-passwort',
-    passwortWiederholung: 'ein-langes-passwort',
-    code: '123456',
-  };
+  const post = (url: string, payload?: object) => app.inject({ method: 'POST', url, payload });
 
-  it('ohne E-Mail-Versand: nicht möglich (503), Status sagt das', async () => {
+  it('ohne E-Mail-Versand: nicht möglich (503)', async () => {
     await setup();
     const s = await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' });
     expect(s.json()).toEqual({ offen: false, moeglich: false });
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(503);
+    const l = 'a'.repeat(43);
+    expect((await app.inject({ url: `/api/v1/admin/einrichtung/${l}` })).statusCode).toBe(404);
+    expect((await post(`/api/v1/admin/einrichtung/${l}/optionen`, { name: 'X' })).statusCode).toBe(
+      404,
+    );
     expect(
-      (await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' })).statusCode,
-    ).toBe(503);
-    expect(
-      (await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${'a'.repeat(43)}` }))
-        .statusCode,
-    ).toBe(404);
-    expect(
-      (
-        await app.inject({
-          method: 'POST',
-          url: `/api/v1/admin/einrichtung/${'a'.repeat(43)}`,
-          payload: abschluss,
-        })
-      ).statusCode,
+      (await post(`/api/v1/admin/einrichtung/${l}`, { vorgang: 'v', antwort: {} })).statusCode,
     ).toBe(404);
   });
 
-  it('Link anfordern, öffnen, abschließen – danach gesperrt', async () => {
-    const { admins, post } = einrichtung();
+  it('Link anfordern → Name → Passkey → Admin angelegt, danach gesperrt', async () => {
+    const { konten, post: mails } = einrichtung();
     await setup();
     einrichtungAktiv = undefined;
-    const status = await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' });
-    expect(status.json()).toEqual({ offen: true, moeglich: true });
-    expect(status.headers['cache-control']).toBe('no-store');
-
-    const senden = await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' });
-    expect(senden.statusCode).toBe(202);
-    const link = linkAus(post[0]!.text);
-    expect(link).toHaveLength(43);
-
-    const offen = await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${link}` });
-    expect(offen.json()).toEqual({ totpGeheimnis: 'JBSWY3DPEHPK3PXP' });
-    // Ungültiges Format wird schon vom Schema abgewiesen, unbekannte Links mit 404
+    expect((await app.inject({ url: '/api/v1/admin/einrichtung' })).json()).toEqual({
+      offen: true,
+      moeglich: true,
+    });
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(202);
+    const link = linkAus(mails[0]!.text);
+    expect((await app.inject({ url: `/api/v1/admin/einrichtung/${link}` })).json()).toEqual({
+      gueltig: true,
+    });
+    expect((await app.inject({ url: '/api/v1/admin/einrichtung/kurz' })).statusCode).toBe(400);
     expect(
-      (await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung/kurz' })).statusCode,
-    ).toBe(400);
-    expect(
-      (await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${'b'.repeat(43)}` }))
-        .statusCode,
+      (await app.inject({ url: `/api/v1/admin/einrichtung/${'b'.repeat(43)}` })).statusCode,
     ).toBe(404);
 
-    const url = `/api/v1/admin/einrichtung/${link}`;
-    const falsch = await app.inject({
-      method: 'POST',
-      url,
-      payload: { ...abschluss, code: '000000' },
+    // Name prüfen, dann Passkey mit echter Signatur
+    expect(
+      (await post(`/api/v1/admin/einrichtung/${link}/optionen`, { name: ' ' })).statusCode,
+    ).toBe(400);
+    const opt = (await post(`/api/v1/admin/einrichtung/${link}/optionen`, { name: 'Ryan' })).json();
+    expect(opt.optionen.user.name).toBe('Ryan');
+    expect(opt.optionen.authenticatorSelection).toMatchObject({
+      residentKey: 'required',
+      userVerification: 'required',
+    });
+    const geraet = new SoftwareAuthenticator(ORIGIN);
+    // Phishing-Herkunft wird abgelehnt
+    const falsch = await post(`/api/v1/admin/einrichtung/${link}`, {
+      vorgang: opt.vorgang,
+      antwort: geraet.registriere(opt.optionen.challenge, { origin: 'https://evil.example' }),
     });
     expect(falsch.statusCode).toBe(400);
-    expect(falsch.json().fehler[0].feld).toBe('code');
-    expect(
-      (await app.inject({ method: 'POST', url, payload: { ...abschluss, admin: true } }))
-        .statusCode,
-    ).toBe(400); // keine zusätzlichen Felder
-
-    const ok = await app.inject({ method: 'POST', url, payload: abschluss });
+    const opt2 = (
+      await post(`/api/v1/admin/einrichtung/${link}/optionen`, { name: 'Ryan' })
+    ).json();
+    const ok = await post(`/api/v1/admin/einrichtung/${link}`, {
+      vorgang: opt2.vorgang,
+      antwort: geraet.registriere(opt2.optionen.challenge),
+    });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
-    expect(admins).toEqual(['neu@example.org']);
+    expect(konten).toEqual([{ name: 'Ryan', rolle: 'admin' }]);
 
-    // Jetzt ist alles gesperrt
+    // gesperrt
+    expect((await app.inject({ url: '/api/v1/admin/einrichtung' })).json().offen).toBe(false);
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(409);
     expect(
-      (await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' })).json().offen,
-    ).toBe(false);
-    expect(
-      (await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' })).statusCode,
+      (await post(`/api/v1/admin/einrichtung/${link}/optionen`, { name: 'X' })).statusCode,
     ).toBe(409);
-    expect((await app.inject({ method: 'POST', url, payload: abschluss })).statusCode).toBe(404);
   });
 
   it('drosselt Links und meldet Versandfehler', async () => {
     einrichtung();
     await setup();
     einrichtungAktiv = undefined;
-    const senden = () => app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' });
-    expect((await senden()).statusCode).toBe(202);
-    expect((await senden()).statusCode).toBe(202);
-    const zuViele = await senden();
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(202);
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(202);
+    const zuViele = await post('/api/v1/admin/einrichtung');
     expect(zuViele.statusCode).toBe(429);
     expect(zuViele.headers['retry-after']).toBe('3600');
     await app.close();
     einrichtung({ gesendetFehler: true });
     await setup();
     einrichtungAktiv = undefined;
-    expect((await senden()).statusCode).toBe(502);
+    expect((await post('/api/v1/admin/einrichtung')).statusCode).toBe(502);
+  });
+});
+
+describe('Mitglieder und Einladungen', () => {
+  const alsAdmin = { authorization: `Sitzung ${SITZUNG}` };
+  const alsRedaktion = { authorization: `Sitzung ${REDAKTION_SITZUNG}` };
+  const rufe = (
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    url: string,
+    headers: object,
+    payload?: object,
+  ) => app.inject({ method, url, headers, payload });
+
+  it('Redaktion bekommt 403 bei allem, was Mitglieder betrifft', async () => {
+    await setup();
+    for (const [m, u, b] of [
+      ['GET', '/api/v1/admin/mitglieder'],
+      ['PUT', '/api/v1/admin/mitglieder/1/rolle', { rolle: 'redaktion' }],
+      ['DELETE', '/api/v1/admin/mitglieder/1'],
+      ['GET', '/api/v1/admin/einladungen'],
+      ['POST', '/api/v1/admin/einladungen', { rolle: 'admin' }],
+      ['DELETE', '/api/v1/admin/einladungen/1'],
+    ] as const) {
+      const r = await rufe(m, u, alsRedaktion, b);
+      expect(r.statusCode, `${m} ${u}`).toBe(403);
+    }
+    // die eigene Rolle sieht die Redaktion
+    expect((await rufe('GET', '/api/v1/admin/ich', alsRedaktion)).json().rolle).toBe('redaktion');
+  });
+
+  it('Admin verwaltet Mitglieder – der letzte Admin bleibt', async () => {
+    await setup();
+    expect((await rufe('GET', '/api/v1/admin/mitglieder', alsAdmin)).json()).toHaveLength(2);
+    expect(
+      (await rufe('PUT', '/api/v1/admin/mitglieder/1/rolle', alsAdmin, { rolle: 'redaktion' }))
+        .statusCode,
+    ).toBe(409);
+    expect((await rufe('DELETE', '/api/v1/admin/mitglieder/1', alsAdmin)).statusCode).toBe(409);
+    expect(
+      (await rufe('PUT', '/api/v1/admin/mitglieder/2/rolle', alsAdmin, { rolle: 'chef' }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (await rufe('PUT', '/api/v1/admin/mitglieder/2/rolle', alsAdmin, { rolle: 'admin' }))
+        .statusCode,
+    ).toBe(204);
+    expect((await rufe('DELETE', '/api/v1/admin/mitglieder/2', alsAdmin)).statusCode).toBe(204);
+    expect((await rufe('DELETE', '/api/v1/admin/mitglieder/2', alsAdmin)).statusCode).toBe(404);
+  });
+
+  it('Einladung erzeugen, annehmen (Passkey), danach verbraucht', async () => {
+    const konten: { name: string; rolle: Rolle }[] = [];
+    await setup();
+    // Beitritt nutzt dieselben Einladungen wie die Verwaltung dieses Setups
+    const repo = {
+      lege: async () => ({ id: '0', rolle: 'redaktion' as Rolle, erstelltAm: '', laeuftAb: '' }),
+      finde: async (t: string) => {
+        const e = einladungen.get(t);
+        return e && !e.genutzt ? { id: e.info.id, rolle: e.info.rolle } : null;
+      },
+      offene: async () => [],
+      widerrufe: async () => false,
+    };
+    const genutzt = (id: string) => {
+      for (const e of einladungen.values())
+        if (e.info.id === id && !e.genutzt) return (e.genutzt = true);
+      return false;
+    };
+    const lade = await rufe('POST', '/api/v1/admin/einladungen', alsAdmin, { rolle: 'redaktion' });
+    expect(lade.statusCode).toBe(201);
+    const { token } = lade.json();
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect((await rufe('GET', '/api/v1/admin/einladungen', alsAdmin)).json()).toHaveLength(1);
+    await app.close();
+
+    beitrittAktiv = new Beitritt(repo, registrierungFuerTest(konten, genutzt));
+    const vorher = einladungen;
+    await setup();
+    einladungen = vorher; // setup() legt neue Einladungen an – die alte Einladung soll gelten
+    beitrittAktiv = undefined;
+
+    expect((await app.inject({ url: `/api/v1/admin/einladung/${token}` })).json()).toEqual({
+      rolle: 'redaktion',
+    });
+    expect(
+      (await app.inject({ url: `/api/v1/admin/einladung/${'x'.repeat(43)}` })).statusCode,
+    ).toBe(404);
+    const opt = (
+      await app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/einladung/${token}/optionen`,
+        payload: { name: 'Moni' },
+      })
+    ).json();
+    const geraet = new SoftwareAuthenticator(ORIGIN);
+    const ok = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/einladung/${token}`,
+      payload: { vorgang: opt.vorgang, antwort: geraet.registriere(opt.optionen.challenge) },
+    });
+    expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
+    expect(konten).toEqual([{ name: 'Moni', rolle: 'redaktion' }]);
+    expect((await app.inject({ url: `/api/v1/admin/einladung/${token}` })).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/v1/admin/einladung/${token}/optionen`,
+          payload: { name: 'X' },
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+
+  it('Einladung widerrufen', async () => {
+    await setup();
+    const { id } = (
+      await rufe('POST', '/api/v1/admin/einladungen', alsAdmin, { rolle: 'admin' })
+    ).json();
+    expect((await rufe('DELETE', `/api/v1/admin/einladungen/${id}`, alsAdmin)).statusCode).toBe(
+      204,
+    );
+    expect((await rufe('DELETE', `/api/v1/admin/einladungen/${id}`, alsAdmin)).statusCode).toBe(
+      404,
+    );
+  });
+
+  it('ohne WEBSITE_URL keine Einladung annehmen', async () => {
+    await setup();
+    const t = 'z'.repeat(43);
+    expect((await app.inject({ url: `/api/v1/admin/einladung/${t}` })).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/v1/admin/einladung/${t}/optionen`,
+          payload: { name: 'X' },
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/v1/admin/einladung/${t}`,
+          payload: { vorgang: 'v', antwort: {} },
+        })
+      ).statusCode,
+    ).toBe(404);
   });
 });
 
