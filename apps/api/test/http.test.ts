@@ -12,6 +12,7 @@ import {
   Mitgliederverwaltung,
   Registrierung,
   RedaktionsFestplaetze,
+  type Vorschlaege,
   type EinladungInfo,
   type Mitglied,
   type Rolle,
@@ -195,6 +196,7 @@ const einladungenRepo = () => {
   };
 };
 
+let terminVorschlaegeAktiv: Vorschlaege | undefined;
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
   app = await baueApp({
@@ -216,6 +218,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     ),
     aktuelleMitteilung: async () => mitteilung,
     meldungen: meldungenAktiv,
+    terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
       anmeldung: new AdminAnmeldung({
         lege: async () => {},
@@ -1466,5 +1469,50 @@ describe('Querschnitt', () => {
     await app.close();
     await setup(new FakeRepo(), true);
     expect((await app.inject('/health/ready')).statusCode).toBe(200);
+  });
+});
+
+describe('Assistent: öffentliche Eingabehilfen und transienter IP-Schlüssel', () => {
+  it('Eingabe-Vorschläge funktionieren ohne Sitzung und bei leerem Bestand', async () => {
+    vorschlaegeAktiv = undefined;
+    await setup();
+    expect((await app.inject('/api/v1/eingabe-vorschlaege')).json()).toEqual({
+      bands: [],
+      titel: [],
+    });
+    await app.close();
+    vorschlaegeAktiv = async () => ({ bands: ['Belconda'], titel: ['Kirmestanz'] });
+    await setup();
+    expect((await app.inject('/api/v1/eingabe-vorschlaege')).json()).toEqual({
+      bands: ['Belconda'],
+      titel: ['Kirmestanz'],
+    });
+  });
+  it('nur interner Website-Server darf den Besucher-IP-Schlüssel weiterreichen', async () => {
+    const ips: string[] = [];
+    terminVorschlaegeAktiv = {
+      melde: async (_e: unknown, ip: string) => {
+        ips.push(ip);
+        return { ok: true, value: { angenommen: true } };
+      },
+    } as unknown as Vorschlaege;
+    await setup();
+    const anfrage = {
+      method: 'POST' as const,
+      url: '/api/v1/vorschlaege',
+      payload: { ortSlug: 'muehlberg', zeilen: [{ datum: '2027-09-17', titel: 'Kirmestanz' }] },
+    };
+    try {
+      await app.inject({ ...anfrage, headers: { 'x-kirmes-client-ip': '1.2.3.4' } });
+      await app.inject({
+        ...anfrage,
+        remoteAddress: '8.8.8.8',
+        headers: { 'x-kirmes-client-ip': '1.2.3.4' },
+      });
+      await app.inject(anfrage);
+      expect(ips).toEqual(['1.2.3.4', '8.8.8.8', '127.0.0.1']);
+    } finally {
+      terminVorschlaegeAktiv = undefined;
+    }
   });
 });

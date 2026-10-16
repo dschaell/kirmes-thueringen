@@ -1,0 +1,388 @@
+---
+import type { AssistentStand } from '../lib/assistent';
+import type { OrtUebersichtDto } from '../lib/api';
+import { datumLangJahr } from '../lib/anzeige';
+interface Props {
+  stand: AssistentStand;
+  redaktion?: boolean;
+  csrf: string;
+  orte: OrtUebersichtDto[];
+  bands?: string[];
+  titel?: string[];
+  plaetze?: string[];
+}
+const {
+  stand: s,
+  redaktion = false,
+  csrf,
+  orte,
+  bands = [],
+  titel = [],
+  plaetze = [],
+} = Astro.props;
+const ort = orte.find((o) => o.slug === s.ortSlug);
+const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlug;
+---
+
+<div class="kirmes-assistent">
+  <ol class="schritte" aria-label="Fortschritt">
+    {
+      ['Wo und wann?', 'Was ist los?', 'Details'].map((t, i) => (
+        <li aria-current={s.schritt === i + 1 ? 'step' : undefined}>
+          <span>{i + 1}</span>
+          {t}
+        </li>
+      ))
+    }
+  </ol>
+  {
+    s.fehler.length > 0 && (
+      <div class="meldung" role="alert">
+        <>
+          <p>Bitte prüfe deine Angaben:</p>
+          <ul>
+            {s.fehler.map((f) => (
+              <li>{f}</li>
+            ))}
+          </ul>
+        </>
+      </div>
+    )
+  }
+  <form method="post" class="melden">
+    <input type="hidden" name="csrf_token" value={csrf} />
+    <input type="hidden" name="stand" value={JSON.stringify(s)} />
+    <label class="falle" aria-hidden="true"
+      >Webseite<input name="webseite" tabindex="-1" autocomplete="off" /></label
+    >
+    {
+      s.schritt === 1 && (
+        <>
+          <h2>Wo und wann feiert ihr?</h2>
+          <label>
+            Ort
+            <input
+              name="ort"
+              required
+              list="orte-assistent"
+              maxlength="200"
+              placeholder="Ort suchen …"
+              value={ortText}
+            />
+          </label>
+          <datalist id="orte-assistent">
+            {orte.map((o) => (
+              <option value={`${o.name} (${o.landkreis}) · ${o.slug}`} />
+            ))}
+          </datalist>
+          <div class="zwei">
+            <label>
+              Erster Kirmestag
+              <input name="ab" type="date" required value={s.ab} />
+            </label>
+            <label>
+              Wie lange?
+              <select name="tage">
+                {[
+                  ['1', 'Nur ein Termin'],
+                  ['2', '2 Tage'],
+                  ['3', '3 Tage'],
+                  ['4', '4 Tage (meist Freitag bis Montag)'],
+                ].map(([v, t]) => (
+                  <option value={v} selected={s.tage === v}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button class="knopf" name="aktion" value="weiter">
+            Weiter zum Programm
+          </button>
+        </>
+      )
+    }
+    {
+      s.schritt === 2 && (
+        <>
+          <h2>Was ist los in {ort?.name ?? s.ortSlug}?</h2>
+          <p class="leise">
+            Das ist ein Vorschlag für euer Programm. Wähle ab, was nicht passt. Titel, Tag und
+            Uhrzeit kannst du ändern.
+          </p>
+          <div class="programm">
+            {s.zeilen.map((z, i) => (
+              <fieldset class:list={['veranstaltung', { abgewaehlt: !z.aktiv }]}>
+                <legend>
+                  <label>
+                    <input type="checkbox" name={`aktiv-${i}`} checked={z.aktiv} />{' '}
+                    {z.titel || 'Eigene Veranstaltung'}
+                  </label>
+                </legend>
+                <label>
+                  Veranstaltung
+                  <input
+                    name={`titel-${i}`}
+                    list="titel-assistent"
+                    maxlength="200"
+                    value={z.titel}
+                  />
+                </label>
+                <div class="zwei">
+                  <label>
+                    Tag
+                    <input name={`datum-${i}`} type="date" value={z.datum} />
+                  </label>
+                  <label>
+                    Uhrzeit
+                    <input name={`beginn-${i}`} type="time" value={z.beginn ?? ''} />
+                  </label>
+                </div>
+              </fieldset>
+            ))}
+          </div>
+          <button class="knopf zweit" name="aktion" value="eigen" formnovalidate>
+            + Eigene Veranstaltung
+          </button>
+          <div class="knopfreihe">
+            <>
+              <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
+                Zurück
+              </button>
+              <button class="knopf" name="aktion" value="weiter">
+                Weiter zu den Details
+              </button>
+            </>
+          </div>
+        </>
+      )
+    }
+    {
+      s.schritt === 3 && (
+        <>
+          <h2>Details – alles freiwillig</h2>
+          <p class="leise">
+            {ort?.name ?? s.ortSlug} · {s.zeilen.filter((z) => z.aktiv).length} Veranstaltungen.
+            Öffne nur, was du ergänzen möchtest.
+          </p>
+          {s.zeilen.map(
+            (z, i) =>
+              z.aktiv && (
+                <details class="veranstaltung">
+                  <summary>
+                    <strong>{z.titel}</strong>
+                    <span class="leise klein">
+                      {datumLangJahr(z.datum)}
+                      {z.beginn && ` · ${z.beginn} Uhr`}
+                    </span>
+                  </summary>
+                  <div class="details-inhalt">
+                    <label>
+                      Band / DJ
+                      <input
+                        name={`band-${i}`}
+                        maxlength="120"
+                        list="bands-assistent"
+                        value={z.band ?? ''}
+                      />
+                    </label>
+                    <label>
+                      Wo genau?
+                      <input
+                        name={`wo-${i}`}
+                        maxlength="120"
+                        list="plaetze-assistent"
+                        placeholder="z. B. Festzelt oder Kirche"
+                        value={z.veranstaltungsort ?? ''}
+                      />
+                    </label>
+                    <label>
+                      Hinweise (öffentlich)
+                      <textarea
+                        name={`info-${i}`}
+                        rows="2"
+                        maxlength="500"
+                        set:text={z.info ?? ''}
+                      />
+                    </label>
+                    <label class="klein">
+                      <input name={`mutti-${i}`} type="checkbox" checked={z.muttizettel ?? false} />{' '}
+                      Unter 18 nur mit Muttizettel
+                    </label>
+                    <details>
+                      <summary>Mittagstisch ergänzen</summary>
+                      {Array.from(
+                        {
+                          length: Math.min(
+                            20,
+                            Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1),
+                          ),
+                        },
+                        (_, j) => (
+                          <div class="zwei">
+                            <label>
+                              Gericht {j + 1}
+                              <input
+                                name={`gericht-${i}-${j}`}
+                                maxlength="120"
+                                value={z.speisen?.[j]?.name ?? ''}
+                              />
+                            </label>
+                            <label>
+                              Preis (€)
+                              <input
+                                name={`preis-${i}-${j}`}
+                                inputmode="decimal"
+                                maxlength="20"
+                                placeholder="z. B. 9,50"
+                                value={z.speisen?.[j]?.preis ?? ''}
+                              />
+                            </label>
+                          </div>
+                        ),
+                      )}
+                      <button
+                        class="knopf zweit"
+                        name="aktion"
+                        value={`gerichte-${i}`}
+                        formnovalidate
+                      >
+                        + Weiteres Gericht
+                      </button>
+                    </details>
+                  </div>
+                </details>
+              ),
+          )}
+          {redaktion ? (
+            <label>
+              <input type="checkbox" name="bestaetigt" checked={s.bestaetigt} /> Vom Veranstalter
+              bestätigt
+            </label>
+          ) : (
+            <>
+              <h3>Für Rückfragen (freiwillig)</h3>
+              <label>
+                Name / Kirmesgesellschaft
+                <input
+                  name="kontaktName"
+                  maxlength="120"
+                  autocomplete="organization"
+                  value={s.kontaktName}
+                />
+              </label>
+              <label>
+                E-Mail
+                <input
+                  name="kontaktEmail"
+                  type="email"
+                  maxlength="200"
+                  autocomplete="email"
+                  value={s.kontaktEmail}
+                />
+              </label>
+              <label>
+                Nachricht an die Redaktion
+                <textarea name="nachricht" maxlength="2000" rows="3" set:text={s.nachricht} />
+              </label>
+              <p class="klein leise">
+                Dein Vorschlag wird erst nach Prüfung veröffentlicht. Kontaktdaten dienen nur
+                Rückfragen und werden nach der Prüfung gelöscht. Mehr im{' '}
+                <a href="/datenschutz#vorschlaege">Datenschutz</a>.
+              </p>
+            </>
+          )}
+          <div class="knopfreihe">
+            <>
+              <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
+                Zurück zum Programm
+              </button>
+              <button class="knopf" name="aktion" value="speichern">
+                {redaktion
+                  ? s.vorschlag
+                    ? 'Prüfung abschließen und übernehmen'
+                    : 'Kirmes speichern'
+                  : 'Vorschlag senden'}
+              </button>
+            </>
+          </div>
+        </>
+      )
+    }
+  </form>
+  <datalist id="bands-assistent">{bands.map((b) => <option value={b} />)}</datalist>
+  <datalist id="titel-assistent">{titel.map((t) => <option value={t} />)}</datalist>
+  <datalist id="plaetze-assistent">{plaetze.map((p) => <option value={p} />)}</datalist>
+</div>
+<style>
+  .kirmes-assistent {
+    max-width: 680px;
+  }
+  .schritte {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    gap: 10px;
+    margin: 24px 0;
+  }
+  .schritte li {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--grau);
+    border-bottom: 3px solid var(--linie);
+    padding-bottom: 12px;
+  }
+  .schritte li[aria-current] {
+    color: var(--rot);
+    font-weight: 700;
+    border-color: var(--rot);
+  }
+  .schritte span {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .programm {
+    display: grid;
+    gap: 16px;
+  }
+  .veranstaltung {
+    min-width: 0;
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 16px;
+    margin: 0;
+    background: var(--flaeche);
+  }
+  .veranstaltung legend {
+    padding: 0 8px;
+    font-weight: 700;
+  }
+  .veranstaltung legend label {
+    display: inline;
+  }
+  .veranstaltung summary {
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .veranstaltung summary span {
+    display: block;
+    margin-top: 4px;
+  }
+  .details-inhalt {
+    display: grid;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .abgewaehlt {
+    opacity: 0.65;
+  }
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  button {
+    min-height: 44px;
+  }
+</style>

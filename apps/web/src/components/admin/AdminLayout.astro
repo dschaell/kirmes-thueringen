@@ -1,4 +1,5 @@
 ---
+import { adminApi } from '../../lib/admin';
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from './CsrfFeld.astro';
 
@@ -9,9 +10,14 @@ interface Props {
 }
 const { titel, meldung = null, fehler = [] } = Astro.props;
 const pfad = Astro.url.pathname;
+const vorschlaege = Astro.locals.adminId
+  ? await adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl')
+  : null;
 const nav = [
   ['/admin', 'Übersicht'],
   ['/admin/termine', 'Termine'],
+  ['/admin/kirmes-eintragen', 'Kirmes eintragen'],
+  ['/admin/vorschlaege', `Vorschläge (${vorschlaege?.daten?.anzahl ?? '–'})`],
   ['/admin/mitteilungen', 'Mitteilungen'],
   ['/admin/orte', 'Orte'],
   ['/admin/links', 'Bearbeitungslinks'],

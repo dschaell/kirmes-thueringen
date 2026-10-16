@@ -172,3 +172,9 @@ export async function leseJson(request: Request): Promise<{ body: unknown } | Re
 /** Termin-IDs sind UUIDs – alles andere geht gar nicht erst an die API. */
 export const istTerminId = (id: string | undefined): id is string =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id ?? '');
+
+export const eingabeVorschlaege = async () =>
+  (await hole<{ bands: string[]; titel: string[] }>('/api/v1/eingabe-vorschlaege')) ?? {
+    bands: [],
+    titel: [],
+  };

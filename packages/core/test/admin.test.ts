@@ -167,6 +167,38 @@ describe('Redaktion', () => {
     expect(!doppelt.ok && doppelt.error[0]?.code).toBe('ORT_VORHANDEN');
   });
 
+  it('validiert Mittagstisch schon vor dem atomaren Anlegen', async () => {
+    const { r, gelegt } = aufbau();
+    expect(
+      (
+        await r.legeTermin(
+          {
+            ortSlug: 'ulla',
+            datum: '2027-09-17',
+            titel: 'Frühschoppen',
+            speisen: [{ name: 'Klöße', preis: '9,50' }],
+          },
+          '1',
+        )
+      ).ok,
+    ).toBe(true);
+    expect(gelegt[0]?.t.speisen).toEqual([{ name: 'Klöße', preisCent: 950 }]);
+    expect(
+      (
+        await r.legeTermin(
+          {
+            ortSlug: 'ulla',
+            datum: '2027-09-17',
+            titel: 'Frühschoppen',
+            speisen: [{ name: '', preis: '9' }],
+          },
+          '1',
+        )
+      ).ok,
+    ).toBe(false);
+    expect(gelegt).toHaveLength(1);
+  });
+
   it('legt Termine für jeden Ort an – Bestätigung entscheidet die Redaktion', async () => {
     const { r, gelegt } = aufbau();
     const t = await r.legeTermin(

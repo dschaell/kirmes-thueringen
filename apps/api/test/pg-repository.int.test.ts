@@ -300,6 +300,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           landkreis: 'WL',
           datum: d('2026-10-25'),
           beginn: '10:00',
+          speisen: [{ name: 'Klöße', preisCent: 950 }],
           titel: 'ZZMT Frühschoppen',
           veranstaltungsort: null,
           kategorie: 'tradition',
@@ -312,6 +313,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       durch,
     );
     const id = t!.id;
+    expect((await repo.finde(id))?.speisen).toEqual([{ name: 'Klöße', preisCent: 950 }]);
     expect(
       await v.setzeSpeisen(
         id,

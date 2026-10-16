@@ -1,3 +1,4 @@
+import { vorschlagsZeileSchema } from './vorschlag-routen.js';
 /**
  * Redaktions-API (/api/v1/admin/*). Anmeldung nur mit Passkey. Jeder Endpunkt außer Anmeldung,
  * Ersteinrichtung und Einladung verlangt eine gültige Sitzung
@@ -79,6 +80,7 @@ const terminSchema = objekt(['ortSlug', 'datum', 'titel'], {
   band: OPT_TEXT(200),
   muttizettel: { type: 'boolean' },
   info: OPT_TEXT(1000),
+  speisen: vorschlagsZeileSchema.properties.speisen,
 });
 const zeileSchema = {
   ...terminSchema,
@@ -509,6 +511,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     r.post<{ Body: { ortSlug: string; zeilen: Omit<AdminTerminFormular, 'ortSlug'>[] } }>(
       '/api/v1/admin/termine/wochenende',
       {
+        bodyLimit: 256 * 1024,
         schema: {
           body: objekt(['ortSlug', 'zeilen'], {
             ortSlug: TEXT(120),

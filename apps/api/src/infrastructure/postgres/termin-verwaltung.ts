@@ -208,6 +208,12 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     ]);
     const neu = r.rows[0];
     if (!neu) throw new Error(`Ort ${t.ortSlug} nicht gefunden`);
+    if (t.speisen?.length)
+      await c.query(SQL_SPEISEN_EINFUEGEN, [
+        neu.id,
+        t.speisen.map((s) => s.name),
+        t.speisen.map((s) => s.preisCent),
+      ]);
     await c.query(SQL_PROTOKOLL, [
       durch.linkId,
       durch.adminId ?? null,

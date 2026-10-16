@@ -51,3 +51,32 @@ describe('Repositories ohne Ergebniszeilen', () => {
     expect(befehle).toEqual(['BEGIN', 'UPDATE', 'INSERT', 'ROLLBACK', 'release']);
   });
 });
+
+it('Vorschlag ohne zurückgegebene ID wird vollständig zurückgerollt', async () => {
+  const { PgVorschlaege } = await import('../src/infrastructure/postgres/vorschlags-repository.js');
+  const befehle: string[] = [];
+  const client = {
+    query: async (sql: string) => {
+      befehle.push(sql.trim().split(/\s+/)[0] ?? '');
+      return {
+        rows: sql.startsWith('SELECT id FROM ort')
+          ? [{ id: '1' }]
+          : sql.includes('count(*)')
+            ? [{ n: 0 }]
+            : [],
+      };
+    },
+    release: () => befehle.push('release'),
+  };
+  const repo = new PgVorschlaege({ connect: async () => client } as never);
+  await expect(
+    repo.lege({
+      ortSlug: 'test',
+      kontaktName: null,
+      kontaktEmail: null,
+      nachricht: null,
+      termine: [],
+    }),
+  ).rejects.toThrow('Vorschlag konnte nicht angelegt werden');
+  expect(befehle).toEqual(['BEGIN', 'SELECT', 'SELECT', 'INSERT', 'ROLLBACK', 'release']);
+});

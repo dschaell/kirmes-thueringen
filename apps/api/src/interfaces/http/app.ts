@@ -1,3 +1,5 @@
+import { vorschlagRouten } from './vorschlag-routen.js';
+import type { Vorschlaege } from '@kirmes/core';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { isIP } from 'node:net';
@@ -33,6 +35,7 @@ export interface AppAbhaengigkeiten {
   admin?: Omit<AdminAbhaengigkeiten, 'terminDto'>;
   /** Meldungen an die Redaktion per E-Mail; fehlt sie, antwortet der Endpunkt mit 503 */
   meldungen?: MeldeAnRedaktion;
+  terminVorschlaege?: Vorschlaege;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -274,6 +277,11 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       }
     },
   );
+
+  app.get('/api/v1/eingabe-vorschlaege', async (_req, reply) => {
+    reply.header('Cache-Control', 'public, max-age=300');
+    return d.admin?.vorschlaege ? d.admin.vorschlaege() : { bands: [], titel: [] };
+  });
 
   app.get('/api/v1/landkreise', async () =>
     Object.entries(LANDKREISE).map(([kuerzel, name]) => ({ kuerzel, name })),
@@ -524,6 +532,11 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     if (!m) return reply.status(404).send(problem(404, 'Keine Mitteilung'));
     return { id: m.id, titel: m.titel, text: m.text, link: m.link, datum: m.veroeffentlichtAm };
   });
+
+  if (d.terminVorschlaege)
+    await vorschlagRouten(app, d.terminVorschlaege, (ip, weiter, fallback) =>
+      istInternesNetz(ip) && typeof weiter === 'string' ? weiter.slice(0, 64) : fallback,
+    );
 
   if (d.admin) await adminRouten(app, { ...d.admin, terminDto });
 

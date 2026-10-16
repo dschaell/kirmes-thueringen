@@ -1,0 +1,101 @@
+---
+import type { Vorschlag } from '@kirmes/core';
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+let fehler: string[] = [];
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const r = await adminApi(
+    Astro.cookies,
+    'POST',
+    `termine-vorschlaege/${encodeURIComponent(feld(f, 'id'))}/ablehnen`,
+    { grund: feld(f, 'grund') },
+  );
+  if (r.status === 204) return Astro.redirect('/admin/vorschlaege?abgelehnt=1', 303);
+  fehler = r.fehler;
+  Astro.response.status = r.status;
+}
+const r = await adminApi<Vorschlag[]>(Astro.cookies, 'GET', 'termine-vorschlaege');
+fehler.push(...r.fehler);
+---
+
+<AdminLayout
+  titel="Vorschläge prüfen"
+  fehler={fehler}
+  meldung={Astro.url.searchParams.has('gespeichert')
+    ? 'Gespeichert. Die Termine sind jetzt öffentlich sichtbar.'
+    : Astro.url.searchParams.has('abgelehnt')
+      ? 'Vorschlag abgelehnt. Es wurde nichts veröffentlicht.'
+      : null}
+>
+  <p>
+    Hier stehen Meldungen, die noch nicht öffentlich sichtbar sind. Bitte Inhalt und Datum vor der
+    Übernahme prüfen.
+  </p>
+  {
+    (r.daten ?? []).length === 0 && !r.fehler.length && (
+      <p class="leer">Alle Vorschläge sind geprüft.</p>
+    )
+  }
+  {
+    (r.daten ?? []).map((v) => (
+      <article class="vorschlag">
+        <h2>
+          {v.ortName} · {v.termine.length} Veranstaltungen
+        </h2>
+        <p class="klein leise">
+          Eingegangen:{' '}
+          {new Date(v.erstelltAm).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
+        </p>
+        <ul>
+          {v.termine.map((t) => (
+            <li>
+              {t.datum} · {t.beginn} · {t.titel}
+            </li>
+          ))}
+        </ul>
+        {v.nachricht && <p>{v.nachricht}</p>}
+        {(v.kontaktName || v.kontaktEmail) && (
+          <p class="klein">
+            Rückfragen: {v.kontaktName}{' '}
+            {v.kontaktEmail && <a href={`mailto:${v.kontaktEmail}`}>{v.kontaktEmail}</a>}
+          </p>
+        )}
+        <a class="knopf" href={`/admin/kirmes-eintragen?vorschlag=${v.id}`}>
+          Prüfen und bearbeiten
+        </a>
+        <details>
+          <>
+            <summary>Vorschlag ablehnen</summary>
+            <form method="post" class="melden">
+              <>
+                <CsrfFeld />
+                <input type="hidden" name="id" value={v.id} />
+                <label>
+                  Grund (freiwillig)
+                  <textarea name="grund" maxlength="500" rows="2" />
+                </label>
+                <p>Es werden keine Termine veröffentlicht. Kontaktdaten werden gelöscht.</p>
+                <button class="knopf zweit">Jetzt ablehnen</button>
+              </>
+            </form>
+          </>
+        </details>
+      </article>
+    ))
+  }
+</AdminLayout>
+<style>
+  .vorschlag {
+    border-bottom: 1px solid var(--linie);
+    padding: 12px 0 24px;
+  }
+  .vorschlag details {
+    margin-top: 16px;
+  }
+  summary {
+    cursor: pointer;
+    min-height: 44px;
+  }
+</style>
