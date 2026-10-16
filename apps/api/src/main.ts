@@ -14,6 +14,7 @@ import {
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
+  RedaktionsFestplaetze,
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
 import {
@@ -34,7 +35,10 @@ import {
   PgSitzungen,
 } from './infrastructure/postgres/admin-repository.js';
 import { PgOrtRepository } from './infrastructure/postgres/ort-repository.js';
-import { PgTerminVerwaltung } from './infrastructure/postgres/termin-verwaltung.js';
+import {
+  PgTerminVerwaltung,
+  terminVorschlaege,
+} from './infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool } from './infrastructure/postgres/pool.js';
 import {
   datenbankErreichbar,
@@ -45,6 +49,7 @@ import { PgPasskeys } from './infrastructure/postgres/passkey-repository.js';
 import { SimpleWebAuthn, SpeicherChallenges } from './infrastructure/webauthn.js';
 import { SmtpPostausgang, SpeicherDrosselung, smtpTransport } from './infrastructure/post.js';
 import { SpeicherEinrichtungslinks } from './infrastructure/einrichtungslinks.js';
+import { GoogleKartenlinks } from './infrastructure/kartenlinks.js';
 import { baueApp } from './interfaces/http/app.js';
 
 const k = ladeKonfiguration();
@@ -126,6 +131,12 @@ const app = await baueApp({
     einrichtung,
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
     mitglieder: new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto),
+    vorschlaege: () => terminVorschlaege(pool),
+    festplaetze: new RedaktionsFestplaetze(
+      new PgFestplatzRepository(pool),
+      ortLandkreis(pool),
+      new GoogleKartenlinks(),
+    ),
     redaktion: new Redaktion(
       mitteilungen,
       new PgOrtVerwaltung(pool),

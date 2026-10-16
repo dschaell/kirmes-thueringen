@@ -962,3 +962,24 @@ input[aria-invalid='true'] {
 .rueckmeldung {
   scroll-margin-top: 16px;
 }
+
+/* Google-Maps-Karte mit Einwilligung (Issue #62) */
+.google-karte {
+  margin: 16px 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--flaeche);
+}
+.google-karte-hinweis {
+  padding: 14px 16px;
+}
+.google-karte-hinweis > :first-child {
+  margin-top: 0;
+}
+.google-karte iframe {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 0;
+}

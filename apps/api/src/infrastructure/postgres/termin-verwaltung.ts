@@ -1,5 +1,6 @@
 import type { Berechtigung, NeuerTermin, Termin, TerminVerwaltung } from '@kirmes/core';
 import type pg from 'pg';
+import { abfrage } from './pool.js';
 
 /*
  * Schreibzugriffe der Kirmesgesellschaften und der Redaktion. Jede Anweisung prüft im WHERE, dass der
@@ -173,4 +174,27 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       c.release();
     }
   }
+}
+
+/**
+ * Vorschläge für die Eingabe (Issue #62): Bands/DJs und Veranstaltungstitel aus allen bisherigen
+ * Terminen, häufigste zuerst – damit niemand dieselben Namen immer wieder tippen muss.
+ */
+export async function terminVorschlaege(
+  db: pg.Pool,
+): Promise<{ bands: string[]; titel: string[] }> {
+  const [bands, titel] = await Promise.all([
+    abfrage<{ wert: string }>(
+      db,
+      `SELECT band AS wert FROM termin WHERE band IS NOT NULL AND band <> ''
+        GROUP BY band ORDER BY count(*) DESC, band LIMIT 300`,
+      [],
+    ),
+    abfrage<{ wert: string }>(
+      db,
+      `SELECT titel AS wert FROM termin GROUP BY titel ORDER BY count(*) DESC, titel LIMIT 300`,
+      [],
+    ),
+  ]);
+  return { bands: bands.rows.map((r) => r.wert), titel: titel.rows.map((r) => r.wert) };
 }

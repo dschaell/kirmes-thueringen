@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AdminAnmeldung,
+  istKartenKurzlink,
   koordinateAusText,
   Redaktion,
   slugAus,
@@ -58,7 +59,19 @@ describe('validiereOrt / slugAus / koordinateAusText', () => {
     ['https://maps.apple.com/?ll=50.9,11.0&q=X', { lat: 50.9, lon: 11.0 }],
     ['…!3d50.91!4d11.02…', { lat: 50.91, lon: 11.02 }],
     ['irgendwas', null],
+    // Pin schlägt Kartenmitte (Issue #62): @ ist der Ausschnitt, !3d/!4d der gesetzte Ort
+    [
+      'https://www.google.com/maps/place/Kirche/@50.85,11.03,15z/data=!3m1!4b1!4m6!3m5!1s0x0:0x0!8m2!3d50.847493!4d11.041234',
+      { lat: 50.847493, lon: 11.041234 },
+    ],
   ])('%s', (text, erwartet) => expect(koordinateAusText(text)).toEqual(erwartet));
+  it('erkennt Kurzlinks aus „Teilen → Link kopieren“', () => {
+    expect(istKartenKurzlink('https://maps.app.goo.gl/AbC123xyz')).toBe(true);
+    expect(istKartenKurzlink(' https://goo.gl/maps/AbC123 ')).toBe(true);
+    expect(istKartenKurzlink('https://maps.app.goo.gl.evil.example/AbC')).toBe(false);
+    expect(istKartenKurzlink('http://maps.app.goo.gl/AbC')).toBe(false);
+    expect(istKartenKurzlink('50.8, 11.0')).toBe(false);
+  });
 });
 
 describe('AdminAnmeldung (Sitzung)', () => {

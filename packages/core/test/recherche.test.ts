@@ -45,6 +45,15 @@ describe('erkenneKategorie', () => {
     ['Herbstball', 'tanz'],
     ['Osterfeuer mit Tanz', 'ostern'],
     ['Maisprung', 'mai'],
+    // echte Kirmes Alkersleben (Issue #62)
+    ['Kirmesgottesdienst', 'brauchtum'],
+    ['Ständchen', 'brauchtum'],
+    ['Kinderkirmes', 'kinder'],
+    ['Kirmesparty', 'party'],
+    ['Traditionelles Frühshoppen', 'fruehschoppen'],
+    ['Früh-Schoppen', 'fruehschoppen'],
+    ['Kirmesausklang', 'kirmes'],
+    ['Kirmestanz', 'kirmes'],
   ])('%s → %s', (titel, k) => expect(erkenneKategorie(titel)).toBe(k));
 });
 

@@ -1,4 +1,5 @@
 ---
+import GoogleKarte from '../../components/GoogleKarte.astro';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
@@ -136,10 +137,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <p class="genau">
       {
         route.exakt
-          ? 'Die Route führt zum Festplatz, den die Kirmesgesellschaft hinterlegt hat.'
-          : 'Die Route führt zur Adresse im Ort – den genauen Festplatz hat die Kirmesgesellschaft noch nicht eingetragen.'
+          ? 'Die Route führt genau zum Veranstaltungsort.'
+          : 'Die Route führt zur Adresse im Ort – der genaue Platz ist noch nicht eingetragen.'
       }
     </p>
+    {
+      (t.festplatz ?? t.ort.koordinate) && (
+        <GoogleKarte
+          lat={(t.festplatz ?? t.ort.koordinate)!.lat}
+          lon={(t.festplatz ?? t.ort.koordinate)!.lon}
+          titel={`Karte: ${t.veranstaltungsort ?? t.ort.name}`}
+          genau={Boolean(t.festplatz)}
+        />
+      )
+    }
   </article>
 
   {

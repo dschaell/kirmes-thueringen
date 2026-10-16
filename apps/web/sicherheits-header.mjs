@@ -55,9 +55,26 @@ export const SICHERHEITS_HEADER_KARTE = {
   'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
 };
 
+/**
+ * Seiten mit Google-Maps-Karte (Terminseite, Termine der Redaktion): eingebettetes Kartenfenster von
+ * maps.google.com – erst nach Klick (Einwilligung). Ohne COEP, weil Google keinen CORP-Header sendet.
+ */
+export const SICHERHEITS_HEADER_GOOGLE_KARTE = {
+  ...BASIS,
+  'Content-Security-Policy': alsText({
+    ...CSP,
+    'frame-src': 'https://maps.google.com https://www.google.com',
+  }),
+  'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
+};
+
 export const headerFuer = (pfad) =>
   pfad.startsWith('/verwalten')
     ? SICHERHEITS_HEADER_VERWALTUNG
     : pfad === '/karte' || pfad.startsWith('/karte?')
       ? SICHERHEITS_HEADER_KARTE
-      : SICHERHEITS_HEADER;
+      : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
+          pfad === '/admin/termine' ||
+          pfad.startsWith('/admin/termine?')
+        ? SICHERHEITS_HEADER_GOOGLE_KARTE
+        : SICHERHEITS_HEADER;
