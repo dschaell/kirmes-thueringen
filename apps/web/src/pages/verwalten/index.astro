@@ -140,6 +140,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
 
 <script>
   import L from 'leaflet';
+  import { heute as heuteInThueringen } from '../../lib/anzeige';
   import 'leaflet/dist/leaflet.css';
 
   type Koordinate = { lat: number; lon: number };
@@ -239,7 +240,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     });
 
   function zeigeTermine() {
-    const heute = new Date().toISOString().slice(0, 10);
+    const heute = heuteInThueringen(); // nicht UTC – sonst ist zwischen 0 und 2 Uhr noch gestern
     $('keine-termine').hidden = termine.length > 0;
     $('terminliste').replaceChildren(
       ...termine.map((t) => {
