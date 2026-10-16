@@ -13,14 +13,15 @@ services:
     profiles: !reset []
     environment:
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
-      WEBSITE_URL: https://${DOMAIN:?}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD muss in .env gesetzt sein}
 
   api:
     profiles: !reset []
     restart: always
     ports: !reset [] # API nur intern – öffentlich ist allein Caddy
     environment:
-      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:?}@db:5432/kirmes
+      DATABASE_URL: postgres://kirmes_app:${APP_DB_PASSWORD:?}@db:5432/kirmes
+      WEBSITE_URL: https://${DOMAIN:?}
 
   web:
     profiles: !reset []

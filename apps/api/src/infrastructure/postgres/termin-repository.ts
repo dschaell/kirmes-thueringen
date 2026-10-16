@@ -16,14 +16,14 @@ import { abfrage } from './pool.js';
  * ausschließlich als Parameter zum Server – niemals per String-Verkettung (OWASP A03).
  * Optionale Filter werden über "leeres Array / NULL = kein Filter" ausgedrückt, damit das SQL statisch bleibt.
  */
-const SQL_TERMIN_BASIS = `
+/** Spalten und Joins eines Termins inkl. Ort und Festplatz – nur für bereits ausgewählte Termine. */
+const SQL_TERMIN_DETAILS = `
 SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.info, t.muttizettel,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
-       ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon,
-       count(*) OVER () AS gesamt
-  FROM termin t
+       ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon`;
+const SQL_TERMIN_JOINS = `
   JOIN ort o ON o.id = t.ort_id
   -- Festplatz: passender Veranstaltungsort, sonst Standard-Festplatz ('') des Ortes
   LEFT JOIN LATERAL (
@@ -31,23 +31,41 @@ SELECT t.id, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.t
      WHERE fp.ort_id = t.ort_id AND (fp.name = t.veranstaltungsort OR fp.name = '')
      ORDER BY (fp.name = t.veranstaltungsort) DESC NULLS LAST
      LIMIT 1
-  ) f ON true
-`;
+  ) f ON true`;
 
-const SQL_SUCHE = `${SQL_TERMIN_BASIS} WHERE t.datum BETWEEN $1::date AND $2::date
-   AND (cardinality($3::text[]) = 0 OR o.landkreis = ANY ($3::text[]))
-   AND (cardinality($4::text[]) = 0 OR t.kategorie = ANY ($4::text[]))
-   AND ($5::text IS NULL
-        OR t.titel ILIKE $5 ESCAPE '\\'
-        OR o.name ILIKE $5 ESCAPE '\\'
-        OR t.veranstaltungsort ILIKE $5 ESCAPE '\\'
-        OR t.band ILIKE $5 ESCAPE '\\')
-   AND (NOT $6::boolean OR t.bestaetigt)
-   AND ($9::text IS NULL OR o.slug = $9)
- ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
- LIMIT $7 OFFSET $8`;
+/*
+ * Zwei Schritte: Erst Treffer filtern, zählen und auf eine Seite kürzen (nur termin + ort), dann
+ * nur für diese Seite Details und Festplatz laden. Vorher lief die Festplatz-Unterabfrage für
+ * jeden Treffer des Jahres – bei 10.000 Terminen ~1 s statt weniger Millisekunden.
+ */
+const SQL_SUCHE = `
+WITH seite AS (
+  SELECT t.id, count(*) OVER () AS gesamt
+    FROM termin t
+    JOIN ort o ON o.id = t.ort_id
+   WHERE t.datum BETWEEN $1::date AND $2::date
+     AND (cardinality($3::text[]) = 0 OR o.landkreis = ANY ($3::text[]))
+     AND (cardinality($4::text[]) = 0 OR t.kategorie = ANY ($4::text[]))
+     -- Freitext: Trigramm-Index auf termin.suchtext (Titel, Veranstaltungsort, Band) und ort.name;
+     -- der Ort als Unterabfrage, damit beide Indizes per BitmapOr kombiniert werden können
+     AND ($5::text IS NULL
+          OR t.suchtext ILIKE $5 ESCAPE '\\'
+          OR t.ort_id = ANY (ARRAY(SELECT id FROM ort WHERE name ILIKE $5 ESCAPE '\\')))
+     AND (NOT $6::boolean OR t.bestaetigt)
+     AND ($9::text IS NULL OR o.slug = $9)
+   ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel
+   LIMIT $7 OFFSET $8
+)
+${SQL_TERMIN_DETAILS}, s.gesamt
+  FROM seite s
+  JOIN termin t ON t.id = s.id
+${SQL_TERMIN_JOINS}
+ ORDER BY t.datum, t.beginn NULLS LAST, o.name, t.titel`;
 
-const SQL_FINDE = `${SQL_TERMIN_BASIS} WHERE t.id = $1::uuid`;
+/** Für den EXPLAIN-Regressionstest: Plan der Suche als JSON. */
+export const SQL_SUCHE_EXPLAIN = `EXPLAIN (FORMAT JSON) ${SQL_SUCHE}`;
+
+const SQL_FINDE = `${SQL_TERMIN_DETAILS}, 1 AS gesamt FROM termin t ${SQL_TERMIN_JOINS} WHERE t.id = $1::uuid`;
 
 const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`;
 

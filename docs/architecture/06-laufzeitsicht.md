@@ -92,3 +92,26 @@ sequenceDiagram
   A->>D: UPSERT festplatz + INSERT aenderungsprotokoll (eine Transaktion)
   Note over A,D: Ab jetzt liefert jede Terminabfrage den Festplatz mit;<br/>„Route“ führt zu den exakten Koordinaten
 ```
+
+## 6.6 Anmeldung der Redaktion
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant W as Website /admin
+  participant A as API
+  participant D as PostgreSQL
+  B->>W: POST /admin/anmelden (E-Mail, Passwort, Code) + CSRF-Token
+  W->>A: POST /api/v1/admin/anmelden
+  A->>A: Sperre prüfen (5 je E-Mail / 30 gesamt in 15 min)
+  A->>D: Konto laden, scrypt + TOTP prüfen (gleiche Rechenzeit bei unbekannter E-Mail)
+  A->>D: Sitzung anlegen (nur SHA-256 des Tokens)
+  A-->>W: Token
+  W-->>B: Cookie kirmes_admin (HttpOnly, Secure, SameSite=Strict, Path=/admin)
+  Note over B,A: Alternativ Passkey: Challenge → navigator.credentials.get → Signatur prüfen
+  B->>W: weitere Aufrufe mit Cookie
+  W->>A: Authorization: Sitzung <token> → onRequest-Hook prüft vor jeder Validierung
+```
+
+Fehler werden als Problem Details ohne Interna gemeldet: 401 (nicht angemeldet / falsche Daten –
+immer dieselbe Meldung), 429 mit `Retry-After` (Sperre), 403 bei fehlendem oder fremdem CSRF-Token.

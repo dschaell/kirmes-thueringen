@@ -45,5 +45,19 @@ export const SICHERHEITS_HEADER_VERWALTUNG = {
   'Cache-Control': 'no-store',
 };
 
+/** Kartenansicht: nur Kartenkacheln von OpenStreetMap zusätzlich; ohne COEP (Kacheln ohne CORP). */
+export const SICHERHEITS_HEADER_KARTE = {
+  ...BASIS,
+  'Content-Security-Policy': alsText({
+    ...CSP,
+    'img-src': "'self' data: https://tile.openstreetmap.org",
+  }),
+  'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
+};
+
 export const headerFuer = (pfad) =>
-  pfad.startsWith('/verwalten') ? SICHERHEITS_HEADER_VERWALTUNG : SICHERHEITS_HEADER;
+  pfad.startsWith('/verwalten')
+    ? SICHERHEITS_HEADER_VERWALTUNG
+    : pfad === '/karte' || pfad.startsWith('/karte?')
+      ? SICHERHEITS_HEADER_KARTE
+      : SICHERHEITS_HEADER;

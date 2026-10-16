@@ -35,7 +35,9 @@ services:
     profiles: [app]
     command: ['node', 'apps/api/dist/infrastructure/postgres/migrate.js']
     environment:
+      # Migrationen laufen als Owner (DDL) und richten den Login der API ein
       DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-kirmes_app_dev_only_pw}
     depends_on: { db: { condition: service_healthy } }
     restart: 'no'
 
@@ -44,7 +46,8 @@ services:
     profiles: [app]
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
+      # Least Privilege: nur Daten lesen/schreiben, kein DDL (Migration 009)
+      DATABASE_URL: postgres://kirmes_app:${APP_DB_PASSWORD:-kirmes_app_dev_only_pw}@db:5432/kirmes
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Website-Adresse: Bearbeitungslinks und Relying Party der Passkeys
       WEBSITE_URL: ${APP_URL:-http://localhost:8080}
@@ -71,6 +74,9 @@ services:
       API_URL: http://api:3100
       # Öffentliche Adresse – Grundlage für Bearbeitungslinks (nie aus der Anfrage abgeleitet)
       WEBSITE_URL: ${APP_URL:-http://localhost:8080}
+      # Seitenaufrufe je Client-IP und Minute (statische Dateien zählen nicht)
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_FENSTER_S: ${RATE_LIMIT_FENSTER_S:-60}
     ports: ['127.0.0.1:8080:4321']
     depends_on: { api: { condition: service_healthy } }
     read_only: true

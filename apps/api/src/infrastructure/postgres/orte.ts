@@ -2,7 +2,7 @@
  * CLI: lädt das Ortsverzeichnis (db/seed/orte.json, aus OpenStreetMap) in die Tabelle „ort“.
  * Vorhandene Orte werden aktualisiert (Name, Landkreis, Koordinate), nie gelöscht.
  */
-import { normalisiereOrtsname } from '@kirmes/core';
+import { normalisiereOrtsname, parseKoordinate } from '@kirmes/core';
 import { readFile } from 'node:fs/promises';
 import { ladeKonfiguration } from '../../config.js';
 import { erstellePool } from './pool.js';
@@ -16,7 +16,14 @@ interface OrtEintrag {
 }
 
 const datei = new URL('../../../../../db/seed/orte.json', import.meta.url);
-const orte = JSON.parse(await readFile(datei, 'utf8')) as OrtEintrag[];
+const alle = JSON.parse(await readFile(datei, 'utf8')) as OrtEintrag[];
+// Domänenregel: Koordinaten außerhalb Thüringens (oder vertauschte Werte) werden verworfen
+const orte = alle.filter((o) => parseKoordinate(o.lat, o.lon).ok);
+if (orte.length < alle.length) {
+  console.warn(
+    `⚠ ${alle.length - orte.length} Orte mit Koordinaten außerhalb Thüringens verworfen`,
+  );
+}
 const k = ladeKonfiguration();
 const pool = erstellePool({
   connectionString: k.databaseUrl,

@@ -1,3 +1,5 @@
+import { parseKartenausschnitt } from '../domain/festplatz.js';
+import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
 import { istOrtSlug, type Ort } from '../domain/termin.js';
 import type { OrtRepository, OrtUebersicht, Uhr } from './ports.js';
 
@@ -10,6 +12,13 @@ export class ListeOrte {
 
   ausfuehren(): Promise<OrtUebersicht[]> {
     return this.repo.liste(this.uhr.heute());
+  }
+
+  /** Orte in einem Kartenausschnitt („minLon,minLat,maxLon,maxLat“) – für die Kartenansicht. */
+  async imAusschnitt(bbox: string): Promise<Result<OrtUebersicht[], Validierungsfehler[]>> {
+    const a = parseKartenausschnitt(bbox);
+    if (!a.ok) return err([a.error]);
+    return ok(await this.repo.liste(this.uhr.heute(), a.value));
   }
 }
 

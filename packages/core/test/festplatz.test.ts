@@ -107,3 +107,28 @@ describe('VerwalteFestplaetze', () => {
     expect(await leer.uebersicht('t')).toEqual({ ok: false, error: { code: 'NICHT_BERECHTIGT' } });
   });
 });
+
+describe('Kartenausschnitt (bbox)', () => {
+  it('liest „minLon,minLat,maxLon,maxLat“', async () => {
+    const { parseKartenausschnitt } = await import('../src/index.js');
+    expect(parseKartenausschnitt('10.5, 50.8, 11.0, 51.1')).toEqual({
+      ok: true,
+      value: { minLon: 10.5, minLat: 50.8, maxLon: 11, maxLat: 51.1 },
+    });
+  });
+  it('lehnt Unsinn, vertauschte Werte, Riesenausschnitte und Orte außerhalb ab', async () => {
+    const { parseKartenausschnitt } = await import('../src/index.js');
+    for (const b of [
+      '',
+      '1,2,3',
+      'a,b,c,d',
+      '11,51,10,50',
+      '0,40,9,49',
+      '5,45,15,55',
+      '13,52,14,53',
+    ]) {
+      const r = parseKartenausschnitt(b);
+      expect(!r.ok && r.error.code, b).toBe('AUSSCHNITT_UNGUELTIG');
+    }
+  });
+});

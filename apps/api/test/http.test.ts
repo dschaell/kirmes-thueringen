@@ -274,6 +274,19 @@ describe('GET /api/v1/termine/:id', () => {
   });
 });
 
+describe('Orte im Kartenausschnitt', () => {
+  it('filtert per bbox und lehnt ungültige Ausschnitte mit 400 ab', async () => {
+    await setup();
+    const ok = await app.inject({ url: '/api/v1/orte?bbox=10.5,50.7,11.2,51.1' });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()[0].slug).toBe('muehlberg');
+    const falsch = await app.inject({ url: '/api/v1/orte?bbox=0,0,50,50' });
+    expect(falsch.statusCode).toBe(400);
+    expect(falsch.json().fehler[0].code).toBe('AUSSCHNITT_UNGUELTIG');
+    expect((await app.inject({ url: '/api/v1/orte?unbekannt=1' })).statusCode).toBe(400);
+  });
+});
+
 describe('Orte', () => {
   it('listet Orte mit Anzahl kommender Termine', async () => {
     await setup();

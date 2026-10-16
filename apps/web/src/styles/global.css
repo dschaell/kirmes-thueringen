@@ -773,6 +773,9 @@ form.melden label > input[type='checkbox'] {
     grid-template-columns: 1fr;
   }
 }
+.karte.gross {
+  height: min(70vh, 560px);
+}
 .karte {
   height: 420px;
   border-radius: var(--r);

@@ -92,6 +92,20 @@ class LegeTerminAn {
 }
 ```
 
+#### Zugriffsschutz (Ports)
+
+Schreibende Use Cases bekommen den **Akteur** als Parameter und prüfen Rechte über Ports – der Core
+kennt weder Cookies noch HTTP-Header:
+
+| Akteur             | Nachweis                                        | Port(s) im Core                                                    | Darf                                      |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- |
+| Kirmesgesellschaft | persönlicher Bearbeitungslink (Token, nur Hash) | `Bearbeitungslinks.pruefe(token) → Berechtigung`                   | Termine und Festplätze **ihres** Ortes    |
+| Redaktion (Admin)  | Sitzung nach Passwort + TOTP oder Passkey       | `AdminKonten`, `Kryptografie`, `Sitzungen`, `Passkeys`, `WebAuthn` | alles: Orte, Termine, Mitteilungen, Links |
+| Besucher           | –                                               | –                                                                  | lesen, Meldung an die Redaktion senden    |
+
+`Berechtigung` (Ort, Link- bzw. Admin-ID) fließt bis in die Persistenz: Jede Schreibanweisung prüft
+im `WHERE` den Ort und schreibt einen Eintrag ins `aenderungsprotokoll` (wer, was, wann).
+
 `TerminFilter` ist bereits validiert (Datumsbereich ≤ 366 Tage, nur Thüringer Landkreise,
 Limit 1–200) und enthält keine SQL- oder HTTP-Konzepte. Technische Fehler der Persistenz
 werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treiberfehler.
@@ -102,7 +116,7 @@ werden als `PersistenzNichtVerfuegbar` gemeldet – der Core kennt keinen Treibe
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | `GET /api/v1/termine`                           | Suche: `von`, `bis`, `landkreis`, `kategorie`, `q`, `bestaetigt`, `limit`, `offset`                                     | 200 JSON · 400 Problem Details · 503 |
 | `GET /api/v1/landkreise`                        | Alle 23 Landkreise                                                                                                      | 200                                  |
-| `GET /api/v1/orte`                              | Alle Orte mit Anzahl kommender Termine                                                                                  | 200                                  |
+| `GET /api/v1/orte`                              | Alle Orte mit Anzahl kommender Termine; `?bbox=minLon,minLat,maxLon,maxLat` nur im Kartenausschnitt (GiST)              | 200                                  |
 | `GET /api/v1/orte/:slug`                        | Ein Ort                                                                                                                 | 200 · 404                            |
 | `GET /api/v1/termine/:id`                       | Ein Termin (teilbare Terminseite)                                                                                       | 200 · 404                            |
 | `GET/PUT/DELETE /api/v1/verwaltung/festplaetze` | Festplätze des eigenen Ortes (Header `Authorization: Bearer <Link-Token>`)                                              | 200 · 204 · 400 · 401                |
@@ -133,14 +147,16 @@ erDiagram
   termin { uuid id PK bigint ort_id FK date datum "indiziert" time beginn text titel text band "≤ 120" text info "≤ 500, öffentlich" boolean muttizettel text kategorie "CHECK" boolean bestaetigt text quelle "intern" bigint eingetragen_durch FK }
 ```
 
-| Index / Constraint                      | Zweck                                                     |
-| --------------------------------------- | --------------------------------------------------------- |
-| `ort_landkreis_idx`                     | Filter nach Landkreis (Regionen-Tagging)                  |
-| `ort_lage_idx` (GiST)                   | Umkreissuche / Kartenausschnitt                           |
-| `termin_datum_idx`                      | Zeitraumfilter, Sortierung                                |
-| `termin_ort_datum_idx`                  | Ortsseiten                                                |
-| `UNIQUE (ort_id, datum, titel)`         | Idempotenter Import, keine Dubletten                      |
-| `CHECK kategorie IN (…)`, Längen-CHECKs | Letzte Verteidigungslinie zusätzlich zur Core-Validierung |
+| Index / Constraint                      | Zweck                                                                                     |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ort_landkreis_idx`                     | Filter nach Landkreis (Regionen-Tagging)                                                  |
+| `ort_lage_idx` (GiST)                   | Umkreissuche / Kartenausschnitt                                                           |
+| `termin_datum_idx`                      | Zeitraumfilter, Sortierung                                                                |
+| `termin_ort_datum_idx`                  | Ortsseiten                                                                                |
+| `termin_suchtext_trgm_idx` (GIN)        | Freitext `ILIKE '%…%'` über Titel, Veranstaltungsort, Band (generierte Spalte `suchtext`) |
+| `ort_name_trgm_idx` (GIN)               | Freitext über den Ortsnamen                                                               |
+| `UNIQUE (ort_id, datum, titel)`         | Idempotenter Import, keine Dubletten                                                      |
+| `CHECK kategorie IN (…)`, Längen-CHECKs | Letzte Verteidigungslinie zusätzlich zur Core-Validierung                                 |
 
 Schemaänderungen erfolgen ausschließlich über nummerierte Migrationen in `db/migrations/`
 (je Datei eine Transaktion, protokolliert in `schema_migration`). Die Landkreise werden aus dem

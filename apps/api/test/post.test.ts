@@ -96,3 +96,11 @@ describe('SMTP-Konfiguration', () => {
     );
   });
 });
+
+describe('SpeicherDrosselung – Speicherschutz', () => {
+  it('leert die Tabelle bei mehr als 10.000 Schlüsseln, statt unbegrenzt zu wachsen', () => {
+    const d = new SpeicherDrosselung(1, 60_000);
+    for (let i = 0; i <= 10_001; i++) d.erlaube(`ip-${i}`);
+    expect(d.erlaube('ip-0')).toBe(true); // nach dem Leeren wieder frei
+  });
+});

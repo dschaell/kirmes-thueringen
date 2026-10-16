@@ -13,6 +13,7 @@ export const GET: APIRoute = async ({ site }) => {
     '/termin-melden',
     '/ueber-die-kirmes',
     '/muttizettel',
+    '/karte',
     ...Object.keys(LANDKREISE).map((k) => `/kreise/${kreisSlug(k)}`),
     ...orte.filter((o) => o.anzahlKommend > 0).map((o) => `/orte/${o.slug}`),
   ];
