@@ -41,7 +41,7 @@ const termin: Termin = {
   beginn: '20:00',
   titel: 'Kirmestanz',
   veranstaltungsort: 'Reitstall',
-  kategorie: 'kirmes',
+  kategorie: 'party',
   bestaetigt: true,
   festplatz: { lat: 50.87, lon: 10.82 },
   band: 'Belconda',
@@ -278,7 +278,7 @@ describe('GET /api/v1/termine', () => {
     expect(res.json()).toMatchObject({ gesamt: 1, termine: [{ titel: 'Kirmestanz' }] });
     expect(repo.filter).toMatchObject({
       landkreise: ['GTH', 'IK'],
-      kategorien: ['kinder', 'kirmes'],
+      kategorien: ['familie', 'party'],
       suchtext: 'Mühlberg',
       nurBestaetigt: true,
       limit: 5,

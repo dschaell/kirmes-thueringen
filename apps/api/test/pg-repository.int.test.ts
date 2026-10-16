@@ -101,7 +101,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '20:00',
       titel: 'ZZTEST Kirmestanz 100%',
       veranstaltungsort: 'Reitstall',
-      kategorie: 'kirmes',
+      kategorie: 'party',
       bestaetigt: true,
     });
     await repo.speichere({
@@ -111,7 +111,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: null,
       titel: 'ZZTEST Kindertanz',
       veranstaltungsort: null,
-      kategorie: 'kinder',
+      kategorie: 'familie',
       bestaetigt: false,
     });
 
@@ -132,8 +132,8 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     });
     expect(gth.eintraege.map((t) => t.ort.slug)).toEqual(['it-muehlberg']);
 
-    const kat = await repo.suche({ ...basis, suchtext: 'ZZTEST', kategorien: ['kinder'] });
-    expect(kat.eintraege.map((t) => t.kategorie)).toEqual(['kinder']);
+    const kat = await repo.suche({ ...basis, suchtext: 'ZZTEST', kategorien: ['familie'] });
+    expect(kat.eintraege.map((t) => t.kategorie)).toEqual(['familie']);
   });
 
   it('behandelt Sonderzeichen in der Suche wörtlich (kein Wildcard, keine Injection)', async () => {
@@ -153,7 +153,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         beginn: null,
         titel: 'x',
         veranstaltungsort: null,
-        kategorie: 'kirmes',
+        kategorie: 'party',
         bestaetigt: false,
       }),
     ).rejects.toBeInstanceOf(OrtNichtGefunden);
@@ -246,7 +246,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         beginn: '20:00',
         titel: 'ZZTEST Neu',
         veranstaltungsort: 'Saal',
-        kategorie: 'kirmes',
+        kategorie: 'party',
         bestaetigt: true,
       },
       durch,
@@ -262,7 +262,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'ZZTEST Geändert',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: true,
         },
         durch,
@@ -310,7 +310,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '20:00',
       titel,
       veranstaltungsort: 'Saal',
-      kategorie: 'kirmes' as const,
+      kategorie: 'party' as const,
       bestaetigt: true,
       band,
       info,
@@ -377,7 +377,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'x',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: false,
         },
         durch,
@@ -393,7 +393,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
           beginn: null,
           titel: 'x',
           veranstaltungsort: null,
-          kategorie: 'kirmes',
+          kategorie: 'party',
           bestaetigt: false,
         },
         { ...durch, ortSlug: 'it-ulla' },
@@ -413,7 +413,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       beginn: '18:00',
       titel: 'ZZTEST Weihnachtstanz',
       veranstaltungsort: 'Saal',
-      kategorie: 'tanz',
+      kategorie: 'party',
       bestaetigt: false,
     });
     expect(t).toMatchObject({

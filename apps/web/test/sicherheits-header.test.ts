@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error – reines JavaScript-Modul ohne Typen
 import { headerFuer } from '../sicherheits-header.mjs';
 
 const csp = (pfad: string) =>

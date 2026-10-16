@@ -478,11 +478,11 @@ legend {
   margin-left: 6px;
   vertical-align: 2px;
 }
-.kat.kat-kinder {
+.kat.kat-familie {
   color: #1f6a8a;
   border-color: #b9d6e2;
 }
-.kat.kat-brauchtum {
+.kat.kat-tradition {
   color: var(--gruen);
   border-color: #bfd8c5;
 }
@@ -491,11 +491,11 @@ legend {
   border-color: #d5c6e8;
 }
 @media (prefers-color-scheme: dark) {
-  .kat.kat-kinder {
+  .kat.kat-familie {
     color: #8cc8e3;
     border-color: #2b4a57;
   }
-  .kat.kat-brauchtum {
+  .kat.kat-tradition {
     border-color: #2f4a37;
   }
   .kat.kat-party {

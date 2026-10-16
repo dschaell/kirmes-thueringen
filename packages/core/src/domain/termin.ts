@@ -4,17 +4,28 @@ import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
-export const KATEGORIEN = [
-  'kirmes',
-  'kinder',
-  'tanz',
-  'party',
-  'brauchtum',
-  'ostern',
-  'mai',
-  'fruehschoppen',
-] as const;
+/** Drei klare Arten (Issue #64): Tanz & Party, Familien & Kinder, Tradition. */
+export const KATEGORIEN = ['party', 'familie', 'tradition'] as const;
 export type Kategorie = (typeof KATEGORIEN)[number];
+
+/** Frühere Bezeichnungen (Importe, alte Links) → neue Art. */
+const FRUEHERE_KATEGORIEN: Record<string, Kategorie> = {
+  kirmes: 'party',
+  tanz: 'party',
+  mai: 'party',
+  kinder: 'familie',
+  brauchtum: 'tradition',
+  ostern: 'tradition',
+  fruehschoppen: 'tradition',
+};
+
+/** Neue Art aus neuer oder früherer Bezeichnung; null, wenn unbekannt. */
+export function kategorieAus(k: string): Kategorie | null {
+  const s = k.trim().toLowerCase();
+  return (KATEGORIEN as readonly string[]).includes(s)
+    ? (s as Kategorie)
+    : (FRUEHERE_KATEGORIEN[s] ?? null);
+}
 
 export interface Ort {
   readonly slug: string;
@@ -98,8 +109,6 @@ export const istHerbstKirmes = (d: KalenderDatum): boolean =>
 
 export const istOrtSlug = (s: string): boolean => SLUG.test(s);
 
-const istKategorie = (k: string): k is Kategorie => (KATEGORIEN as readonly string[]).includes(k);
-
 /**
  * Validiert einen neuen Termin. Harte Regeln → Fehler, fachliche Auffälligkeiten → Hinweise
  * (eine Kirmes außerhalb des Herbstes ist ungewöhnlich, aber erlaubt: Maikirmes, Osterkirmes).
@@ -147,7 +156,8 @@ export function validiereTermin(
   if (e.beginn != null && !UHRZEIT.test(e.beginn)) {
     fehler.push({ feld: 'beginn', code: 'UHRZEIT_UNGUELTIG', meldung: 'Uhrzeit im Format HH:MM.' });
   }
-  if (!istKategorie(e.kategorie)) {
+  const kategorie = kategorieAus(e.kategorie);
+  if (!kategorie) {
     fehler.push({
       feld: 'kategorie',
       code: 'KATEGORIE_UNBEKANNT',
@@ -155,7 +165,7 @@ export function validiereTermin(
     });
   }
 
-  if (fehler.length || !datum.ok || !landkreis.ok || !istKategorie(e.kategorie)) {
+  if (fehler.length || !datum.ok || !landkreis.ok || !kategorie) {
     return err(fehler);
   }
 
@@ -166,14 +176,14 @@ export function validiereTermin(
     beginn: e.beginn ?? null,
     titel,
     veranstaltungsort: e.veranstaltungsort?.trim() || null,
-    kategorie: e.kategorie,
+    kategorie,
     bestaetigt: e.bestaetigt ?? false,
     band,
     info,
     muttizettel: e.muttizettel ?? false,
   };
   const hinweise: Hinweis[] = [];
-  if (termin.kategorie === 'kirmes' && !istHerbstKirmes(termin.datum)) {
+  if (/kirmes|kirmse|kirchweih/i.test(termin.titel) && !istHerbstKirmes(termin.datum)) {
     hinweise.push({
       code: 'KIRMES_AUSSERHALB_HERBST',
       meldung: 'Kirmes liegt außerhalb der traditionellen Herbstsaison (Sep–Nov). Bitte prüfen.',

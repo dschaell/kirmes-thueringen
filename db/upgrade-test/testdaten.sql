@@ -9,7 +9,7 @@ INSERT INTO ort (slug, name, landkreis, lage)
 VALUES ('ut-elleben', 'Elleben', 'IK', ST_SetSRID(ST_MakePoint(10.98, 50.83), 4326)::geography);
 
 INSERT INTO termin (ort_id, datum, titel, kategorie, beginn, veranstaltungsort, bestaetigt, band, info, muttizettel)
-SELECT id, DATE '2027-09-25', 'Kirmestanz', 'kirmes', TIME '20:00', 'Festzelt', true, 'Belconda', 'Eintritt 8 €', true
+SELECT id, DATE '2027-09-25', 'Kirmestanz', 'party', TIME '20:00', 'Festzelt', true, 'Belconda', 'Eintritt 8 €', true
   FROM ort WHERE slug = 'ut-elleben';
 
 INSERT INTO festplatz (ort_id, name, lage)

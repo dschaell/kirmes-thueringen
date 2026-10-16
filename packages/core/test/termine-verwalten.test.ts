@@ -85,7 +85,7 @@ describe('VerwalteTermine', () => {
     expect(angelegt[0]).toMatchObject({
       ortSlug: 'ulla',
       landkreis: 'WL',
-      kategorie: 'kinder',
+      kategorie: 'familie',
       bestaetigt: true,
       beginn: null,
     });

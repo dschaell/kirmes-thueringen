@@ -58,7 +58,7 @@ describe('baueFilter', () => {
         von: '2026-10-01',
         bis: '2026-10-31',
         landkreise: ['gth', 'IK'],
-        kategorien: ['kinder'],
+        kategorien: ['familie'],
         q: '  Mühlberg ',
         nurBestaetigt: true,
         limit: 10,
@@ -71,7 +71,7 @@ describe('baueFilter', () => {
       value: {
         bereich: { von: '2026-10-01', bis: '2026-10-31' },
         landkreise: ['GTH', 'IK'],
-        kategorien: ['kinder'],
+        kategorien: ['familie'],
         suchtext: 'Mühlberg',
         ortSlug: null,
         nurBestaetigt: true,
@@ -135,7 +135,7 @@ describe('LegeTerminAn', () => {
       landkreis: 'GTH',
       datum: '2026-05-02',
       titel: 'Maikirmes',
-      kategorie: 'kirmes',
+      kategorie: 'party',
     });
     expect(r.ok && r.value.hinweise[0]?.code).toBe('KIRMES_AUSSERHALB_HERBST');
     expect(repo.gespeichert).toHaveLength(1);
@@ -148,7 +148,7 @@ describe('LegeTerminAn', () => {
       landkreis: 'GTH',
       datum: 'kaputt',
       titel: 'T',
-      kategorie: 'kirmes',
+      kategorie: 'party',
     });
     expect(r.ok).toBe(false);
     expect(repo.gespeichert).toHaveLength(0);

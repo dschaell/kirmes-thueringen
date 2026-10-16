@@ -174,7 +174,11 @@ describe('Redaktion', () => {
       '1',
     );
     expect(t.ok).toBe(true);
-    expect(gelegt[0]?.t).toMatchObject({ landkreis: 'WL', kategorie: 'kinder', bestaetigt: false });
+    expect(gelegt[0]?.t).toMatchObject({
+      landkreis: 'WL',
+      kategorie: 'familie',
+      bestaetigt: false,
+    });
     expect(gelegt[0]?.b).toMatchObject({ linkId: null, adminId: '1', ortSlug: 'ulla' });
     await r.legeTermin(
       { ortSlug: 'ulla', datum: '2026-10-18', titel: 'Kirmes', bestaetigt: true },

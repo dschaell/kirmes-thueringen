@@ -39,12 +39,12 @@ export function wochenendVorlage(ab: string): WochenendZeile[] {
     ...extra,
   });
   return [
-    zeile(0, '18:00', 'Kirmesgottesdienst', 'brauchtum', { veranstaltungsort: 'Kirche' }),
-    zeile(0, '20:00', 'Kirmestanz', 'kirmes'),
-    zeile(1, '08:00', 'Ständchen', 'brauchtum'),
-    zeile(1, '15:00', 'Kinderkirmes', 'kinder'),
+    zeile(0, '18:00', 'Kirmesgottesdienst', 'tradition', { veranstaltungsort: 'Kirche' }),
+    zeile(0, '20:00', 'Kirmestanz', 'party'),
+    zeile(1, '08:00', 'Ständchen', 'tradition'),
+    zeile(1, '15:00', 'Kinderkirmes', 'familie'),
     zeile(1, '20:00', 'Kirmesparty', 'party', { muttizettel: true }),
-    zeile(2, '10:00', 'Frühschoppen', 'fruehschoppen'),
-    zeile(3, '10:00', 'Kirmesausklang', 'kirmes'),
+    zeile(2, '10:00', 'Frühschoppen', 'tradition'),
+    zeile(3, '10:00', 'Kirmesausklang', 'tradition'),
   ];
 }
