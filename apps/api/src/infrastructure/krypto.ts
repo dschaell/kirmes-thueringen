@@ -39,8 +39,18 @@ export async function hashePasswort(passwort: string): Promise<string> {
 // ── TOTP (RFC 6238) ─────────────────────────────────────────────────────────────────────
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-export const neuesTotpGeheimnis = (): string =>
-  [...randomBytes(20)].map((b) => BASE32[b % 32]).join('');
+/** RFC 4648 Base32 ohne Auffüllzeichen. */
+export function base32Kodieren(daten: Uint8Array): string {
+  let bits = '';
+  for (const b of daten) bits += b.toString(2).padStart(8, '0');
+  return (bits.match(/.{1,5}/g) ?? []).map((t) => BASE32[parseInt(t.padEnd(5, '0'), 2)]).join('');
+}
+
+/**
+ * 160 Bit Zufall (RFC 4226 empfiehlt 160) als 32 Base32-Zeichen – ganze Bytes. Kürzere oder
+ * „krumme“ Schlüssel (z. B. 20 Zeichen = 100 Bit) lehnen viele Authenticator-Apps ab (#51).
+ */
+export const neuesTotpGeheimnis = (): string => base32Kodieren(randomBytes(20));
 
 function base32Dekodieren(s: string): Buffer {
   let bits = '';
