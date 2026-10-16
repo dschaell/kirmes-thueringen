@@ -962,3 +962,26 @@ input[aria-invalid='true'] {
 .rueckmeldung {
   scroll-margin-top: 16px;
 }
+
+/* Ersten Redaktionszugang einrichten (QR-Code für die Authenticator-App) */
+.einrichtung h2 {
+  margin-bottom: 4px;
+}
+.qr {
+  margin: 8px 0;
+  width: min(220px, 100%);
+  padding: 10px;
+  background: #fff; /* QR-Codes brauchen hellen Grund – auch im Dunkelmodus */
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.schluessel {
+  font-size: 1.05em;
+  letter-spacing: 0.04em;
+  word-break: break-word;
+}

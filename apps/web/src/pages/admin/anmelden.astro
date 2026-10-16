@@ -3,6 +3,7 @@
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { anmelden, feld, setzeSitzung } from '../../lib/admin';
+import { einrichtungsStatus } from '../../lib/einrichtung';
 
 let fehler: string | null = null;
 if (Astro.request.method === 'POST') {
@@ -15,6 +16,8 @@ if (Astro.request.method === 'POST') {
   fehler = r.fehler;
   Astro.response.status = 401;
 }
+// Noch kein Zugang angelegt? Dann auf die Ersteinrichtung hinweisen.
+const ersteinrichtung = (await einrichtungsStatus()).offen;
 ---
 
 <Base title="Anmelden – Redaktion" description="Anmeldung für die Redaktion" noindex>
@@ -22,6 +25,13 @@ if (Astro.request.method === 'POST') {
     <h1>Redaktion</h1>
     <p class="unterzeile">Nur für die Redaktion des Kirmeskalenders.</p>
   </section>
+  {
+    ersteinrichtung && (
+      <p class="kasten">
+        Es gibt noch keinen Redaktionszugang. <a href="/admin/einrichten">Jetzt einrichten</a>
+      </p>
+    )
+  }
   {
     fehler && (
       <p class="meldung" role="alert">

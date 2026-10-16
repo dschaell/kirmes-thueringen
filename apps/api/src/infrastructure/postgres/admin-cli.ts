@@ -5,6 +5,8 @@
  *   npm run admin -- passwort <email>     → neues Passwort setzen
  *   npm run admin -- zweiter-faktor <email> → neues Geheimnis für die Authenticator-App (altes ungültig)
  *   npm run admin -- abmelden <email>     → alle Sitzungen beenden
+ *
+ * Auf dem Server richtet man den ersten Zugang im Browser ein: /admin/einrichten.
  */
 import { createInterface } from 'node:readline';
 import { ladeKonfiguration } from '../../config.js';

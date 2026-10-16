@@ -1,4 +1,5 @@
 import type {
+  ErsterAdmin,
   AdminKonten,
   AdminKonto,
   LandkreisKuerzel,
@@ -234,5 +235,43 @@ export class PgLinkVerwaltung implements LinkVerwaltung {
       [id],
     );
     return (r.rowCount ?? 0) > 0;
+  }
+}
+
+/**
+ * Erster Redaktionszugang (Issue #48). Eine Transaktions-Sperre (Advisory Lock) sorgt dafür, dass
+ * auch zwei gleichzeitige Einrichtungen nur EIN Konto anlegen.
+ */
+export class PgErsterAdmin implements ErsterAdmin {
+  constructor(private readonly db: pg.Pool) {}
+
+  async gibtEs(): Promise<boolean> {
+    const { rows } = await abfrage<{ ja: boolean }>(
+      this.db,
+      'SELECT EXISTS (SELECT 1 FROM admin) AS ja',
+      [],
+    );
+    return rows[0]?.ja === true;
+  }
+
+  async legeAn(email: string, passwortHash: string, totpGeheimnis: string): Promise<string | null> {
+    const c = await this.db.connect();
+    try {
+      await c.query('BEGIN');
+      await c.query("SELECT pg_advisory_xact_lock(hashtext('kirmes_erster_admin'))");
+      const { rows } = await c.query<{ id: string }>(
+        `INSERT INTO admin (email, passwort_hash, totp_geheimnis)
+         SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM admin)
+         RETURNING id::text`,
+        [email, passwortHash, totpGeheimnis],
+      );
+      await c.query('COMMIT');
+      return rows[0]?.id ?? null;
+    } catch (e) {
+      await c.query('ROLLBACK');
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 }

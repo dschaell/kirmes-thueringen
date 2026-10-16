@@ -23,7 +23,7 @@ export interface MailTransport {
   sendMail(m: {
     from: string;
     to: string;
-    replyTo: string;
+    replyTo?: string;
     subject: string;
     text: string;
   }): Promise<unknown>;
@@ -52,7 +52,7 @@ export class SmtpPostausgang implements Postausgang {
     await this.transport.sendMail({
       from: this.k.von,
       to: this.k.an,
-      replyTo: n.antwortAn,
+      ...(n.antwortAn && { replyTo: n.antwortAn }),
       subject: n.betreff,
       text: n.text,
     });

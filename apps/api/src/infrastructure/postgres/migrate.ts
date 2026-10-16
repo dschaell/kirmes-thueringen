@@ -4,6 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { ladeKonfiguration } from '../../config.js';
 import { erstellePool } from './pool.js';
 import { APP_ROLLE, richteAppLoginEin } from './app-rolle.js';
+import { ladeOrte, leseOrtsverzeichnis, sollOrteLaden } from './erststart.js';
 
 const VERZEICHNIS = new URL('../../../../../db/migrations/', import.meta.url);
 
@@ -52,6 +53,15 @@ try {
   if (appPasswort) {
     await richteAppLoginEin(client, appPasswort);
     console.log(`✔ Rolle ${APP_ROLLE} eingerichtet (nur Daten, kein DDL)`);
+  }
+
+  // Erststart auf dem Server (Issue #42): Ortsverzeichnis; den Admin richtet man im Browser ein
+  if (sollOrteLaden()) {
+    const { orte, verworfen } = await leseOrtsverzeichnis();
+    if (verworfen) console.warn(`⚠ ${verworfen} Orte außerhalb Thüringens verworfen`);
+    console.log(
+      `✔ ${await ladeOrte(client, orte)} Orte geladen (© OpenStreetMap-Mitwirkende, ODbL)`,
+    );
   }
 } finally {
   client.release();

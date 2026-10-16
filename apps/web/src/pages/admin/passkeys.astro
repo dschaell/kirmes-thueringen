@@ -30,6 +30,9 @@ if (Astro.request.method === 'POST') {
   }
 }
 if (Astro.url.searchParams.get('neu') === '1') meldung = 'Passkey eingerichtet.';
+if (Astro.url.searchParams.get('willkommen') === '1') {
+  meldung = 'Zugang eingerichtet – du bist angemeldet. Richte jetzt am besten einen Passkey ein.';
+}
 
 const liste = await adminApi<PasskeyInfo[]>(Astro.cookies, 'GET', 'passkeys');
 const aktiv = liste.status === 200;

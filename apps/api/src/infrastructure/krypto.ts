@@ -3,7 +3,7 @@
  * - Passwörter: scrypt (N=2^15, r=8, p=1), Salz 16 Byte, Vergleich in konstanter Zeit
  * - Einmalcodes: TOTP nach RFC 6238 (SHA-1, 30 s, 6 Ziffern) – kompatibel mit allen Authenticator-Apps
  */
-import type { Anmeldeversuche, Kryptografie } from '@kirmes/core';
+import type { Anmeldeversuche, Kryptografie, EinrichtungsKrypto } from '@kirmes/core';
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
 const SCRYPT = { N: 2 ** 15, r: 8, p: 1, laenge: 64 };
@@ -64,11 +64,14 @@ export function totp(geheimnis: string, zeitSchritt: number): string {
 export const otpauthUrl = (email: string, geheimnis: string) =>
   `otpauth://totp/${encodeURIComponent(`Kirmeskalender Thüringen:${email}`)}?secret=${geheimnis}&issuer=${encodeURIComponent('Kirmeskalender Thüringen')}&digits=6&period=30`;
 
-export class NodeKryptografie implements Kryptografie {
+export class NodeKryptografie implements Kryptografie, EinrichtungsKrypto {
   /** Zuletzt verwendeter Zeitschritt je Geheimnis – ein Code gilt nur einmal (Schutz vor Wiederverwendung). */
   private readonly benutzt = new Map<string, number>();
 
   constructor(private readonly jetzt: () => number = Date.now) {}
+
+  hashePasswort = hashePasswort;
+  neuesTotpGeheimnis = neuesTotpGeheimnis;
 
   /** Beschädigte oder fremde Hash-Formate ergeben „falsch“ – nie einen Serverfehler. */
   async pruefePasswort(passwort: string, gespeichert: string): Promise<boolean> {

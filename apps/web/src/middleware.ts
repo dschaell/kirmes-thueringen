@@ -74,8 +74,12 @@ const redaktion = defineMiddleware(async (ctx, next) => {
   }
   ctx.locals.csrf = csrfToken(ctx.cookies);
 
-  // Anmeldeseite und ihre Passkey-Endpunkte sind ohne Sitzung erreichbar
-  if (pfad !== '/admin/anmelden' && !pfad.startsWith('/admin/anmelden/')) {
+  // Anmeldeseite (mit Passkey-Endpunkten) und die Ersteinrichtung sind ohne Sitzung erreichbar
+  const ohneSitzung =
+    pfad === '/admin/anmelden' ||
+    pfad.startsWith('/admin/anmelden/') ||
+    pfad === '/admin/einrichten';
+  if (!ohneSitzung) {
     const ich = await adminApi<{ adminId: string }>(ctx.cookies, 'GET', 'ich');
     if (ich.status !== 200) return ctx.redirect('/admin/anmelden', 303);
     ctx.locals.adminId = ich.daten?.adminId;

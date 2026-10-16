@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Ersteinrichtung,
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
@@ -20,6 +21,7 @@ import { NodeKryptografie, SpeicherAnmeldeversuche } from './infrastructure/kryp
 import {
   ortLandkreis,
   PgAdminKonten,
+  PgErsterAdmin,
   PgLinkVerwaltung,
   PgMitteilungen,
   PgOrtVerwaltung,
@@ -36,6 +38,7 @@ import { SystemUhr } from './infrastructure/system-uhr.js';
 import { PgPasskeys } from './infrastructure/postgres/passkey-repository.js';
 import { SimpleWebAuthn, SpeicherChallenges } from './infrastructure/webauthn.js';
 import { SmtpPostausgang, SpeicherDrosselung, smtpTransport } from './infrastructure/post.js';
+import { SpeicherEinrichtungslinks } from './infrastructure/einrichtungslinks.js';
 import { baueApp } from './interfaces/http/app.js';
 
 const k = ladeKonfiguration();
@@ -68,6 +71,20 @@ const passkeys = k.websiteUrl
       new SpeicherAnmeldeversuche(100, 100),
     )
   : undefined;
+// Erster Zugang im Browser: Link nur ans Redaktionspostfach, höchstens 3 pro Stunde
+const postausgang = k.smtp ? new SmtpPostausgang(k.smtp, smtpTransport(k.smtp)) : undefined;
+const einrichtung =
+  postausgang && k.websiteUrl
+    ? new Ersteinrichtung(
+        new PgErsterAdmin(pool),
+        krypto,
+        new SpeicherEinrichtungslinks(),
+        postausgang,
+        new SpeicherDrosselung(3, 3_600_000),
+        sitzungen,
+        k.websiteUrl,
+      )
+    : undefined;
 const app = await baueApp({
   sucheTermine: new SucheTermine(termine, uhr),
   findeTermin: new FindeTermin(termine),
@@ -77,9 +94,9 @@ const app = await baueApp({
   verwalteTermine: new VerwalteTermine(links, terminVerwaltung, termine, uhr),
   aktuelleMitteilung: () => mitteilungen.aktuelle(),
   // Meldungen: je Besucher 5 pro Stunde, insgesamt 100 pro Stunde
-  meldungen: k.smtp
+  meldungen: postausgang
     ? new MeldeAnRedaktion(
-        new SmtpPostausgang(k.smtp, smtpTransport(k.smtp)),
+        postausgang,
         new SpeicherDrosselung(5, 3_600_000),
         new SpeicherDrosselung(100, 3_600_000),
       )
@@ -87,6 +104,7 @@ const app = await baueApp({
   admin: {
     anmeldung: new AdminAnmeldung(konten, krypto, sitzungen, new SpeicherAnmeldeversuche()),
     passkeys,
+    einrichtung,
     redaktion: new Redaktion(
       mitteilungen,
       new PgOrtVerwaltung(pool),

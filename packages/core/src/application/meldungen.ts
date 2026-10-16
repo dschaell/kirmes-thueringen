@@ -10,8 +10,8 @@ import { err, ok, type Result, type Validierungsfehler } from '../domain/result.
 export interface Nachricht {
   betreff: string;
   text: string;
-  /** Antwortadresse (Reply-To) – die E-Mail der meldenden Person */
-  antwortAn: string;
+  /** Antwortadresse (Reply-To) – die E-Mail der meldenden Person; fehlt bei Systemnachrichten */
+  antwortAn?: string;
 }
 /** Versand an die Redaktion (Empfänger und Absender stehen in der Konfiguration des Adapters). */
 export interface Postausgang {

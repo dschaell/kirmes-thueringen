@@ -7,6 +7,7 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Ersteinrichtung,
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
@@ -23,6 +24,7 @@ import {
 import { afterEach, describe, expect, it } from 'vitest';
 import { baueApp, istInternesNetz } from '../src/interfaces/http/app.js';
 import { SimpleWebAuthn, SpeicherChallenges } from '../src/infrastructure/webauthn.js';
+import { SpeicherEinrichtungslinks } from '../src/infrastructure/einrichtungslinks.js';
 import { SoftwareAuthenticator } from './software-authenticator.js';
 
 const termin: Termin = {
@@ -98,6 +100,7 @@ const ORIGIN = 'http://localhost:4321';
 const gespeichertePasskeys: Passkey[] = [];
 let passkeysAktiv: Passkeys | undefined;
 let meldungenAktiv: MeldeAnRedaktion | undefined;
+let einrichtungAktiv: Ersteinrichtung | undefined;
 const neuePasskeys = (gesperrt = false) =>
   new Passkeys(
     {
@@ -171,6 +174,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
         { gesperrt: (e) => e === 'gesperrt@x.de', fehlschlag: () => {}, erfolg: () => {} },
       ),
       passkeys: passkeysAktiv,
+      einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
         {
           liste: async () => [],
@@ -868,6 +872,135 @@ describe('Meldungen an die Redaktion', () => {
   it('ohne SMTP-Konfiguration: 503 (die Website zeigt dann mailto)', async () => {
     await setup();
     expect((await post(meldung)).statusCode).toBe(503);
+  });
+});
+
+describe('Ersten Redaktionszugang einrichten', () => {
+  function einrichtung({ gesendetFehler = false } = {}) {
+    const admins: string[] = [];
+    const post: { text: string }[] = [];
+    let zaehler = 0;
+    einrichtungAktiv = new Ersteinrichtung(
+      {
+        gibtEs: async () => admins.length > 0,
+        legeAn: async (email) => (admins.length ? null : (admins.push(email), '1')),
+      },
+      {
+        hashePasswort: async (p) => `hash:${p}`,
+        neuesTotpGeheimnis: () => 'JBSWY3DPEHPK3PXP',
+        pruefeEinmalcode: (_g, c) => c === '123456',
+        neuesToken: () => SITZUNG,
+      },
+      new SpeicherEinrichtungslinks(),
+      {
+        sende: async (n) => {
+          if (gesendetFehler) throw new Error('SMTP weg');
+          post.push(n);
+        },
+      },
+      { erlaube: () => ++zaehler <= 2 },
+      { lege: async () => {}, pruefe: async () => null, beende: async () => {} },
+      'https://kirmes.example',
+    );
+    return { admins, post };
+  }
+  const linkAus = (text: string) => /link=([A-Za-z0-9_-]{43})/.exec(text)?.[1] ?? '';
+  const abschluss = {
+    email: 'neu@example.org',
+    passwort: 'ein-langes-passwort',
+    passwortWiederholung: 'ein-langes-passwort',
+    code: '123456',
+  };
+
+  it('ohne E-Mail-Versand: nicht möglich (503), Status sagt das', async () => {
+    await setup();
+    const s = await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' });
+    expect(s.json()).toEqual({ offen: false, moeglich: false });
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' })).statusCode,
+    ).toBe(503);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${'a'.repeat(43)}` }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/v1/admin/einrichtung/${'a'.repeat(43)}`,
+          payload: abschluss,
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+
+  it('Link anfordern, öffnen, abschließen – danach gesperrt', async () => {
+    const { admins, post } = einrichtung();
+    await setup();
+    einrichtungAktiv = undefined;
+    const status = await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' });
+    expect(status.json()).toEqual({ offen: true, moeglich: true });
+    expect(status.headers['cache-control']).toBe('no-store');
+
+    const senden = await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' });
+    expect(senden.statusCode).toBe(202);
+    const link = linkAus(post[0]!.text);
+    expect(link).toHaveLength(43);
+
+    const offen = await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${link}` });
+    expect(offen.json()).toEqual({ totpGeheimnis: 'JBSWY3DPEHPK3PXP' });
+    // Ungültiges Format wird schon vom Schema abgewiesen, unbekannte Links mit 404
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung/kurz' })).statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/admin/einrichtung/${'b'.repeat(43)}` }))
+        .statusCode,
+    ).toBe(404);
+
+    const url = `/api/v1/admin/einrichtung/${link}`;
+    const falsch = await app.inject({
+      method: 'POST',
+      url,
+      payload: { ...abschluss, code: '000000' },
+    });
+    expect(falsch.statusCode).toBe(400);
+    expect(falsch.json().fehler[0].feld).toBe('code');
+    expect(
+      (await app.inject({ method: 'POST', url, payload: { ...abschluss, admin: true } }))
+        .statusCode,
+    ).toBe(400); // keine zusätzlichen Felder
+
+    const ok = await app.inject({ method: 'POST', url, payload: abschluss });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ token: SITZUNG, stunden: 12 });
+    expect(admins).toEqual(['neu@example.org']);
+
+    // Jetzt ist alles gesperrt
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/admin/einrichtung' })).json().offen,
+    ).toBe(false);
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' })).statusCode,
+    ).toBe(409);
+    expect((await app.inject({ method: 'POST', url, payload: abschluss })).statusCode).toBe(404);
+  });
+
+  it('drosselt Links und meldet Versandfehler', async () => {
+    einrichtung();
+    await setup();
+    einrichtungAktiv = undefined;
+    const senden = () => app.inject({ method: 'POST', url: '/api/v1/admin/einrichtung' });
+    expect((await senden()).statusCode).toBe(202);
+    expect((await senden()).statusCode).toBe(202);
+    const zuViele = await senden();
+    expect(zuViele.statusCode).toBe(429);
+    expect(zuViele.headers['retry-after']).toBe('3600');
+    await app.close();
+    einrichtung({ gesendetFehler: true });
+    await setup();
+    einrichtungAktiv = undefined;
+    expect((await senden()).statusCode).toBe(502);
   });
 });
 
