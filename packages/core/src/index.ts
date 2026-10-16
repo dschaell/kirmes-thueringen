@@ -17,3 +17,4 @@ export * from './application/text-erkennung.js';
 export * from './application/passkeys.js';
 export * from './application/meldungen.js';
 export * from './application/einrichtung.js';
+export * from './application/mitglieder.js';

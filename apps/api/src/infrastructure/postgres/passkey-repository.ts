@@ -1,4 +1,10 @@
-import type { NeuerPasskey, Passkey, PasskeyInfo, PasskeyRepository } from '@kirmes/core';
+import type {
+  KontoKennung,
+  NeuerPasskey,
+  Passkey,
+  PasskeyInfo,
+  PasskeyRepository,
+} from '@kirmes/core';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
 
@@ -31,6 +37,16 @@ const zuPasskey = (z: Zeile): Passkey => ({
 
 export class PgPasskeys implements PasskeyRepository {
   constructor(private readonly db: pg.Pool) {}
+
+  async konto(adminId: string): Promise<KontoKennung | null> {
+    if (!/^\d{1,18}$/.test(adminId)) return null;
+    const { rows } = await abfrage<{ handle: string; name: string }>(
+      this.db,
+      'SELECT handle::text, name FROM admin WHERE id = $1::bigint',
+      [adminId],
+    );
+    return rows[0] ? { kennung: rows[0].handle, name: rows[0].name } : null;
+  }
 
   async liste(adminId: string): Promise<Passkey[]> {
     const { rows } = await abfrage<Zeile>(

@@ -1,7 +1,13 @@
-/** Erststart gegen PostgreSQL: Orte idempotent (#42), erster Admin genau einmal (#48). */
+/** Erststart gegen PostgreSQL: Orte idempotent (#42), Konten/Einladungen sicher (#48, #56). */
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { PgErsterAdmin } from '../src/infrastructure/postgres/admin-repository.js';
+import { randomUUID } from 'node:crypto';
+import {
+  PgEinladungen,
+  PgErsterAdmin,
+  PgKontoAnlage,
+  PgMitglieder,
+} from '../src/infrastructure/postgres/admin-repository.js';
 import { ladeOrte, type OrtEintrag } from '../src/infrastructure/postgres/erststart.js';
 import { testDatenbankUrl } from './test-datenbank.js';
 
@@ -55,53 +61,135 @@ describe.runIf(url)('Erststart (PostgreSQL)', () => {
 });
 
 /**
- * Erster Admin (Issue #48) in einem eigenen Schema: Die Tests leeren die Tabelle, ohne andere
- * Tests (die echte Admins in kirmes_test anlegen) zu stören.
+ * Konten, Einladungen und Mitglieder (Issues #48, #56) in einem eigenen Schema: Die Tests leeren
+ * die Tabellen, ohne andere Tests (die in kirmes_test eigene Konten anlegen) zu stören.
  */
-describe.runIf(url)('PgErsterAdmin (PostgreSQL)', () => {
+describe.runIf(url)('Redaktionskonten (PostgreSQL)', () => {
   const owner = new pg.Pool({ connectionString: url ?? '', max: 1 });
   let pool: pg.Pool;
-  let repo: PgErsterAdmin;
+  const schluessel = (cred: string) => ({
+    credentialId: `it-cred-${cred}-ABCDEFGHIJKLMNOP`,
+    publicKey: new Uint8Array([1, 2, 3]),
+    zaehler: 0,
+    transports: ['internal'],
+  });
+  const konto = (name: string, rolle: 'admin' | 'redaktion' = 'admin') => ({
+    name,
+    rolle,
+    kennung: randomUUID(),
+  });
 
   beforeAll(async () => {
-    await owner.query('DROP SCHEMA IF EXISTS it_erster_admin CASCADE');
-    await owner.query('CREATE SCHEMA it_erster_admin');
-    await owner.query('CREATE TABLE it_erster_admin.admin (LIKE public.admin INCLUDING ALL)');
+    await owner.query('DROP SCHEMA IF EXISTS it_konten CASCADE');
+    await owner.query('CREATE SCHEMA it_konten');
+    await owner.query('CREATE TABLE it_konten.admin (LIKE public.admin INCLUDING ALL)');
+    await owner.query(
+      'CREATE TABLE it_konten.admin_passkey (LIKE public.admin_passkey INCLUDING ALL)',
+    );
+    await owner.query('CREATE TABLE it_konten.einladung (LIKE public.einladung INCLUDING ALL)');
     pool = new pg.Pool({
       connectionString: url ?? '',
       max: 6,
-      options: '-c search_path=it_erster_admin',
+      options: '-c search_path=it_konten',
     });
-    repo = new PgErsterAdmin(pool);
   });
   afterAll(async () => {
     await pool?.end();
-    await owner.query('DROP SCHEMA IF EXISTS it_erster_admin CASCADE');
+    await owner.query('DROP SCHEMA IF EXISTS it_konten CASCADE');
     await owner.end();
   });
-  beforeEach(() => pool.query('DELETE FROM admin'));
-
-  it('legt den ersten Admin an, danach keinen weiteren', async () => {
-    expect(await repo.gibtEs()).toBe(false);
-    const id = await repo.legeAn('erst@example.org', 'scrypt$1$1$1$a$b', 'JBSWY3DPEHPK3PXP');
-    expect(id).toMatch(/^\d+$/);
-    expect(await repo.gibtEs()).toBe(true);
-    expect(await repo.legeAn('zweit@example.org', 'h', 'JBSWY3DPEHPK3PXP')).toBeNull();
-    const { rows } = await pool.query('SELECT email FROM admin');
-    expect(rows).toEqual([{ email: 'erst@example.org' }]);
+  beforeEach(async () => {
+    await pool.query('DELETE FROM einladung');
+    await pool.query('DELETE FROM admin_passkey');
+    await pool.query('DELETE FROM admin');
   });
 
-  it('auch bei gleichzeitigen Einrichtungen entsteht genau ein Konto', async () => {
+  it('erster Admin: genau einer, auch bei gleichzeitigen Einrichtungen', async () => {
+    const anlage = new PgKontoAnlage(pool);
+    const erster = new PgErsterAdmin(pool);
+    expect(await erster.gibtEs()).toBe(false);
     const ids = await Promise.all(
-      [1, 2, 3, 4, 5].map((n) => repo.legeAn(`n${n}@example.org`, 'h', 'JBSWY3DPEHPK3PXP')),
+      [1, 2, 3, 4, 5].map((n) =>
+        anlage.lege(konto(`A${n}`), schluessel(`a${n}`), 'Erster Passkey', { art: 'erster-admin' }),
+      ),
     );
     expect(ids.filter(Boolean)).toHaveLength(1);
-    expect((await pool.query('SELECT count(*)::int AS n FROM admin')).rows[0].n).toBe(1);
+    expect(await erster.gibtEs()).toBe(true);
+    const { rows } = await pool.query('SELECT count(*)::int AS n FROM admin_passkey');
+    expect(rows[0].n).toBe(1); // Konto und Passkey nur gemeinsam
   });
 
-  it('rollt bei Fehlern zurück und gibt die Verbindung frei', async () => {
-    await expect(repo.legeAn('kaputt', 'h', 'JBSWY3DPEHPK3PXP')).rejects.toThrow(); // CHECK email
-    expect(await repo.gibtEs()).toBe(false);
-    expect(await repo.legeAn('ok@example.org', 'h', 'JBSWY3DPEHPK3PXP')).not.toBeNull();
+  it('rollt bei Fehlern zurück (kein Konto ohne Passkey)', async () => {
+    const anlage = new PgKontoAnlage(pool);
+    const kaputt = { ...schluessel('x'), credentialId: 'zu-kurz' }; // CHECK-Verletzung
+    await expect(
+      anlage.lege(konto('Kaputt'), kaputt, 'x', { art: 'erster-admin' }),
+    ).rejects.toThrow();
+    expect((await pool.query('SELECT count(*)::int AS n FROM admin')).rows[0].n).toBe(0);
+  });
+
+  it('Einladung: Hash statt Token, genau einmal nutzbar, widerrufbar', async () => {
+    const einl = new PgEinladungen(pool);
+    const anlage = new PgKontoAnlage(pool);
+    const token = 'T'.repeat(43);
+    const e = await einl.lege(token, 'redaktion', null, 7);
+    expect(e).toMatchObject({ rolle: 'redaktion' });
+    const roh = await pool.query('SELECT token_hash FROM einladung');
+    expect(roh.rows[0].token_hash).toHaveLength(32);
+    expect(Buffer.from(roh.rows[0].token_hash).toString()).not.toContain('TTTT');
+    expect(await einl.finde(token)).toEqual({ id: e.id, rolle: 'redaktion' });
+    expect(await einl.finde('X'.repeat(43))).toBeNull();
+    expect(await einl.finde("' OR 1=1 --")).toBeNull();
+    expect(await einl.offene()).toHaveLength(1);
+
+    // zwei gleichzeitige Annahmen → nur eine gelingt
+    const ids = await Promise.all(
+      ['m1', 'm2'].map((c) =>
+        anlage.lege(konto(`M-${c}`, 'redaktion'), schluessel(c), 'Erster Passkey', {
+          art: 'einladung',
+          einladungId: e.id,
+        }),
+      ),
+    );
+    expect(ids.filter(Boolean)).toHaveLength(1);
+    expect(await einl.finde(token)).toBeNull();
+    expect(await einl.offene()).toHaveLength(0);
+    const genutzt = await pool.query('SELECT genutzt_von::text FROM einladung');
+    expect(genutzt.rows[0].genutzt_von).toBe(ids.find(Boolean));
+    expect(await einl.widerrufe(e.id)).toBe(false); // genutzte bleibt (Nachweis)
+
+    const z = await einl.lege('Z'.repeat(43), 'admin', null, 7);
+    expect(await einl.widerrufe(z.id)).toBe(true);
+    expect(await einl.finde('Z'.repeat(43))).toBeNull();
+    expect(await einl.widerrufe('kein-id')).toBe(false);
+    // abgelaufen
+    await einl.lege('A'.repeat(43), 'admin', null, 0);
+    expect(await einl.finde('A'.repeat(43))).toBeNull();
+  });
+
+  it('Mitglieder: Liste, Rolle, Entfernen', async () => {
+    const anlage = new PgKontoAnlage(pool);
+    const m = new PgMitglieder(pool);
+    const id = (await anlage.lege(konto('Ryan'), schluessel('r'), 'Mac', {
+      art: 'erster-admin',
+    }))!;
+    const liste = await m.liste();
+    expect(liste).toEqual([
+      expect.objectContaining({
+        id,
+        name: 'Ryan',
+        rolle: 'admin',
+        passkeys: 1,
+        letzterLogin: null,
+      }),
+    ]);
+    expect(await m.anzahlAdmins()).toBe(1);
+    expect(await m.setzeRolle(id, 'redaktion')).toBe(true);
+    expect(await m.anzahlAdmins()).toBe(0);
+    expect(await m.setzeRolle('999999', 'admin')).toBe(false);
+    expect(await m.setzeRolle('x', 'admin')).toBe(false);
+    expect(await m.entferne(id)).toBe(true);
+    expect(await m.entferne(id)).toBe(false);
+    expect(await m.entferne('x')).toBe(false);
   });
 });

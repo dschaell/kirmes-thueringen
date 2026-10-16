@@ -1,139 +1,65 @@
 ---
 /**
- * Ersten Redaktionszugang einrichten (Issue #48). Nur solange es noch keinen Admin gibt.
- * 1. Link anfordern → geht ans Redaktionspostfach  2. Link öffnen → Passwort + Authenticator-App
+ * Ersten Admin einrichten (Issues #48, #56). Nur solange es noch keinen Admin gibt.
+ * 1. Link anfordern → geht ans Redaktionspostfach  2. Link öffnen → Name + Passkey
  */
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
-import { feld, setzeSitzung } from '../../lib/admin';
+import PasskeyRegistrierung from '../../components/admin/PasskeyRegistrierung.astro';
 import {
   einrichtungsStatus,
-  istLink,
-  ladeEinrichtung,
-  schliesseEinrichtungAb,
+  istToken,
+  pruefeZugang,
   sendeEinrichtungslink,
-} from '../../lib/einrichtung';
+} from '../../lib/zugang';
 
 const link = Astro.url.searchParams.get('link');
-let fehler: string[] = [];
+let fehler: string | null = null;
 let verschickt = false;
-let email = '';
-
 if (Astro.request.method === 'POST') {
-  const f = await Astro.request.formData();
-  if (istLink(link)) {
-    email = feld(f, 'email');
-    const r = await schliesseEinrichtungAb(link, {
-      email,
-      passwort: feld(f, 'passwort'),
-      passwortWiederholung: feld(f, 'passwort_wiederholung'),
-      code: feld(f, 'code'),
-    });
-    if ('token' in r) {
-      setzeSitzung(Astro.cookies, r.token, r.stunden);
-      return Astro.redirect('/admin/passkeys?willkommen=1', 303);
-    }
-    fehler = r.fehler;
-    Astro.response.status = r.status;
-  } else {
-    const r = await sendeEinrichtungslink();
-    if ('ok' in r) verschickt = true;
-    else fehler = [r.fehler];
-  }
+  const r = await sendeEinrichtungslink();
+  if ('ok' in r) verschickt = true;
+  else fehler = r.fehler;
 }
-
 const status = await einrichtungsStatus();
-const einrichtung = status.offen && istLink(link) ? await ladeEinrichtung(link) : null;
-if (einrichtung && 'fehler' in einrichtung) fehler = [einrichtung.fehler];
-const formular = einrichtung && 'geheimnis' in einrichtung ? einrichtung : null;
-const gruppiert = formular?.geheimnis.match(/.{1,4}/g)?.join(' ') ?? '';
+let linkGueltig = false;
+if (status.offen && istToken(link)) {
+  const p = await pruefeZugang('einrichtung', link);
+  if ('fehler' in p) fehler = p.fehler;
+  else linkGueltig = true;
+}
 ---
 
-<Base title="Zugang einrichten – Redaktion" description="Redaktionszugang einrichten" noindex>
+<Base title="Admin einrichten – Redaktion" description="Ersten Admin-Zugang einrichten" noindex>
   <section class="einstieg">
-    <h1>Redaktionszugang einrichten</h1>
-    <p class="unterzeile">Einmalig: legt den ersten Zugang für die Redaktion an.</p>
+    <h1>Admin-Zugang einrichten</h1>
+    <p class="unterzeile">Einmalig: legt den ersten Zugang für die Redaktion an – mit Passkey.</p>
   </section>
-
   {
-    fehler.length > 0 && (
-      <div class="meldung" role="alert">
-        {fehler.map((f) => (
-          <p>{f}</p>
-        ))}
-      </div>
+    fehler && (
+      <p class="meldung" role="alert">
+        {fehler}
+      </p>
     )
   }
-
   {
     !status.offen ? (
       <p class="kasten">
-        Der Redaktionszugang ist bereits eingerichtet. <a href="/admin/anmelden">Zur Anmeldung</a>
+        Der Admin-Zugang ist bereits eingerichtet. <a href="/admin/anmelden">Zur Anmeldung</a>
       </p>
     ) : !status.moeglich ? (
       <p class="kasten">
-        Für die Einrichtung muss der E-Mail-Versand eingerichtet sein (SMTP, siehe
+        Für die Einrichtung müssen E-Mail-Versand und Website-Adresse eingerichtet sein (siehe
         Betriebshandbuch).
       </p>
-    ) : formular ? (
-      <form class="melden einrichtung" method="post">
-        <CsrfFeld />
-        <h2>1. Authenticator-App verbinden</h2>
+    ) : linkGueltig && link ? (
+      <>
         <p>
-          In der Authenticator-App (Google Authenticator, Authy, 1Password …) „Konto hinzufügen“
-          wählen und den Code scannen – oder den Schlüssel von Hand eingeben.
+          Wähle einen Namen und lege einen <strong>Passkey</strong> an – dein Gerät fragt nach Face
+          ID, Touch ID oder PIN. Ein Passwort gibt es nicht.
         </p>
-        <figure class="qr" aria-label="QR-Code für die Authenticator-App">
-          <Fragment set:html={formular.qrSvg} />
-        </figure>
-        <p>
-          Schlüssel: <code class="schluessel">{gruppiert}</code>
-        </p>
-        <h2>2. Zugang festlegen</h2>
-        <label>
-          E-Mail für die Anmeldung
-          <input name="email" type="email" required autocomplete="username" value={email} />
-        </label>
-        <label>
-          Passwort (mind. 12 Zeichen)
-          <input
-            name="passwort"
-            type="password"
-            required
-            minlength="12"
-            autocomplete="new-password"
-          />
-        </label>
-        <label>
-          Passwort wiederholen
-          <input
-            name="passwort_wiederholung"
-            type="password"
-            required
-            minlength="12"
-            autocomplete="new-password"
-          />
-        </label>
-        <label>
-          Aktueller Code aus der Authenticator-App
-          <input
-            name="code"
-            inputmode="numeric"
-            pattern="[0-9]{6}"
-            maxlength="6"
-            required
-            autocomplete="one-time-code"
-          />
-        </label>
-        <div>
-          <button class="knopf" type="submit">
-            Zugang anlegen
-          </button>
-        </div>
-        <p class="leise klein">
-          Danach bist du angemeldet und kannst direkt einen Passkey (Face ID / Touch ID) einrichten.
-        </p>
-      </form>
+        <PasskeyRegistrierung art="einrichtung" token={link} knopf="Passkey anlegen" />
+      </>
     ) : verschickt ? (
       <p class="kasten" role="status">
         Der Einrichtungslink ist an das Redaktionspostfach unterwegs. Er ist 30 Minuten gültig.

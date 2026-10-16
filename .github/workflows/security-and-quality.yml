@@ -104,7 +104,13 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           git worktree add /tmp/base "$BASE_SHA"
           if [ -f /tmp/base/vitest.config.ts ]; then
-            (cd /tmp/base && npm ci && npm run build -w @kirmes/core && npx vitest run --coverage --coverage.reporter=json-summary --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0 --coverage.thresholds.statements=0)
+            # Basis-Tests gegen eine EIGENE Datenbank mit dem Schema des Basis-Stands – die
+            # Test-Datenbank ist schon mit den Migrationen dieses PRs migriert.
+            psql "$DATABASE_URL" -c 'DROP DATABASE IF EXISTS kirmes_base' -c 'CREATE DATABASE kirmes_base'
+            export DATABASE_URL="${DATABASE_URL%/*}/kirmes_base" TEST_DATABASE_URL="${DATABASE_URL%/*}/kirmes_base"
+            (cd /tmp/base && npm ci && npm run build -w @kirmes/core \
+              && npm run db:migrate && npm run db:orte && npm run db:beispiele \
+              && npx vitest run --coverage --coverage.reporter=json-summary --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0 --coverage.thresholds.statements=0)
             node scripts/coverage-ratchet.mjs /tmp/base/coverage/coverage-summary.json /tmp/pr-coverage.json
           else
             echo "Basis-Branch hat noch keine Tests – Ratchet übersprungen."

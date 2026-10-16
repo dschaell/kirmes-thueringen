@@ -63,14 +63,17 @@ Repository-Einrichtung (Labels, Branch Protection, Backlog): `./scripts/setup-gi
 
 ## Redaktion (Admin-Bereich)
 
-Unter `/admin` verwaltest du als Betreiber alles: Termine aller Orte (mit Recherche-Assistent für
-Texte aus Instagram/Facebook), Mitteilungen (erscheinen einmal als Hinweis für Besucher), Orte und
-Bearbeitungslinks. Zugang nur mit Passwort **und** Einmalcode aus einer Authenticator-App.
+Unter `/admin` (Link „Redaktion → Anmelden“ im Footer) pflegt die Redaktion Termine aller Orte (mit
+Recherche-Assistent für Texte aus Instagram/Facebook), Mitteilungen, Orte und Bearbeitungslinks.
+Admins laden zusätzlich Mitglieder ein und verwalten Rollen. Anmeldung **nur mit Passkey** – ohne
+Passwort und ohne E-Mail-Adresse (ADR 023).
+
+- Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey
+- Mitmachen: `/redaktion-mitmachen` → Anfrage per Mail → Admin erzeugt unter „Mitglieder“ eine Einladung
 
 ```bash
-npm run admin -- anlegen deine@email.de      # Passwort festlegen, Schlüssel in die Authenticator-App
-npm run admin -- passwort deine@email.de     # Passwort ändern
-npm run admin -- zweiter-faktor deine@email.de   # neues Handy / App neu einrichten
+npm run admin -- einladen admin|redaktion    # Einladungslink lokal erzeugen (z. B. Notfall)
+npm run admin -- abmelden-alle               # alle Sitzungen beenden
 ```
 
 ## Festplätze: Bearbeitungslinks für Kirmesgesellschaften

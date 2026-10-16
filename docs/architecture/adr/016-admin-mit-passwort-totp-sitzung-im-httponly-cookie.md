@@ -1,6 +1,6 @@
 # ADR 016: Admin mit Passwort + TOTP, Sitzung im HttpOnly-Cookie
 
-- **Status:** angenommen
+- **Status:** ersetzt durch [ADR 023](023-redaktion-nur-mit-passkey-rollen-und-einladungen.md)
 - **Kontext:** siehe [arc42 Kap. 9](../09-architekturentscheidungen.md) und die verlinkten Kapitel
 
 ## Entscheidung

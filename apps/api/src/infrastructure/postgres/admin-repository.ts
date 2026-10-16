@@ -1,7 +1,16 @@
 import type {
-  ErsterAdmin,
   AdminKonten,
-  AdminKonto,
+  Anlagebedingung,
+  EinladungInfo,
+  Einladungen,
+  ErsterAdmin,
+  KontoAnlage,
+  Mitglied,
+  MitgliederRepository,
+  NeuesKonto,
+  RegistrierterSchluessel,
+  Rolle,
+  Sitzung,
   LandkreisKuerzel,
   LinkInfo,
   LinkVerwaltung,
@@ -20,23 +29,6 @@ import { abfrage } from './pool.js';
 export class PgAdminKonten implements AdminKonten {
   constructor(private readonly db: pg.Pool) {}
 
-  async findeNachEmail(email: string): Promise<AdminKonto | null> {
-    const { rows } = await abfrage<{
-      id: string;
-      email: string;
-      passwort_hash: string;
-      totp_geheimnis: string;
-    }>(
-      this.db,
-      'SELECT id::text, email, passwort_hash, totp_geheimnis FROM admin WHERE email = $1',
-      [email],
-    );
-    const r = rows[0];
-    return r
-      ? { id: r.id, email: r.email, passwortHash: r.passwort_hash, totpGeheimnis: r.totp_geheimnis }
-      : null;
-  }
-
   async merkeLogin(id: string): Promise<void> {
     await abfrage(this.db, 'UPDATE admin SET letzter_login = now() WHERE id = $1', [id]);
   }
@@ -54,16 +46,16 @@ export class PgSitzungen implements Sitzungen {
     );
   }
 
-  async pruefe(token: string): Promise<{ adminId: string; email: string } | null> {
+  async pruefe(token: string): Promise<Sitzung | null> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-    const { rows } = await abfrage<{ id: string; email: string }>(
+    const { rows } = await abfrage<{ id: string; name: string; rolle: Rolle }>(
       this.db,
-      `SELECT a.id::text, a.email FROM admin_sitzung s JOIN admin a ON a.id = s.admin_id
+      `SELECT a.id::text, a.name, a.rolle FROM admin_sitzung s JOIN admin a ON a.id = s.admin_id
         WHERE s.token_hash = $1 AND s.laeuft_ab > now()`,
       [hashToken(token)],
     );
     const r = rows[0];
-    return r ? { adminId: r.id, email: r.email } : null;
+    return r ? { adminId: r.id, name: r.name, rolle: r.rolle } : null;
   }
 
   async beende(token: string): Promise<void> {
@@ -238,35 +230,199 @@ export class PgLinkVerwaltung implements LinkVerwaltung {
   }
 }
 
-/**
- * Erster Redaktionszugang (Issue #48). Eine Transaktions-Sperre (Advisory Lock) sorgt dafür, dass
- * auch zwei gleichzeitige Einrichtungen nur EIN Konto anlegen.
- */
+/** Gibt es schon einen Admin? Sonst ist die Ersteinrichtung offen (Issue #48). */
 export class PgErsterAdmin implements ErsterAdmin {
   constructor(private readonly db: pg.Pool) {}
 
   async gibtEs(): Promise<boolean> {
     const { rows } = await abfrage<{ ja: boolean }>(
       this.db,
-      'SELECT EXISTS (SELECT 1 FROM admin) AS ja',
+      "SELECT EXISTS (SELECT 1 FROM admin WHERE rolle = 'admin') AS ja",
       [],
     );
     return rows[0]?.ja === true;
   }
+}
 
-  async legeAn(email: string, passwortHash: string, totpGeheimnis: string): Promise<string | null> {
+/** Mitglieder der Redaktion (Issue #56) – nur Name, Rolle, Zeitstempel, Anzahl Passkeys. */
+export class PgMitglieder implements MitgliederRepository {
+  constructor(private readonly db: pg.Pool) {}
+
+  async liste(): Promise<Mitglied[]> {
+    const { rows } = await abfrage<{
+      id: string;
+      name: string;
+      rolle: Rolle;
+      erstellt_am: string;
+      letzter_login: string | null;
+      passkeys: number;
+    }>(
+      this.db,
+      `SELECT a.id::text, a.name, a.rolle, a.erstellt_am::text, a.letzter_login::text,
+              (SELECT count(*)::int FROM admin_passkey p WHERE p.admin_id = a.id) AS passkeys
+         FROM admin a ORDER BY a.rolle, lower(a.name), a.id`,
+      [],
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      rolle: r.rolle,
+      erstelltAm: r.erstellt_am,
+      letzterLogin: r.letzter_login,
+      passkeys: r.passkeys,
+    }));
+  }
+
+  async setzeRolle(id: string, rolle: Rolle): Promise<boolean> {
+    if (!/^\d{1,18}$/.test(id)) return false;
+    const r = await abfrage(this.db, 'UPDATE admin SET rolle = $2 WHERE id = $1::bigint', [
+      id,
+      rolle,
+    ]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async entferne(id: string): Promise<boolean> {
+    if (!/^\d{1,18}$/.test(id)) return false;
+    const r = await abfrage(this.db, 'DELETE FROM admin WHERE id = $1::bigint', [id]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async anzahlAdmins(): Promise<number> {
+    const { rows } = await abfrage<{ n: number }>(
+      this.db,
+      "SELECT count(*)::int AS n FROM admin WHERE rolle = 'admin'",
+      [],
+    );
+    return rows[0]?.n ?? 0;
+  }
+}
+
+const zuEinladung = (r: { id: string; rolle: Rolle; erstellt_am: string; laeuft_ab: string }) => ({
+  id: r.id,
+  rolle: r.rolle,
+  erstelltAm: r.erstellt_am,
+  laeuftAb: r.laeuft_ab,
+});
+
+/** Einladungen in die Redaktion – gespeichert wird nur der SHA-256 des Tokens. */
+export class PgEinladungen implements Einladungen {
+  constructor(private readonly db: pg.Pool) {}
+
+  async lege(
+    token: string,
+    rolle: Rolle,
+    vonId: string | null,
+    tage: number,
+  ): Promise<EinladungInfo> {
+    const { rows } = await abfrage<{
+      id: string;
+      rolle: Rolle;
+      erstellt_am: string;
+      laeuft_ab: string;
+    }>(
+      this.db,
+      `INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab)
+       VALUES ($1, $2, $3::bigint, now() + make_interval(days => $4))
+       RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text`,
+      [hashToken(token), rolle, vonId, tage],
+    );
+    const r = rows[0];
+    if (!r) throw new Error('INSERT lieferte keine Einladung');
+    return zuEinladung(r);
+  }
+
+  async finde(token: string): Promise<{ id: string; rolle: Rolle } | null> {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+    const { rows } = await abfrage<{ id: string; rolle: Rolle }>(
+      this.db,
+      `SELECT id::text, rolle FROM einladung
+        WHERE token_hash = $1 AND genutzt_am IS NULL AND laeuft_ab > now()`,
+      [hashToken(token)],
+    );
+    return rows[0] ?? null;
+  }
+
+  async offene(): Promise<EinladungInfo[]> {
+    const { rows } = await abfrage<{
+      id: string;
+      rolle: Rolle;
+      erstellt_am: string;
+      laeuft_ab: string;
+    }>(
+      this.db,
+      `SELECT id::text, rolle, erstellt_am::text, laeuft_ab::text FROM einladung
+        WHERE genutzt_am IS NULL AND laeuft_ab > now() ORDER BY erstellt_am DESC`,
+      [],
+    );
+    return rows.map(zuEinladung);
+  }
+
+  async widerrufe(id: string): Promise<boolean> {
+    if (!/^\d{1,18}$/.test(id)) return false;
+    const r = await abfrage(
+      this.db,
+      'DELETE FROM einladung WHERE id = $1::bigint AND genutzt_am IS NULL',
+      [id],
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+}
+
+/**
+ * Neues Konto mit erstem Passkey in EINER Transaktion. Die Bedingung wird in derselben Transaktion
+ * geprüft: erster Admin (Advisory Lock, noch kein Admin) bzw. Einladung (offen → verbraucht).
+ */
+export class PgKontoAnlage implements KontoAnlage {
+  constructor(private readonly db: pg.Pool) {}
+
+  async lege(
+    k: NeuesKonto,
+    s: RegistrierterSchluessel,
+    passkeyName: string,
+    bedingung: Anlagebedingung,
+  ): Promise<string | null> {
     const c = await this.db.connect();
     try {
       await c.query('BEGIN');
-      await c.query("SELECT pg_advisory_xact_lock(hashtext('kirmes_erster_admin'))");
+      if (bedingung.art === 'erster-admin') {
+        await c.query("SELECT pg_advisory_xact_lock(hashtext('kirmes_erster_admin'))");
+        const { rows } = await c.query("SELECT 1 FROM admin WHERE rolle = 'admin' LIMIT 1");
+        if (rows.length) {
+          await c.query('ROLLBACK');
+          return null;
+        }
+      } else {
+        // Einladung genau einmal verbrauchen – parallel nur einer erfolgreich (Zeilensperre)
+        const { rows } = await c.query(
+          `UPDATE einladung SET genutzt_am = now()
+            WHERE id = $1::bigint AND genutzt_am IS NULL AND laeuft_ab > now() RETURNING id`,
+          [bedingung.einladungId],
+        );
+        if (!rows.length) {
+          await c.query('ROLLBACK');
+          return null;
+        }
+      }
       const { rows } = await c.query<{ id: string }>(
-        `INSERT INTO admin (email, passwort_hash, totp_geheimnis)
-         SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM admin)
-         RETURNING id::text`,
-        [email, passwortHash, totpGeheimnis],
+        'INSERT INTO admin (name, rolle, handle) VALUES ($1, $2, $3::uuid) RETURNING id::text',
+        [k.name, k.rolle, k.kennung],
       );
+      const id = rows[0]?.id;
+      if (!id) throw new Error('INSERT lieferte kein Konto');
+      await c.query(
+        `INSERT INTO admin_passkey (admin_id, credential_id, public_key, zaehler, transports, name)
+         VALUES ($1::bigint, $2, $3, $4, $5, $6)`,
+        [id, s.credentialId, Buffer.from(s.publicKey), s.zaehler, s.transports, passkeyName],
+      );
+      if (bedingung.art === 'einladung') {
+        await c.query('UPDATE einladung SET genutzt_von = $2::bigint WHERE id = $1::bigint', [
+          bedingung.einladungId,
+          id,
+        ]);
+      }
       await c.query('COMMIT');
-      return rows[0]?.id ?? null;
+      return id;
     } catch (e) {
       await c.query('ROLLBACK');
       throw e;

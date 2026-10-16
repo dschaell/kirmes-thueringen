@@ -27,14 +27,14 @@ Migrationen, Login der API-Rolle). Backups zusätzlich **außerhalb** des Server
 
 Alle Secrets stehen nur in `.env` auf dem Server (`chmod 600`), nie im Repository.
 
-| Secret                    | Wann wechseln                      | Vorgehen                                                                                                             |
-| ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `APP_DB_PASSWORD`         | jährlich, bei Verdacht sofort      | neuen Wert in `.env`, dann `run --rm migrate` (setzt das Passwort der Rolle `kirmes_app`) und `up -d api`            |
-| `POSTGRES_PASSWORD`       | bei Verdacht                       | `docker compose exec db psql -U kirmes -c "ALTER ROLE kirmes PASSWORD '…'"`, dann `.env` anpassen und `up -d`        |
-| `SMTP_PASS` (Brevo)       | bei Verdacht, beim Personalwechsel | in Brevo neuen SMTP-Schlüssel erzeugen, alten löschen, `.env`, `up -d api`                                           |
-| Admin-Passwort / TOTP     | bei Verdacht                       | `npm run admin -- passwort <email>` bzw. `-- zweiter-faktor <email>`; alle Sitzungen enden mit `-- abmelden <email>` |
-| Passkeys                  | Gerät verloren                     | Redaktion → Passkeys → Löschen                                                                                       |
-| Bearbeitungslink einer KG | Link weitergegeben/verloren        | Redaktion → Bearbeitungslinks → Sperren, neuen Link erstellen                                                        |
+| Secret                    | Wann wechseln                      | Vorgehen                                                                                                                                           |
+| ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_DB_PASSWORD`         | jährlich, bei Verdacht sofort      | neuen Wert in `.env`, dann `run --rm migrate` (setzt das Passwort der Rolle `kirmes_app`) und `up -d api`                                          |
+| `POSTGRES_PASSWORD`       | bei Verdacht                       | `docker compose exec db psql -U kirmes -c "ALTER ROLE kirmes PASSWORD '…'"`, dann `.env` anpassen und `up -d`                                      |
+| `SMTP_PASS` (Brevo)       | bei Verdacht, beim Personalwechsel | in Brevo neuen SMTP-Schlüssel erzeugen, alten löschen, `.env`, `up -d api`                                                                         |
+| Redaktions-Zugänge        | bei Verdacht                       | Mitglied unter `/admin/mitglieder` entfernen (Sitzungen + Passkeys weg) und neu einladen; alle Sitzungen beenden: `npm run admin -- abmelden-alle` |
+| Passkeys                  | Gerät verloren                     | Redaktion → Passkeys → Löschen                                                                                                                     |
+| Bearbeitungslink einer KG | Link weitergegeben/verloren        | Redaktion → Bearbeitungslinks → Sperren, neuen Link erstellen                                                                                      |
 
 ## Störungen
 

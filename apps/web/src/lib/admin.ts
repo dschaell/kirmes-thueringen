@@ -59,29 +59,6 @@ export async function adminApi<T = unknown>(
 }
 
 /** Anmeldung (ohne Cookie) – liefert Token oder Fehlermeldung. */
-export async function anmelden(
-  email: string,
-  passwort: string,
-  code: string,
-): Promise<{ token: string; stunden: number } | { fehler: string }> {
-  let res: Response;
-  try {
-    res = await fetch(new URL('/api/v1/admin/anmelden', API_URL), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, passwort, code }),
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch (e) {
-    throw new ApiNichtErreichbar({ cause: e });
-  }
-  const json = await res.json().catch(() => ({}));
-  if (res.ok && typeof json.token === 'string') {
-    return { token: json.token, stunden: Number(json.stunden) || 12 };
-  }
-  return { fehler: typeof json.title === 'string' ? json.title : 'Anmeldung fehlgeschlagen.' };
-}
-
 /** Formularfeld als Text (leer, wenn nicht vorhanden). */
 export const feld = (f: FormData, name: string) => {
   const v = f.get(name);

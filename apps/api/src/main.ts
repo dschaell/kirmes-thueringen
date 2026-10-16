@@ -7,7 +7,10 @@ import {
   VerwalteFestplaetze,
   VerwalteTermine,
   AdminAnmeldung,
+  Beitritt,
   Ersteinrichtung,
+  Mitgliederverwaltung,
+  Registrierung,
   MeldeAnRedaktion,
   Passkeys,
   Redaktion,
@@ -21,7 +24,10 @@ import { NodeKryptografie, SpeicherAnmeldeversuche } from './infrastructure/kryp
 import {
   ortLandkreis,
   PgAdminKonten,
+  PgEinladungen,
   PgErsterAdmin,
+  PgKontoAnlage,
+  PgMitglieder,
   PgLinkVerwaltung,
   PgMitteilungen,
   PgOrtVerwaltung,
@@ -58,30 +64,43 @@ const mitteilungen = new PgMitteilungen(pool);
 const krypto = new NodeKryptografie();
 const konten = new PgAdminKonten(pool);
 const sitzungen = new PgSitzungen(pool);
-// Passkeys: eigene, großzügige Sperre – Fehlversuche ohne gültige Signatur sollen die
-// Redaktion nicht aussperren (Passwort + Einmalcode bleibt ohnehin als Rückfallweg).
-const passkeys = k.websiteUrl
+// Anmeldung nur mit Passkey (Issue #56) – braucht WEBSITE_URL als Relying Party.
+// Eigene, großzügige Sperre: Fehlversuche ohne gültige Signatur sollen niemanden aussperren.
+const webauthn = k.websiteUrl ? new SimpleWebAuthn(k.websiteUrl) : undefined;
+// Getrennte Speicher: Wer die Anmeldung mit Anfragen flutet, verdrängt keine Registrierungen
+const challenges = new SpeicherChallenges(5 * 60_000, 2000);
+const registrierungsChallenges = new SpeicherChallenges(10 * 60_000, 500);
+const passkeys = webauthn
   ? new Passkeys(
       new PgPasskeys(pool),
-      new SimpleWebAuthn(k.websiteUrl),
-      new SpeicherChallenges(),
+      webauthn,
+      challenges,
       sitzungen,
       konten,
       krypto,
       new SpeicherAnmeldeversuche(100, 100),
     )
   : undefined;
-// Erster Zugang im Browser: Link nur ans Redaktionspostfach, höchstens 3 pro Stunde
+const einladungen = new PgEinladungen(pool);
+const registrierung = webauthn
+  ? new Registrierung(
+      webauthn,
+      registrierungsChallenges,
+      new PgKontoAnlage(pool),
+      sitzungen,
+      krypto,
+    )
+  : undefined;
+// Erster Admin im Browser: Link nur ans Redaktionspostfach, höchstens 3 pro Stunde
 const postausgang = k.smtp ? new SmtpPostausgang(k.smtp, smtpTransport(k.smtp)) : undefined;
 const einrichtung =
-  postausgang && k.websiteUrl
+  postausgang && registrierung && k.websiteUrl
     ? new Ersteinrichtung(
         new PgErsterAdmin(pool),
-        krypto,
         new SpeicherEinrichtungslinks(),
         postausgang,
         new SpeicherDrosselung(3, 3_600_000),
-        sitzungen,
+        registrierung,
         k.websiteUrl,
       )
     : undefined;
@@ -102,9 +121,11 @@ const app = await baueApp({
       )
     : undefined,
   admin: {
-    anmeldung: new AdminAnmeldung(konten, krypto, sitzungen, new SpeicherAnmeldeversuche()),
+    anmeldung: new AdminAnmeldung(sitzungen),
     passkeys,
     einrichtung,
+    beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
+    mitglieder: new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto),
     redaktion: new Redaktion(
       mitteilungen,
       new PgOrtVerwaltung(pool),

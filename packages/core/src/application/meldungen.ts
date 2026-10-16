@@ -24,7 +24,8 @@ export interface Drosselung {
 }
 
 // ── Eingabe ─────────────────────────────────────────────────────────────────────────────
-export type MeldungsArt = 'termin' | 'link';
+/** termin = Terminmeldung, link = Festplatz-Link anfordern, mitmachen = Anfrage für die Redaktion */
+export type MeldungsArt = 'termin' | 'link' | 'mitmachen';
 export interface MeldungEingabe {
   art: MeldungsArt;
   ort: string;
@@ -65,12 +66,18 @@ function pruefe(e: MeldungEingabe): Validierungsfehler[] {
     else if (wert.length > max)
       f.push({ feld, code: 'LAENGE', meldung: `${name}: höchstens ${max} Zeichen.` });
   };
-  laenge('ort', zeile(e.ort), 120, true, 'Ort');
+  laenge('ort', zeile(e.ort), 120, e.art !== 'mitmachen', 'Ort');
   laenge('landkreis', zeile(e.landkreis), 60, false, 'Landkreis');
   laenge('titel', zeile(e.titel), 200, e.art === 'termin', 'Veranstaltung');
   laenge('veranstaltungsort', zeile(e.veranstaltungsort), 120, false, 'Veranstaltungsort');
   laenge('info', mehrzeilig(e.info), 2000, false, 'Weitere Infos');
-  laenge('absender', zeile(e.absender), 120, true, 'Name / Kirmesgesellschaft');
+  laenge(
+    'absender',
+    zeile(e.absender),
+    120,
+    true,
+    e.art === 'mitmachen' ? 'Name' : 'Name / Kirmesgesellschaft',
+  );
   const email = zeile(e.email);
   if (!EMAIL.test(email) || email.length > 200) {
     f.push({
@@ -102,6 +109,15 @@ function nachricht(e: MeldungEingabe): Nachricht {
     ['E-Mail', e.email],
   ]);
   const info = mehrzeilig(e.info);
+  if (e.art === 'mitmachen') {
+    return {
+      betreff: zeile(`Mitmachen in der Redaktion: ${e.absender}`).slice(0, 150),
+      text: `Anfrage, in der Redaktion mitzumachen.\n\n${zeilen([['Region / Ort', e.ort]])}${
+        info ? `\n\n${info}\n` : '\n'
+      }\n${absender}\n\nWenn es passt: im Redaktionsbereich unter „Mitglieder“ eine Einladung erzeugen und den Link schicken.\n`,
+      antwortAn: zeile(e.email),
+    };
+  }
   if (e.art === 'link') {
     return {
       betreff: zeile(`Link für den Festplatz: ${ort}`).slice(0, 150),

@@ -1,7 +1,7 @@
 /**
- * Passkeys (WebAuthn) für die Redaktion: Einrichten nach normaler Anmeldung, danach Anmeldung
- * ohne Passwort und Einmalcode. Der Passkey verlangt Benutzerverifikation (Biometrie/PIN) und ist
- * an die Domain gebunden – damit ersetzt er beide Faktoren und ist phishing-resistent.
+ * Passkeys (WebAuthn) für die Redaktion – der einzige Weg zur Anmeldung (Issue #56). Der Passkey
+ * verlangt Benutzerverifikation (Biometrie/PIN) und ist an die Domain gebunden – phishing-resistent,
+ * ohne Passwort und ohne personenbezogene Daten.
  * Die WebAuthn-Kryptografie liegt hinter dem Port {@link WebAuthn}.
  */
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
@@ -12,6 +12,12 @@ import {
   type Kryptografie,
   type Sitzungen,
 } from './admin.js';
+
+/** Für WebAuthn: zufällige Kennung (user.id) und Anzeigename – nichts Personenbezogenes. */
+export interface KontoKennung {
+  kennung: string;
+  name: string;
+}
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
 export interface Passkey {
@@ -34,6 +40,7 @@ export type NeuerPasskey = Pick<
 >;
 
 export interface PasskeyRepository {
+  konto(adminId: string): Promise<KontoKennung | null>;
   liste(adminId: string): Promise<Passkey[]>;
   findeNachCredential(credentialId: string): Promise<Passkey | null>;
   lege(p: NeuerPasskey): Promise<PasskeyInfo>;
@@ -52,8 +59,8 @@ export interface RegistrierterSchluessel {
 /** WebAuthn-Protokoll (Optionen erzeugen, Antworten prüfen). Optionen sind für den Core undurchsichtig. */
 export interface WebAuthn {
   registrierungsOptionen(
-    admin: { id: string; email: string },
-    vorhandene: Passkey[],
+    konto: KontoKennung,
+    vorhandene: Pick<Passkey, 'credentialId' | 'transports'>[],
   ): Promise<{ optionen: unknown; challenge: string }>;
   pruefeRegistrierung(antwort: unknown, challenge: string): Promise<RegistrierterSchluessel | null>;
   anmeldeOptionen(): Promise<{ optionen: unknown; challenge: string }>;
@@ -68,13 +75,19 @@ export interface WebAuthn {
 }
 
 /** Einmal verwendbare Challenges mit kurzer Gültigkeit, gefunden über eine zufällige Vorgangs-ID. */
+export type ChallengeZweck = 'einrichten' | 'anmelden' | 'beitreten';
 export interface Challenges {
-  lege(zweck: 'einrichten' | 'anmelden', challenge: string, adminId: string | null): string;
+  lege(
+    zweck: ChallengeZweck,
+    challenge: string,
+    adminId: string | null,
+    daten?: Record<string, string>,
+  ): string;
   /** Liefert die Challenge genau einmal; danach oder nach Ablauf null. */
   nimm(
     vorgang: string,
-    zweck: 'einrichten' | 'anmelden',
-  ): { challenge: string; adminId: string | null } | null;
+    zweck: ChallengeZweck,
+  ): { challenge: string; adminId: string | null; daten?: Record<string, string> } | null;
 }
 
 // ── Use Case ────────────────────────────────────────────────────────────────────────────
@@ -105,13 +118,13 @@ export class Passkeys {
     }));
   }
 
-  async starteEinrichtung(admin: { adminId: string; email: string }) {
-    const vorhandene = await this.repo.liste(admin.adminId);
-    const { optionen, challenge } = await this.webauthn.registrierungsOptionen(
-      { id: admin.adminId, email: admin.email },
-      vorhandene,
-    );
-    return { vorgang: this.challenges.lege('einrichten', challenge, admin.adminId), optionen };
+  /** Weiterer Passkey (z. B. zweites Gerät) für das angemeldete Mitglied. */
+  async starteEinrichtung(adminId: string) {
+    const konto = await this.repo.konto(adminId);
+    if (!konto) return null;
+    const vorhandene = await this.repo.liste(adminId);
+    const { optionen, challenge } = await this.webauthn.registrierungsOptionen(konto, vorhandene);
+    return { vorgang: this.challenges.lege('einrichten', challenge, adminId), optionen };
   }
 
   async beendeEinrichtung(
@@ -158,8 +171,12 @@ export class Passkeys {
     return ok(await this.repo.lege({ adminId, name: n, ...schluessel }));
   }
 
-  loesche(adminId: string, id: string) {
-    return this.repo.loesche(adminId, id);
+  /** Der letzte Passkey bleibt – ohne ihn könnte sich das Mitglied nicht mehr anmelden. */
+  async loesche(adminId: string, id: string): Promise<Result<true, 'LETZTER' | 'NICHT_GEFUNDEN'>> {
+    const alle = await this.repo.liste(adminId);
+    if (!alle.some((p) => p.id === id)) return err('NICHT_GEFUNDEN');
+    if (alle.length <= 1) return err('LETZTER');
+    return (await this.repo.loesche(adminId, id)) ? ok(true) : err('NICHT_GEFUNDEN');
   }
 
   async starteAnmeldung() {

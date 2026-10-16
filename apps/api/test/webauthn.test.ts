@@ -4,7 +4,7 @@ import { SimpleWebAuthn, SpeicherChallenges } from '../src/infrastructure/webaut
 import { SoftwareAuthenticator } from './software-authenticator.js';
 
 const ORIGIN = 'https://kirmes.example';
-const admin = { id: '7', email: 'redaktion@kirmes.example' };
+const admin = { kennung: 'b3f1c2d4-0000-4000-8000-000000000007', name: 'Ryan' };
 
 async function eingerichtet() {
   const w = new SimpleWebAuthn(ORIGIN);
@@ -30,7 +30,7 @@ describe('SimpleWebAuthn (echte Signaturen, Software-Authenticator)', () => {
     ]);
     expect(optionen).toMatchObject({
       rp: { id: 'kirmes.example', name: 'Kirmeskalender Thüringen' },
-      user: { name: admin.email },
+      user: { name: 'Ryan', displayName: 'Ryan' },
       attestation: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
       excludeCredentials: [{ id: 'vorhanden-abcdefghijk' }],

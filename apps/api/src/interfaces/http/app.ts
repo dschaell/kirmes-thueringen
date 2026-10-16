@@ -221,7 +221,7 @@ export async function baueApp(d: AppAbhaengigkeiten) {
           additionalProperties: false,
           required: ['art', 'ort', 'absender', 'email'],
           properties: {
-            art: { type: 'string', enum: ['termin', 'link'] },
+            art: { type: 'string', enum: ['termin', 'link', 'mitmachen'] },
             ort: T(200),
             landkreis: T(100),
             datum: T(20),

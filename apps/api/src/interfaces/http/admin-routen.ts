@@ -1,15 +1,20 @@
 /**
- * Redaktions-API (/api/v1/admin/*). Jeder Endpunkt außer „anmelden“ verlangt eine gültige Sitzung
+ * Redaktions-API (/api/v1/admin/*). Anmeldung nur mit Passkey. Jeder Endpunkt außer Anmeldung,
+ * Ersteinrichtung und Einladung verlangt eine gültige Sitzung
  * im Header „Authorization: Sitzung <token>“. Die Website hält das Token im HttpOnly-Cookie.
  */
 import type {
   AdminAnmeldung,
+  Beitritt,
   Ersteinrichtung,
+  Mitgliederverwaltung,
   AdminTerminFormular,
   MitteilungEingabe,
   OrtEingabe,
   Passkeys,
   Redaktion,
+  Rolle,
+  Sitzung,
   Termin,
   Validierungsfehler,
 } from '@kirmes/core';
@@ -21,8 +26,11 @@ export interface AdminAbhaengigkeiten {
   terminDto: (t: Termin) => unknown;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
   passkeys?: Passkeys;
-  /** Erster Zugang im Browser – braucht E-Mail-Versand und WEBSITE_URL */
+  /** Erster Admin im Browser – braucht E-Mail-Versand und WEBSITE_URL */
   einrichtung?: Ersteinrichtung;
+  /** Einladung annehmen – braucht WEBSITE_URL (Passkeys) */
+  beitritt?: Beitritt;
+  mitglieder: Mitgliederverwaltung;
 }
 
 const problem = (status: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -77,54 +85,49 @@ const zeileSchema = {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    adminId?: string;
-    adminEmail?: string;
+    sitzung?: Sitzung;
   }
 }
 
 export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten) {
-  app.post<{ Body: { email: string; passwort: string; code: string } }>(
-    '/api/v1/admin/anmelden',
-    {
-      schema: {
-        body: objekt(['email', 'passwort', 'code'], {
-          email: TEXT(200),
-          passwort: TEXT(200),
-          code: TEXT(10),
-        }),
-      },
-    },
-    async (req, reply) => {
-      const r = await d.anmeldung.anmelden(req.body.email, req.body.passwort, req.body.code);
-      reply.header('Cache-Control', 'no-store');
-      if (r.ok) return r.value;
-      req.log.warn({ grund: r.error }, 'Admin-Anmeldung fehlgeschlagen');
-      return r.error === 'GESPERRT'
-        ? reply
-            .status(429)
-            .header('Retry-After', '900')
-            .send(problem(429, 'Zu viele Fehlversuche – bitte 15 Minuten warten.'))
-        : reply.status(401).send(problem(401, 'E-Mail, Passwort oder Code falsch.'));
-    },
-  );
-
-  // Anmeldung mit Passkey (ohne Sitzung): Optionen holen, dann signierte Antwort prüfen
-  const passkeys = d.passkeys;
   const ANTWORT = { type: 'object', maxProperties: 10 } as const;
+  const TOKEN = { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } as const;
+  const REGISTRIERUNG = objekt(['vorgang', 'antwort'], { vorgang: TEXT(64), antwort: ANTWORT });
+  const keinCache = (reply: FastifyReply) => reply.header('Cache-Control', 'no-store');
+
+  /** Fehler beim Anlegen eines Kontos (Ersteinrichtung oder Einladung) */
+  const registrierungsFehler = (reply: FastifyReply, fehler: string) =>
+    fehler === 'UNGUELTIG'
+      ? reply.status(400).send(problem(400, 'Der Passkey konnte nicht bestätigt werden.'))
+      : fehler === 'VERGEBEN' || fehler === 'SCHON_EINGERICHTET'
+        ? reply.status(409).send(problem(409, 'Der Zugang ist bereits eingerichtet.'))
+        : fehler === 'ZU_VIELE'
+          ? reply
+              .status(429)
+              .header('Retry-After', '3600')
+              .send(
+                problem(
+                  429,
+                  'Es wurden schon mehrere Links verschickt – bitte ins Postfach schauen.',
+                ),
+              )
+          : reply
+              .status(404)
+              .send(problem(404, 'Der Link ist abgelaufen oder wurde schon benutzt.'));
+
+  // ── Anmeldung mit Passkey (ohne Sitzung) ──────────────────────────────────────────────
+  const passkeys = d.passkeys;
   if (passkeys) {
     app.post('/api/v1/admin/passkey-anmeldung/optionen', async (_req, reply) => {
-      reply.header('Cache-Control', 'no-store');
+      keinCache(reply);
       return passkeys.starteAnmeldung();
     });
     app.post<{ Body: { vorgang: string; antwort: unknown } }>(
       '/api/v1/admin/passkey-anmeldung',
-      {
-        bodyLimit: 64 * 1024,
-        schema: { body: objekt(['vorgang', 'antwort'], { vorgang: TEXT(64), antwort: ANTWORT }) },
-      },
+      { bodyLimit: 64 * 1024, schema: { body: REGISTRIERUNG } },
       async (req, reply) => {
         const r = await passkeys.beendeAnmeldung(req.body.vorgang, req.body.antwort);
-        reply.header('Cache-Control', 'no-store');
+        keinCache(reply);
         if (r.ok) return r.value;
         req.log.warn({ grund: r.error }, 'Passkey-Anmeldung fehlgeschlagen');
         return r.error === 'GESPERRT'
@@ -137,47 +140,23 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     );
   }
 
-  // Ersten Zugang einrichten (ohne Sitzung, nur solange es keinen Admin gibt) – Issue #48
+  // ── Ersten Admin einrichten (ohne Sitzung, nur solange es keinen Admin gibt) ─────────
   const einrichtung = d.einrichtung;
-  const LINK = {
-    type: 'object',
-    properties: { link: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } },
-  } as const;
-  const einrichtungsFehler = (reply: FastifyReply, fehler: string) =>
-    fehler === 'SCHON_EINGERICHTET'
-      ? reply.status(409).send(problem(409, 'Der Redaktionszugang ist bereits eingerichtet.'))
-      : fehler === 'ZU_VIELE'
-        ? reply
-            .status(429)
-            .header('Retry-After', '3600')
-            .send(
-              problem(
-                429,
-                'Es wurden schon mehrere Links verschickt – bitte ins Postfach schauen.',
-              ),
-            )
-        : reply
-            .status(404)
-            .send(
-              problem(
-                404,
-                'Der Link ist abgelaufen oder wurde schon benutzt. Bitte neu anfordern.',
-              ),
-            );
+  const LINK = { type: 'object', properties: { link: TOKEN } } as const;
 
   app.get('/api/v1/admin/einrichtung', async (_req, reply) => {
-    reply.header('Cache-Control', 'no-store');
+    keinCache(reply);
     return { offen: einrichtung ? await einrichtung.offen() : false, moeglich: !!einrichtung };
   });
   app.post('/api/v1/admin/einrichtung', async (req, reply) => {
-    reply.header('Cache-Control', 'no-store');
+    keinCache(reply);
     if (!einrichtung) {
       return reply.status(503).send(problem(503, 'E-Mail-Versand ist nicht eingerichtet.'));
     }
     try {
       const r = await einrichtung.sendeLink();
       if (r.ok) return reply.status(202).send({ verschickt: true });
-      return einrichtungsFehler(reply, r.error);
+      return registrierungsFehler(reply, r.error);
     } catch (e) {
       req.log.error({ err: e }, 'Einrichtungslink konnte nicht versendet werden');
       return reply
@@ -189,65 +168,117 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     '/api/v1/admin/einrichtung/:link',
     { schema: { params: LINK } },
     async (req, reply) => {
-      reply.header('Cache-Control', 'no-store');
+      keinCache(reply);
       if (!einrichtung) return nichtGefunden(reply);
       const r = await einrichtung.pruefeLink(req.params.link);
-      if (!r.ok) return einrichtungsFehler(reply, r.error);
+      return r.ok ? { gueltig: true } : registrierungsFehler(reply, r.error);
+    },
+  );
+  app.post<{ Params: { link: string }; Body: { name: string } }>(
+    '/api/v1/admin/einrichtung/:link/optionen',
+    { schema: { params: LINK, body: objekt(['name'], { name: TEXT(200) }) } },
+    async (req, reply) => {
+      keinCache(reply);
+      if (!einrichtung) return nichtGefunden(reply);
+      const r = await einrichtung.starte(req.params.link, req.body.name);
+      if (r.ok) return r.value;
+      return Array.isArray(r.error)
+        ? ungueltig(reply, r.error)
+        : registrierungsFehler(reply, r.error);
+    },
+  );
+  app.post<{ Params: { link: string }; Body: { vorgang: string; antwort: unknown } }>(
+    '/api/v1/admin/einrichtung/:link',
+    { bodyLimit: 64 * 1024, schema: { params: LINK, body: REGISTRIERUNG } },
+    async (req, reply) => {
+      keinCache(reply);
+      if (!einrichtung) return nichtGefunden(reply);
+      const r = await einrichtung.schliesseAb(req.params.link, req.body.vorgang, req.body.antwort);
+      if (!r.ok) return registrierungsFehler(reply, r.error);
+      req.log.info('Erster Admin eingerichtet');
       return r.value;
     },
   );
-  app.post<{
-    Params: { link: string };
-    Body: { email: string; passwort: string; passwortWiederholung: string; code: string };
-  }>(
-    '/api/v1/admin/einrichtung/:link',
-    {
-      schema: {
-        params: LINK,
-        body: objekt(['email', 'passwort', 'passwortWiederholung', 'code'], {
-          email: TEXT(200),
-          passwort: TEXT(200),
-          passwortWiederholung: TEXT(200),
-          code: TEXT(10),
-        }),
-      },
-    },
+
+  // ── Einladung annehmen (ohne Sitzung) ─────────────────────────────────────────────────
+  const beitritt = d.beitritt;
+  const EINLADUNG = { type: 'object', properties: { token: TOKEN } } as const;
+  app.get<{ Params: { token: string } }>(
+    '/api/v1/admin/einladung/:token',
+    { schema: { params: EINLADUNG } },
     async (req, reply) => {
-      reply.header('Cache-Control', 'no-store');
-      if (!einrichtung) return nichtGefunden(reply);
-      const r = await einrichtung.schliesseAb(req.params.link, req.body);
-      if (r.ok) {
-        req.log.info('Erster Redaktionszugang eingerichtet');
-        return r.value;
-      }
+      keinCache(reply);
+      const r = beitritt ? await beitritt.pruefe(req.params.token) : null;
+      return r?.ok ? r.value : registrierungsFehler(reply, 'ABGELAUFEN');
+    },
+  );
+  app.post<{ Params: { token: string }; Body: { name: string } }>(
+    '/api/v1/admin/einladung/:token/optionen',
+    { schema: { params: EINLADUNG, body: objekt(['name'], { name: TEXT(200) }) } },
+    async (req, reply) => {
+      keinCache(reply);
+      if (!beitritt) return nichtGefunden(reply);
+      const r = await beitritt.starte(req.params.token, req.body.name);
+      if (r.ok) return r.value;
       return Array.isArray(r.error)
         ? ungueltig(reply, r.error)
-        : einrichtungsFehler(reply, r.error);
+        : registrierungsFehler(reply, r.error);
+    },
+  );
+  app.post<{ Params: { token: string }; Body: { vorgang: string; antwort: unknown } }>(
+    '/api/v1/admin/einladung/:token',
+    { bodyLimit: 64 * 1024, schema: { params: EINLADUNG, body: REGISTRIERUNG } },
+    async (req, reply) => {
+      keinCache(reply);
+      if (!beitritt) return nichtGefunden(reply);
+      const r = await beitritt.beende(req.params.token, req.body.vorgang, req.body.antwort);
+      if (!r.ok) return registrierungsFehler(reply, r.error);
+      req.log.info('Neues Mitglied über Einladung');
+      return { token: r.value.token, stunden: r.value.stunden };
     },
   );
 
-  // Alle weiteren Admin-Endpunkte: Sitzung prüfen
+  // ── Alle weiteren Endpunkte: Sitzung prüfen ───────────────────────────────────────────
   const geschuetzt = async (req: FastifyRequest, reply: FastifyReply) => {
     const s = await d.anmeldung.pruefe(sitzungsToken(req.headers.authorization));
     if (!s) return reply.status(401).send(problem(401, 'Bitte anmelden.'));
-    req.adminId = s.adminId;
-    req.adminEmail = s.email;
-    reply.header('Cache-Control', 'no-store');
+    req.sitzung = s;
+    keinCache(reply);
   };
-  const admin = (req: FastifyRequest) => req.adminId ?? '';
+  const admin = (req: FastifyRequest) => req.sitzung?.adminId ?? '';
+  const akteur = (req: FastifyRequest) => req.sitzung as Sitzung;
+  const verwaltungsFehler = (reply: FastifyReply, fehler: string) =>
+    fehler === 'NUR_ADMIN'
+      ? reply.status(403).send(problem(403, 'Nur für Admins.'))
+      : fehler === 'LETZTER_ADMIN'
+        ? reply
+            .status(409)
+            .send(
+              problem(
+                409,
+                'Mindestens ein Admin muss bleiben – sonst verwaltet niemand die Redaktion.',
+              ),
+            )
+        : nichtGefunden(reply);
 
   await app.register(async (r) => {
     // onRequest: Anmeldung prüfen, BEVOR Eingaben validiert werden (keine Rückschlüsse für Nicht-Angemeldete)
     r.addHook('onRequest', geschuetzt);
 
-    r.get('/api/v1/admin/ich', async (req) => ({ adminId: admin(req), passkeys: !!passkeys }));
+    r.get('/api/v1/admin/ich', async (req) => ({
+      adminId: admin(req),
+      name: akteur(req).name,
+      rolle: akteur(req).rolle,
+      passkeys: !!passkeys,
+    }));
 
-    // Passkeys des angemeldeten Admins
+    // Passkeys des angemeldeten Mitglieds
     if (passkeys) {
       r.get('/api/v1/admin/passkeys', (req) => passkeys.liste(admin(req)));
-      r.post('/api/v1/admin/passkeys/optionen', (req) =>
-        passkeys.starteEinrichtung({ adminId: admin(req), email: req.adminEmail ?? '' }),
-      );
+      r.post('/api/v1/admin/passkeys/optionen', async (req, reply) => {
+        const o = await passkeys.starteEinrichtung(admin(req));
+        return o ?? nichtGefunden(reply);
+      });
       r.post<{ Body: { vorgang: string; antwort: unknown; name?: string } }>(
         '/api/v1/admin/passkeys',
         {
@@ -273,12 +304,82 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       r.delete<{ Params: { id: string } }>(
         '/api/v1/admin/passkeys/:id',
         { schema: { params: ID } },
-        async (req, reply) =>
-          (await passkeys.loesche(admin(req), req.params.id))
-            ? reply.status(204).send()
-            : nichtGefunden(reply),
+        async (req, reply) => {
+          const l = await passkeys.loesche(admin(req), req.params.id);
+          if (l.ok) return reply.status(204).send();
+          return l.error === 'LETZTER'
+            ? reply
+                .status(409)
+                .send(
+                  problem(
+                    409,
+                    'Der letzte Passkey bleibt – sonst kannst du dich nicht mehr anmelden.',
+                  ),
+                )
+            : nichtGefunden(reply);
+        },
       );
     }
+
+    // Mitglieder und Einladungen (nur Admin – geprüft im Use Case)
+    const v = d.mitglieder;
+    const ROLLE = { type: 'string', enum: ['admin', 'redaktion'] } as const;
+    r.get('/api/v1/admin/mitglieder', async (req, reply) => {
+      const m = await v.liste(akteur(req));
+      return m.ok ? m.value : verwaltungsFehler(reply, m.error);
+    });
+    r.put<{ Params: { id: string }; Body: { rolle: Rolle } }>(
+      '/api/v1/admin/mitglieder/:id/rolle',
+      { schema: { params: ID, body: objekt(['rolle'], { rolle: ROLLE }) } },
+      async (req, reply) => {
+        const m = await v.setzeRolle(akteur(req), req.params.id, req.body.rolle);
+        if (!m.ok) return verwaltungsFehler(reply, m.error);
+        req.log.info(
+          { akteur: admin(req), mitglied: req.params.id, rolle: req.body.rolle },
+          'Rolle geändert',
+        );
+        return reply.status(204).send();
+      },
+    );
+    r.delete<{ Params: { id: string } }>(
+      '/api/v1/admin/mitglieder/:id',
+      { schema: { params: ID } },
+      async (req, reply) => {
+        const m = await v.entferne(akteur(req), req.params.id);
+        if (!m.ok) return verwaltungsFehler(reply, m.error);
+        req.log.info({ akteur: admin(req), mitglied: req.params.id }, 'Mitglied entfernt');
+        return reply.status(204).send();
+      },
+    );
+    r.get('/api/v1/admin/einladungen', async (req, reply) => {
+      const m = await v.offeneEinladungen(akteur(req));
+      return m.ok ? m.value : verwaltungsFehler(reply, m.error);
+    });
+    r.post<{ Body: { rolle: Rolle } }>(
+      '/api/v1/admin/einladungen',
+      { schema: { body: objekt(['rolle'], { rolle: ROLLE }) } },
+      async (req, reply) => {
+        const m = await v.lade(akteur(req), req.body.rolle);
+        if (!m.ok) return verwaltungsFehler(reply, m.error);
+        // Das Token selbst wird nie geloggt
+        req.log.info(
+          { akteur: admin(req), einladung: m.value.id, rolle: m.value.rolle },
+          'Einladung erstellt',
+        );
+        return reply.status(201).send(m.value);
+      },
+    );
+    r.delete<{ Params: { id: string } }>(
+      '/api/v1/admin/einladungen/:id',
+      { schema: { params: ID } },
+      async (req, reply) => {
+        const m = await v.widerrufe(akteur(req), req.params.id);
+        if (!m.ok) return verwaltungsFehler(reply, m.error);
+        req.log.info({ akteur: admin(req), einladung: req.params.id }, 'Einladung widerrufen');
+        return reply.status(204).send();
+      },
+    );
+
     r.post('/api/v1/admin/abmelden', async (req, reply) => {
       await d.anmeldung.abmelden(sitzungsToken(req.headers.authorization));
       return reply.status(204).send();

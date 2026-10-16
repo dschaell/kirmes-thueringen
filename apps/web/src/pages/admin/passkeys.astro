@@ -1,7 +1,7 @@
 ---
 /**
- * Passkeys des angemeldeten Admins: hinzufügen (Face ID, Touch ID, Windows Hello, Sicherheitsschlüssel),
- * auflisten, löschen. Danach geht die Anmeldung ohne Passwort und Einmalcode.
+ * Passkeys des angemeldeten Mitglieds: hinzufügen (Face ID, Touch ID, Windows Hello, Sicherheitsschlüssel),
+ * auflisten, löschen. Passkeys sind der einzige Anmeldeweg; der letzte bleibt immer (Issue #56).
  */
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
@@ -57,8 +57,9 @@ const vorschlag = /iPhone/.test(ua)
 <AdminLayout titel="Passkeys" meldung={meldung} fehler={fehler}>
   <p class="lesetext">
     Mit einem Passkey meldest du dich per Face ID, Touch ID, Windows Hello oder Sicherheitsschlüssel
-    an – ohne Passwort und ohne Code aus der Authenticator-App. Der Passkey funktioniert nur auf
-    dieser Website und lässt sich nicht abfischen. Passwort und Einmalcode bleiben als Rückfallweg.
+    an – ohne Passwort. Der Passkey funktioniert nur auf dieser Website und lässt sich nicht
+    abfischen. Lege am besten auf einem <strong>zweiten Gerät</strong> einen weiteren Passkey an – falls
+    eins verloren geht. Der letzte Passkey lässt sich nicht löschen.
   </p>
 
   {
