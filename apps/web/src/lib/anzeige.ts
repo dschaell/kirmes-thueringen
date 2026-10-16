@@ -156,3 +156,42 @@ export const preisText = (cent: number) =>
 /** Gericht als Textzeile: „Rostbrätel mit Brot – 7,50 €“ */
 export const speiseZeile = (s: { name: string; preisCent: number | null }) =>
   s.preisCent == null ? s.name : `${s.name} – ${preisText(s.preisCent)}`;
+
+export type ZeitAuswahl = 'kommend' | 'wochenende' | 'jahr' | 'vergangen' | 'alle';
+
+/**
+ * Zeitraum der Terminsuche (Issue #68). Mit Suchbegriff ohne gewählten Zeitraum: ein Jahr zurück
+ * bis ein Jahr voraus – sonst fände die Suche vergangene Kirmesse nicht. Eine Jahreszahl im
+ * Suchbegriff („2026“, „26“) grenzt auf dieses Jahr ein und wird nicht als Text gesucht.
+ */
+export function suchZeitraum(
+  e: { q: string; zeit: string | null; von: string | null },
+  h: string,
+): { zeit: ZeitAuswahl; von: string; bis?: string; text: string } {
+  const m = /(?:^|\s)(20[2-3]\d|[2-3]\d)(?=\s|$)/.exec(e.q);
+  const treffer = m?.[1];
+  const jahr = treffer ? (treffer.length === 2 ? `20${treffer}` : treffer) : null;
+  const text = m ? e.q.replace(m[0], ' ').replace(/\s+/g, ' ').trim() : e.q.trim();
+  const zeit: ZeitAuswahl = (
+    ['kommend', 'wochenende', 'jahr', 'vergangen', 'alle'] as const
+  ).includes(e.zeit as ZeitAuswahl)
+    ? (e.zeit as ZeitAuswahl)
+    : e.q.trim()
+      ? 'alle'
+      : 'kommend';
+  if (jahr && (zeit === 'alle' || zeit === 'jahr')) {
+    return { zeit: 'jahr', von: `${jahr}-01-01`, bis: `${jahr}-12-31`, text };
+  }
+  switch (zeit) {
+    case 'wochenende':
+      return { zeit, ...wochenende(h), text };
+    case 'jahr':
+      return { zeit, von: `${h.slice(0, 4)}-01-01`, bis: `${h.slice(0, 4)}-12-31`, text };
+    case 'vergangen':
+      return { zeit, von: plusTage(h, -365), bis: plusTage(h, -1), text };
+    case 'alle':
+      return { zeit, von: plusTage(h, -365), bis: plusTage(h, 365), text };
+    default:
+      return { zeit, von: e.von ?? h, text };
+  }
+}
