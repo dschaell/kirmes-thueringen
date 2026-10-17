@@ -75,7 +75,7 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
               <option value={`${o.name} (${o.landkreis}) · ${o.slug}`} />
             ))}
           </datalist>
-          <div class="zwei">
+          <div class="zwei zeitraumfelder">
             <label>
               Erster Kirmestag
               <input name="ab" type="date" required value={s.ab} />
@@ -317,6 +317,14 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
 <style>
   .kirmes-assistent {
     max-width: 680px;
+  }
+  .zeitraumfelder {
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 700px) {
+    .zeitraumfelder {
+      grid-template-columns: 0.8fr 1.2fr;
+    }
   }
   .schritte {
     display: flex;
