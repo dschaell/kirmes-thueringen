@@ -3,7 +3,12 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 14 }
     groups:
+      vitest:
+        patterns: [vitest, '@vitest/*']
+      eslint:
+        patterns: [eslint, '@eslint/js', typescript-eslint, '@typescript-eslint/*']
       minor-und-patch: { update-types: [minor, patch] }
   - package-ecosystem: github-actions
     directory: /
