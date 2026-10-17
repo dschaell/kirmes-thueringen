@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { heute, kreisZusammenfassung, ohneSchraegstrich, wochenende } from '../src/lib/anzeige';
+import {
+  heute,
+  kreisZusammenfassung,
+  ohneSchraegstrich,
+  suchZeitraum,
+  wochenende,
+} from '../src/lib/anzeige';
 
 describe('heute (Thüringer Ortszeit)', () => {
   it('kurz nach Mitternacht ist schon der neue Tag – auch wenn UTC noch gestern ist', () => {
@@ -36,5 +42,54 @@ describe('ohneSchraegstrich (#54)', () => {
     expect(ohneSchraegstrich('/impressum')).toBe('/impressum');
     expect(ohneSchraegstrich('/')).toBe('/');
     expect(ohneSchraegstrich('/orte/gotha//')).toBe('/orte/gotha');
+  });
+});
+
+describe('suchZeitraum (#68)', () => {
+  const h = '2026-10-16';
+  it('ohne Suche: ab heute', () => {
+    expect(suchZeitraum({ q: '', zeit: null, von: null }, h)).toEqual({
+      zeit: 'kommend',
+      von: h,
+      text: '',
+    });
+  });
+  it('mit Suche ohne Zeitraum: ein Jahr zurück bis ein Jahr voraus', () => {
+    expect(suchZeitraum({ q: 'Alkersleben', zeit: null, von: null }, h)).toEqual({
+      zeit: 'alle',
+      von: '2025-10-16',
+      bis: '2027-10-16',
+      text: 'Alkersleben',
+    });
+  });
+  it('Jahreszahl im Suchbegriff grenzt auf das Jahr ein', () => {
+    expect(suchZeitraum({ q: 'Kirmes 2026', zeit: null, von: null }, h)).toEqual({
+      zeit: 'jahr',
+      von: '2026-01-01',
+      bis: '2026-12-31',
+      text: 'Kirmes',
+    });
+    expect(suchZeitraum({ q: 'Kirmes 26', zeit: null, von: null }, h).von).toBe('2026-01-01');
+    expect(suchZeitraum({ q: '2025', zeit: 'alle', von: null }, h)).toMatchObject({
+      von: '2025-01-01',
+      text: '',
+    });
+    // Zahlen, die keine Jahre sind, bleiben Suchtext
+    expect(suchZeitraum({ q: 'Kirmes 8', zeit: null, von: null }, h).text).toBe('Kirmes 8');
+  });
+  it('vergangene Termine: letztes Jahr bis gestern', () => {
+    expect(suchZeitraum({ q: '', zeit: 'vergangen', von: null }, h)).toMatchObject({
+      von: '2025-10-16',
+      bis: '2026-10-15',
+    });
+  });
+  it('Wochenende, ganzes Jahr, ab Datum, unbekannter Wert', () => {
+    expect(suchZeitraum({ q: '', zeit: 'wochenende', von: null }, h).zeit).toBe('wochenende');
+    expect(suchZeitraum({ q: '', zeit: 'jahr', von: null }, h)).toMatchObject({
+      von: '2026-01-01',
+      bis: '2026-12-31',
+    });
+    expect(suchZeitraum({ q: '', zeit: 'kommend', von: '2026-11-01' }, h).von).toBe('2026-11-01');
+    expect(suchZeitraum({ q: '', zeit: 'quatsch', von: null }, h).zeit).toBe('kommend');
   });
 });

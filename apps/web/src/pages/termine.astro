@@ -14,7 +14,7 @@ import {
   heute,
   imKreis,
   kreisKurz,
-  wochenende,
+  suchZeitraum,
 } from '../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
 
@@ -22,7 +22,7 @@ const SEITE = 60;
 const p = Astro.url.searchParams;
 const q = p.get('q')?.slice(0, 100) ?? '';
 const kreis = p.get('kreis') ?? '';
-const zeit = p.get('zeit') ?? 'kommend';
+const zeitParam = p.get('zeit');
 const kat = p.getAll('kat');
 const nurBest = p.get('best') === '1';
 const vonRoh = p.get('von') ?? '';
@@ -30,20 +30,19 @@ const vonParam = /^\d{4}-\d{2}-\d{2}$/.test(vonRoh) ? vonRoh : null;
 const offset = Math.max(0, Math.floor(Number(p.get('seite') ?? 1)) - 1) * SEITE || 0;
 
 const h = heute();
-const jahr = h.slice(0, 4);
-const zeitraum =
-  zeit === 'wochenende'
-    ? wochenende(h)
-    : zeit === 'jahr'
-      ? { von: `${jahr}-01-01`, bis: `${jahr}-12-31` }
-      : { von: vonParam ?? h };
+const {
+  zeit,
+  text: suchtext,
+  ...zeitraum
+} = suchZeitraum({ q, zeit: zeitParam, von: vonParam }, h);
+const jahr = zeit === 'jahr' && zeitraum.von ? zeitraum.von.slice(0, 4) : h.slice(0, 4);
 
 let ergebnis: TerminSeite = { gesamt: 0, termine: [] };
 let fehler: string | null = null;
 try {
   ergebnis = await sucheTermine({
     ...zeitraum,
-    q,
+    q: suchtext,
     landkreis: kreis ? [kreis] : [],
     kategorie: kat,
     bestaetigt: nurBest || undefined,
@@ -120,6 +119,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
               <option value="kommend" selected={zeit === 'kommend'}>Ab heute</option>
               <option value="wochenende" selected={zeit === 'wochenende'}>Dieses Wochenende</option>
               <option value="jahr" selected={zeit === 'jahr'}>Ganzes Jahr {jahr}</option>
+              <option value="vergangen" selected={zeit === 'vergangen'}>Vergangene Termine</option>
+              <option value="alle" selected={zeit === 'alle'}>Ein Jahr zurück und voraus</option>
             </select>
           </div>
           <fieldset>

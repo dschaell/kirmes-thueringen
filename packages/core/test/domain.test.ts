@@ -34,8 +34,9 @@ describe('erstelleDatumsbereich', () => {
     const r = erstelleDatumsbereich(d('2026-10-18'), d('2026-10-17'));
     expect(!r.ok && r.error.code).toBe('BEREICH_UMGEKEHRT');
   });
-  it('lehnt Bereich über 366 Tage ab', () => {
-    const r = erstelleDatumsbereich(d('2026-01-01'), plusTage(d('2026-01-01'), 367));
+  it('erlaubt zwei Jahre (Suche ±1 Jahr), lehnt mehr ab', () => {
+    expect(erstelleDatumsbereich(d('2026-01-01'), plusTage(d('2026-01-01'), 731)).ok).toBe(true);
+    const r = erstelleDatumsbereich(d('2026-01-01'), plusTage(d('2026-01-01'), 732));
     expect(!r.ok && r.error.code).toBe('BEREICH_ZU_GROSS');
   });
 });
