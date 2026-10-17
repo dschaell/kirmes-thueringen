@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
@@ -11,7 +11,7 @@ COPY apps/web apps/web
 RUN npm run build -w @kirmes/core && npm run build -w @kirmes/web \
  && npm prune --omit=dev --workspace @kirmes/web --workspace @kirmes/core
 
-FROM node:24-alpine
+FROM node:25-alpine
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4321
 WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules node_modules
