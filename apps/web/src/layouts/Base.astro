@@ -136,6 +136,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
       </div>
     </footer>
     <script>
+      import '../scripts/formularfelder';
+
       // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
       // Inhalte nur als Text (textContent) – nie als HTML.
       const SCHLUESSEL = 'kirmes-mitteilung-gelesen';

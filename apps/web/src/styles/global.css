@@ -248,6 +248,198 @@ textarea {
   padding: 11px 14px;
   min-width: 0;
 }
+input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+select {
+  min-height: 52px;
+}
+input[type='date'] {
+  height: 52px;
+}
+select {
+  cursor: pointer;
+}
+.auswahlfeld,
+.datumsfeld {
+  position: relative;
+  display: block;
+  min-width: 0;
+  width: 100%;
+  font-weight: 400;
+}
+.auswahl-original {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+.auswahl-ausloeser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 11px 14px;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  color: var(--tinte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.auswahl-ausloeser::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+.auswahl-optionen {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 100%;
+  max-height: min(320px, 50vh);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  box-shadow: 0 8px 24px #0002;
+}
+.auswahl-optionen button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tinte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.auswahl-optionen button:hover,
+.auswahl-optionen button:focus-visible,
+.auswahl-optionen [aria-selected='true'] {
+  background: var(--rot-zart);
+  color: var(--rot);
+}
+.auswahl-fehler {
+  display: block;
+  margin-top: 5px;
+  color: var(--rot);
+  font-size: 0.9rem;
+}
+.datumsfeld input {
+  width: 100%;
+  padding-right: 54px;
+}
+.datumsfeld input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.kalender-ausloeser {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--rot-zart);
+  color: var(--rot);
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.kalender-ausloeser svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.datumsauswahl {
+  width: min(360px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--linie);
+  border-radius: 16px;
+  background: var(--flaeche);
+  color: var(--tinte);
+  box-shadow: 0 16px 64px #0004;
+}
+.datumsauswahl::backdrop {
+  background: #0006;
+}
+.kalender-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.datumsauswahl button {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.datumsauswahl button:hover:not(:disabled) {
+  background: var(--rot-zart);
+  color: var(--rot);
+}
+.datumsauswahl button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.kalender-tage {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  text-align: center;
+}
+.kalender-tage button {
+  min-width: 0;
+}
+.wochentag {
+  color: var(--grau);
+  font-size: 0.85rem;
+}
+.kalender-tage [aria-current='date'] {
+  border-color: var(--rot);
+}
+.kalender-tage [aria-pressed='true'] {
+  background: var(--rot);
+  color: var(--papier);
+}
+.kalender-aktionen {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid var(--linie);
+  padding-top: 8px;
+}
 input[type='search'] {
   flex: 1;
 }
@@ -747,6 +939,7 @@ form.melden {
 }
 form.melden label {
   display: grid;
+  align-content: start;
   gap: 5px;
   font-weight: 600;
 }
@@ -951,7 +1144,8 @@ dialog.mitteilung h2 {
   font-weight: 500;
   font-size: 0.9rem;
 }
-input[aria-invalid='true'] {
+input[aria-invalid='true'],
+.auswahl-ausloeser[aria-invalid='true'] {
   border-color: var(--rot);
 }
 .meldung.erfolg {
