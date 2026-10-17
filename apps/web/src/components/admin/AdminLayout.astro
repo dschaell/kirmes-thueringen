@@ -17,12 +17,12 @@ const nav = [
   ['/admin', 'Termine'],
   ['/admin/vorschlaege', `Vorschläge (${vorschlaege?.daten?.anzahl ?? '–'})`],
   ['/admin/orte', 'Orte & Plätze'],
+  ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Redaktion & Einladungen']] : []),
 ];
 const mehr = [
   ['/admin/mitteilungen', 'Mitteilungen'],
   ['/admin/links', 'Bearbeitungslinks'],
   ['/admin/passkeys', 'Passkeys'],
-  ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Mitglieder']] : []),
 ];
 ---
 
@@ -211,6 +211,17 @@ const mehr = [
   .umschalter a[aria-current='page'] {
     background: var(--tinte);
     color: var(--flaeche);
+  }
+  @media (max-width: 560px) {
+    .umschalter {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    .umschalter a + a {
+      border-left: 0;
+      border-top: 1px solid var(--linie);
+    }
   }
   .suchzeile label {
     display: grid;

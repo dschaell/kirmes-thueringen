@@ -3,6 +3,13 @@ import { err, ok, type Validierungsfehler } from '../domain/result.js';
 import type { Sitzungen } from './admin.js';
 import type { TerminRepository, Uhr } from './ports.js';
 
+/** Interne Herkunft; absichtlich nicht Bestandteil des öffentlichen Terminmodells. */
+export interface TerminHerkunft {
+  name: string | null;
+  angelegtAm: string | null;
+  weg: 'redaktion' | 'bearbeitungslink' | 'vorschlag' | 'unbekannt';
+}
+
 export interface RedaktionsFilter {
   q?: string;
   datum?: string;

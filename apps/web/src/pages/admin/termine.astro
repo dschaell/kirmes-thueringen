@@ -14,6 +14,7 @@ if (Astro.request.method === 'GET' && Astro.url.searchParams.get('bearbeiten'))
     303,
   );
 import AdminLayout from '../../components/admin/AdminLayout.astro';
+import Herkunft from '../../components/admin/TerminHerkunft.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';
 import { adminApi, feld } from '../../lib/admin';
@@ -28,7 +29,7 @@ import {
   wochentag,
 } from '../../lib/anzeige';
 import { wochenendVorlage, type WochenendZeile } from '../../lib/wochenende';
-import type { Kategorie } from '@kirmes/core';
+import type { Kategorie, TerminHerkunft } from '@kirmes/core';
 
 const istKategorie = (k: string): k is Kategorie => k in KATEGORIEN;
 
@@ -251,6 +252,18 @@ const termine: TerminDto[] = ort
       ...(await alleTermine({ ort: ort.slug, von: plusTage(h, 336), bis: plusTage(h, 700) })),
     ]
   : [];
+const herkunft: Record<string, TerminHerkunft> = {};
+for (let i = 0; i < termine.length; i += 100) {
+  const r = await adminApi<Record<string, TerminHerkunft>>(
+    Astro.cookies,
+    'POST',
+    'termine/herkunft',
+    {
+      ids: termine.slice(i, i + 100).map((t) => t.id),
+    },
+  );
+  if (r.daten) Object.assign(herkunft, r.daten);
+}
 const bearbeiten = p.get('bearbeiten') && ort ? await findeTermin(p.get('bearbeiten')!) : null;
 const zuBearbeiten = bearbeiten && bearbeiten.ort.slug === ort?.slug ? bearbeiten : null;
 
@@ -472,6 +485,7 @@ const titelVorschlaege = [
                   {termine.map((t, i) => (
                     <li class="we-zeile">
                       <input type="hidden" name="s-id" value={t.id} />
+                      <Herkunft herkunft={herkunft[t.id]} />
                       <div class="we-zeit">
                         <label>
                           Datum
@@ -919,6 +933,7 @@ const titelVorschlaege = [
                   </td>
                   <td>
                     <strong>{t.titel}</strong>
+                    <Herkunft herkunft={herkunft[t.id]} />
                     {(t.veranstaltungsort || t.band) && (
                       <div class="leise klein">
                         {[t.veranstaltungsort, t.band && `Musik: ${t.band}`]
