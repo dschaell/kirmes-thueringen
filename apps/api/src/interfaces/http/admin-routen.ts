@@ -29,6 +29,7 @@ export interface AdminAbhaengigkeiten {
   anmeldung: AdminAnmeldung;
   redaktion: Redaktion;
   terminListe?: RedaktionsTermine;
+  terminFinden?: (id: string) => Promise<Termin | null>;
   terminDto: (t: Termin) => unknown;
   terminHerkunft?: (ids: string[]) => Promise<Record<string, TerminHerkunft>>;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
@@ -75,6 +76,7 @@ const TEXT = (max: number) => ({ type: 'string', maxLength: max });
 const OPT_TEXT = (max: number) => ({ type: ['string', 'null'], maxLength: max });
 
 const terminSchema = objekt(['ortSlug', 'datum', 'titel'], {
+  version: TEXT(80),
   ortSlug: TEXT(120),
   datum: TEXT(10),
   beginn: OPT_TEXT(5),
@@ -260,18 +262,20 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
   const admin = (req: FastifyRequest) => req.sitzung?.adminId ?? '';
   const akteur = (req: FastifyRequest) => req.sitzung as Sitzung;
   const verwaltungsFehler = (reply: FastifyReply, fehler: string) =>
-    fehler === 'NUR_ADMIN'
-      ? reply.status(403).send(problem(403, 'Nur für Admins.'))
-      : fehler === 'LETZTER_ADMIN'
-        ? reply
-            .status(409)
-            .send(
-              problem(
-                409,
-                'Mindestens ein Admin muss bleiben – sonst verwaltet niemand die Redaktion.',
-              ),
-            )
-        : nichtGefunden(reply);
+    fehler === 'BEZEICHNUNG'
+      ? reply.status(400).send(problem(400, 'Bezeichnung: höchstens 120 Zeichen.'))
+      : fehler === 'NUR_ADMIN'
+        ? reply.status(403).send(problem(403, 'Nur für Admins.'))
+        : fehler === 'LETZTER_ADMIN'
+          ? reply
+              .status(409)
+              .send(
+                problem(
+                  409,
+                  'Mindestens ein Admin muss bleiben – sonst verwaltet niemand die Redaktion.',
+                ),
+              )
+          : nichtGefunden(reply);
 
   await app.register(async (r) => {
     // onRequest: Anmeldung prüfen, BEVOR Eingaben validiert werden (keine Rückschlüsse für Nicht-Angemeldete)
@@ -388,7 +392,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     });
     r.put<{ Params: { id: string }; Body: { rolle: Rolle } }>(
       '/api/v1/admin/mitglieder/:id/rolle',
-      { schema: { params: ID, body: objekt(['rolle'], { rolle: ROLLE }) } },
+      { schema: { params: ID, body: objekt(['rolle'], { rolle: ROLLE, bezeichnung: TEXT(200) }) } },
       async (req, reply) => {
         const m = await v.setzeRolle(akteur(req), req.params.id, req.body.rolle);
         if (!m.ok) return verwaltungsFehler(reply, m.error);
@@ -413,11 +417,11 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       const m = await v.offeneEinladungen(akteur(req));
       return m.ok ? m.value : verwaltungsFehler(reply, m.error);
     });
-    r.post<{ Body: { rolle: Rolle } }>(
+    r.post<{ Body: { rolle: Rolle; bezeichnung?: string } }>(
       '/api/v1/admin/einladungen',
-      { schema: { body: objekt(['rolle'], { rolle: ROLLE }) } },
+      { schema: { body: objekt(['rolle'], { rolle: ROLLE, bezeichnung: TEXT(200) }) } },
       async (req, reply) => {
-        const m = await v.lade(akteur(req), req.body.rolle);
+        const m = await v.lade(akteur(req), req.body.rolle, req.body.bezeichnung);
         if (!m.ok) return verwaltungsFehler(reply, m.error);
         // Das Token selbst wird nie geloggt
         req.log.info(
@@ -508,6 +512,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           schema: {
             querystring: objekt([], {
               q: TEXT(100),
+              ort: TEXT(120),
               datum: TEXT(10),
               zeitraum: { type: 'string', enum: ['kommend', 'vergangen', 'alle'] },
               limit: { type: 'integer', minimum: 1, maximum: 100 },
@@ -520,7 +525,10 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           if (ergebnis.ok)
             return {
               gesamt: ergebnis.value.gesamt,
-              termine: ergebnis.value.eintraege.map(d.terminDto),
+              termine: ergebnis.value.eintraege.map((t) => ({
+                ...(d.terminDto(t) as object),
+                version: t.version,
+              })),
             };
           return ergebnis.error === 'VERBOTEN'
             ? reply.status(403).send(problem(403, 'Bitte anmelden.'))
@@ -548,6 +556,17 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           },
         },
         (req) => herkunft(req.body.ids),
+      );
+    }
+    if (d.terminFinden) {
+      const finden = d.terminFinden;
+      r.get<{ Params: { id: string } }>(
+        '/api/v1/admin/termine/:id',
+        { schema: { params: ID } },
+        async (req, reply) => {
+          const t = await finden(req.params.id);
+          return t ? { ...(d.terminDto(t) as object), version: t.version } : nichtGefunden(reply);
+        },
       );
     }
     r.post<{ Body: AdminTerminFormular }>(
@@ -616,13 +635,14 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     // Mittagstisch eines Termins (Issue #66) – ersetzt die bisherigen Gerichte
     r.put<{
       Params: { id: string };
-      Body: { ortSlug: string; speisen: { name: string; preis: string }[] };
+      Body: { version?: string; ortSlug: string; speisen: { name: string; preis: string }[] };
     }>(
       '/api/v1/admin/termine/:id/speisen',
       {
         schema: {
           params: ID,
           body: objekt(['ortSlug', 'speisen'], {
+            version: TEXT(80),
             ortSlug: TEXT(120),
             speisen: {
               type: 'array',
@@ -638,6 +658,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
           req.body.ortSlug,
           req.body.speisen,
           admin(req),
+          req.body.version,
         );
         if (s.ok) return { speisen: s.value };
         return s.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, s.error);
@@ -652,19 +673,36 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         return t.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, t.error);
       },
     );
-    r.post<{ Params: { id: string }; Body: { ortSlug: string } }>(
+    r.post<{ Params: { id: string }; Body: { ortSlug: string; version?: string } }>(
       '/api/v1/admin/termine/:id/bestaetigen',
-      { schema: { params: ID, body: objekt(['ortSlug'], { ortSlug: TEXT(120) }) } },
+      {
+        schema: {
+          params: ID,
+          body: objekt(['ortSlug'], { ortSlug: TEXT(120), version: TEXT(80) }),
+        },
+      },
       async (req, reply) =>
-        (await d.redaktion.bestaetigeTermin(req.params.id, req.body.ortSlug, admin(req)))
+        (await d.redaktion.bestaetigeTermin(
+          req.params.id,
+          req.body.ortSlug,
+          admin(req),
+          req.body.version,
+        ))
           ? reply.status(204).send()
           : nichtGefunden(reply),
     );
-    r.delete<{ Params: { id: string }; Querystring: { ort: string } }>(
+    r.delete<{ Params: { id: string }; Querystring: { ort: string; version?: string } }>(
       '/api/v1/admin/termine/:id',
-      { schema: { params: ID, querystring: objekt(['ort'], { ort: TEXT(120) }) } },
+      {
+        schema: { params: ID, querystring: objekt(['ort'], { ort: TEXT(120), version: TEXT(80) }) },
+      },
       async (req, reply) =>
-        (await d.redaktion.loescheTermin(req.params.id, req.query.ort, admin(req)))
+        (await d.redaktion.loescheTermin(
+          req.params.id,
+          req.query.ort,
+          admin(req),
+          req.query.version,
+        ))
           ? reply.status(204).send()
           : nichtGefunden(reply),
     );

@@ -1,0 +1,101 @@
+---
+import Base from '../layouts/Base.astro';
+const adresse = new URL('/kalender.ics', Astro.site).href;
+const webcal = adresse.replace(/^https?:/, 'webcal:');
+---
+
+<Base
+  title="Kalender abonnieren – Kirmeskalender Thüringen"
+  description="Kirmes-Termine im eigenen Kalender abonnieren und automatisch aktualisieren lassen."
+>
+  <section class="einstieg">
+    <h1>Kirmes im eigenen Kalender</h1>
+    <p class="unterzeile">
+      Mit einem Abo erscheinen neue Termine und Änderungen automatisch. Wie schnell das passiert,
+      bestimmt deine Kalender-App.
+    </p>
+  </section>
+  <section class="lesetext">
+    <h2>iPhone, iPad und Mac</h2>
+    <p><a class="knopf" href={webcal}>In der Kalender-App abonnieren</a></p>
+    <p class="leise">
+      Falls sich keine App öffnet, kannst du die Adresse unten in deiner Kalender-App als
+      Kalenderabo hinzufügen.
+    </p>
+    <p class="klein">
+      <a href="https://support.apple.com/de-de/102301" target="_blank" rel="noopener"
+        >Anleitung von Apple</a
+      >
+    </p>
+    <h2>Google Kalender / Android</h2>
+    <p>
+      Öffne Google Kalender im Browser am Computer. Wähle bei „Weitere Kalender“ das Pluszeichen und
+      „Per URL“. Füge die Adresse unten ein. Der Kalender erscheint anschließend auch auf deinem
+      Handy, wenn er dort zur Anzeige ausgewählt ist.
+    </p>
+    <p class="klein">
+      <a
+        href="https://support.google.com/calendar/answer/37100?hl=de"
+        target="_blank"
+        rel="noopener">Anleitung von Google</a
+      >
+    </p>
+    <h2>Outlook und andere Kalender</h2>
+    <p>
+      Wähle „Kalender hinzufügen“ und „Aus dem Internet abonnieren“ beziehungsweise „Aus dem Web
+      abonnieren“. Füge die folgende Adresse ein:
+    </p>
+    <p class="klein">
+      <a
+        href="https://support.microsoft.com/de-de/outlook/import-or-subscribe-to-a-calendar-in-outlook-com-or-outlook-on-the-web"
+        target="_blank"
+        rel="noopener">Anleitung von Microsoft</a
+      >
+    </p>
+    <label class="abo-adresse"
+      >Adresse des Kalenderabos<input id="abo-adresse" type="url" readonly value={adresse} /></label
+    >
+    <p>
+      <button class="knopf zweit" id="abo-kopieren" type="button" hidden>Adresse kopieren</button>
+    </p>
+    <p id="abo-status" role="status" class="klein leise"></p>
+    <p>
+      <strong>Wichtig:</strong> Eine einmal importierte Datei wird nicht automatisch aktualisiert. Wähle
+      in deiner App ausdrücklich „Abonnieren“.
+    </p>
+    <p>
+      <a href="/kalender.ics">Kalenderdatei öffnen oder herunterladen</a> · <a href="/termine"
+        >Zurück zu den Terminen</a
+      >
+    </p>
+  </section>
+</Base>
+<script>
+  const feld = document.querySelector<HTMLInputElement>('#abo-adresse');
+  const knopf = document.querySelector<HTMLButtonElement>('#abo-kopieren');
+  const status = document.querySelector('#abo-status');
+  if (feld && knopf && status) {
+    knopf.hidden = false;
+    knopf.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(feld.value);
+        status.textContent = 'Adresse kopiert. Füge sie in deiner Kalender-App ein.';
+      } catch {
+        feld.focus();
+        feld.select();
+        status.textContent = 'Adresse markiert. Bitte über das Kopiermenü deines Geräts kopieren.';
+      }
+    });
+  }
+</script>
+<style>
+  .abo-adresse {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+  }
+  .abo-adresse input {
+    width: 100%;
+    font-weight: 400;
+  }
+</style>

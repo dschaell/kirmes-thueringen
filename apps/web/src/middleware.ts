@@ -87,7 +87,11 @@ const redaktion = defineMiddleware(async (ctx, next) => {
       'GET',
       'ich',
     );
-    if (ich.status !== 200 || !ich.daten) return ctx.redirect('/admin/anmelden', 303);
+    if (ich.status !== 200 || !ich.daten)
+      return ctx.redirect(
+        `/admin/anmelden?weiter=${encodeURIComponent(ctx.url.pathname + ctx.url.search)}`,
+        303,
+      );
     ctx.locals.adminId = ich.daten.adminId;
     ctx.locals.name = ich.daten.name;
     ctx.locals.rolle = ich.daten.rolle;

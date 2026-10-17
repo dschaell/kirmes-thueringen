@@ -10,7 +10,11 @@ export const PUT: APIRoute = async ({ request, params }) => {
   });
 };
 
-export const DELETE: APIRoute = ({ request, params }) =>
+export const DELETE: APIRoute = ({ request, params, url }) =>
   istTerminId(params.id)
-    ? verwaltung('DELETE', `termine/${params.id}`, request.headers.get('authorization'))
+    ? verwaltung(
+        'DELETE',
+        `termine/${params.id}?${new URLSearchParams({ version: url.searchParams.get('version') ?? '' })}`,
+        request.headers.get('authorization'),
+      )
     : new Response(null, { status: 404 });

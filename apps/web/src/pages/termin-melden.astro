@@ -141,7 +141,7 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     )
   }
 
-  <details id="festplatz">
+  <details id="festplatz" open={ergebnis !== null && ergebnis.status !== 'gesendet'}>
     <summary>Link für den Festplatz anfordern</summary>
     <section class="lesetext">
       <h2>Festplatz auf der Karte eintragen</h2>
@@ -168,7 +168,9 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
             value={art === 'link' ? werte.ort : (werte.ort ?? '')}
           /></label
         >
-        <label>Landkreis<input name="landkreis" maxlength="60" /></label>
+        <label
+          >Landkreis<input name="landkreis" maxlength="60" value={werte.landkreis ?? ''} /></label
+        >
       </div>
       <div class="zwei">
         <label
@@ -177,6 +179,7 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
             required
             maxlength="120"
             autocomplete="organization"
+            value={werte.absender ?? ''}
           /></label
         >
         <label
@@ -186,6 +189,7 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
             required
             maxlength="200"
             autocomplete="email"
+            value={werte.email ?? ''}
           /></label
         >
       </div>

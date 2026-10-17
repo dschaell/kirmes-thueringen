@@ -103,7 +103,7 @@ try {
          quelle = COALESCE(EXCLUDED.quelle, termin.quelle),
          band = COALESCE(EXCLUDED.band, termin.band), info = COALESCE(EXCLUDED.info, termin.info),
          muttizettel = termin.muttizettel OR EXCLUDED.muttizettel,
-         geaendert_am = now()
+         geaendert_am = now(), version = termin.version + 1
        RETURNING (xmax = 0) AS neu`,
       [
         o.ort.id,

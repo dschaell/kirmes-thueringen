@@ -11,6 +11,7 @@ import {
   PgFestplatzRepository,
 } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
+import { VerwaltungMitGelesenemStand } from './verwaltung-mit-gelesenem-stand.js';
 import { PgTerminVerwaltung } from '../src/infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool, istVerbindungsfehler } from '../src/infrastructure/postgres/pool.js';
 import {
@@ -236,7 +237,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       landkreis: 'WL',
       bezeichnung: 'IT-KG Ulla',
     };
-    const v = new PgTerminVerwaltung(pool);
+    const v = new VerwaltungMitGelesenemStand(pool);
     const neu = await v.lege(
       {
         ortSlug: 'it-ulla',
@@ -291,7 +292,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
 
   it('Bearbeiten: Termin und Mittagstisch in einer Transaktion, inklusive Rollback', async () => {
     const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
-    const v = new PgTerminVerwaltung(pool);
+    const v = new VerwaltungMitGelesenemStand(pool);
     const eingabe: NeuerTermin = {
       ortSlug: 'it-ulla',
       landkreis: 'WL',
@@ -340,7 +341,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
 
   it('Mittagstisch: ersetzen, in Reihenfolge laden, nur im eigenen Ort (#66)', async () => {
     const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT' };
-    const v = new PgTerminVerwaltung(pool);
+    const v = new VerwaltungMitGelesenemStand(pool);
     const [t] = await v.legeAlle(
       [
         {
@@ -409,7 +410,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       info: null,
       muttizettel: false,
     });
-    const v = new PgTerminVerwaltung(pool);
+    const v = new VerwaltungMitGelesenemStand(pool);
     const [a, b] = await v.legeAlle(
       [t('2026-10-23', 'ZZSAM A'), t('2026-10-24', 'ZZSAM B')],
       durch,
@@ -474,7 +475,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       info,
       muttizettel: band !== null,
     });
-    const v = new PgTerminVerwaltung(pool);
+    const v = new VerwaltungMitGelesenemStand(pool);
     const angelegt = await v.legeAlle(
       [
         abend('2026-10-16', 'ZZWE Disco', 'DJ Wirbelwind'),

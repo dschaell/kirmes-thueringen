@@ -37,6 +37,8 @@ export interface Ort {
 }
 
 export interface Termin {
+  /** Nur in geschützten Bearbeitungsantworten ausliefern. */
+  readonly version?: string;
   readonly id: string;
   readonly ort: Ort;
   readonly datum: KalenderDatum;
@@ -74,6 +76,7 @@ export interface TerminEingabe {
 
 /** Validierte Eingabe, bereit zum Speichern. */
 export interface NeuerTermin {
+  readonly version?: string;
   readonly speisen?: readonly Speise[];
   readonly ortSlug: string;
   readonly landkreis: LandkreisKuerzel;

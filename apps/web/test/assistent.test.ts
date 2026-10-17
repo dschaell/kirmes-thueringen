@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { redaktionsRueckkehr } from '../src/lib/admin';
 import { assistent, vorlage, leseProgramm } from '../src/lib/assistent';
 describe('Kirmes-Assistent', () => {
   it('Alkersleben-Vorlage für 4 Tage, mit Kirche und Muttizettel', () => {
@@ -91,4 +92,89 @@ it('Formularherkunft wird am externen Host geprüft, unabhängig von interner SS
   );
   expect(fremd).toBeInstanceOf(Response);
   expect((fremd as Response).status).toBe(403);
+});
+
+it('ersetzt ein bearbeitetes Programm erst nach ausdrücklicher Bestätigung', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    Response.json([
+      {
+        slug: 'musterort',
+        name: 'Musterort',
+        landkreis: 'IK',
+        koordinate: null,
+        anzahlKommend: 0,
+      },
+    ]),
+  );
+  const alterStand = {
+    schritt: 1 as const,
+    ortSlug: 'musterort',
+    ab: '2027-09-16',
+    tage: '4',
+    zeilen: [
+      {
+        ...vorlage('2027-09-16', '4')[0],
+        titel: 'Unser eigener Titel',
+        band: 'Unsere Band',
+        aktiv: true,
+      },
+    ],
+    kontaktName: '',
+    kontaktEmail: '',
+    nachricht: '',
+    bestaetigt: false,
+    geladen: Date.now(),
+    vorschlag: '',
+    fehler: [],
+  };
+  const senden = async (stand: unknown, bestaetigen = false) => {
+    const form = new FormData();
+    form.set('csrf_token', 'token');
+    form.set('stand', JSON.stringify(stand));
+    form.set('ort', 'Musterort (IK)');
+    form.set('ab', '2027-09-23');
+    form.set('tage', '3');
+    form.set('aktion', 'weiter');
+    if (bestaetigen) form.set('programmErsetzen', 'on');
+    return assistent(
+      {
+        request: new Request('http://example.org/termin-melden', { method: 'POST', body: form }),
+        url: new URL('http://example.org/termin-melden'),
+        response: { status: 200, headers: new Headers() },
+        cookies: { get: () => ({ value: 'token' }) } as never,
+        redirect: () => new Response(),
+        clientAddress: '127.0.0.1',
+      },
+      false,
+    );
+  };
+  try {
+    const rueckfrage = await senden(alterStand);
+    expect(rueckfrage).toMatchObject({
+      schritt: 1,
+      zeitraumWechsel: true,
+      zeilen: alterStand.zeilen,
+    });
+    const neu = await senden(rueckfrage, true);
+    expect(neu).toMatchObject({ schritt: 2, zeitraumWechsel: false });
+    expect((neu as typeof alterStand).zeilen[0]?.titel).toBe('Kirmesgottesdienst');
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+it('kehrt nach der Anmeldung nur zu eigenen Redaktionsseiten zurück', () => {
+  expect(redaktionsRueckkehr('/admin/termine/123')).toBe('/admin/termine/123');
+  expect(redaktionsRueckkehr('/admin?zeitraum=alle')).toBe('/admin?zeitraum=alle');
+  for (const pfad of [
+    null,
+    '//example.org',
+    '/admin-fremd',
+    '/admin/../',
+    'https://example.org',
+    '/admin/\\example.org',
+    '/admin/\n',
+    'x'.repeat(501),
+  ])
+    expect(redaktionsRueckkehr(pfad)).toBe('/admin');
 });

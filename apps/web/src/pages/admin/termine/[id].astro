@@ -2,12 +2,18 @@
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../lib/admin';
-import { findeTermin } from '../../../lib/api';
-import { KATEGORIEN } from '../../../lib/anzeige';
+import type { TerminDto } from '../../../lib/api';
+import { KATEGORIEN, datumLangJahr, speiseZeile } from '../../../lib/anzeige';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../../components/admin/TerminHerkunft.astro';
 const id = Astro.params.id ?? '';
-const t = await findeTermin(id);
+const geladen = await adminApi<TerminDto>(
+  Astro.cookies,
+  'GET',
+  `termine/${encodeURIComponent(id)}`,
+);
+const t = geladen.daten;
+let version = t?.version ?? '';
 const herkunft = t
   ? await adminApi<Record<string, TerminHerkunft>>(Astro.cookies, 'POST', 'termine/herkunft', {
       ids: [t.id],
@@ -16,7 +22,7 @@ const herkunft = t
 if (!t) {
   Astro.response.status = 404;
 }
-let fehler: string[] = [];
+let fehler: string[] = geladen.fehler;
 let werte = {
   datum: t?.datum ?? '',
   beginn: t?.beginn ?? '',
@@ -35,6 +41,7 @@ let speisen = (t?.speisen ?? []).map((s) => ({
 let gerichte = Math.min(20, Math.max(3, speisen.length + 1));
 if (Astro.request.method === 'POST' && t) {
   const f = await Astro.request.formData();
+  version = feld(f, 'version');
   werte = {
     datum: feld(f, 'datum'),
     beginn: feld(f, 'beginn'),
@@ -59,6 +66,7 @@ if (Astro.request.method === 'POST' && t) {
   else {
     const r = await adminApi(Astro.cookies, 'PUT', `termine/${encodeURIComponent(id)}`, {
       ...werte,
+      version,
       beginn: werte.beginn || null,
       ortSlug: t.ort.slug,
       speisen,
@@ -88,8 +96,50 @@ const plaetze = t
           <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a>
         </p>
         <Herkunft herkunft={herkunft?.daten?.[id]} />
-        <form class="melden" method="post">
+        {fehler.length > 0 && (
+          <div class="kasten">
+            <p>
+              Deine Eingaben stehen weiter im Formular. Bei einem Konflikt bitte zuerst vergleichen:
+            </p>
+            <details>
+              <summary>Aktuell gespeicherten Stand anzeigen</summary>
+              <dl>
+                <dt>Veranstaltung</dt>
+                <dd>{t.titel}</dd>
+                <dt>Datum / Uhrzeit</dt>
+                <dd>
+                  {datumLangJahr(t.datum)} {t.beginn && `· ${t.beginn} Uhr`}
+                </dd>
+                <dt>Band / DJ</dt>
+                <dd>{t.band ?? '–'}</dd>
+                <dt>Hinweise</dt>
+                <dd>{t.info ?? '–'}</dd>
+                <dt>Wo genau?</dt>
+                <dd>{t.veranstaltungsort ?? '–'}</dd>
+                <dt>Art</dt>
+                <dd>{KATEGORIEN[t.kategorie].label}</dd>
+                <dt>Vom Veranstalter bestätigt</dt>
+                <dd>{t.bestaetigt ? 'Ja' : 'Nein'}</dd>
+                <dt>Muttizettel erforderlich</dt>
+                <dd>{t.muttizettel ? 'Ja' : 'Nein'}</dd>
+                <dt>Mittagstisch</dt>
+                <dd>
+                  {t.speisen?.length ? t.speisen.map(speiseZeile).join('; ') : 'Kein Mittagstisch'}
+                </dd>
+              </dl>
+            </details>
+            <p>
+              <a href={Astro.url.pathname}>Aktuellen Stand neu öffnen</a> ·{' '}
+              <a href={`/admin/termine?ort=${encodeURIComponent(t.ort.slug)}`}>
+                Alle Termine des Ortes
+              </a>
+            </p>
+          </div>
+        )}
+
+        <form class="melden" method="post" data-ungespeichert data-terminentwurf>
           <CsrfFeld />
+          <input type="hidden" name="version" value={version} />
           <div class="zwei">
             <>
               <label>

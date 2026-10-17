@@ -33,7 +33,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
       <p class="leer" id="keine-termine" hidden>Noch keine Termine eingetragen.</p>
 
       <h3 id="formular-titel">Termin hinzufügen</h3>
-      <form class="melden" id="terminformular" method="post">
+      <form class="melden" id="terminformular" method="post" data-ungespeichert>
         <div class="zwei">
           <label>Datum *<input name="datum" type="date" required /></label>
           <label>Beginn<input name="beginn" type="time" /></label>
@@ -152,6 +152,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
   };
   type Termin = {
     id: string;
+    version: string;
     datum: string;
     beginn: string | null;
     titel: string;
@@ -202,6 +203,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
   let daten: Uebersicht;
   let termine: Termin[] = [];
   let bearbeiteteId: string | null = null;
+  let bearbeiteteVersion = '';
 
   // ── Laden ────────────────────────────────────────────────────────────────
   async function laden() {
@@ -292,11 +294,13 @@ import { KATEGORIEN } from '../../lib/anzeige';
 
   function bearbeiten(t: Termin) {
     bearbeiteteId = t.id;
+    bearbeiteteVersion = t.version;
     feld('datum').value = t.datum;
     feld('beginn').value = t.beginn ?? '';
     feld('titel').value = t.titel;
     feld('veranstaltungsort').value = t.veranstaltungsort ?? '';
     feld('kategorie').value = t.kategorie;
+    feld('kategorie').dispatchEvent(new Event('change'));
     feld('band').value = t.band ?? '';
     feld('info').value = t.info ?? '';
     (feld('muttizettel') as HTMLInputElement).checked = t.muttizettel;
@@ -307,6 +311,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
 
   function formularLeeren() {
     bearbeiteteId = null;
+    bearbeiteteVersion = '';
     formular.reset();
     $('formular-titel').textContent = 'Termin hinzufügen';
     $('termin-abbrechen').hidden = true;
@@ -316,6 +321,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
   formular.addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = JSON.stringify({
+      ...(bearbeiteteId ? { version: bearbeiteteVersion } : {}),
       datum: feld('datum').value,
       beginn: feld('beginn').value || null,
       titel: feld('titel').value,
@@ -340,15 +346,19 @@ import { KATEGORIEN } from '../../lib/anzeige';
   });
 
   async function bestaetigen(t: Termin) {
-    const res = await api(`termine/${t.id}/bestaetigen`, { method: 'POST' });
-    if (!res.ok) return meldung('Bestätigen fehlgeschlagen.');
+    const res = await api(`termine/${t.id}/bestaetigen?version=${encodeURIComponent(t.version)}`, {
+      method: 'POST',
+    });
+    if (!res.ok) return meldung(await fehlertext(res, 'Bestätigen fehlgeschlagen.'));
     meldung(`„${t.titel}“ ist jetzt als bestätigt markiert.`, true);
     await laden();
   }
 
   async function entfernen(t: Termin) {
     if (!confirm(`„${t.titel}“ am ${datumText(t.datum)} wirklich löschen?`)) return;
-    const res = await api(`termine/${t.id}`, { method: 'DELETE' });
+    const res = await api(`termine/${t.id}?version=${encodeURIComponent(t.version)}`, {
+      method: 'DELETE',
+    });
     if (!res.ok) return meldung('Löschen fehlgeschlagen.');
     meldung('Termin gelöscht.', true);
     await laden();

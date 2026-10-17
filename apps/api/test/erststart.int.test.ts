@@ -1,5 +1,6 @@
 /** Erststart gegen PostgreSQL: Orte idempotent (#42), Konten/Einladungen sicher (#48, #56). */
 import pg from 'pg';
+import { LetzterAdmin } from '@kirmes/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import {
@@ -158,7 +159,11 @@ describe.runIf(url)('Redaktionskonten (PostgreSQL)', () => {
     expect(genutzt.rows[0].genutzt_von).toBe(ids.find(Boolean));
     expect(await einl.widerrufe(e.id)).toBe(false); // genutzte bleibt (Nachweis)
 
-    const z = await einl.lege('Z'.repeat(43), 'admin', null, 7);
+    const z = await einl.lege('Z'.repeat(43), 'admin', null, 7, 'Kirmesverein Muster');
+    expect(z.bezeichnung).toBe('Kirmesverein Muster');
+    expect((await einl.offene()).find((e) => e.id === z.id)?.bezeichnung).toBe(
+      'Kirmesverein Muster',
+    );
     expect(await einl.widerrufe(z.id)).toBe(true);
     expect(await einl.finde('Z'.repeat(43))).toBeNull();
     expect(await einl.widerrufe('kein-id')).toBe(false);
@@ -184,8 +189,11 @@ describe.runIf(url)('Redaktionskonten (PostgreSQL)', () => {
       }),
     ]);
     expect(await m.anzahlAdmins()).toBe(1);
+    await expect(m.setzeRolle(id, 'redaktion')).rejects.toBeInstanceOf(LetzterAdmin);
+    await expect(m.entferne(id)).rejects.toBeInstanceOf(LetzterAdmin);
+    await pool.query("INSERT INTO admin(name,rolle) VALUES ('Reserve im Mitgliedertest','admin')");
     expect(await m.setzeRolle(id, 'redaktion')).toBe(true);
-    expect(await m.anzahlAdmins()).toBe(0);
+    expect(await m.anzahlAdmins()).toBe(1);
     expect(await m.setzeRolle('999999', 'admin')).toBe(false);
     expect(await m.setzeRolle('x', 'admin')).toBe(false);
     expect(await m.entferne(id)).toBe(true);

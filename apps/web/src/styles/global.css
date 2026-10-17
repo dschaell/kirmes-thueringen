@@ -193,7 +193,7 @@ a:hover {
   margin-top: -1px;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 980px) {
   .kopf .wrap {
     flex-wrap: wrap;
     gap: 0;
@@ -1211,4 +1211,32 @@ input[aria-invalid='true'],
 .speisen-zeilen {
   list-style: none;
   padding: 0;
+}
+
+.tabellen-label {
+  display: none;
+}
+@media (max-width: 560px) {
+  .tabellen-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--grau);
+    margin-top: 8px;
+  }
+}
+.knopf.gefahr {
+  background: var(--rot-zart);
+  color: var(--rot);
+  border: 1px solid var(--rot);
+}
+.sicherheitsfrage {
+  max-width: 32rem;
+}
+.sicherheitsfrage summary {
+  cursor: pointer;
+}
+.sicherheitsfrage[open] {
+  padding: 12px;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
 }

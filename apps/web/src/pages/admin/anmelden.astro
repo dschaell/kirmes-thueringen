@@ -1,10 +1,12 @@
 ---
 /** Anmeldung der Redaktion – nur mit Passkey (Issue #56). */
+import { redaktionsRueckkehr } from '../../lib/admin';
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { einrichtungsStatus } from '../../lib/zugang';
 
 // Noch kein Admin? Dann auf die Ersteinrichtung hinweisen.
+const weiter = redaktionsRueckkehr(Astro.url.searchParams.get('weiter'));
 const ersteinrichtung = (await einrichtungsStatus()).offen;
 ---
 
@@ -21,6 +23,7 @@ const ersteinrichtung = (await einrichtungsStatus()).offen;
     )
   }
   <CsrfFeld />
+  <input type="hidden" id="nach-anmeldung" value={weiter} />
   <section class="passkey-anmeldung" id="passkey-bereich">
     <button class="knopf" type="button" id="passkey-anmelden">Mit Passkey anmelden</button>
     <p class="leise klein" id="passkey-status" role="status" aria-live="polite"></p>
@@ -59,7 +62,10 @@ const ersteinrichtung = (await einrichtungsStatus()).offen;
           vorgang: opt.daten.vorgang,
           antwort,
         });
-        if (r.ok) location.assign(String(r.daten.weiter ?? '/admin'));
+        if (r.ok)
+          location.assign(
+            document.querySelector<HTMLInputElement>('#nach-anmeldung')?.value ?? '/admin',
+          );
         else status.textContent = String(r.daten.fehler ?? 'Anmeldung fehlgeschlagen.');
       } catch (e) {
         status.textContent = passkeyFehler(e);

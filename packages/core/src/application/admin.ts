@@ -197,6 +197,7 @@ export class Redaktion {
       bleiben.map((z, i) => ({ id: z.id, termin: v.value.termine[i] as NeuerTermin })),
       zeilen.filter((z) => z.loeschen).map((z) => z.id),
       b,
+      Object.fromEntries(zeilen.map((z) => [z.id, z.version ?? ''])),
     );
     return gespeichert ? ok({ hinweise: v.value.hinweise }) : err('NICHT_GEFUNDEN');
   }
@@ -207,12 +208,13 @@ export class Redaktion {
     ortSlug: string,
     zeilen: readonly { name: string; preis: string }[],
     adminId: string,
+    version?: string,
   ): Promise<Result<Speise[], Validierungsfehler[] | 'NICHT_GEFUNDEN'>> {
     const b = await this.berechtigungFuer(ortSlug, adminId);
     if (!b) return err('NICHT_GEFUNDEN');
     const v = validiereSpeisen(zeilen);
     if (!v.ok) return v;
-    return (await this.termine.setzeSpeisen(id, v.value, b)) ? v : err('NICHT_GEFUNDEN');
+    return (await this.termine.setzeSpeisen(id, v.value, b, version)) ? v : err('NICHT_GEFUNDEN');
   }
 
   async aendereTermin(
@@ -229,14 +231,14 @@ export class Redaktion {
       : err('NICHT_GEFUNDEN');
   }
 
-  async bestaetigeTermin(id: string, ortSlug: string, adminId: string) {
+  async bestaetigeTermin(id: string, ortSlug: string, adminId: string, version?: string) {
     const b = await this.berechtigungFuer(ortSlug, adminId);
-    return b ? this.termine.bestaetige(id, b) : false;
+    return b ? this.termine.bestaetige(id, b, version) : false;
   }
 
-  async loescheTermin(id: string, ortSlug: string, adminId: string) {
+  async loescheTermin(id: string, ortSlug: string, adminId: string, version?: string) {
     const b = await this.berechtigungFuer(ortSlug, adminId);
-    return b ? this.termine.loesche(id, b) : false;
+    return b ? this.termine.loesche(id, b, version) : false;
   }
 
   // Bearbeitungslinks
@@ -289,7 +291,11 @@ export class Redaktion {
     return v.ok
       ? ok({
           ...v.value,
-          termin: { ...v.value.termin, ...(f.speisen ? { speisen: speisen.value } : {}) },
+          termin: {
+            ...v.value.termin,
+            version: f.version,
+            ...(f.speisen ? { speisen: speisen.value } : {}),
+          },
         })
       : v;
   }

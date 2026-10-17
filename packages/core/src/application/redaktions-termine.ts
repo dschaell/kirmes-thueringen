@@ -1,3 +1,4 @@
+import { istOrtSlug } from '../domain/termin.js';
 import { parseDatum, plusTage, type KalenderDatum } from '../domain/datum.js';
 import { err, ok, type Validierungsfehler } from '../domain/result.js';
 import type { Sitzungen } from './admin.js';
@@ -11,6 +12,7 @@ export interface TerminHerkunft {
 }
 
 export interface RedaktionsFilter {
+  ort?: string;
   q?: string;
   datum?: string;
   zeitraum?: string;
@@ -49,6 +51,8 @@ export class RedaktionsTermine {
         code: 'ZEITRAUM',
         meldung: 'Bitte kommende, vergangene oder alle Termine wählen.',
       });
+    if (e.ort && !istOrtSlug(e.ort))
+      fehler.push({ feld: 'ort', code: 'ORT', meldung: 'Ungültiger Ort.' });
     const datum = e.datum ? parseDatum(e.datum) : null;
     if (datum && !datum.ok) fehler.push(datum.error);
     if (fehler.length) return err(fehler);
@@ -69,7 +73,7 @@ export class RedaktionsTermine {
       landkreise: [],
       kategorien: [],
       suchtext: q || null,
-      ortSlug: null,
+      ortSlug: e.ort || null,
       nurBestaetigt: false,
       limit,
       offset,

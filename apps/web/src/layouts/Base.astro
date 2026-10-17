@@ -107,7 +107,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             <li><a href="/termine?zeit=wochenende">Dieses Wochenende</a></li>
             <li><a href="/termine">Alle Termine</a></li>
             <li><a href="/orte">Orte A–Z</a></li>
-            <li><a href="/kalender.ics">Kalender abonnieren</a></li>
+            <li><a href="/kalender-abonnieren">Kalender abonnieren</a></li>
             <li><a href="/muttizettel">Muttizettel-Vorlage</a></li>
           </ul>
         </div>
@@ -137,6 +137,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
     </footer>
     <script>
       import '../scripts/formularfelder';
+      import '../scripts/ungespeichert';
+      import '../scripts/entwuerfe';
 
       // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
       // Inhalte nur als Text (textContent) – nie als HTML.

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import type { KalenderDatum, NeuerTermin } from '@kirmes/core';
-import { PgTerminVerwaltung } from '../src/infrastructure/postgres/termin-verwaltung.js';
+import { VerwaltungMitGelesenemStand } from './verwaltung-mit-gelesenem-stand.js';
 import { terminHerkunft } from '../src/infrastructure/postgres/termin-herkunft.js';
 import { testDatenbankUrl } from './test-datenbank.js';
 const url = testDatenbankUrl();
@@ -54,8 +54,8 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
     await db.query('DELETE FROM admin WHERE id = ANY($1::bigint[])', [[admin1, admin2]]);
     await db.end();
   });
-  it('behält den Ersteller nach Bearbeiten, Bestätigen und Upsert', async () => {
-    const verwaltung = new PgTerminVerwaltung(db);
+  it('behält den Ersteller nach Bearbeiten, Bestätigen und abgewiesener Dublette', async () => {
+    const verwaltung = new VerwaltungMitGelesenemStand(db);
     const berechtigt = {
       linkId: null,
       adminId: admin1,
@@ -70,7 +70,9 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
     });
     await verwaltung.aendere(t.id, daten, { ...berechtigt, adminId: admin2 });
     await verwaltung.bestaetige(t.id, { ...berechtigt, adminId: admin2 });
-    await verwaltung.lege(daten, { ...berechtigt, adminId: admin2 });
+    await expect(verwaltung.lege(daten, { ...berechtigt, adminId: admin2 })).rejects.toThrow(
+      'bereits',
+    );
     const h = (await terminHerkunft(db, [t.id]))[t.id];
     expect(h).toMatchObject({ name: 'IT Ersteller', weg: 'redaktion' });
     expect(h.angelegtAm).toBeTruthy();

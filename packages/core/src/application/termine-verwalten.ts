@@ -21,15 +21,22 @@ export interface TerminVerwaltung {
     aenderungen: { id: string; termin: NeuerTermin }[],
     loeschen: string[],
     durch: Berechtigung,
+    versionen?: Record<string, string>,
   ): Promise<boolean>;
   /** Mittagstisch eines Termins ersetzen (Issue #66); false = Termin nicht gefunden/fremder Ort */
-  setzeSpeisen(id: string, speisen: readonly Speise[], durch: Berechtigung): Promise<boolean>;
-  bestaetige(id: string, durch: Berechtigung): Promise<boolean>;
-  loesche(id: string, durch: Berechtigung): Promise<boolean>;
+  setzeSpeisen(
+    id: string,
+    speisen: readonly Speise[],
+    durch: Berechtigung,
+    version?: string,
+  ): Promise<boolean>;
+  bestaetige(id: string, durch: Berechtigung, version?: string): Promise<boolean>;
+  loesche(id: string, durch: Berechtigung, version?: string): Promise<boolean>;
 }
 
 /** Was eine Kirmesgesellschaft eingibt – Ort und Landkreis ergeben sich aus ihrem Link. */
 export interface TerminFormular {
+  version?: string;
   speisen?: { name: string; preis: string }[];
   datum: string;
   beginn?: string | null;
@@ -173,20 +180,24 @@ export class VerwalteTermine {
     return ok({ hinweise: v.value.hinweise });
   }
 
-  async bestaetige(token: string, id: string): Promise<Result<boolean, Verweigert>> {
+  async bestaetige(
+    token: string,
+    id: string,
+    version?: string,
+  ): Promise<Result<boolean, Verweigert>> {
     const b = await this.links.pruefe(token);
     if (!b) return err(VERWEIGERT);
-    return ok(UUID.test(id) && (await this.verwaltung.bestaetige(id, b)));
+    return ok(UUID.test(id) && (await this.verwaltung.bestaetige(id, b, version)));
   }
 
-  async loesche(token: string, id: string): Promise<Result<boolean, Verweigert>> {
+  async loesche(token: string, id: string, version?: string): Promise<Result<boolean, Verweigert>> {
     const b = await this.links.pruefe(token);
     if (!b) return err(VERWEIGERT);
-    return ok(UUID.test(id) && (await this.verwaltung.loesche(id, b)));
+    return ok(UUID.test(id) && (await this.verwaltung.loesche(id, b, version)));
   }
 
   private validiere(f: TerminFormular, b: Berechtigung) {
-    return validiereTermin({
+    const v = validiereTermin({
       ortSlug: b.ortSlug,
       landkreis: b.landkreis,
       datum: f.datum,
@@ -199,5 +210,6 @@ export class VerwalteTermine {
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,
     });
+    return v.ok ? ok({ ...v.value, termin: { ...v.value.termin, version: f.version } }) : v;
   }
 }

@@ -109,11 +109,21 @@ const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
           {links.map((l) => (
             <tr>
               <td>
+                <span class="tabellen-label">Ort</span>
                 <a href={`/orte/${l.ortSlug}`}>{l.ortName}</a>
               </td>
-              <td>{l.bezeichnung}</td>
-              <td class="klein">{l.erstelltAm}</td>
-              <td class="klein">{l.zuletztGenutzt ?? 'noch nie'}</td>
+              <td>
+                <span class="tabellen-label">Für</span>
+                {l.bezeichnung}
+              </td>
+              <td class="klein">
+                <span class="tabellen-label">Erstellt</span>
+                {l.erstelltAm}
+              </td>
+              <td class="klein">
+                <span class="tabellen-label">Zuletzt genutzt</span>
+                {l.zuletztGenutzt ?? 'noch nie'}
+              </td>
               <td>
                 {l.gesperrtAm ? (
                   <span class="leise klein">gesperrt seit {l.gesperrtAm}</span>

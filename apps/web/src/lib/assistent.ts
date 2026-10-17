@@ -13,6 +13,7 @@ export interface AssistentZeile extends VorschlagsZeile {
 }
 export interface AssistentStand {
   schritt: 1 | 2 | 3;
+  zeitraumWechsel?: boolean;
   ortSlug: string;
   ab: string;
   tage: string;
@@ -196,17 +197,30 @@ export async function assistent(
     const vorher = `${s.ortSlug}|${s.ab}|${s.tage}`;
     const ortText = feld(f, 'ort');
     const orte = await listeOrte();
-    s.ortSlug =
-      orte.find((o) => o.slug === ortText || `${o.name} (${o.landkreis}) · ${o.slug}` === ortText)
-        ?.slug ?? '';
+    const passende = orte.filter(
+      (o) =>
+        o.slug === ortText ||
+        o.name === ortText ||
+        `${o.name} (${o.landkreis})` === ortText ||
+        `${o.name} (${o.landkreis}) · ${o.slug}` === ortText,
+    );
+    s.ortSlug = passende.length === 1 ? (passende[0]?.slug ?? '') : '';
     s.ab = feld(f, 'ab');
     s.tage = feld(f, 'tage');
     if (!s.ortSlug) s.fehler.push('Bitte einen Ort aus den Vorschlägen wählen.');
     if (!parseDatum(s.ab).ok) s.fehler.push('Bitte ein gültiges Datum wählen.');
     if (!['1', '2', '3', '4'].includes(s.tage)) s.fehler.push('Bitte die Anzahl der Tage wählen.');
     if (!s.fehler.length) {
-      if (vorher !== `${s.ortSlug}|${s.ab}|${s.tage}` || !s.zeilen.length)
-        s.zeilen = vorlage(s.ab, s.tage);
+      const wechsel = vorher !== `${s.ortSlug}|${s.ab}|${s.tage}` || s.zeitraumWechsel;
+      if (wechsel && s.zeilen.length && !f.has('programmErsetzen')) {
+        s.zeitraumWechsel = true;
+        s.fehler.push(
+          'Der neue Ort oder Zeitraum ersetzt dein bisher bearbeitetes Programm. Bitte unten ausdrücklich bestätigen.',
+        );
+        return s;
+      }
+      if (wechsel || !s.zeilen.length) s.zeilen = vorlage(s.ab, s.tage);
+      s.zeitraumWechsel = false;
       s.schritt = 2;
     }
   } else if (s.schritt === 2) {
