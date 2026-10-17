@@ -19,12 +19,17 @@ const { art, token, knopf } = Astro.props;
     Dein Name in der Redaktion
     <input
       name="name"
+      aria-label="Dein Name in der Redaktion"
+      aria-describedby="registrierung-name-hinweis"
       required
       maxlength="60"
       autocomplete="nickname"
       placeholder="z. B. Ryan oder KG Mühlberg"
     />
-    <span class="leise klein">Sehen nur andere Mitglieder. Ein Vorname oder Spitzname reicht.</span>
+    <span class="leise klein" id="registrierung-name-hinweis"
+      >Nur innerhalb der Redaktion sichtbar, auch bei von dir angelegten Terminen. Ein Vorname oder
+      Spitzname reicht.</span
+    >
   </label>
   <div><button class="knopf" type="submit">{knopf}</button></div>
   <p class="leise klein" id="registrierung-status" role="status" aria-live="polite"></p>

@@ -29,6 +29,7 @@ const id = (f: FormData) => encodeURIComponent(feld(f, 'id'));
 let meldung: string | null = null;
 let fehler: string[] = [];
 let neuerLink: string | null = null;
+let neueRolle: keyof typeof ROLLEN = 'redaktion';
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
@@ -41,6 +42,7 @@ if (Astro.request.method === 'POST') {
       // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
       const basis = process.env.WEBSITE_URL ?? Astro.site?.href ?? 'http://localhost:4321';
       neuerLink = new URL(`/admin/einladung?t=${r.daten.token}`, basis).href;
+      neueRolle = r.daten.rolle;
       meldung = `Einladung (${ROLLEN[rolle]}) erstellt – 7 Tage gültig, nur einmal nutzbar.`;
     } else fehler = r.fehler;
   } else if (aktion === 'widerrufen') {
@@ -70,9 +72,15 @@ const datum = (iso: string | null) =>
       })
     : '–';
 const ich = Astro.locals.adminId;
+const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine Einladung als ${ROLLEN[neueRolle]}. Öffne den Link, wähle deinen Anzeigenamen und richte einen Passkey ein. Der Link gilt 7 Tage und kann einmal verwendet werden.\n\n${neuerLink ?? ''}`;
 ---
 
-<AdminLayout titel="Mitglieder" meldung={meldung} fehler={[...fehler, ...mitglieder.fehler]}>
+<AdminLayout
+  titel="Redaktion & Einladungen"
+  meldung={meldung}
+  fehler={[...fehler, ...mitglieder.fehler]}
+>
+  <p>Du kannst weitere Personen in die Redaktion einladen und bestehende Zugänge verwalten.</p>
   {
     neuerLink && (
       <div class="kasten">
@@ -80,7 +88,39 @@ const ich = Astro.locals.adminId;
           <strong>Diesen Link jetzt kopieren und der Person schicken.</strong> Er wird nur einmal
           angezeigt.
         </p>
-        <p class="geheim">{neuerLink}</p>
+        <label class="einladungslink">
+          Einladungslink ({ROLLEN[neueRolle]})
+          <input id="einladungslink" type="text" readonly value={neuerLink} />
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf" type="button" id="link-kopieren" hidden>
+            Link kopieren
+          </button>
+          <button
+            class="knopf zweit"
+            type="button"
+            id="link-teilen"
+            data-text={einladungstext}
+            hidden
+          >
+            Teilen …
+          </button>
+          <a
+            class="knopf zweit"
+            href={`mailto:?subject=${encodeURIComponent('Einladung zum Kirmeskalender Thüringen')}&body=${encodeURIComponent(einladungstext)}`}
+          >
+            Per E-Mail
+          </a>
+          <a
+            class="knopf zweit"
+            href={`https://wa.me/?text=${encodeURIComponent(einladungstext)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Per WhatsApp
+          </a>
+        </div>
+        <p id="teilen-status" role="status" class="klein leise" />
         <p class="leise klein">
           Wer den Link öffnet, wählt einen Namen und legt einen Passkey an. Danach ist der Link
           verbraucht.
@@ -89,7 +129,11 @@ const ich = Astro.locals.adminId;
     )
   }
 
-  <h2>Einladen</h2>
+  <h2 id="einladen">Person zur Redaktion einladen</h2>
+  <p>
+    1. Rolle wählen und Link erstellen. 2. Link kopieren oder eine App öffnen. 3. Empfänger
+    auswählen und selbst versenden.
+  </p>
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="einladen" />
@@ -200,3 +244,52 @@ const ich = Astro.locals.adminId;
     Einladung (vorher das alte Konto entfernen).
   </p>
 </AdminLayout>
+<script>
+  const link = document.querySelector<HTMLInputElement>('#einladungslink');
+  const kopieren = document.querySelector<HTMLButtonElement>('#link-kopieren');
+  const teilen = document.querySelector<HTMLButtonElement>('#link-teilen');
+  const status = document.querySelector<HTMLElement>('#teilen-status');
+  if (link && kopieren && teilen && status) {
+    kopieren.hidden = false;
+    kopieren.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(link.value);
+        status.textContent =
+          'Link kopiert. Du kannst ihn jetzt in deiner gewünschten App einfügen.';
+      } catch {
+        link.focus();
+        link.select();
+        status.textContent = 'Link markiert. Bitte über das Kopiermenü deines Geräts kopieren.';
+      }
+    });
+    if (navigator.share) {
+      teilen.hidden = false;
+      teilen.addEventListener('click', async () => {
+        try {
+          await navigator.share({
+            title: 'Einladung zum Kirmeskalender Thüringen',
+            text: teilen.dataset.text,
+          });
+          status.textContent = 'Einladung an die gewählte App übergeben.';
+        } catch (fehler) {
+          if (!(fehler instanceof Error && fehler.name === 'AbortError')) {
+            status.textContent =
+              'Teilen hier nicht möglich. Bitte den Link kopieren oder E-Mail verwenden.';
+          }
+        }
+      });
+    }
+  }
+</script>
+<style>
+  .einladungslink {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .einladungslink input {
+    width: 100%;
+    font-weight: 400;
+  }
+</style>

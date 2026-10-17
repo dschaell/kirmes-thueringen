@@ -20,6 +20,7 @@ import type {
   Rolle,
   Sitzung,
   Termin,
+  TerminHerkunft,
   Validierungsfehler,
 } from '@kirmes/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -29,6 +30,7 @@ export interface AdminAbhaengigkeiten {
   redaktion: Redaktion;
   terminListe?: RedaktionsTermine;
   terminDto: (t: Termin) => unknown;
+  terminHerkunft?: (ids: string[]) => Promise<Record<string, TerminHerkunft>>;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
   passkeys?: Passkeys;
   /** Erster Admin im Browser – braucht E-Mail-Versand und WEBSITE_URL */
@@ -528,6 +530,26 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     }
 
     // Termine (jeder Ort)
+    if (d.terminHerkunft) {
+      const herkunft = d.terminHerkunft;
+      r.post<{ Body: { ids: string[] } }>(
+        '/api/v1/admin/termine/herkunft',
+        {
+          schema: {
+            body: objekt(['ids'], {
+              ids: {
+                type: 'array',
+                minItems: 1,
+                maxItems: 100,
+                uniqueItems: true,
+                items: { type: 'string', format: 'uuid' },
+              },
+            }),
+          },
+        },
+        (req) => herkunft(req.body.ids),
+      );
+    }
     r.post<{ Body: AdminTerminFormular }>(
       '/api/v1/admin/termine',
       { schema: { body: terminSchema } },

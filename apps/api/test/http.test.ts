@@ -28,6 +28,7 @@ import {
   type Termin,
   type TerminFilter,
   type TerminRepository,
+  type TerminHerkunft,
   type Passkey,
 } from '@kirmes/core';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -198,6 +199,7 @@ const einladungenRepo = () => {
 };
 
 let terminListeAktiv: RedaktionsTermine | undefined;
+let herkunftAktiv: ((ids: string[]) => Promise<Record<string, TerminHerkunft>>) | undefined;
 let terminVorschlaegeAktiv: Vorschlaege | undefined;
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
@@ -223,6 +225,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
       terminListe: terminListeAktiv,
+      terminHerkunft: herkunftAktiv,
       anmeldung: new AdminAnmeldung({
         lege: async () => {},
         pruefe: async (t) =>
@@ -1595,5 +1598,64 @@ describe('Sitzungspflichtige Redaktionsliste', () => {
       ).statusCode,
     ).toBe(403);
     expect(repo.filter).toBeNull();
+  });
+});
+
+describe('Interne Terminersteller', () => {
+  afterEach(() => {
+    herkunftAktiv = undefined;
+  });
+  it('erlaubt nur angemeldete Admins und Redaktion, ohne öffentliche Metadaten', async () => {
+    let aufrufe = 0;
+    const metadaten = {
+      name: 'Interner Ersteller',
+      angelegtAm: '2026-10-17T12:00:00Z',
+      weg: 'redaktion' as const,
+    };
+    herkunftAktiv = async (ids) => {
+      aufrufe++;
+      return Object.fromEntries(ids.map((id) => [id, metadaten]));
+    };
+    await setup();
+    const url = '/api/v1/admin/termine/herkunft';
+    for (const headers of [{}, { authorization: 'Sitzung falsch' }]) {
+      expect(
+        (await app.inject({ method: 'POST', url, headers, payload: { ids: ['ungueltig'] } }))
+          .statusCode,
+      ).toBe(401);
+    }
+    expect(aufrufe).toBe(0);
+    for (const token of [SITZUNG, REDAKTION_SITZUNG]) {
+      const res = await app.inject({
+        method: 'POST',
+        url,
+        headers: { authorization: `Sitzung ${token}` },
+        payload: { ids: [termin.id] },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ [termin.id]: metadaten });
+      expect(res.headers['cache-control']).toBe('no-store');
+      for (const ids of [[], ['ungueltig'], [termin.id, termin.id]]) {
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url,
+              headers: { authorization: `Sitzung ${token}` },
+              payload: { ids },
+            })
+          ).statusCode,
+        ).toBe(400);
+      }
+    }
+    expect(aufrufe).toBe(2);
+    for (const url of ['/api/v1/termine', `/api/v1/termine/${termin.id}`]) {
+      const res = await app.inject(url);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).not.toContain('Interner Ersteller');
+      expect(res.body).not.toContain('angelegtAm');
+      expect(res.body).not.toContain('herkunft');
+    }
+    expect(aufrufe).toBe(2);
   });
 });

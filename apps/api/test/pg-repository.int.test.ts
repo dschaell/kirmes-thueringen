@@ -78,9 +78,9 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
 
   beforeAll(async () => {
     await pool.query(
-      "DELETE FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug LIKE 'it-%')",
+      "DELETE FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug IN ('it-muehlberg', 'it-ulla'))",
     );
-    await pool.query("DELETE FROM ort WHERE slug LIKE 'it-%'");
+    await pool.query("DELETE FROM ort WHERE slug IN ('it-muehlberg', 'it-ulla')");
     await pool.query(
       `INSERT INTO ort (slug, name, landkreis, lage) VALUES
         ('it-muehlberg', 'IT-Mühlberg', 'GTH', ST_SetSRID(ST_MakePoint(10.82, 50.87), 4326)),
@@ -88,8 +88,7 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     );
   });
   afterAll(async () => {
-    await pool.query("DELETE FROM ort WHERE slug LIKE 'it-%'");
-    await pool.query('DELETE FROM aenderungsprotokoll WHERE ort_id IS NULL');
+    await pool.query("DELETE FROM ort WHERE slug IN ('it-muehlberg', 'it-ulla')");
     await pool.end();
   });
 

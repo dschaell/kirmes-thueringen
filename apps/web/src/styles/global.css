@@ -199,16 +199,15 @@ a:hover {
     gap: 0;
     padding-top: 10px;
   }
-  /* Eine scrollbare Zeile statt umbrechender Menüpunkte */
+  /* Alle Ziele bleiben auch ohne eine versteckte seitliche Wischgeste sichtbar. */
   .nav {
-    margin: 6px -20px 0;
-    padding: 0 12px 6px;
-    width: calc(100% + 40px);
-    overflow-x: auto;
-    scrollbar-width: none;
+    margin: 6px 0 0;
+    padding: 0 0 6px;
+    width: 100%;
+    flex-wrap: wrap;
   }
-  .nav::-webkit-scrollbar {
-    display: none;
+  .nav a {
+    padding-inline: 8px;
   }
 }
 

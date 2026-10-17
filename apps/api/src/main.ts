@@ -1,4 +1,5 @@
 import { Vorschlaege } from '@kirmes/core';
+import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
 import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
 import {
@@ -149,6 +150,7 @@ const app = await baueApp({
       )
     : undefined,
   admin: {
+    terminHerkunft: (ids) => terminHerkunft(pool, ids),
     terminListe: new RedaktionsTermine(termine, sitzungen, uhr),
     anmeldung: new AdminAnmeldung(sitzungen),
     passkeys,

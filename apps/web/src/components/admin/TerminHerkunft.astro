@@ -1,0 +1,32 @@
+---
+import type { TerminHerkunft } from '@kirmes/core';
+interface Props {
+  herkunft?: TerminHerkunft;
+}
+const { herkunft: h } = Astro.props;
+const name =
+  h?.name ??
+  (h?.weg === 'bearbeitungslink'
+    ? 'Kirmesgesellschaft'
+    : h?.angelegtAm
+      ? 'Nicht mehr zuordenbar'
+      : 'Nicht dokumentiert');
+const datum = h?.angelegtAm
+  ? new Date(h.angelegtAm).toLocaleString('de-DE', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Europe/Berlin',
+    })
+  : null;
+---
+
+<p class="klein leise">
+  {
+    h
+      ? `${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`
+      : 'Erstellerangabe derzeit nicht verfügbar.'
+  }
+  {datum && ` · ${datum}`}
+  {h?.weg === 'vorschlag' && ' · aus öffentlichem Vorschlag übernommen'}
+  {h?.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
+</p>
