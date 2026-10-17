@@ -16,6 +16,7 @@ interface Mitglied {
   passkeys: number;
 }
 interface Einladung {
+  bezeichnung?: string;
   id: string;
   rolle: 'admin' | 'redaktion';
   erstelltAm: string;
@@ -37,6 +38,7 @@ if (Astro.request.method === 'POST') {
   if (aktion === 'einladen' && istRolle(rolle)) {
     const r = await adminApi<Einladung & { token: string }>(Astro.cookies, 'POST', 'einladungen', {
       rolle,
+      bezeichnung: feld(f, 'bezeichnung'),
     });
     if (r.daten) {
       // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
@@ -53,11 +55,18 @@ if (Astro.request.method === 'POST') {
     const r = await adminApi(Astro.cookies, 'PUT', `mitglieder/${id(f)}/rolle`, { rolle });
     if (r.status < 300) meldung = `Rolle geändert: ${ROLLEN[rolle]}.`;
     else fehler = r.fehler;
-  } else if (aktion === 'entfernen') {
+  } else if (aktion === 'entfernen' && feld(f, 'rueckfrage') === 'ja') {
     const r = await adminApi(Astro.cookies, 'DELETE', `mitglieder/${id(f)}`);
     if (r.status < 300) meldung = 'Mitglied entfernt – alle Sitzungen und Passkeys sind gelöscht.';
     else fehler = r.fehler;
-  } else fehler = ['Unbekannte Aktion.'];
+  } else {
+    fehler = [
+      aktion === 'entfernen'
+        ? 'Bitte die Entfernung des Mitglieds ausdrücklich bestätigen.'
+        : 'Unbekannte Aktion.',
+    ];
+    Astro.response.status = 400;
+  }
 }
 const [mitglieder, einladungen] = await Promise.all([
   adminApi<Mitglied[]>(Astro.cookies, 'GET', 'mitglieder'),
@@ -137,6 +146,15 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="einladen" />
+    <label
+      >Für wen? (freiwillig)<input
+        name="bezeichnung"
+        maxlength="120"
+        placeholder="z. B. Kirmesverein Alkersleben"
+      /><span class="klein leise"
+        >Interne Bezeichnung, damit du mehrere offene Einladungen unterscheiden kannst.</span
+      ></label
+    >
     <label>
       Rolle
       <select name="rolle">
@@ -154,6 +172,7 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
         <table class="admin-tabelle">
           <thead>
             <tr>
+              <th>Für</th>
               <th>Rolle</th>
               <th>Erstellt</th>
               <th>Gültig bis</th>
@@ -163,9 +182,22 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
           <tbody>
             {einladungen.daten?.map((e) => (
               <tr>
-                <td>{ROLLEN[e.rolle]}</td>
-                <td>{datum(e.erstelltAm)}</td>
-                <td>{datum(e.laeuftAb)}</td>
+                <td>
+                  <span class="tabellen-label">Für</span>
+                  {e.bezeichnung ?? 'Ohne Bezeichnung'}
+                </td>
+                <td>
+                  <span class="tabellen-label">Rolle</span>
+                  {ROLLEN[e.rolle]}
+                </td>
+                <td>
+                  <span class="tabellen-label">Erstellt</span>
+                  {datum(e.erstelltAm)}
+                </td>
+                <td>
+                  <span class="tabellen-label">Gültig bis</span>
+                  {datum(e.laeuftAb)}
+                </td>
                 <td>
                   <form method="post">
                     <CsrfFeld />
@@ -200,10 +232,12 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
         (mitglieder.daten ?? []).map((m) => (
           <tr>
             <td>
+              <span class="tabellen-label">Name</span>
               {m.name}
               {m.id === ich && <span class="leise"> (du)</span>}
             </td>
             <td>
+              <span class="tabellen-label">Rolle</span>
               <form method="post" class="inline">
                 <CsrfFeld />
                 <input type="hidden" name="aktion" value="rolle" />
@@ -221,17 +255,34 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
                 </button>
               </form>
             </td>
-            <td>{m.passkeys}</td>
-            <td>{datum(m.letzterLogin)}</td>
             <td>
-              <form method="post">
-                <CsrfFeld />
-                <input type="hidden" name="aktion" value="entfernen" />
-                <input type="hidden" name="id" value={m.id} />
-                <button class="knopf zweit" type="submit">
-                  Entfernen
-                </button>
-              </form>
+              <span class="tabellen-label">Passkeys</span>
+              {m.passkeys}
+            </td>
+            <td>
+              <span class="tabellen-label">Zuletzt angemeldet</span>
+              {datum(m.letzterLogin)}
+            </td>
+            <td>
+              <details class="sicherheitsfrage">
+                <summary>Mitglied entfernen …</summary>
+                <p>
+                  <strong>{m.name}</strong> wirklich entfernen? Alle Passkeys und Sitzungen dieses
+                  Mitglieds werden gelöscht. Das lässt sich hier nicht rückgängig machen.
+                </p>
+                <form method="post">
+                  <CsrfFeld />
+                  <label>
+                    <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
+                    entfernen.
+                  </label>
+                  <input type="hidden" name="aktion" value="entfernen" />
+                  <input type="hidden" name="id" value={m.id} />
+                  <button class="knopf gefahr" type="submit">
+                    Jetzt endgültig entfernen
+                  </button>
+                </form>
+              </details>
             </td>
           </tr>
         ))

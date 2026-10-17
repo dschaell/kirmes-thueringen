@@ -150,6 +150,7 @@ const app = await baueApp({
       )
     : undefined,
   admin: {
+    terminFinden: (id) => termine.finde(id),
     terminHerkunft: (ids) => terminHerkunft(pool, ids),
     terminListe: new RedaktionsTermine(termine, sitzungen, uhr),
     anmeldung: new AdminAnmeldung(sitzungen),

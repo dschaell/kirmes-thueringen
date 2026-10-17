@@ -66,9 +66,12 @@ describe('Redaktions-Terminliste', () => {
         offset: 20,
       }),
     );
-    await liste.liste('token', { zeitraum: 'alle' });
+    await liste.liste('token', { zeitraum: 'alle', ort: 'alkersleben' });
     expect(repo.suche).toHaveBeenLastCalledWith(
-      expect.objectContaining({ bereich: { von: '0100-01-01', bis: '9999-12-31' } }),
+      expect.objectContaining({
+        bereich: { von: '0100-01-01', bis: '9999-12-31' },
+        ortSlug: 'alkersleben',
+      }),
     );
   });
   it('explizites Datum findet auch vergangene Termine unabhängig vom Umschalter', async () => {
@@ -80,6 +83,7 @@ describe('Redaktions-Terminliste', () => {
   });
   it.each([
     { q: 'x'.repeat(101) },
+    { ort: '../falsch' },
     { datum: '2027-02-30' },
     { zeitraum: 'falsch' },
     { limit: 0 },

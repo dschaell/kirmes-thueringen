@@ -21,7 +21,14 @@ const {
   plaetze = [],
 } = Astro.props;
 const ort = orte.find((o) => o.slug === s.ortSlug);
-const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlug;
+const ortAnzahl = new Map<string, number>();
+for (const o of orte) {
+  const k = `${o.name}|${o.landkreis}`;
+  ortAnzahl.set(k, (ortAnzahl.get(k) ?? 0) + 1);
+}
+const ortBezeichnung = (o: OrtUebersichtDto) =>
+  `${o.name} (${o.landkreis})${(ortAnzahl.get(`${o.name}|${o.landkreis}`) ?? 0) > 1 ? ` · ${o.slug}` : ''}`;
+const ortText = ort ? ortBezeichnung(ort) : s.ortSlug;
 ---
 
 <div class="kirmes-assistent">
@@ -46,10 +53,19 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
             ))}
           </ul>
         </>
+        {redaktion && (
+          <a
+            href={`/admin?zeitraum=alle&q=${encodeURIComponent(ort?.name ?? s.ortSlug)}`}
+            target="_blank"
+            rel="noopener"
+          >
+            Vorhandene Termine in einem neuen Fenster suchen
+          </a>
+        )}
       </div>
     )
   }
-  <form method="post" class="melden">
+  <form method="post" class="melden" data-ungespeichert>
     <input type="hidden" name="csrf_token" value={csrf} />
     <input type="hidden" name="stand" value={JSON.stringify(s)} />
     <label class="falle" aria-hidden="true"
@@ -72,9 +88,10 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
           </label>
           <datalist id="orte-assistent">
             {orte.map((o) => (
-              <option value={`${o.name} (${o.landkreis}) · ${o.slug}`} />
+              <option value={ortBezeichnung(o)} />
             ))}
           </datalist>
+          <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
           <div class="zwei zeitraumfelder">
             <label>
               Erster Kirmestag
@@ -96,6 +113,12 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
               </select>
             </label>
           </div>
+          {s.zeitraumWechsel && (
+            <label>
+              <input type="checkbox" name="programmErsetzen" required /> Ja, mein bisheriges
+              Programm durch eine neue Vorlage ersetzen.
+            </label>
+          )}
           <button class="knopf" name="aktion" value="weiter">
             Weiter zum Programm
           </button>
@@ -160,7 +183,28 @@ const ortText = ort ? `${ort.name} (${ort.landkreis}) · ${ort.slug}` : s.ortSlu
     {
       s.schritt === 3 && (
         <>
-          <h2>Details – alles freiwillig</h2>
+          <h2>Programm prüfen und Details ergänzen</h2>
+          <section class="kasten" aria-label="Programmübersicht">
+            <p>
+              <strong>{ort?.name ?? s.ortSlug}</strong> – so wird das Programm{' '}
+              {redaktion ? 'veröffentlicht' : 'vorgeschlagen'}:
+            </p>
+            <ul>
+              {s.zeilen
+                .filter((z) => z.aktiv)
+                .map((z) => (
+                  <li>
+                    <strong>{z.titel}</strong>
+                    <br />
+                    {datumLangJahr(z.datum)} · {z.beginn ? `${z.beginn} Uhr` : 'Uhrzeit noch offen'}
+                  </li>
+                ))}
+            </ul>
+            <p class="klein">
+              Zum Ändern von Titel, Datum oder Uhrzeit: „Zurück zum Programm“. Weitere Details sind
+              freiwillig.
+            </p>
+          </section>
           <p class="leise">
             {ort?.name ?? s.ortSlug} · {s.zeilen.filter((z) => z.aktiv).length} Veranstaltungen.
             Öffne nur, was du ergänzen möchtest.

@@ -2,6 +2,8 @@ import {
   FindeOrt,
   ListeOrte,
   PersistenzNichtVerfuegbar,
+  TerminKonflikt,
+  LetzterAdmin,
   FindeTermin,
   SucheTermine,
   VerwalteFestplaetze,
@@ -38,6 +40,7 @@ import { SpeicherEinrichtungslinks } from '../src/infrastructure/einrichtungslin
 import { SoftwareAuthenticator } from './software-authenticator.js';
 
 const termin: Termin = {
+  version: '1',
   id: '6f1c0b6e-3d2a-4c1b-9f00-0123456789ab',
   ort: { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate: null },
   datum: '2026-10-18' as KalenderDatum,
@@ -236,6 +239,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
               : null,
         beende: async () => {},
       }),
+      terminFinden: (id) => repo.finde(id),
       mitglieder: new Mitgliederverwaltung(mitgliederRepo(), einladungenRepo(), {
         neuesToken: () => 'E'.repeat(43),
       }),
@@ -1658,4 +1662,65 @@ describe('Interne Terminersteller', () => {
     }
     expect(aufrufe).toBe(2);
   });
+});
+
+describe('Schreibkonflikte und private Bearbeitungsstände (#85)', () => {
+  it('liefert Versionen nur geschützt, prüft Rollen und unbekannte IDs', async () => {
+    await setup();
+    for (const sitzung of [SITZUNG, REDAKTION_SITZUNG]) {
+      const r = await app.inject({
+        method: 'GET',
+        url: `/api/v1/admin/termine/${termin.id}`,
+        headers: { authorization: `Sitzung ${sitzung}` },
+      });
+      expect(r.statusCode).toBe(200);
+      expect(r.json().titel).toBe(termin.titel);
+      expect(r.json().version).toBe('1');
+      expect(r.headers['cache-control']).toBe('no-store');
+    }
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/admin/termine/ungueltig' })).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/v1/admin/termine/00000000-0000-4000-8000-000000000000',
+          headers: { authorization: `Sitzung ${SITZUNG}` },
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/termine/${termin.id}` })).json(),
+    ).not.toHaveProperty('version');
+  });
+  it('erwartbare Konflikte und atomarer Letztadminschutz antworten mit 409', async () => {
+    await setup();
+    app.get('/test-konflikt-neu', async () => {
+      throw new TerminKonflikt('DOPPELT');
+    });
+    app.get('/test-konflikt-alt', async () => {
+      throw new TerminKonflikt('VERALTET');
+    });
+    app.get('/test-konflikt-admin', async () => {
+      throw new LetzterAdmin();
+    });
+    for (const pfad of ['neu', 'alt', 'admin']) {
+      const r = await app.inject({ method: 'GET', url: `/test-konflikt-${pfad}` });
+      expect(r.statusCode).toBe(409);
+      expect(r.json().title).not.toBe('Interner Fehler');
+    }
+  });
+});
+
+it('begrenzt interne Einladungsbezeichnungen auch im Use Case', async () => {
+  await setup();
+  const r = await app.inject({
+    method: 'POST',
+    url: '/api/v1/admin/einladungen',
+    headers: { authorization: `Sitzung ${SITZUNG}` },
+    payload: { rolle: 'redaktion', bezeichnung: 'x'.repeat(121) },
+  });
+  expect(r.statusCode).toBe(400);
+  expect(r.json().title).toContain('120');
 });

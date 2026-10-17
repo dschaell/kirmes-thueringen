@@ -110,6 +110,7 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
           {liste.map((m) => (
             <tr>
               <td>
+                <span class="tabellen-label">Titel</span>
                 <strong>{m.titel}</strong>
                 <div class="leise klein">
                   {m.text.slice(0, 140)}
@@ -117,6 +118,7 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
                 </div>
               </td>
               <td>
+                <span class="tabellen-label">Status</span>
                 {m.id === aktuellId ? (
                   <span class="bestaetigt">wird angezeigt</span>
                 ) : m.veroeffentlichtAm ? (
@@ -125,7 +127,10 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
                   'Entwurf'
                 )}
               </td>
-              <td class="klein">{zeit(m.erstelltAm)}</td>
+              <td class="klein">
+                <span class="tabellen-label">Erstellt</span>
+                {zeit(m.erstelltAm)}
+              </td>
               <td>
                 <div class="klein-knoepfe">
                   <form method="post">

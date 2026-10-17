@@ -1,7 +1,7 @@
 ---
 /**
  * Suche & Filter werden serverseitig über die API ausgeführt (funktioniert auch ohne JavaScript).
- * Das kleine Skript unten schickt das Formular automatisch ab, wenn sich ein Filter ändert.
+ * Mehrere Filter können vor dem Anwenden gemeinsam ausgewählt werden.
  */
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
@@ -98,7 +98,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
         />
         <button class="knopf" type="submit"><Icon name="suche" />Suchen</button>
       </div>
-      <details class="filter">
+      <details class="filter" open={aktiveFilter > 0}>
         <summary>
           <Icon name="filter" />Filter {
             aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>
@@ -146,6 +146,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
               </a>
             )
           }
+          <button class="knopf" type="submit">Filter anwenden</button>
         </div>
       </details>
     </form>
@@ -181,11 +182,3 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     )
   }
 </Base>
-
-<script>
-  // Filteränderungen sofort anwenden (ohne JavaScript per „Suchen“-Knopf).
-  const form = document.getElementById('filter') as HTMLFormElement;
-  form.addEventListener('change', (e) => {
-    if ((e.target as HTMLElement).getAttribute('name') !== 'q') form.requestSubmit();
-  });
-</script>

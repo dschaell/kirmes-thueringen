@@ -20,6 +20,8 @@ export interface OrtUebersichtDto extends OrtDto {
 }
 
 export interface TerminDto {
+  /** Ausschließlich in geschützten Bearbeitungsantworten. */
+  version?: string;
   id: string;
   datum: string;
   beginn: string | null;

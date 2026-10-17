@@ -85,3 +85,11 @@ export async function jsonBody(request: Request): Promise<Record<string, unknown
     return null;
   }
 }
+
+/** Nach erneuter Anmeldung ausschließlich zu einer eigenen Redaktionsseite zurückkehren. */
+export function redaktionsRueckkehr(pfad: string | null): string {
+  if (!pfad || pfad.length > 500 || !/^\/admin(?:\/|$|\?)/.test(pfad) || /[\\\p{Cc}]/u.test(pfad))
+    return '/admin';
+  const url = new URL(pfad, 'https://redaktion.invalid');
+  return /^\/admin(?:\/|$)/.test(url.pathname) ? url.pathname + url.search + url.hash : '/admin';
+}

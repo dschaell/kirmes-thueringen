@@ -1,3 +1,4 @@
+import { TerminKonflikt } from '@kirmes/core';
 import type { Berechtigung, NeuerTermin, Speise, Termin, TerminVerwaltung } from '@kirmes/core';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
@@ -13,25 +14,19 @@ INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, 
 SELECT o.id, $2::date, $3::time, $4, $5, $6, $8,
        CASE WHEN $7::bigint IS NULL THEN 'Redaktion' ELSE 'Kirmesgesellschaft' END, $7, $9, $10, $11, $12
   FROM ort o WHERE o.slug = $1
-ON CONFLICT (ort_id, datum, titel) DO UPDATE SET
-  beginn = EXCLUDED.beginn, veranstaltungsort = EXCLUDED.veranstaltungsort, kategorie = EXCLUDED.kategorie,
-  bestaetigt = termin.bestaetigt OR EXCLUDED.bestaetigt, eingetragen_durch = EXCLUDED.eingetragen_durch,
-  eingetragen_von_admin = EXCLUDED.eingetragen_von_admin, band = EXCLUDED.band, info = EXCLUDED.info,
-  muttizettel = EXCLUDED.muttizettel,
-  geaendert_am = now()
-RETURNING id, ort_id, (SELECT name FROM ort WHERE id = termin.ort_id) AS ort_name`;
+RETURNING id, version::text AS version, ort_id, (SELECT name FROM ort WHERE id = termin.ort_id) AS ort_name`;
 
 const SQL_AENDERN = `
 UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltungsort = $6,
        kategorie = $7, bestaetigt = $9, eingetragen_durch = $8, eingetragen_von_admin = $10,
-       band = $11, info = $12, muttizettel = $13, geaendert_am = now()
+       band = $11, info = $12, muttizettel = $13, geaendert_am = clock_timestamp(), version = t.version + 1
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
 
 const SQL_BESTAETIGEN = `
 UPDATE termin t SET bestaetigt = true, eingetragen_durch = $3, eingetragen_von_admin = $4,
-       geaendert_am = now()
+       geaendert_am = clock_timestamp(), version = t.version + 1
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
@@ -42,7 +37,7 @@ DELETE FROM termin t USING ort o
 RETURNING t.ort_id, t.titel, t.datum::text AS datum`;
 
 const SQL_TERMIN_DES_ORTES = `
-SELECT t.ort_id::text FROM termin t JOIN ort o ON o.id = t.ort_id
+SELECT t.ort_id::text, t.version::text AS version FROM termin t JOIN ort o ON o.id = t.ort_id
  WHERE t.id = $1::uuid AND o.slug = $2 FOR UPDATE OF t`;
 
 /** Gerichte in der übergebenen Reihenfolge (position = 1, 2, …) */
@@ -75,6 +70,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
 
   aendere(id: string, t: NeuerTermin, durch: Berechtigung): Promise<boolean> {
     return this.inTransaktion(async (c) => {
+      if (!(await this.pruefeVersion(c, id, durch, t.version))) return false;
       const geaendert = await this.protokolliertIn(
         c,
         SQL_AENDERN,
@@ -114,9 +110,15 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     aenderungen: { id: string; termin: NeuerTermin }[],
     loeschen: string[],
     durch: Berechtigung,
+    versionen?: Record<string, string>,
   ): Promise<boolean> {
     try {
       await this.inTransaktion(async (c) => {
+        // Einheitliche Reihenfolge verhindert gegenseitige Sperren zweier Sammeländerungen.
+        for (const id of [...aenderungen.map((a) => a.id), ...loeschen].sort()) {
+          const version = aenderungen.find((a) => a.id === id)?.termin.version ?? versionen?.[id];
+          if (!(await this.pruefeVersion(c, id, durch, version))) throw new NichtGefunden();
+        }
         for (const { id, termin: t } of aenderungen) {
           const gefunden = await this.protokolliertIn(
             c,
@@ -165,12 +167,12 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     id: string,
     speisen: readonly Speise[],
     durch: Berechtigung,
+    version?: string,
   ): Promise<boolean> {
     return this.inTransaktion(async (c) => {
-      // Termin muss zum Ort der Berechtigung gehören – sonst nichts ändern
-      const t = await c.query<{ ort_id: string }>(SQL_TERMIN_DES_ORTES, [id, durch.ortSlug]);
-      const ortId = t.rows[0]?.ort_id;
-      if (!ortId) return false;
+      const t = await this.pruefeVersion(c, id, durch, version);
+      if (!t) return false;
+      const ortId = t.ort_id;
       await c.query('DELETE FROM termin_speise WHERE termin_id = $1::uuid', [id]);
       if (speisen.length) {
         await c.query(SQL_SPEISEN_EINFUEGEN, [
@@ -179,6 +181,10 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
           speisen.map((s) => s.preisCent),
         ]);
       }
+      await c.query(
+        'UPDATE termin SET geaendert_am = clock_timestamp(), version = version + 1 WHERE id = $1::uuid',
+        [id],
+      );
       await c.query(SQL_PROTOKOLL, [
         durch.linkId,
         durch.adminId ?? null,
@@ -190,35 +196,46 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     });
   }
 
-  bestaetige(id: string, durch: Berechtigung): Promise<boolean> {
+  bestaetige(id: string, durch: Berechtigung, version?: string): Promise<boolean> {
     return this.mitProtokoll(
       SQL_BESTAETIGEN,
       [id, durch.ortSlug, durch.linkId, durch.adminId ?? null],
       durch,
       'termin_bestaetigt',
       { id },
+      version,
     );
   }
 
-  loesche(id: string, durch: Berechtigung): Promise<boolean> {
-    return this.mitProtokoll(SQL_LOESCHEN, [id, durch.ortSlug], durch, 'termin_geloescht', { id });
+  loesche(id: string, durch: Berechtigung, version?: string): Promise<boolean> {
+    return this.mitProtokoll(
+      SQL_LOESCHEN,
+      [id, durch.ortSlug],
+      durch,
+      'termin_geloescht',
+      { id },
+      version,
+    );
   }
 
   private async legeMit(c: pg.PoolClient, t: NeuerTermin, durch: Berechtigung): Promise<Termin> {
-    const r = await c.query<{ id: string; ort_id: string; ort_name: string }>(SQL_ANLEGEN, [
-      t.ortSlug,
-      t.datum,
-      t.beginn,
-      t.titel,
-      t.veranstaltungsort,
-      t.kategorie,
-      durch.linkId,
-      t.bestaetigt,
-      durch.adminId ?? null,
-      t.band,
-      t.info,
-      t.muttizettel ?? false,
-    ]);
+    const r = await c.query<{ id: string; version: string; ort_id: string; ort_name: string }>(
+      SQL_ANLEGEN,
+      [
+        t.ortSlug,
+        t.datum,
+        t.beginn,
+        t.titel,
+        t.veranstaltungsort,
+        t.kategorie,
+        durch.linkId,
+        t.bestaetigt,
+        durch.adminId ?? null,
+        t.band,
+        t.info,
+        t.muttizettel ?? false,
+      ],
+    );
     const neu = r.rows[0];
     if (!neu) throw new Error(`Ort ${t.ortSlug} nicht gefunden`);
     if (t.speisen?.length)
@@ -236,6 +253,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     ]);
     return {
       id: neu.id,
+      version: neu.version,
       ort: { slug: t.ortSlug, name: neu.ort_name, landkreis: t.landkreis, koordinate: null },
       datum: t.datum,
       beginn: t.beginn,
@@ -256,8 +274,13 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     durch: Berechtigung,
     aktion: string,
     details: object,
+    version?: string,
   ): Promise<boolean> {
-    return this.inTransaktion((c) => this.protokolliertIn(c, sql, werte, durch, aktion, details));
+    return this.inTransaktion(async (c) => {
+      const id = String(werte[0]);
+      if (!(await this.pruefeVersion(c, id, durch, version))) return false;
+      return this.protokolliertIn(c, sql, werte, durch, aktion, details);
+    });
   }
 
   /** Anweisung + Protokolleintrag in einer laufenden Transaktion; false = kein Treffer. */
@@ -282,6 +305,17 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
     return true;
   }
 
+  private async pruefeVersion(c: pg.PoolClient, id: string, durch: Berechtigung, version?: string) {
+    const r = await c.query<{ version: string; ort_id: string }>(SQL_TERMIN_DES_ORTES, [
+      id,
+      durch.ortSlug,
+    ]);
+    const zeile = r.rows[0];
+    if (!zeile) return false;
+    if (!version || version !== zeile.version) throw new TerminKonflikt('VERALTET', id);
+    return zeile;
+  }
+
   private async inTransaktion<T>(arbeit: (c: pg.PoolClient) => Promise<T>): Promise<T> {
     const c = await this.db.connect();
     try {
@@ -291,6 +325,15 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       return ergebnis;
     } catch (e) {
       await c.query('ROLLBACK');
+      if (
+        typeof e === 'object' &&
+        e !== null &&
+        'code' in e &&
+        e.code === '23505' &&
+        'constraint' in e &&
+        e.constraint === 'termin_ort_id_datum_titel_key'
+      )
+        throw new TerminKonflikt('DOPPELT');
       throw e;
     } finally {
       c.release();

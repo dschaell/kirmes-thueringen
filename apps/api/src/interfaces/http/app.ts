@@ -5,6 +5,8 @@ import rateLimit from '@fastify/rate-limit';
 import { isIP } from 'node:net';
 import {
   LANDKREISE,
+  TerminKonflikt,
+  LetzterAdmin,
   PersistenzNichtVerfuegbar,
   type FindeOrt,
   type FindeTermin,
@@ -130,6 +132,7 @@ const terminFormularSchema = {
   additionalProperties: false,
   required: ['datum', 'titel'],
   properties: {
+    version: { type: 'string', maxLength: 80 },
     datum: { type: 'string', maxLength: 10 },
     beginn: { type: ['string', 'null'], maxLength: 5 },
     titel: { type: 'string', maxLength: 200 },
@@ -183,6 +186,9 @@ export async function baueApp(d: AppAbhaengigkeiten) {
   });
 
   app.setErrorHandler((fehler: FastifyError | PersistenzNichtVerfuegbar, req, reply) => {
+    if (fehler instanceof TerminKonflikt || fehler instanceof LetzterAdmin) {
+      return reply.status(409).type('application/problem+json').send(problem(409, fehler.message));
+    }
     if (fehler instanceof PersistenzNichtVerfuegbar) {
       req.log.error({ err: fehler.cause }, 'Datenbank nicht erreichbar');
       return reply
@@ -445,7 +451,9 @@ export async function baueApp(d: AppAbhaengigkeiten) {
   app.get('/api/v1/verwaltung/termine', async (req, reply) => {
     const r = await d.verwalteTermine.liste(bearer(req.headers.authorization));
     reply.header('Cache-Control', 'no-store');
-    return r.ok ? r.value.map(terminDto) : nichtBerechtigt(reply);
+    return r.ok
+      ? r.value.map((t) => ({ ...terminDto(t), version: t.version }))
+      : nichtBerechtigt(reply);
   });
 
   app.post<{ Body: TerminFormular }>(
@@ -498,13 +506,23 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
-  app.post<{ Params: { id: string } }>(
+  app.post<{ Params: { id: string }; Querystring: { version?: string } }>(
     '/api/v1/verwaltung/termine/:id/bestaetigen',
-    { schema: { params: idSchema } },
+    {
+      schema: {
+        params: idSchema,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { version: { type: 'string', maxLength: 80 } },
+        },
+      },
+    },
     async (req, reply) => {
       const r = await d.verwalteTermine.bestaetige(
         bearer(req.headers.authorization),
         req.params.id,
+        req.query.version,
       );
       if (!r.ok) return nichtBerechtigt(reply);
       return r.value
@@ -513,11 +531,24 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
-  app.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string }; Querystring: { version?: string } }>(
     '/api/v1/verwaltung/termine/:id',
-    { schema: { params: idSchema } },
+    {
+      schema: {
+        params: idSchema,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { version: { type: 'string', maxLength: 80 } },
+        },
+      },
+    },
     async (req, reply) => {
-      const r = await d.verwalteTermine.loesche(bearer(req.headers.authorization), req.params.id);
+      const r = await d.verwalteTermine.loesche(
+        bearer(req.headers.authorization),
+        req.params.id,
+        req.query.version,
+      );
       if (!r.ok) return nichtBerechtigt(reply);
       return r.value
         ? reply.status(204).send()

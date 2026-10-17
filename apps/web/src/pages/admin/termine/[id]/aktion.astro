@@ -2,9 +2,16 @@
 import AdminLayout from '../../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../../lib/admin';
-import { findeTermin } from '../../../../lib/api';
+import type { TerminDto } from '../../../../lib/api';
 import { datumLangJahr } from '../../../../lib/anzeige';
-const t = await findeTermin(Astro.params.id ?? '');
+const t = (
+  await adminApi<TerminDto>(
+    Astro.cookies,
+    'GET',
+    `termine/${encodeURIComponent(Astro.params.id ?? '')}`,
+  )
+).daten;
+let version = t?.version ?? '';
 const aktion = Astro.url.searchParams.get('aktion');
 const loeschen = aktion === 'loeschen';
 const gueltig = t && (loeschen || aktion === 'bestaetigen');
@@ -12,6 +19,7 @@ let fehler: string[] = [];
 if (!gueltig) Astro.response.status = 404;
 if (Astro.request.method === 'POST' && gueltig) {
   const f = await Astro.request.formData();
+  version = feld(f, 'version');
   if (feld(f, 'rueckfrage') !== 'ja') {
     fehler = ['Bitte die Rückfrage bestätigen.'];
     Astro.response.status = 400;
@@ -20,10 +28,11 @@ if (Astro.request.method === 'POST' && gueltig) {
       ? await adminApi(
           Astro.cookies,
           'DELETE',
-          `termine/${t.id}?ort=${encodeURIComponent(t.ort.slug)}`,
+          `termine/${t.id}?ort=${encodeURIComponent(t.ort.slug)}&version=${encodeURIComponent(version)}`,
         )
       : await adminApi(Astro.cookies, 'POST', `termine/${t.id}/bestaetigen`, {
           ortSlug: t.ort.slug,
+          version,
         });
     if (r.status < 300)
       return Astro.redirect(`/admin?${loeschen ? 'geloescht' : 'bestaetigt'}=1`, 303);
@@ -45,6 +54,10 @@ if (Astro.request.method === 'POST' && gueltig) {
     gueltig && (
       <form class="melden" method="post">
         <CsrfFeld />
+        <input type="hidden" name="version" value={version} />
+        <p>
+          <strong>{t.titel}</strong>
+        </p>
         <p>
           <br />
           {t.ort.name} · {datumLangJahr(t.datum)}
@@ -61,7 +74,9 @@ if (Astro.request.method === 'POST' && gueltig) {
         </label>
         <div class="knopfreihe">
           <>
-            <button class="knopf">{loeschen ? 'Jetzt löschen' : 'Jetzt bestätigen'}</button>
+            <button class:list={['knopf', { gefahr: loeschen }]}>
+              {loeschen ? 'Jetzt löschen' : 'Jetzt bestätigen'}
+            </button>
             <a href="/admin">Abbrechen</a>
           </>
         </div>

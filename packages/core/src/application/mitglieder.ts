@@ -31,6 +31,7 @@ export interface MitgliederRepository {
   anzahlAdmins(): Promise<number>;
 }
 export interface EinladungInfo {
+  bezeichnung?: string;
   id: string;
   rolle: Rolle;
   erstelltAm: string;
@@ -38,7 +39,13 @@ export interface EinladungInfo {
 }
 export interface Einladungen {
   /** Speichert nur einen Hash des Tokens; gültig für `tage` Tage. */
-  lege(token: string, rolle: Rolle, vonId: string | null, tage: number): Promise<EinladungInfo>;
+  lege(
+    token: string,
+    rolle: Rolle,
+    vonId: string | null,
+    tage: number,
+    bezeichnung?: string,
+  ): Promise<EinladungInfo>;
   /** Offene (unbenutzte, nicht abgelaufene) Einladung zum Token */
   finde(token: string): Promise<{ id: string; rolle: Rolle } | null>;
   offene(): Promise<EinladungInfo[]>;
@@ -174,7 +181,7 @@ export class Beitritt {
 }
 
 // ── Mitgliederverwaltung (nur Admin) ───────────────────────────────────────────────────
-export type VerwaltungsFehler = 'NUR_ADMIN' | 'LETZTER_ADMIN' | 'NICHT_GEFUNDEN';
+export type VerwaltungsFehler = 'NUR_ADMIN' | 'LETZTER_ADMIN' | 'NICHT_GEFUNDEN' | 'BEZEICHNUNG';
 
 export class Mitgliederverwaltung {
   constructor(
@@ -215,10 +222,12 @@ export class Mitgliederverwaltung {
   }
 
   /** Neuer Einladungslink – das Token wird nur einmal gezeigt, gespeichert ist nur sein Hash. */
-  lade(akteur: Sitzung, rolle: Rolle) {
+  lade(akteur: Sitzung, rolle: Rolle, bezeichnung = '') {
     return this.nurAdmin(akteur, async () => {
+      const name = bezeichnung.trim().replace(/[\p{Cc}\p{Cf}]/gu, '');
+      if (name.length > 120) return err('BEZEICHNUNG' as const);
       const token = this.krypto.neuesToken();
-      const info = await this.einladungen.lege(token, rolle, akteur.adminId, EINLADUNG_TAGE);
+      const info = await this.einladungen.lege(token, rolle, akteur.adminId, EINLADUNG_TAGE, name);
       return ok({ ...info, token });
     });
   }

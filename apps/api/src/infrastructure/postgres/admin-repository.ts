@@ -1,3 +1,4 @@
+import { LetzterAdmin } from '@kirmes/core';
 import type {
   AdminKonten,
   Anlagebedingung,
@@ -273,19 +274,43 @@ export class PgMitglieder implements MitgliederRepository {
     }));
   }
 
-  async setzeRolle(id: string, rolle: Rolle): Promise<boolean> {
-    if (!/^\d{1,18}$/.test(id)) return false;
-    const r = await abfrage(this.db, 'UPDATE admin SET rolle = $2 WHERE id = $1::bigint', [
-      id,
-      rolle,
-    ]);
-    return (r.rowCount ?? 0) > 0;
+  setzeRolle(id: string, rolle: Rolle): Promise<boolean> {
+    return this.aendereGeschuetzt(id, rolle);
   }
 
-  async entferne(id: string): Promise<boolean> {
+  entferne(id: string): Promise<boolean> {
+    return this.aendereGeschuetzt(id, null);
+  }
+
+  private async aendereGeschuetzt(id: string, rolle: Rolle | null): Promise<boolean> {
     if (!/^\d{1,18}$/.test(id)) return false;
-    const r = await abfrage(this.db, 'DELETE FROM admin WHERE id = $1::bigint', [id]);
-    return (r.rowCount ?? 0) > 0;
+    const c = await this.db.connect();
+    try {
+      await c.query('BEGIN');
+      // Gleiche Sperre für Herabstufungen UND Löschungen, auch über mehrere API-Prozesse.
+      await c.query('SELECT pg_advisory_xact_lock(20261017, 85)');
+      const ziel = await c.query<{ rolle: Rolle }>(
+        'SELECT rolle FROM admin WHERE id = $1::bigint',
+        [id],
+      );
+      if (ziel.rows[0]?.rolle === 'admin' && rolle !== 'admin') {
+        const n = await c.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM admin WHERE rolle = 'admin'",
+        );
+        if ((n.rows[0]?.n ?? 0) <= 1) throw new LetzterAdmin();
+      }
+      const r =
+        rolle === null
+          ? await c.query('DELETE FROM admin WHERE id = $1::bigint', [id])
+          : await c.query('UPDATE admin SET rolle = $2 WHERE id = $1::bigint', [id, rolle]);
+      await c.query('COMMIT');
+      return (r.rowCount ?? 0) > 0;
+    } catch (e) {
+      await c.query('ROLLBACK');
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 
   async anzahlAdmins(): Promise<number> {
@@ -298,11 +323,18 @@ export class PgMitglieder implements MitgliederRepository {
   }
 }
 
-const zuEinladung = (r: { id: string; rolle: Rolle; erstellt_am: string; laeuft_ab: string }) => ({
+const zuEinladung = (r: {
+  id: string;
+  rolle: Rolle;
+  erstellt_am: string;
+  laeuft_ab: string;
+  bezeichnung?: string;
+}) => ({
   id: r.id,
   rolle: r.rolle,
   erstelltAm: r.erstellt_am,
   laeuftAb: r.laeuft_ab,
+  ...(r.bezeichnung ? { bezeichnung: r.bezeichnung } : {}),
 });
 
 /** Einladungen in die Redaktion – gespeichert wird nur der SHA-256 des Tokens. */
@@ -314,18 +346,20 @@ export class PgEinladungen implements Einladungen {
     rolle: Rolle,
     vonId: string | null,
     tage: number,
+    bezeichnung = '',
   ): Promise<EinladungInfo> {
     const { rows } = await abfrage<{
       id: string;
       rolle: Rolle;
       erstellt_am: string;
       laeuft_ab: string;
+      bezeichnung: string;
     }>(
       this.db,
-      `INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab)
-       VALUES ($1, $2, $3::bigint, now() + make_interval(days => $4))
-       RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text`,
-      [hashToken(token), rolle, vonId, tage],
+      `INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab, bezeichnung)
+       VALUES ($1, $2, $3::bigint, now() + make_interval(days => $4), $5)
+       RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung`,
+      [hashToken(token), rolle, vonId, tage, bezeichnung],
     );
     const r = rows[0];
     if (!r) throw new Error('INSERT lieferte keine Einladung');
@@ -349,9 +383,10 @@ export class PgEinladungen implements Einladungen {
       rolle: Rolle;
       erstellt_am: string;
       laeuft_ab: string;
+      bezeichnung: string;
     }>(
       this.db,
-      `SELECT id::text, rolle, erstellt_am::text, laeuft_ab::text FROM einladung
+      `SELECT id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung FROM einladung
         WHERE genutzt_am IS NULL AND laeuft_ab > now() ORDER BY erstellt_am DESC`,
       [],
     );
