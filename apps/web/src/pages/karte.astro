@@ -4,19 +4,43 @@
  * Die Karte ist eine Ergänzung – darunter steht immer die Liste, falls Kacheln oder JavaScript fehlen.
  */
 import Base from '../layouts/Base.astro';
-import { listeOrte } from '../lib/api';
-import { kreisKurz } from '../lib/anzeige';
+import { alleTermine, listeOrte } from '../lib/api';
+import { heute, kreisKurz, plusTage, wochenende } from '../lib/anzeige';
 
-const orte = (await listeOrte())
-  .filter((o) => o.anzahlKommend > 0 && o.koordinate)
+// Zeitfilter (Issue #109) – als Links, funktioniert auch ohne JavaScript
+const ZEITEN = [
+  ['wochenende', 'Dieses Wochenende', 'dieses Wochenende'],
+  ['4wochen', 'Nächste 4 Wochen', 'in den nächsten 4 Wochen'],
+  ['alle', 'Alle kommenden', 'mit kommenden Terminen'],
+] as const;
+type Zeit = (typeof ZEITEN)[number][0];
+const zeitRoh = Astro.url.searchParams.get('zeit');
+const zeit: Zeit = ZEITEN.some(([k]) => k === zeitRoh) ? (zeitRoh as Zeit) : 'alle';
+const h = heute();
+const bereich =
+  zeit === 'wochenende'
+    ? wochenende(h)
+    : zeit === '4wochen'
+      ? { von: h, bis: plusTage(h, 28) }
+      : null;
+
+const alleOrte = await listeOrte();
+const anzahl = new Map<string, number>();
+if (bereich)
+  for (const t of await alleTermine(bereich))
+    anzahl.set(t.ort.slug, (anzahl.get(t.ort.slug) ?? 0) + 1);
+const orte = alleOrte
+  .map((o) => ({ ...o, n: bereich ? (anzahl.get(o.slug) ?? 0) : o.anzahlKommend }))
+  .filter((o) => o.n > 0 && o.koordinate)
   .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 const punkte = orte.map((o) => ({
   s: o.slug,
   n: o.name,
-  a: o.anzahlKommend,
+  a: o.n,
   lat: o.koordinate!.lat,
   lon: o.koordinate!.lon,
 }));
+const [, zeitText, zeitSatz] = ZEITEN.find(([k]) => k === zeit) ?? ZEITEN[2];
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
@@ -29,11 +53,28 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <p class="unterzeile">
       {
         orte.length === 0
-          ? 'Gerade sind keine kommenden Termine eingetragen.'
-          : `${orte.length} ${orte.length === 1 ? 'Ort' : 'Orte'} mit kommenden Terminen. Punkt antippen für die Termine.`
+          ? `${zeitText}: keine Termine eingetragen.`
+          : `${orte.length} ${orte.length === 1 ? 'Ort' : 'Orte'} – ${zeitSatz}. Punkt antippen für die Termine.`
       }
     </p>
   </section>
+
+  <div class="kartenleiste">
+    <nav class="zeitwahl" aria-label="Zeitraum">
+      {
+        ZEITEN.map(([k, text]) => (
+          <a
+            href={k === 'alle' ? '/karte' : `/karte?zeit=${k}`}
+            aria-current={zeit === k ? 'page' : undefined}
+          >
+            {text}
+          </a>
+        ))
+      }
+    </nav>
+    <button class="knopf zweit" type="button" id="standort" hidden>In meiner Nähe</button>
+  </div>
+  <p class="klein leise" id="standort-hinweis" role="status"></p>
 
   <div id="karte" class="karte gross" data-punkte={JSON.stringify(punkte)} hidden></div>
   <p class="leise klein" id="karte-hinweis" hidden>
@@ -41,22 +82,28 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   </p>
 
   <section aria-labelledby="h-liste">
-    <h2 id="h-liste">Alle Orte mit kommenden Terminen</h2>
+    <h2 id="h-liste">Orte {zeitSatz}</h2>
     {
       orte.length === 0 ? (
         <p class="leer">
-          Noch nichts eingetragen. <a href="/termin-melden">Termin melden</a>
+          {zeit !== 'alle' && (
+            <>
+              <a href="/karte">Alle kommenden Termine zeigen</a> ·{' '}
+            </>
+          )}
+          <a href="/termin-melden">Kirmes melden</a>
         </p>
       ) : (
-        <ul class="ortliste">
+        <ul class="ortliste" id="ortliste">
           {orte.map((o) => (
-            <li>
+            <li data-lat={o.koordinate!.lat} data-lon={o.koordinate!.lon}>
               <a href={`/orte/${o.slug}`}>{o.name}</a>
               <span class="kz">{kreisKurz(o.landkreis)}</span>
               <span class="leise klein">
                 {' · '}
-                {o.anzahlKommend} {o.anzahlKommend === 1 ? 'Termin' : 'Termine'}
+                {o.n} {o.n === 1 ? 'Termin' : 'Termine'}
               </span>
+              <span class="entfernung klein" />
             </li>
           ))}
         </ul>
@@ -118,7 +165,95 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         .addTo(karte);
       grenzen.push([p.lat, p.lon]);
     }
-    if (grenzen.length > 1) karte.fitBounds(grenzen, { padding: [30, 30], maxZoom: 12 });
-    else if (grenzen.length === 1) karte.setView(grenzen[0]!, 12);
+    // Immer Thüringen im Blick behalten – nie ins einzelne Dorf zoomen (Issue #109)
+    if (grenzen.length > 1) karte.fitBounds(grenzen, { padding: [30, 30], maxZoom: 9 });
+
+    // „In meiner Nähe“: Standort erst nach Klick; bleibt im Browser
+    const knopf = document.getElementById('standort') as HTMLButtonElement | null;
+    const hinweis = document.getElementById('standort-hinweis');
+    if (knopf && 'geolocation' in navigator) {
+      knopf.hidden = false;
+      let ich: L.CircleMarker | null = null;
+      knopf.addEventListener('click', () => {
+        knopf.disabled = true;
+        if (hinweis) hinweis.textContent = 'Standort wird ermittelt …';
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            knopf.disabled = false;
+            const hier: L.LatLngTuple = [coords.latitude, coords.longitude];
+            ich?.remove();
+            ich = L.circleMarker(hier, {
+              radius: 8,
+              color: '#fff',
+              weight: 3,
+              fillColor: '#1f6a8a',
+              fillOpacity: 1,
+            })
+              .bindTooltip('Du bist hier')
+              .addTo(karte);
+            karte.setView(hier, 10);
+            const liste = document.getElementById('ortliste');
+            if (!liste) {
+              if (hinweis) hinweis.textContent = '';
+              return;
+            }
+            const eintraege = [...liste.querySelectorAll<HTMLLIElement>('li')].map((li) => ({
+              li,
+              km: karte.distance(hier, [Number(li.dataset.lat), Number(li.dataset.lon)]) / 1000,
+            }));
+            eintraege.sort((a, b) => a.km - b.km);
+            for (const { li, km } of eintraege) {
+              const e = li.querySelector('.entfernung');
+              if (e)
+                e.textContent = ` · ${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km`;
+              liste.append(li);
+            }
+            liste.classList.add('nach-entfernung');
+            if (hinweis) hinweis.textContent = 'Liste nach Entfernung sortiert.';
+          },
+          () => {
+            knopf.disabled = false;
+            if (hinweis)
+              hinweis.textContent =
+                'Standort nicht verfügbar – bitte im Browser erlauben oder die Karte selbst verschieben.';
+          },
+          { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+        );
+      });
+    }
   }
 </script>
+<style>
+  .kartenleiste {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .zeitwahl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .zeitwahl a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+    border: 1px solid var(--linie);
+    border-radius: 999px;
+    text-decoration: none;
+    color: var(--tinte);
+    font-weight: 600;
+  }
+  .zeitwahl a[aria-current] {
+    background: var(--rot);
+    border-color: var(--rot);
+    color: #fff;
+  }
+  .nach-entfernung {
+    columns: 1;
+  }
+</style>
