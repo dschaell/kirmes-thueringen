@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
@@ -11,7 +11,7 @@ COPY apps/web apps/web
 RUN npm run build -w @kirmes/core && npm run build -w @kirmes/web \
  && npm prune --omit=dev --workspace @kirmes/web --workspace @kirmes/core
 
-FROM node:24-alpine
+FROM node:26-alpine
 # Freie Schrift für die Vorschaubilder der Termine (Issue #110)
 RUN apk add --no-cache font-dejavu
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4321
