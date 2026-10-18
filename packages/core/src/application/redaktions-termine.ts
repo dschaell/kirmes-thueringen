@@ -15,6 +15,8 @@ export interface RedaktionsFilter {
   ort?: string;
   q?: string;
   datum?: string;
+  /** Frühestes Datum (z. B. erster Tag einer gerade eingetragenen Kirmes); ersetzt den Zeitraum-Beginn. */
+  von?: string;
   zeitraum?: string;
   limit?: number;
   offset?: number;
@@ -55,15 +57,19 @@ export class RedaktionsTermine {
       fehler.push({ feld: 'ort', code: 'ORT', meldung: 'Ungültiger Ort.' });
     const datum = e.datum ? parseDatum(e.datum) : null;
     if (datum && !datum.ok) fehler.push(datum.error);
+    const von = e.von ? parseDatum(e.von) : null;
+    if (von && !von.ok) fehler.push(von.error);
     if (fehler.length) return err(fehler);
     const heute = this.uhr.heute();
     const filter = {
       bereich: {
         von: datum?.ok
           ? datum.value
-          : zeitraum === 'kommend'
-            ? heute
-            : ('0100-01-01' as KalenderDatum),
+          : von?.ok
+            ? von.value
+            : zeitraum === 'kommend'
+              ? heute
+              : ('0100-01-01' as KalenderDatum),
         bis: datum?.ok
           ? datum.value
           : zeitraum === 'vergangen'

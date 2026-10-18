@@ -74,6 +74,18 @@ describe('Redaktions-Terminliste', () => {
       }),
     );
   });
+  it('„von“ zeigt eine gerade eingetragene Kirmes ab ihrem ersten Tag (Issue #90)', async () => {
+    const { liste, repo } = aufbau();
+    await liste.liste('token', { zeitraum: 'alle', ort: 'alkersleben', von: '2026-10-15' });
+    expect(repo.suche).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        bereich: { von: '2026-10-15', bis: '9999-12-31' },
+        ortSlug: 'alkersleben',
+      }),
+    );
+    const r = await liste.liste('token', { von: '2026-13-40' });
+    expect(r.ok).toBe(false);
+  });
   it('explizites Datum findet auch vergangene Termine unabhängig vom Umschalter', async () => {
     const { liste, repo } = aufbau();
     await liste.liste('token', { datum: '2020-09-18' });

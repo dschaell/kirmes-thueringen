@@ -6,7 +6,12 @@ import type { TerminDto } from '../../../lib/api';
 import { KATEGORIEN, datumLangJahr, speiseZeile } from '../../../lib/anzeige';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../../components/admin/TerminHerkunft.astro';
+import { listenFilter, nachAktion } from '../../../lib/terminliste';
 const id = Astro.params.id ?? '';
+// Rücksprung in dieselbe gefilterte Liste (Issue #90)
+const zurueck = Astro.url.searchParams.get('zurueck');
+const filter = listenFilter(zurueck);
+const listenLink = filter.size ? `/admin?${filter}` : '/admin';
 const geladen = await adminApi<TerminDto>(
   Astro.cookies,
   'GET',
@@ -71,7 +76,7 @@ if (Astro.request.method === 'POST' && t) {
       ortSlug: t.ort.slug,
       speisen,
     });
-    if (r.status < 300) return Astro.redirect('/admin?gespeichert=1', 303);
+    if (r.status < 300) return Astro.redirect(nachAktion(zurueck, 'gespeichert', [id]), 303);
     fehler = r.fehler;
     Astro.response.status = r.status;
     gerichte = Math.max(gerichte, speisen.length);
@@ -236,7 +241,7 @@ const plaetze = t
               <button class="knopf" name="aktion" value="speichern">
                 Alle Änderungen speichern
               </button>
-              <a href="/admin">Abbrechen</a>
+              <a href={listenLink}>Abbrechen</a>
             </>
           </div>
         </form>
