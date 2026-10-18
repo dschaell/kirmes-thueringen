@@ -1,0 +1,209 @@
+---
+/**
+ * Termine aus einer Tabelle übernehmen (Issue #105): einfügen oder CSV-Datei, Vorschau Zeile für
+ * Zeile, dann übernehmen. Rein ergänzend – vorhandene Termine werden nie geändert.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+import { listeOrte, type TerminDto } from '../../lib/api';
+import { KATEGORIEN, anzahl, datumKurz } from '../../lib/anzeige';
+import {
+  IMPORT_MAX_ZEICHEN,
+  bloecke,
+  markiereDubletten,
+  pruefeTabelle,
+  terminSchluessel,
+  type ImportZeile,
+} from '../../lib/import';
+import { nachAktion } from '../../lib/terminliste';
+
+let text = '';
+let fehler: string[] = [];
+let zeilen: ImportZeile[] = [];
+let geprueft = false;
+
+/** Vorhandene Termine je Ort (Ort + Datum + Titel), seitenweise aus der Redaktions-API */
+async function bestand(slugs: string[]) {
+  const karte = new Map<string, Set<string>>();
+  for (const slug of slugs) {
+    const s = new Set<string>();
+    for (let offset = 0; offset < 2000; offset += 100) {
+      const r = await adminApi<{ termine: TerminDto[]; gesamt: number }>(
+        Astro.cookies,
+        'GET',
+        `termine?ort=${encodeURIComponent(slug)}&zeitraum=alle&limit=100&offset=${offset}`,
+      );
+      for (const t of r.daten?.termine ?? []) s.add(terminSchluessel(t.datum, t.titel));
+      if (!r.daten || offset + 100 >= r.daten.gesamt) break;
+    }
+    karte.set(slug, s);
+  }
+  return karte;
+}
+
+if (Astro.request.method === 'POST') {
+  if (Number(Astro.request.headers.get('content-length') ?? 0) > IMPORT_MAX_ZEICHEN * 3) {
+    return new Response('Datei zu groß.', { status: 413 });
+  }
+  const f = await Astro.request.formData();
+  const datei = f.get('datei');
+  text =
+    datei instanceof File && datei.size > 0
+      ? datei.size <= IMPORT_MAX_ZEICHEN * 2
+        ? await datei.text()
+        : ''
+      : feld(f, 'tabelle');
+  if (datei instanceof File && datei.size > IMPORT_MAX_ZEICHEN * 2)
+    fehler = ['Die Datei ist zu groß.'];
+  else {
+    const p = pruefeTabelle(text, await listeOrte());
+    fehler = p.fehler;
+    const slugs = [...new Set(p.zeilen.map((z) => z.ortSlug).filter((s): s is string => !!s))];
+    zeilen = markiereDubletten(p.zeilen, await bestand(slugs));
+    geprueft = !fehler.length;
+    if (geprueft && feld(f, 'aktion') === 'uebernehmen') {
+      const ids: string[] = [];
+      for (const b of bloecke(zeilen)) {
+        const r = await adminApi<{ termine: { id: string }[] }>(
+          Astro.cookies,
+          'POST',
+          'termine/wochenende',
+          {
+            ortSlug: b.ortSlug,
+            zeilen: b.termine,
+          },
+        );
+        if (r.status < 300) ids.push(...(r.daten?.termine ?? []).map((t) => t.id));
+        else fehler.push(`${b.ortSlug}: ${r.fehler.join(' ')}`);
+      }
+      if (!fehler.length)
+        return Astro.redirect(nachAktion(null, 'gespeichert', ids, { zeitraum: 'alle' }), 303);
+      fehler.unshift(
+        `${anzahl(ids.length, 'Termin', 'Termine')} übernommen, der Rest nicht – bitte erneut prüfen.`,
+      );
+      // Neu prüfen, damit Übernommenes jetzt als vorhanden erscheint
+      zeilen = markiereDubletten(
+        pruefeTabelle(text, await listeOrte()).zeilen,
+        await bestand(slugs),
+      );
+    }
+  }
+}
+const neu = zeilen.filter((z) => z.status === 'neu').length;
+const doppelt = zeilen.filter((z) => z.status === 'doppelt').length;
+const kaputt = zeilen.filter((z) => z.status === 'fehler').length;
+---
+
+<AdminLayout titel="Termine importieren" fehler={fehler}>
+  <p>
+    Tabelle aus Excel, Google Sheets oder Numbers kopieren und hier einfügen – oder eine CSV-Datei
+    wählen. Erste Zeile: Spaltennamen (<strong>Ort, Datum, Titel</strong> sind Pflicht; dazu Beginn, Art,
+    Band, Wo, Hinweise, Muttizettel, Bestätigt, Landkreis). Erst kommt eine Vorschau, gespeichert wird
+    danach. Vorhandene Termine werden nie geändert.
+  </p>
+  <p><a href="/admin/import-vorlage.csv">Vorlage herunterladen (CSV)</a></p>
+  <form class="melden" method="post" enctype="multipart/form-data">
+    <CsrfFeld />
+    <label>
+      Tabelle einfügen
+      <textarea
+        name="tabelle"
+        rows="8"
+        spellcheck="false"
+        placeholder="Ort	Datum	Beginn	Titel
+Alkersleben	16.10.2026	20:00	Kirmestanz"
+        set:text={text}
+      />
+    </label>
+    <label>
+      oder CSV-Datei
+      <input name="datei" type="file" accept=".csv,.txt,text/csv,text/plain" />
+    </label>
+    <div class="knopfreihe">
+      <button class="knopf zweit" name="aktion" value="pruefen">Prüfen (Vorschau)</button>
+      {
+        geprueft && neu > 0 && (
+          <button class="knopf" name="aktion" value="uebernehmen">
+            {anzahl(neu, 'Termin', 'Termine')} übernehmen
+          </button>
+        )
+      }
+    </div>
+  </form>
+
+  {
+    geprueft && (
+      <section aria-labelledby="h-vorschau">
+        <h2 id="h-vorschau">Vorschau</h2>
+        <p role="status">
+          <strong>{neu} neu</strong> · {doppelt} schon vorhanden · {kaputt} mit Fehlern
+        </p>
+        <div class="tabelle-rahmen">
+          <table class="admin-tabelle">
+            <thead>
+              <tr>
+                <th>Zeile</th>
+                <th>Status</th>
+                <th>Ort</th>
+                <th>Datum</th>
+                <th>Veranstaltung</th>
+              </tr>
+            </thead>
+            <tbody>
+              {zeilen.map((z) => (
+                <tr class={`status-${z.status}`}>
+                  <td>{z.zeile}</td>
+                  <td>
+                    {z.status === 'neu'
+                      ? '✔ neu'
+                      : z.status === 'doppelt'
+                        ? '↺ vorhanden'
+                        : '✖ Fehler'}
+                    {z.meldung && <div class="klein">{z.meldung}</div>}
+                  </td>
+                  <td>{z.ortName ?? '–'}</td>
+                  <td>
+                    {z.termin
+                      ? `${datumKurz(z.termin.datum)}${z.termin.beginn ? ` · ${z.termin.beginn}` : ''}`
+                      : '–'}
+                  </td>
+                  <td>
+                    {z.termin ? (
+                      <>
+                        {z.termin.titel}
+                        <div class="klein leise">
+                          {KATEGORIEN[z.termin.kategorie as keyof typeof KATEGORIEN]?.label}
+                          {z.termin.band && ` · ${z.termin.band}`}
+                          {z.termin.bestaetigt && ' · bestätigt'}
+                        </div>
+                      </>
+                    ) : (
+                      '–'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+</AdminLayout>
+<style>
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .tabelle-rahmen {
+    overflow-x: auto;
+  }
+  .status-fehler td:nth-child(2) {
+    color: var(--rot);
+  }
+  .status-doppelt {
+    opacity: 0.7;
+  }
+</style>

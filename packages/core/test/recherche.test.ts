@@ -147,3 +147,41 @@ describe('leseRecherche', () => {
     expect(r.ok && r.value.map((z) => z.daten.muttizettel)).toEqual([true, false]);
   });
 });
+
+describe('Eingefügte Tabellen und eigene Spaltennamen (Issue #105)', () => {
+  it('erkennt Tabulatoren aus Excel/Google Sheets', () => {
+    expect(parseCsv('Ort\tDatum\tTitel\nAlkersleben\t16.10.2026\tKirmestanz, mit Band')).toEqual([
+      ['Ort', 'Datum', 'Titel'],
+      ['Alkersleben', '16.10.2026', 'Kirmestanz, mit Band'],
+    ]);
+  });
+  it('versteht Art, Uhrzeit, Wo, Musik, Hinweis, U18, Kreis', () => {
+    const r = leseRecherche([
+      ['Ort', 'Kreis', 'Tag', 'Uhrzeit', 'Veranstaltung', 'Wo', 'Art', 'Musik', 'Hinweis', 'U18'],
+      [
+        'Alkersleben',
+        'ik',
+        '16.10.26',
+        '20 Uhr',
+        'Kirmestanz',
+        'Saal',
+        '',
+        'Dynamic',
+        'Eintritt 5 €',
+        'x',
+      ],
+    ]);
+    expect(r.ok && r.value[0]?.daten).toMatchObject({
+      ort: 'Alkersleben',
+      landkreis: 'IK',
+      datum: '2026-10-16',
+      beginn: '20:00',
+      titel: 'Kirmestanz',
+      veranstaltungsort: 'Saal',
+      kategorie: 'party',
+      band: 'Dynamic',
+      info: 'Eintritt 5 €',
+      muttizettel: true,
+    });
+  });
+});
