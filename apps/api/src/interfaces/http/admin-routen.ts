@@ -514,6 +514,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
               q: TEXT(100),
               ort: TEXT(120),
               datum: TEXT(10),
+              von: TEXT(10),
               zeitraum: { type: 'string', enum: ['kommend', 'vergangen', 'alle'] },
               limit: { type: 'integer', minimum: 1, maximum: 100 },
               offset: { type: 'integer', minimum: 0, maximum: 1_000_000 },
