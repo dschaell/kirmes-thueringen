@@ -196,7 +196,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
               d.remove();
             });
             document.body.append(d);
-            d.showModal();
+            d.show();
           })
           .catch(() => {});
       }
