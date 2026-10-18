@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
+import KeineTreffer from '../components/KeineTreffer.astro';
 import TerminListe from '../components/TerminListe.astro';
 import { listeOrte, sucheTermine } from '../lib/api';
 import {
@@ -21,6 +22,11 @@ const [amWochenende, danach, orte] = await Promise.all([
   sucheTermine({ von: plusTage(we.bis, 1), bis: plusTage(we.bis, 14), limit: 40 }),
   listeOrte(),
 ]);
+// Nichts am Wochenende und in den zwei Wochen danach? Dann die nächsten Termine überhaupt (#104)
+const spaeter =
+  amWochenende.termine.length === 0 && danach.termine.length === 0
+    ? (await sucheTermine({ von: plusTage(we.bis, 15), limit: 5 })).termine
+    : [];
 const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
   .map((k) => ({
     k,
@@ -69,7 +75,15 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <div class="zweispaltig">
     <div>
       <h2>Dieses Wochenende</h2>
-      <TerminListe termine={amWochenende.termine} monate={false} />
+      <TerminListe termine={amWochenende.termine} monate={false} leer={false} />
+      {
+        amWochenende.termine.length === 0 && (
+          <KeineTreffer
+            text="An diesem Wochenende ist keine Kirmes eingetragen."
+            naechste={spaeter}
+          />
+        )
+      }
       {
         danach.termine.length > 0 && (
           <>

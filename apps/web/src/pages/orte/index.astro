@@ -2,9 +2,17 @@
 import Base from '../../layouts/Base.astro';
 import { listeOrte, type OrtUebersichtDto } from '../../lib/api';
 import { anzahl } from '../../lib/anzeige';
+import { findeOrtEindeutig, sucheOrte } from '../../lib/ortssuche';
 
-// Nur Orte mit kommenden Terminen – das Ortsverzeichnis enthält alle 3.000+ Thüringer Orte.
-const orte = (await listeOrte()).filter((o) => o.anzahlKommend > 0);
+// Liste: Orte mit kommenden Terminen. Suche: alle 3.000+ Orte (Issue #104).
+const alleOrte = await listeOrte();
+const q = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 100);
+if (q) {
+  const genau = findeOrtEindeutig(alleOrte, q);
+  if (genau) return Astro.redirect(`/orte/${genau.slug}`, 303);
+}
+const treffer = q ? sucheOrte(alleOrte, q, 30) : [];
+const orte = alleOrte.filter((o) => o.anzahlKommend > 0);
 /** Sortierbuchstabe ohne Präfixe wie „Erfurt-“ und mit Umlauten unter dem Grundbuchstaben */
 const buchstabe = (n: string) =>
   (n.replace(/^(Erfurt-|Apolda-|Sondershausen-|Suhl-|Ilmenau-|St\. )/, '')[0] ?? '#')
@@ -17,7 +25,7 @@ const sortiert = [...orte].sort(
 const gruppen = new Map<string, OrtUebersichtDto[]>();
 for (const o of sortiert)
   gruppen.set(buchstabe(o.name), [...(gruppen.get(buchstabe(o.name)) ?? []), o]);
-Astro.response.headers.set('Cache-Control', 'public, max-age=600');
+Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=600');
 ---
 
 <Base
@@ -34,6 +42,42 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
       )
     }
   </section>
+  <form class="ortsuche-form" method="get" action="/orte" role="search">
+    <label>
+      Jeden Ort in Thüringen finden
+      <span class="ortssuche">
+        <input
+          name="q"
+          type="search"
+          maxlength="100"
+          autocomplete="off"
+          placeholder="Ort eingeben"
+          data-ortssuche
+          value={q}
+        />
+      </span>
+    </label>
+    <button class="knopf">Ort öffnen</button>
+  </form>
+  {
+    q && (
+      <section aria-labelledby="h-treffer">
+        <h2 id="h-treffer">Orte zu „{q}“</h2>
+        {treffer.length === 0 ? (
+          <p class="leer">Kein Thüringer Ort gefunden. Bitte die Schreibweise prüfen.</p>
+        ) : (
+          <ul class="ortliste">
+            {treffer.map((t) => (
+              <li>
+                <a href={`/orte/${t.slug}`}>{t.wert}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    )
+  }
+  {!q && orte.length > 0 && <h2 class="unterkopf">Orte mit kommenden Terminen</h2>}
   {
     orte.length === 0 && (
       <p class="leer">
@@ -62,3 +106,19 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
     ))
   }
 </Base>
+<script>
+  import '../../scripts/ortssuche';
+</script>
+<style>
+  .ortsuche-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+    max-width: 640px;
+    margin: 0 0 24px;
+  }
+  .ortsuche-form label {
+    flex: 1 1 260px;
+  }
+</style>
