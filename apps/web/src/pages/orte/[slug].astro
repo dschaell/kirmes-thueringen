@@ -3,9 +3,13 @@ import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
 import { alleTermine, findeOrt, listeOrte } from '../../lib/api';
+import { nachKirmes } from '../../lib/terminliste';
+import { voraussichtlich } from '../../lib/vorjahr';
 import {
   anzahl,
+  datumKurz,
   datumLang,
+  datumLangJahr,
   eventJsonLd,
   heute,
   imKreis,
@@ -20,15 +24,15 @@ if (!ort) return Astro.rewrite('/404');
 
 const h = heute();
 const jahr = h.slice(0, 4);
-// Zwei Abfragen, weil die API Zeiträume auf 366 Tage begrenzt: kommende 12 Monate + bisher in diesem Jahr
+// Zwei Abfragen, weil die API Zeiträume auf 366 Tage begrenzt: kommende und vergangene 12 Monate.
+// Auch nach Neujahr bleibt so die letzte Kirmes sichtbar (Issue #106).
 const [kommend, bisher, orte] = await Promise.all([
   alleTermine({ ort: ort.slug, von: h, bis: plusTage(h, 365) }),
-  h > `${jahr}-01-01`
-    ? alleTermine({ ort: ort.slug, von: `${jahr}-01-01`, bis: plusTage(h, -1) })
-    : Promise.resolve([]),
+  alleTermine({ ort: ort.slug, von: plusTage(h, -365), bis: plusTage(h, -1) }),
   listeOrte(),
 ]);
 const vergangen = [...bisher].reverse();
+const letzte = nachKirmes(bisher).at(-1);
 const naechster = kommend[0];
 const nachbarn = orte
   .filter((o) => o.landkreis === ort.landkreis && o.slug !== ort.slug && o.anzahlKommend > 0)
@@ -54,13 +58,36 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       {
         naechster ? (
           <>
-            Nächster Termin: <strong>{datumLang(naechster.datum)}</strong> – {naechster.titel}
+            Nächster Termin:{' '}
+            <strong>
+              {naechster.datum.slice(0, 4) === jahr
+                ? datumLang(naechster.datum)
+                : datumLangJahr(naechster.datum)}
+            </strong>{' '}
+            – {naechster.titel}
+          </>
+        ) : letzte ? (
+          <>
+            {`Letzte Kirmes: ${
+              letzte.von === letzte.bis
+                ? datumLangJahr(letzte.von)
+                : `${datumKurz(letzte.von)} – ${datumLangJahr(letzte.bis)}`
+            }. Voraussichtlich wieder im ${voraussichtlich(letzte.von)} – der Termin ist noch nicht eingetragen.`}
           </>
         ) : (
           `Für die nächsten zwölf Monate ist in ${ort.name} noch nichts eingetragen.`
         )
       }
     </p>
+    {
+      !naechster && letzte && (
+        <div class="knopfreihe">
+          <a class="knopf" href={`/termin-melden?ort=${ort.slug}`}>
+            Termin {voraussichtlich(letzte.von).slice(-4)} melden
+          </a>
+        </div>
+      )
+    }
     {
       naechster && (
         <div class="knopfreihe">
@@ -90,7 +117,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   {
     vergangen.length > 0 && (
       <>
-        <h2>Bereits vorbei ({jahr})</h2>
+        <h2>{naechster ? 'Bereits vorbei' : 'Letzte Kirmes'}</h2>
         <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
       </>
     )
@@ -103,7 +130,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       mit dem ihr euren Festplatz auf der Karte eintragt – dann führt „Route“ eure Gäste direkt
       dorthin.
     </p>
-    <a class="mehr" href={`/termin-melden?ort=${encodeURIComponent(ort.name)}`}
+    <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}
       >Termin melden oder Link anfordern <Icon name="pfeil" /></a
     >
   </div>

@@ -7,7 +7,8 @@ import { nachAktion } from './terminliste';
 import { adminApi, feld } from './admin';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
-import { ApiNichtErreichbar, listeOrte } from './api';
+import { ApiNichtErreichbar, listeOrte, sucheTermine } from './api';
+import { tageZwischen, verschiebeProgramm } from './vorjahr';
 
 export interface AssistentZeile extends VorschlagsZeile {
   gerichte?: number;
@@ -144,6 +145,47 @@ export async function assistent(
     fehler: [],
   };
   ctx.response.headers.set('Cache-Control', 'no-store');
+  // Kirmes vom Vorjahr übernehmen (Issue #106): gleiches Programm, gleiche Wochentage im Folgejahr
+  const vorjahr = ctx.url.searchParams.get('vorjahr') ?? '';
+  const vonV = ctx.url.searchParams.get('von') ?? '';
+  const bisV = ctx.url.searchParams.get('bis') ?? '';
+  if (
+    ctx.request.method === 'GET' &&
+    redaktion &&
+    /^[a-z0-9-]{1,120}$/.test(vorjahr) &&
+    parseDatum(vonV).ok &&
+    parseDatum(bisV).ok &&
+    tageZwischen(vonV, bisV) >= 0 &&
+    tageZwischen(vonV, bisV) <= 13
+  ) {
+    const alt = (await sucheTermine({ ort: vorjahr, von: vonV, bis: bisV, limit: 20 })).termine;
+    const neu = verschiebeProgramm(alt).sort(
+      (a, b) => a.datum.localeCompare(b.datum) || (a.beginn ?? '').localeCompare(b.beginn ?? ''),
+    );
+    if (neu.length) {
+      const ab = neu[0]?.datum ?? '';
+      s = {
+        ...s,
+        schritt: 2,
+        ortSlug: vorjahr,
+        ab,
+        tage: String(Math.min(4, Math.max(1, tageZwischen(ab, neu.at(-1)?.datum ?? ab) + 1))),
+        zeilen: neu.map((t) => ({
+          datum: t.datum,
+          beginn: t.beginn ?? '',
+          titel: t.titel,
+          kategorie: t.kategorie,
+          band: t.band ?? '',
+          veranstaltungsort: t.veranstaltungsort ?? '',
+          info: t.info ?? '',
+          muttizettel: t.muttizettel,
+          aktiv: true,
+          speisen: [],
+        })),
+      };
+      return s;
+    }
+  }
   if (ctx.request.method === 'GET' && redaktion && ctx.url.searchParams.get('vorschlag')) {
     const id = ctx.url.searchParams.get('vorschlag') ?? '';
     const v = await adminApi<Vorschlag>(
