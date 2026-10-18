@@ -16,8 +16,14 @@ if (Astro.request.method === 'POST') {
   fehler = r.fehler;
   Astro.response.status = r.status;
 }
-const r = await adminApi<Vorschlag[]>(Astro.cookies, 'GET', 'termine-vorschlaege');
+const [r, offen] = await Promise.all([
+  adminApi<Vorschlag[]>(Astro.cookies, 'GET', 'termine-vorschlaege'),
+  adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
+]);
 fehler.push(...r.fehler);
+// Die Liste zeigt höchstens 100 (älteste zuerst) – mehr offen? Dann sagen (Issue #94)
+const gezeigt = r.daten?.length ?? 0;
+const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
 ---
 
 <AdminLayout
@@ -33,6 +39,14 @@ fehler.push(...r.fehler);
     Hier stehen Meldungen, die noch nicht öffentlich sichtbar sind. Bitte Inhalt und Datum vor der
     Übernahme prüfen.
   </p>
+  {
+    weitere > 0 && (
+      <p class="kasten">
+        Hier stehen die {gezeigt} ältesten Vorschläge. {weitere} weitere warten – sie erscheinen,
+        sobald diese geprüft sind.
+      </p>
+    )
+  }
   {
     (r.daten ?? []).length === 0 && !r.fehler.length && (
       <p class="leer">Alle Vorschläge sind geprüft.</p>

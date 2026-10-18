@@ -114,7 +114,11 @@ const einrichtung =
       )
     : undefined;
 const vorschlagsRepo = new PgVorschlaege(pool);
-await vorschlagsRepo.raeumeAuf();
+// Aufräumen darf den Start nie verhindern (Issue #94) – Fehler wird nach dem Start geloggt
+const ersterAufraeumlauf = vorschlagsRepo.raeumeAuf().then(
+  () => true,
+  () => false,
+);
 const aufraeumen = setInterval(() => {
   void vorschlagsRepo
     .raeumeAuf()
@@ -197,3 +201,5 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 }
 
 await app.listen({ port: k.port, host: k.host });
+if (!(await ersterAufraeumlauf))
+  app.log.error('Vorschläge konnten beim Start nicht aufgeräumt werden');
