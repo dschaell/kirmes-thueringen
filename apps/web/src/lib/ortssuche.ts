@@ -61,6 +61,10 @@ export function sucheOrte(orte: OrtKurz[], q: string, max = 8): OrtTreffer[] {
 export function findeOrtEindeutig(orte: OrtKurz[], text: string): OrtKurz | null {
   const name = bezeichner(orte);
   const exakt = orte.filter((o) => o.slug === text || name(o) === text || o.name === text);
+  // „muehlberg“ ist zugleich Slug eines Ortes und Name dreier Orte – dann nicht raten (Issue #121)
+  const namensvettern = orte.filter((o) => normalisiere(o.name) === normalisiere(text)).length;
+  if (exakt.length === 1 && exakt[0]?.slug === text && name(exakt[0]) !== text && namensvettern > 1)
+    return null;
   if (exakt.length === 1) return exakt[0] ?? null;
   if (exakt.length > 1) return null;
   // Tolerant: „alkersleben“, „Muehlberg“, „Alkersleben (ik)“ – aber nur, wenn eindeutig

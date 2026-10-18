@@ -44,6 +44,10 @@ describe('Ortssuche (Issue #89)', () => {
     expect(findeOrtEindeutig(orte, 'ALKERSLEBEN (ik)')?.slug).toBe('alkersleben');
     expect(findeOrtEindeutig(orte, 'Muehlberg (GTH)')?.slug).toBe('muehlberg-gth');
     expect(findeOrtEindeutig(orte, 'Neudorf (SHK) · neudorf-b')?.slug).toBe('neudorf-b');
+    // Slug, der zugleich mehrdeutiger Name ist, wird nicht geraten (Issue #121)
+    expect(findeOrtEindeutig(orte, 'muehlberg')).toBeNull();
+    expect(findeOrtEindeutig(orte, 'muehlberg-gth')?.slug).toBe('muehlberg-gth');
+    expect(findeOrtEindeutig(orte, 'alkersleben')?.slug).toBe('alkersleben');
     // mehrdeutig oder unbekannt → nichts raten
     expect(findeOrtEindeutig(orte, 'Mühlberg')).toBeNull();
     expect(findeOrtEindeutig(orte, 'Neudorf (SHK)')).toBeNull();
