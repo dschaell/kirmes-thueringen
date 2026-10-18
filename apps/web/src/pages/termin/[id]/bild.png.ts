@@ -12,7 +12,11 @@ export const GET: APIRoute = async ({ params }) => {
   const daten = {
     titel: t.titel,
     wann: `${datumLangJahr(t.datum)}${t.beginn ? ` · ${t.beginn} Uhr` : ''}`,
-    wo: [t.veranstaltungsort, t.ort.name].filter(Boolean).join(' · '),
+    // „Kirche Alkersleben · Alkersleben“ vermeiden: Ort nur, wenn er nicht schon drinsteht
+    wo:
+      t.veranstaltungsort && t.veranstaltungsort.includes(t.ort.name)
+        ? t.veranstaltungsort
+        : [t.veranstaltungsort, t.ort.name].filter(Boolean).join(' · '),
     art: KATEGORIEN[t.kategorie].label,
   };
   const schluessel = JSON.stringify(daten);
