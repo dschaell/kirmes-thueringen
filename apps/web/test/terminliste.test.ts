@@ -4,6 +4,7 @@ import {
   listenMeldung,
   markierte,
   nachAktion,
+  nachKirmes,
   zurueckLink,
 } from '../src/lib/terminliste';
 
@@ -80,7 +81,31 @@ describe('Rücksprung in die Redaktionsliste (Issue #90)', () => {
       '100 Termine gespeichert.',
     );
     expect(listenMeldung(new URLSearchParams('bestaetigt=1'))).toBe('Termin bestätigt.');
+    expect(listenMeldung(new URLSearchParams('bestaetigt=4'))).toBe('4 Termine bestätigt.');
     expect(listenMeldung(new URLSearchParams('geloescht=1'))).toBe('Termin gelöscht.');
     expect(listenMeldung(new URLSearchParams())).toBeNull();
+  });
+});
+
+describe('Termine nach Kirmes gruppieren (Issue #91)', () => {
+  const t = (datum: string, ort: string) => ({ datum, ort: { slug: ort } });
+  it('fasst Termine eines Ortes innerhalb von 4 Tagen zusammen, auch durchmischt', () => {
+    const g = nachKirmes([
+      t('2026-10-15', 'alkersleben'),
+      t('2026-10-16', 'arnstadt'),
+      t('2026-10-18', 'alkersleben'),
+      t('2026-10-16', 'alkersleben'),
+      t('2026-10-20', 'alkersleben'),
+      t('2027-10-15', 'alkersleben'),
+    ]);
+    expect(g.map((x) => [x.ort, x.von, x.bis, x.termine.length])).toEqual([
+      ['alkersleben', '2026-10-15', '2026-10-18', 3],
+      ['arnstadt', '2026-10-16', '2026-10-16', 1],
+      ['alkersleben', '2026-10-20', '2026-10-20', 1],
+      ['alkersleben', '2027-10-15', '2027-10-15', 1],
+    ]);
+  });
+  it('leere Liste bleibt leer', () => {
+    expect(nachKirmes([])).toEqual([]);
   });
 });
