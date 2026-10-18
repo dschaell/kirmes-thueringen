@@ -180,9 +180,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   }
 
   <p class="kasten abstand">
-    Stimmt etwas nicht? <a href={`/termin-melden?ort=${encodeURIComponent(t.ort.name)}`}
-      >Korrektur melden</a
-    >
+    Stimmt etwas nicht? <a href={`/termin/${t.id}/korrektur`}>Korrektur melden</a>
   </p>
 </Base>
 

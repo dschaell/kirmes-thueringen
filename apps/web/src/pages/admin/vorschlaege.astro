@@ -1,5 +1,5 @@
 ---
-import type { Vorschlag } from '@kirmes/core';
+import type { Korrektur, Vorschlag } from '@kirmes/core';
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
@@ -7,6 +7,16 @@ import { datumKurz } from '../../lib/anzeige';
 let fehler: string[] = [];
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
+  // Korrekturhinweis erledigt (Issue #107)
+  if (feld(f, 'aktion') === 'korrektur-erledigt') {
+    const k = await adminApi(
+      Astro.cookies,
+      'POST',
+      `korrekturen/${encodeURIComponent(feld(f, 'id'))}/erledigt`,
+    );
+    if (k.status === 204) return Astro.redirect('/admin/vorschlaege?erledigt=1#korrekturen', 303);
+    return new Response(null, { status: k.status });
+  }
   const r = await adminApi(
     Astro.cookies,
     'POST',
@@ -17,9 +27,10 @@ if (Astro.request.method === 'POST') {
   fehler = r.fehler;
   Astro.response.status = r.status;
 }
-const [r, offen] = await Promise.all([
+const [r, offen, korrekturen] = await Promise.all([
   adminApi<Vorschlag[]>(Astro.cookies, 'GET', 'termine-vorschlaege'),
   adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
+  adminApi<Korrektur[]>(Astro.cookies, 'GET', 'korrekturen'),
 ]);
 fehler.push(...r.fehler);
 // Die Liste zeigt höchstens 100 (älteste zuerst) – mehr offen? Dann sagen (Issue #94)
@@ -34,7 +45,9 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
     ? 'Gespeichert. Die Termine sind jetzt öffentlich sichtbar.'
     : Astro.url.searchParams.has('abgelehnt')
       ? 'Vorschlag abgelehnt. Es wurde nichts veröffentlicht.'
-      : null}
+      : Astro.url.searchParams.has('erledigt')
+        ? 'Hinweis erledigt. Die Kontaktdaten wurden gelöscht.'
+        : null}
 >
   <p>
     Hier stehen Meldungen, die noch nicht öffentlich sichtbar sind. Bitte Inhalt und Datum vor der
@@ -101,6 +114,42 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
       </article>
     ))
   }
+  <section id="korrekturen" aria-labelledby="h-korrekturen" class="korrekturen">
+    <h2 id="h-korrekturen">Korrekturhinweise ({korrekturen.daten?.length ?? 0})</h2>
+    {
+      (korrekturen.daten ?? []).length === 0 ? (
+        <p class="leer">Keine offenen Hinweise zu veröffentlichten Terminen.</p>
+      ) : (
+        (korrekturen.daten ?? []).map((k) => (
+          <article class="vorschlag">
+            <p class="klein leise">
+              {k.termin.ortName} · {datumKurz(k.termin.datum)}
+              {k.termin.beginn && ` · ${k.termin.beginn} Uhr`} · eingegangen{' '}
+              {datumKurz(k.erstelltAm.slice(0, 10))}
+            </p>
+            <h3>{k.termin.titel}</h3>
+            <p class="nachricht">{k.text}</p>
+            {(k.kontaktName || k.kontaktEmail) && (
+              <p class="klein">
+                Rückfragen: {k.kontaktName}{' '}
+                {k.kontaktEmail && <a href={`mailto:${k.kontaktEmail}`}>{k.kontaktEmail}</a>}
+              </p>
+            )}
+            <form method="post" class="knopfreihe">
+              <CsrfFeld />
+              <input type="hidden" name="id" value={k.id} />
+              <a class="knopf" href={`/admin/termine/${k.termin.id}`}>
+                Termin bearbeiten
+              </a>
+              <button class="knopf zweit" name="aktion" value="korrektur-erledigt">
+                Erledigt
+              </button>
+            </form>
+          </article>
+        ))
+      )
+    }
+  </section>
 </AdminLayout>
 <style>
   .vorschlag {

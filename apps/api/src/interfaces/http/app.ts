@@ -1,5 +1,6 @@
 import { vorschlagRouten } from './vorschlag-routen.js';
-import type { Vorschlaege } from '@kirmes/core';
+import { korrekturRouten } from './korrektur-routen.js';
+import type { Korrekturen, Vorschlaege } from '@kirmes/core';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { isIP } from 'node:net';
@@ -38,6 +39,7 @@ export interface AppAbhaengigkeiten {
   /** Meldungen an die Redaktion per E-Mail; fehlt sie, antwortet der Endpunkt mit 503 */
   meldungen?: MeldeAnRedaktion;
   terminVorschlaege?: Vorschlaege;
+  korrekturen?: Korrekturen;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
@@ -564,10 +566,10 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     return { id: m.id, titel: m.titel, text: m.text, link: m.link, datum: m.veroeffentlichtAm };
   });
 
-  if (d.terminVorschlaege)
-    await vorschlagRouten(app, d.terminVorschlaege, (ip, weiter, fallback) =>
-      istInternesNetz(ip) && typeof weiter === 'string' ? weiter.slice(0, 64) : fallback,
-    );
+  const herkunft = (ip: string | undefined, weiter: unknown, fallback: string) =>
+    istInternesNetz(ip) && typeof weiter === 'string' ? weiter.slice(0, 64) : fallback;
+  if (d.terminVorschlaege) await vorschlagRouten(app, d.terminVorschlaege, herkunft);
+  if (d.korrekturen) await korrekturRouten(app, d.korrekturen, herkunft);
 
   if (d.admin) await adminRouten(app, { ...d.admin, terminDto });
 

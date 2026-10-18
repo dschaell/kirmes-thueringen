@@ -1,6 +1,7 @@
-import { Vorschlaege } from '@kirmes/core';
+import { Korrekturen, Vorschlaege } from '@kirmes/core';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
 import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
+import { PgKorrekturen } from './infrastructure/postgres/korrektur-repository.js';
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
 import {
   FindeOrt,
@@ -114,18 +115,29 @@ const einrichtung =
       )
     : undefined;
 const vorschlagsRepo = new PgVorschlaege(pool);
+const korrekturRepo = new PgKorrekturen(pool);
+const raeumeAuf = () => Promise.all([vorschlagsRepo.raeumeAuf(), korrekturRepo.raeumeAuf()]);
 // Aufräumen darf den Start nie verhindern (Issue #94) – Fehler wird nach dem Start geloggt
-const ersterAufraeumlauf = vorschlagsRepo.raeumeAuf().then(
+const ersterAufraeumlauf = raeumeAuf().then(
   () => true,
   () => false,
 );
 const aufraeumen = setInterval(() => {
-  void vorschlagsRepo
-    .raeumeAuf()
-    .catch(() => app.log.error('Vorschläge konnten nicht aufgeräumt werden'));
+  void raeumeAuf().catch(() => app.log.error('Vorschläge konnten nicht aufgeräumt werden'));
 }, 24 * 3600_000);
 aufraeumen.unref();
 const app = await baueApp({
+  korrekturen:
+    postausgang && k.websiteUrl
+      ? new Korrekturen(
+          korrekturRepo,
+          sitzungen,
+          postausgang,
+          new SpeicherDrosselung(5, 3_600_000),
+          new SpeicherDrosselung(100, 3_600_000),
+          k.websiteUrl,
+        )
+      : undefined,
   terminVorschlaege:
     postausgang && k.websiteUrl
       ? new Vorschlaege(

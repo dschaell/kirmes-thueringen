@@ -53,3 +53,13 @@ BEGIN
       '[{"name":"Klöße", "preisCent":950}]');
   END IF;
 END $$;
+
+-- Korrekturhinweise ab 017 (Issue #107): bei älteren Basisständen noch nicht vorhanden.
+DO $$
+BEGIN
+  IF to_regclass('public.korrektur') IS NOT NULL THEN
+    INSERT INTO korrektur(termin_id, text, kontakt_name)
+    SELECT id, 'Beginn ist 20 Uhr', 'KG Test' FROM termin
+     WHERE ort_id = (SELECT id FROM ort WHERE slug = 'ut-elleben') LIMIT 1;
+  END IF;
+END $$;

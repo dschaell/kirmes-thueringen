@@ -10,12 +10,20 @@ interface Props {
 }
 const { titel, meldung = null, fehler = [] } = Astro.props;
 const pfad = Astro.url.pathname;
-const vorschlaege = Astro.locals.adminId
-  ? await adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl')
-  : null;
+const [vorschlaege, korrekturen] = Astro.locals.adminId
+  ? await Promise.all([
+      adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
+      adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'korrekturen/anzahl'),
+    ])
+  : [null, null];
+// Vorschläge und Korrekturhinweise warten auf derselben Seite (Issue #107)
+const offen =
+  vorschlaege?.daten || korrekturen?.daten
+    ? (vorschlaege?.daten?.anzahl ?? 0) + (korrekturen?.daten?.anzahl ?? 0)
+    : null;
 const nav = [
   ['/admin', 'Termine'],
-  ['/admin/vorschlaege', `Vorschläge (${vorschlaege?.daten?.anzahl ?? '–'})`],
+  ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
   ['/admin/orte', 'Orte & Plätze'],
   ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Redaktion & Einladungen']] : []),
 ];
