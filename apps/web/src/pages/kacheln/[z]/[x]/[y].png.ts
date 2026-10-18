@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ params, request }) => {
   return new Response(bild, {
     headers: {
       'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=604800',
+      'Cache-Control': 'public, max-age=2592000',
     },
   });
 };

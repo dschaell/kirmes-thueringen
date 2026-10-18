@@ -230,6 +230,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   <p class="leise" aria-live="polite" id="trefferzahl">
     {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
   </p>
+  <h2 class="sr-only">Gefundene Termine</h2>
   <TerminListe termine={ergebnis.termine} leer={false} />
   {
     !fehler && ergebnis.gesamt === 0 && (

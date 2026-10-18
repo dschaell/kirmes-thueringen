@@ -72,11 +72,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         ))
       }
     </nav>
-    <button class="knopf zweit" type="button" id="standort" hidden>In meiner Nähe</button>
+    <button class="knopf zweit" type="button" id="standort">In meiner Nähe</button>
   </div>
   <p class="klein leise" id="standort-hinweis" role="status"></p>
 
-  <div id="karte" class="karte gross" data-punkte={JSON.stringify(punkte)} hidden></div>
+  <div id="karte" class="karte gross" data-punkte={JSON.stringify(punkte)}></div>
   <p class="leise klein" id="karte-hinweis" hidden>
     Die Karte konnte nicht geladen werden – hier die Liste.
   </p>
@@ -125,9 +125,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   }
   const el = document.getElementById('karte');
   const punkte = JSON.parse(el?.dataset.punkte ?? '[]') as Punkt[];
-  // Karte immer zeigen – auch ohne Termine sieht man Thüringen (Issue #53)
+  // Karte immer zeigen – auch ohne Termine sieht man Thüringen (Issue #53).
+  // Der Platz ist von Anfang an reserviert (Issue #123), daher kein hidden mehr.
   if (el) {
-    el.hidden = false;
     const karte = L.map(el, { scrollWheelZoom: false }).setView([50.9, 11.0], 8);
     const kacheln = L.tileLayer('/kacheln/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -171,8 +171,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     // „In meiner Nähe“: Standort erst nach Klick; bleibt im Browser
     const knopf = document.getElementById('standort') as HTMLButtonElement | null;
     const hinweis = document.getElementById('standort-hinweis');
+    if (knopf && !('geolocation' in navigator)) knopf.hidden = true;
     if (knopf && 'geolocation' in navigator) {
-      knopf.hidden = false;
       let ich: L.CircleMarker | null = null;
       knopf.addEventListener('click', () => {
         knopf.disabled = true;
@@ -251,7 +251,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   .zeitwahl a[aria-current] {
     background: var(--rot);
     border-color: var(--rot);
-    color: #fff;
+    color: var(--papier);
   }
   .nach-entfernung {
     columns: 1;
