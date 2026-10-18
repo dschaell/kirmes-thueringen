@@ -4,8 +4,11 @@
  * Server als offenen Kachel-Proxy nutzt, gibt es nur Kacheln rund um Thüringen.
  */
 export const ZOOM_MAX = 19;
-/** Thüringen mit Rand (Grad) */
-const GRENZE = { west: 9.3, ost: 13.2, sued: 49.8, nord: 52.1 };
+/**
+ * Deutschland mit Rand (Grad) – breit genug, dass auch große Bildschirme rund um Thüringen keine
+ * Lücken haben (Issue #129), aber kein offener Proxy für die ganze Welt.
+ */
+export const GRENZE = { west: 5.0, ost: 16.0, sued: 46.8, nord: 55.5 };
 
 const kachelX = (lon: number, z: number) => Math.floor(((lon + 180) / 360) * 2 ** z);
 const kachelY = (lat: number, z: number) => {
@@ -13,7 +16,7 @@ const kachelY = (lat: number, z: number) => {
   return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z);
 };
 
-/** Gültige Kachel? Ganze Zahlen, im Zoom-Bereich und (ab Zoom 6) innerhalb von Thüringen. */
+/** Gültige Kachel? Ganze Zahlen, im Zoom-Bereich und (ab Zoom 6) innerhalb von GRENZE. */
 export function kachelErlaubt(
   zRoh: string,
   xRoh: string,

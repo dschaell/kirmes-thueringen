@@ -128,15 +128,27 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   // Karte immer zeigen – auch ohne Termine sieht man Thüringen (Issue #53).
   // Der Platz ist von Anfang an reserviert (Issue #123), daher kein hidden mehr.
   if (el) {
-    const karte = L.map(el, { scrollWheelZoom: false }).setView([50.9, 11.0], 8);
+    // Nur Kacheln anfragen, die der eigene Kachel-Proxy liefert (Issue #129) – sonst 404 am Rand
+    const kachelBereich = L.latLngBounds([46.8, 5.0], [55.5, 16.0]);
+    const karte = L.map(el, {
+      scrollWheelZoom: false,
+      minZoom: 6,
+      maxBounds: kachelBereich,
+      maxBoundsViscosity: 1,
+    }).setView([50.9, 11.0], 8);
     const kacheln = L.tileLayer('/kacheln/{z}/{x}/{y}.png', {
       maxZoom: 18,
+      minZoom: 6,
+      bounds: kachelBereich,
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
     }).addTo(karte);
+    // Ausblenden nur bei Totalausfall: einzelne Randkacheln dürfen fehlen (Issue #129)
+    let geladen = 0;
     let fehler = 0;
+    kacheln.on('tileload', () => geladen++);
     kacheln.on('tileerror', () => {
-      if (++fehler === 3) {
+      if (++fehler >= 6 && geladen === 0) {
         el.hidden = true;
         document.getElementById('karte-hinweis')!.hidden = false;
       }

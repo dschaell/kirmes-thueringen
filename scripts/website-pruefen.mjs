@@ -110,10 +110,15 @@ for (const u of urls.filter((u) => !u.includes('/termin/')).slice(0, 60)) {
 
 const kachel = await hole('/kacheln/8/135/85.png');
 pruefe(kachel.r?.headers.get('content-type') === 'image/png', 'Kartenkacheln über eigenen Server');
-pruefe(
-  (await hole('/kacheln/12/2048/1362.png')).r?.status === 404,
-  'Kachel-Proxy nur für Thüringen',
-);
+pruefe((await hole('/kacheln/12/2048/1362.png')).r?.status === 404, 'Kachel-Proxy nicht für Paris');
+// Breite Bildschirme (Issue #129): Zoom 8 braucht ganz Deutschland, Zoom 6 den Rand
+for (const k of [
+  '/kacheln/8/131/85.png',
+  '/kacheln/8/139/85.png',
+  '/kacheln/6/32/20.png',
+  '/kacheln/6/34/21.png',
+])
+  pruefe((await hole(k)).r?.status === 200, `Randkachel ${k} für breite Bildschirme`);
 const karte = await hole('/karte');
 pruefe(
   !(karte.r?.headers.get('content-security-policy') ?? '').includes('openstreetmap'),
