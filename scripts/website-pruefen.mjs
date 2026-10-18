@@ -173,9 +173,30 @@ if (lhOrdner) {
       `| ${name} | ${['performance', 'accessibility', 'best-practices', 'seo'].map(spalte).join(' | ')} | ${cls.toFixed(3)} | ${berichte.length} |`,
     );
     for (const [k, min] of Object.entries(g)) {
-      if (k === 'cls')
-        pruefe(cls <= min, `Lighthouse ${name}: CLS ${cls.toFixed(3)} (Grenze ${min})`);
-      else if (k in werte)
+      if (k === 'cls') {
+        // Bei zu viel Springen gleich sagen, was springt und warum (aus dem besten Lauf)
+        const bester = berichte.reduce((a, b) =>
+          (a.audits['cumulative-layout-shift']?.numericValue ?? 0) <=
+          (b.audits['cumulative-layout-shift']?.numericValue ?? 0)
+            ? a
+            : b,
+        );
+        const ursachen = (bester.audits['layout-shifts']?.details?.items ?? [])
+          .slice(0, 3)
+          .map((it) => {
+            const was = (it.node?.snippet ?? '?').slice(0, 80);
+            const warum = (it.subItems?.items ?? [])
+              .map((u) => u.extra?.value ?? u.cause ?? '')
+              .filter(Boolean)
+              .join(', ')
+              .slice(0, 120);
+            return `\`${was}\`${warum ? ` ← ${warum}` : ''} (${(it.score ?? 0).toFixed(3)})`;
+          });
+        pruefe(
+          cls <= min,
+          `Lighthouse ${name}: CLS ${cls.toFixed(3)} (Grenze ${min})${cls > min && ursachen.length ? `: ${ursachen.join('; ')}` : ''}`,
+        );
+      } else if (k in werte)
         pruefe(
           werte[k] >= min,
           `Lighthouse ${name}: ${k} ${Math.round(werte[k] * 100)} (Grenze ${min * 100})`,
