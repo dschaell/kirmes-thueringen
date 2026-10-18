@@ -1,0 +1,92 @@
+---
+/**
+ * Alle Termine einer Kirmes auf einmal bestätigen (Issue #91) – nach Rückfrage, je Termin mit
+ * seiner Version, damit nichts Zwischengeändertes ungesehen bestätigt wird.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+import type { TerminDto } from '../../lib/api';
+import { datumLangJahr } from '../../lib/anzeige';
+import { listenFilter, markierte, nachAktion } from '../../lib/terminliste';
+
+const p = Astro.url.searchParams;
+const zurueck = p.get('zurueck');
+const filter = listenFilter(zurueck);
+const listenLink = filter.size ? `/admin?${filter}` : '/admin';
+// Dieselbe Prüfung wie für markierte Termine: nur UUIDs, höchstens 20
+const ids = markierte(new URLSearchParams(p.getAll('id').map((id) => ['markiert', id])));
+const geladen = await Promise.all(
+  ids.map((id) => adminApi<TerminDto>(Astro.cookies, 'GET', `termine/${id}`)),
+);
+const termine = geladen
+  .map((r) => r.daten)
+  .filter((t): t is TerminDto => t !== null && !t.bestaetigt);
+let fehler: string[] = [];
+if (!termine.length) Astro.response.status = 404;
+if (Astro.request.method === 'POST' && termine.length) {
+  const f = await Astro.request.formData();
+  if (feld(f, 'rueckfrage') !== 'ja') {
+    fehler = ['Bitte die Rückfrage bestätigen.'];
+    Astro.response.status = 400;
+  } else {
+    const bestaetigt: string[] = [];
+    for (const t of termine) {
+      const r = await adminApi(Astro.cookies, 'POST', `termine/${t.id}/bestaetigen`, {
+        ortSlug: t.ort.slug,
+        version: feld(f, `version-${t.id}`),
+      });
+      if (r.status < 300) bestaetigt.push(t.id);
+      else fehler.push(`„${t.titel}“: ${r.fehler.join(' ')}`);
+    }
+    if (!fehler.length) return Astro.redirect(nachAktion(zurueck, 'bestaetigt', bestaetigt), 303);
+    Astro.response.status = 409;
+    fehler.unshift(
+      `${bestaetigt.length} von ${termine.length} bestätigt. Die übrigen wurden inzwischen geändert – bitte Liste neu laden.`,
+    );
+  }
+}
+---
+
+<AdminLayout
+  titel={termine.length ? 'Alle Termine dieser Kirmes bestätigen?' : 'Nichts zu bestätigen'}
+  fehler={fehler}
+>
+  {
+    termine.length ? (
+      <form class="melden" method="post">
+        <CsrfFeld />
+        <ul>
+          {termine.map((t) => (
+            <li>
+              <input type="hidden" name={`version-${t.id}`} value={t.version ?? ''} />
+              <strong>{t.titel}</strong> · {t.ort.name} · {datumLangJahr(t.datum)}
+              {t.beginn && ` · ${t.beginn} Uhr`}
+            </li>
+          ))}
+        </ul>
+        <p>Bitte nur bestätigen, wenn der Veranstalter die Angaben bestätigt hat.</p>
+        <label>
+          <input type="checkbox" required name="rueckfrage" value="ja" />
+          Ja, alle {termine.length} Termine sind vom Veranstalter bestätigt.
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf">Jetzt {termine.length} Termine bestätigen</button>
+          <a href={listenLink}>Abbrechen</a>
+        </div>
+      </form>
+    ) : (
+      <p>
+        Alle diese Termine sind schon bestätigt. <a href={listenLink}>Zurück zur Liste</a>
+      </p>
+    )
+  }
+</AdminLayout>
+<style>
+  .knopfreihe {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+</style>

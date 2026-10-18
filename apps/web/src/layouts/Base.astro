@@ -10,8 +10,10 @@ interface Props {
   jsonLd?: unknown[];
   /** Für Seiten, die nicht in Suchmaschinen sollen (z. B. Verwaltung) */
   noindex?: boolean;
+  /** Redaktion: schlanker Kopf ohne öffentliche Navigation (Issue #91) */
+  kompakt?: boolean;
 }
-const { title, description, jsonLd = [], noindex = false } = Astro.props;
+const { title, description, jsonLd = [], noindex = false, kompakt = false } = Astro.props;
 const pfad = ohneSchraegstrich(Astro.url.pathname);
 const canonical = new URL(pfad, Astro.site);
 const nav = [
@@ -68,24 +70,30 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
   </head>
   <body>
     <a class="sprung" href="#inhalt">Zum Inhalt springen</a>
-    <header class="kopf">
+    <header class:list={['kopf', { kompakt }]}>
       <div class="wrap">
         <a class="marke" href="/">
           <img src="/favicon.svg" alt="" width="36" height="36" />
           <span>Kirmeskalender<small>Thüringen</small></span>
         </a>
-        <nav class="nav" aria-label="Hauptnavigation">
-          {
-            nav.map(([href, label]) => (
-              <a href={href} aria-current={pfad.startsWith(href!) ? 'page' : undefined}>
-                {label}
-              </a>
-            ))
-          }
-        </nav>
+        {
+          kompakt ? (
+            <nav class="nav nav-kompakt" aria-label="Hauptnavigation">
+              <a href="/">Zur Website</a>
+            </nav>
+          ) : (
+            <nav class="nav" aria-label="Hauptnavigation">
+              {nav.map(([href, label]) => (
+                <a href={href} aria-current={pfad.startsWith(href!) ? 'page' : undefined}>
+                  {label}
+                </a>
+              ))}
+            </nav>
+          )
+        }
       </div>
     </header>
-    <div class="wimpel" aria-hidden="true"></div>
+    {!kompakt && <div class="wimpel" aria-hidden="true" />}
     <main id="inhalt" class="wrap">
       <slot />
     </main>
