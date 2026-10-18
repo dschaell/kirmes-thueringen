@@ -93,3 +93,12 @@ describe('suchZeitraum (#68)', () => {
     expect(suchZeitraum({ q: '', zeit: 'quatsch', von: null }, h).zeit).toBe('kommend');
   });
 });
+
+describe('datumKurz (Issue #87)', () => {
+  it('kurz mit Wochentag, Unsinn bleibt leer', async () => {
+    const { datumKurz } = await import('../src/lib/anzeige');
+    expect(datumKurz('2026-11-05')).toBe('Do., 05.11.');
+    expect(datumKurz('')).toBe('');
+    expect(datumKurz('2026-13-45')).toBe('');
+  });
+});

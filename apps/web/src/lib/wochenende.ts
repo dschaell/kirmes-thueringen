@@ -12,6 +12,8 @@ export interface WochenendZeile {
   veranstaltungsort: string;
   info: string;
   muttizettel: boolean;
+  /** Findet bei fast jeder Kirmes statt – im Assistenten vorab angehakt (Issue #87). */
+  kern?: boolean;
 }
 
 /**
@@ -39,12 +41,15 @@ export function wochenendVorlage(ab: string): WochenendZeile[] {
     ...extra,
   });
   return [
-    zeile(0, '18:00', 'Kirmesgottesdienst', 'tradition', { veranstaltungsort: 'Kirche' }),
-    zeile(0, '20:00', 'Kirmestanz', 'party'),
+    zeile(0, '18:00', 'Kirmesgottesdienst', 'tradition', {
+      veranstaltungsort: 'Kirche',
+      kern: true,
+    }),
+    zeile(0, '20:00', 'Kirmestanz', 'party', { kern: true }),
     zeile(1, '08:00', 'Ständchen', 'tradition'),
     zeile(1, '15:00', 'Kinderkirmes', 'familie'),
     zeile(1, '20:00', 'Kirmesparty', 'party', { muttizettel: true }),
-    zeile(2, '10:00', 'Frühschoppen', 'tradition'),
+    zeile(2, '10:00', 'Frühschoppen', 'tradition', { kern: true }),
     zeile(3, '10:00', 'Kirmesausklang', 'tradition'),
   ];
 }
