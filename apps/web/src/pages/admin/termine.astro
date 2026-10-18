@@ -1,7 +1,8 @@
 ---
 /**
  * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
- * gezeigt und können angelegt, geändert, bestätigt und gelöscht werden. ?bearbeiten=<id> füllt das Formular.
+ * gezeigt und können angelegt, gesammelt geändert, bestätigt und gelöscht werden. Einzelne Termine
+ * bearbeitet /admin/termine/<id>, ganze Kirmes trägt /admin/kirmes-eintragen ein (Issue #94).
  */
 if (Astro.url.searchParams.get('modus') === 'wochenende')
   return Astro.redirect(
@@ -20,7 +21,6 @@ import Icon from '../../components/Icon.astro';
 import { adminApi, feld } from '../../lib/admin';
 import { findeOrt, listeOrte, type TerminDto } from '../../lib/api';
 import { KATEGORIEN, datumLangJahr, kreisKurz, tagMonat, wochentag } from '../../lib/anzeige';
-import { wochenendVorlage, type WochenendZeile } from '../../lib/wochenende';
 import type { Kategorie, TerminHerkunft } from '@kirmes/core';
 
 const istKategorie = (k: string): k is Kategorie => k in KATEGORIEN;
@@ -28,23 +28,13 @@ const istKategorie = (k: string): k is Kategorie => k in KATEGORIEN;
 const p = Astro.url.searchParams;
 const ortSlug = p.get('ort') ?? '';
 const ort = ortSlug ? await findeOrt(ortSlug) : null;
-const wochenendModus = p.get('modus') === 'wochenende';
 /** Alle Termine des Ortes auf einmal bearbeiten (Issue #65) */
 const alleModus = p.get('modus') === 'alle';
-const ab = /^\d{4}-\d{2}-\d{2}$/.test(p.get('ab') ?? '') ? p.get('ab')! : null;
 
 let meldung: string | null = null;
 let einzelEingabe: Partial<TerminDto> | null = null;
 let fehler: string[] = [];
 const sammelEingaben = new Map<string, Partial<TerminDto> & { loeschen?: boolean }>();
-let speisenEingabe: {
-  id: string;
-  version: string;
-  speisen: { name: string; preis: string }[];
-} | null = null;
-/** Eingaben des Wochenend-Formulars – bleiben bei Fehlern stehen, nichts muss neu getippt werden. */
-let zeilen: WochenendZeile[] = ab ? wochenendVorlage(ab) : [];
-let wochenendBestaetigt = false;
 if (Astro.request.method === 'POST' && ort) {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
@@ -70,22 +60,6 @@ if (Astro.request.method === 'POST' && ort) {
       kategorie:
         formular.kategorie && istKategorie(formular.kategorie) ? formular.kategorie : undefined,
     };
-  if (aktion === 'speisen') {
-    const namen = f.getAll('sp-name').map((v) => (typeof v === 'string' ? v : ''));
-    const preise = f.getAll('sp-preis').map((v) => (typeof v === 'string' ? v : ''));
-    speisenEingabe = {
-      id,
-      version: feld(f, 'version'),
-      speisen: namen.map((name, i) => ({ name, preis: preise[i] ?? '' })),
-    };
-    const rsp = await adminApi(Astro.cookies, 'PUT', `termine/${encodeURIComponent(id)}/speisen`, {
-      ortSlug: ort.slug,
-      version: feld(f, 'version'),
-      speisen: namen.map((name, i) => ({ name, preis: preise[i] ?? '' })),
-    });
-    if (rsp.status < 300) meldung = 'Mittagstisch gespeichert.';
-    else fehler = rsp.fehler;
-  }
   if (aktion === 'sammel') {
     const werte = (n: string) => f.getAll(n).map((v) => (typeof v === 'string' ? v.trim() : ''));
     // Checkboxen senden nur angehakte Werte – jede trägt ihre Zeilennummer
@@ -155,115 +129,25 @@ if (Astro.request.method === 'POST' && ort) {
           : 'Platz gelöscht.';
     } else fehler = r.fehler;
   }
-  const spalte = (name: string) =>
-    f.getAll(name).map((v) => (typeof v === 'string' ? v.trim() : ''));
-  if (aktion === 'wochenende') {
-    const titel = spalte('z-titel');
-    // Checkboxen senden nur angehakte Werte – daher trägt jede ihre Zeilennummer
-    const mutti = new Set(spalte('z-mutti'));
-    const [datum, beginn, band, vo, info, kat] = [
-      'z-datum',
-      'z-beginn',
-      'z-band',
-      'z-vo',
-      'z-info',
-      'z-kat',
-    ].map(spalte);
-    zeilen = titel.map((t, i) => ({
-      datum: datum![i] ?? '',
-      beginn: beginn![i] ?? '',
-      titel: t,
-      kategorie: istKategorie(kat![i] ?? '') ? (kat![i] as Kategorie) : '',
-      band: band![i] ?? '',
-      veranstaltungsort: vo![i] ?? '',
-      info: info![i] ?? '',
-      muttizettel: mutti.has(String(i)),
-    }));
-    wochenendBestaetigt = f.get('bestaetigt') === 'ja';
-  }
-  // Zeilen ohne Veranstaltung bleiben leer und werden nicht gespeichert
-  const gefuellt = zeilen.filter((z) => z.titel);
   const r =
-    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel' || aktion === 'speisen'
+    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel'
       ? { status: 299, daten: null, fehler: fehler }
-      : aktion === 'wochenende'
-        ? gefuellt.length === 0
-          ? { status: 400, daten: null, fehler: ['Bitte mindestens eine Veranstaltung eintragen.'] }
-          : await adminApi<{ hinweise: { meldung: string }[] }>(
-              Astro.cookies,
-              'POST',
-              'termine/wochenende',
-              {
-                ortSlug: ort.slug,
-                zeilen: gefuellt.map((z) => ({
-                  datum: z.datum,
-                  beginn: z.beginn || null,
-                  titel: z.titel,
-                  kategorie: z.kategorie || null,
-                  veranstaltungsort: z.veranstaltungsort || null,
-                  band: z.band || null,
-                  info: z.info || null,
-                  muttizettel: z.muttizettel,
-                  bestaetigt: wochenendBestaetigt,
-                })),
-              },
-            )
-        : aktion === 'speichern' && id
-          ? await adminApi<{ hinweise: { meldung: string }[] }>(
-              Astro.cookies,
-              'PUT',
-              `termine/${encodeURIComponent(id)}`,
-              formular,
-            )
-          : aktion === 'speichern'
-            ? await adminApi<{ hinweise: { meldung: string }[] }>(
-                Astro.cookies,
-                'POST',
-                'termine',
-                formular,
-              )
-            : aktion === 'bestaetigen'
-              ? await adminApi(
-                  Astro.cookies,
-                  'POST',
-                  `termine/${encodeURIComponent(id)}/bestaetigen`,
-                  {
-                    ortSlug: ort.slug,
-                  },
-                )
-              : aktion === 'loeschen'
-                ? await adminApi(
-                    Astro.cookies,
-                    'DELETE',
-                    `termine/${encodeURIComponent(id)}?ort=${encodeURIComponent(ort.slug)}`,
-                  )
-                : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+      : aktion === 'speichern'
+        ? await adminApi<{ hinweise: { meldung: string }[] }>(
+            Astro.cookies,
+            'POST',
+            'termine',
+            formular,
+          )
+        : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
   if (r.status === 299) {
     // Platz-Aktion: Meldung/Fehler oben schon gesetzt
   } else if (r.status < 300) {
     const hinweise = (r.daten as { hinweise?: { meldung: string }[] } | null)?.hinweise ?? [];
-    meldung = [
-      {
-        wochenende: `${gefuellt.length} Veranstaltungen gespeichert.`,
-        speichern: 'Termin gespeichert.',
-        bestaetigen: 'Termin bestätigt.',
-        loeschen: 'Termin gelöscht.',
-      }[aktion],
-      ...hinweise.map((h) => h.meldung),
-    ].join(' ');
-    if (aktion === 'wochenende') zeilen = [];
+    meldung = ['Termin gespeichert.', ...hinweise.map((h) => h.meldung)].join(' ');
   } else fehler = r.fehler;
 }
-// Fehler nennen die Zeile („Zeile 3: …“) – bezogen auf die gefüllten Zeilen
-const gefuellteNr = zeilen.map((z, i) => (z.titel ? i : -1)).filter((i) => i >= 0);
-const fehlerhaft = new Set(
-  fehler
-    .map((m) => /^Zeile (\d+):/.exec(m)?.[1])
-    .filter(Boolean)
-    .map((n) => gefuellteNr[Number(n) - 1]),
-);
-const leereZeilen = zeilen.length ? Math.max(2, 8 - zeilen.length) : 0;
-
+const einzelWerte = einzelEingabe;
 const termine: TerminDto[] = [];
 if (ort) {
   for (let offset = 0; ; offset += 100) {
@@ -296,19 +180,6 @@ for (let i = 0; i < termine.length; i += 100) {
   );
   if (r.daten) Object.assign(herkunft, r.daten);
 }
-const bearbeiten =
-  p.get('bearbeiten') && ort
-    ? (
-        await adminApi<TerminDto>(
-          Astro.cookies,
-          'GET',
-          `termine/${encodeURIComponent(p.get('bearbeiten') ?? '')}`,
-        )
-      ).daten
-    : null;
-const zuBearbeiten = bearbeiten && bearbeiten.ort.slug === ort?.slug ? bearbeiten : null;
-
-const einzelWerte = einzelEingabe ?? zuBearbeiten;
 const suche = p.get('suche')?.trim().toLowerCase() ?? '';
 const treffer =
   !ort && suche
@@ -338,9 +209,7 @@ const vorschlaege = (
   await adminApi<{ bands: string[]; titel: string[] }>(Astro.cookies, 'GET', 'vorschlaege')
 ).daten ?? { bands: [], titel: [] };
 const bands = [...new Set([...termine.map((t) => t.band).filter(Boolean), ...vorschlaege.bands])];
-const titelVorschlaege = [
-  ...new Set([...zeilen.map((z) => z.titel).filter(Boolean), ...vorschlaege.titel]),
-];
+const titelVorschlaege = [...new Set([...vorschlaege.titel])];
 ---
 
 <AdminLayout titel={ort ? `Termine in ${ort.name}` : 'Termine'} meldung={meldung} fehler={fehler}>
@@ -485,20 +354,12 @@ const titelVorschlaege = [
           </form>
         </details>
 
-        {!zuBearbeiten && (
+        {
           <nav class="umschalter" aria-label="Art der Eingabe">
-            <a
-              href={`/admin/termine?ort=${ort.slug}`}
-              aria-current={!wochenendModus && !alleModus && 'page'}
-            >
+            <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!alleModus && 'page'}>
               Einzelner Termin
             </a>
-            <a
-              href={`/admin/termine?ort=${ort.slug}&modus=wochenende`}
-              aria-current={wochenendModus && 'page'}
-            >
-              Ganzes Kirmeswochenende
-            </a>
+            <a href={`/admin/kirmes-eintragen?ort=${ort.slug}`}>Ganzes Kirmeswochenende</a>
             {termine.length > 0 && (
               <a
                 href={`/admin/termine?ort=${ort.slug}&modus=alle`}
@@ -508,9 +369,9 @@ const titelVorschlaege = [
               </a>
             )}
           </nav>
-        )}
+        }
 
-        {alleModus && !zuBearbeiten && (
+        {alleModus && (
           <section aria-labelledby="alle-kopf">
             <h2 id="alle-kopf">Alle Termine in {ort.name} bearbeiten</h2>
             {termine.length === 0 ? (
@@ -613,10 +474,7 @@ const titelVorschlaege = [
                           />{' '}
                           Vom Veranstalter bestätigt
                         </label>
-                        <a
-                          class="klein"
-                          href={`/admin/termine?ort=${ort.slug}&bearbeiten=${t.id}#mittagstisch`}
-                        >
+                        <a class="klein" href={`/admin/termine/${t.id}`}>
                           Mittagstisch
                         </a>
                         <label class="klein loeschen">
@@ -645,129 +503,9 @@ const titelVorschlaege = [
           </section>
         )}
 
-        {wochenendModus && !zuBearbeiten && (
-          <section aria-labelledby="we-kopf">
-            <h2 id="we-kopf">Kirmeswochenende anlegen</h2>
-            <form class="suchzeile" method="get">
-              <input type="hidden" name="ort" value={ort.slug} />
-              <input type="hidden" name="modus" value="wochenende" />
-              <label class="klein">
-                Erster Kirmestag (meist Freitag)
-                <input type="date" name="ab" required value={ab ?? ''} />
-              </label>
-              <button class="knopf zweit" type="submit">
-                {zeilen.length ? 'Vorlage neu laden' : 'Vorlage laden'}
-              </button>
-            </form>
-            {zeilen.length > 0 && (
-              <form class="melden wochenende" method="post" id="wochenende">
-                <CsrfFeld />
-                <input type="hidden" name="aktion" value="wochenende" />
-                <p class="leise klein">
-                  Jede Zeile ist eine Veranstaltung – mehrere pro Tag sind möglich. Zeilen ohne
-                  Veranstaltung werden ignoriert. Gespeichert wird alles zusammen oder gar nichts.
-                </p>
-                <ol class="we-zeilen">
-                  {[...zeilen, ...Array.from({ length: leereZeilen }, () => null)].map((z, i) => (
-                    <li class:list={['we-zeile', { fehlerhaft: fehlerhaft.has(i) }]}>
-                      <div class="we-zeit">
-                        <label>
-                          Datum
-                          <input name="z-datum" type="date" value={z?.datum ?? ''} />
-                        </label>
-                        <label>
-                          Beginn
-                          <input name="z-beginn" type="time" value={z?.beginn ?? ''} />
-                        </label>
-                        {z?.datum && (
-                          <span class="we-tag leise klein" aria-hidden="true">
-                            {wochentag(z.datum)}, {tagMonat(z.datum)}
-                          </span>
-                        )}
-                      </div>
-                      <div class="zwei">
-                        <label>
-                          Veranstaltung
-                          <input
-                            name="z-titel"
-                            list="titel-liste"
-                            maxlength="200"
-                            value={z?.titel ?? ''}
-                            placeholder="z. B. Kirmestanz"
-                          />
-                        </label>
-                        <label>
-                          Art
-                          <select name="z-kat">
-                            <option value="">automatisch erkennen</option>
-                            {Object.entries(KATEGORIEN).map(([k, v]) => (
-                              <option value={k} selected={z?.kategorie === k}>
-                                {v.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div class="zwei">
-                        <label>
-                          Band / DJ
-                          <input
-                            name="z-band"
-                            maxlength="120"
-                            list="band-liste"
-                            value={z?.band ?? ''}
-                          />
-                        </label>
-                        <label>
-                          Wo genau?
-                          <input
-                            name="z-vo"
-                            maxlength="120"
-                            list="vo-liste"
-                            value={z?.veranstaltungsort ?? ''}
-                          />
-                        </label>
-                      </div>
-                      <label>
-                        Hinweise (öffentlich)
-                        <textarea name="z-info" maxlength="500" rows="2" set:text={z?.info ?? ''} />
-                      </label>
-                      <label class="klein">
-                        <input
-                          type="checkbox"
-                          name="z-mutti"
-                          value={String(i)}
-                          checked={z?.muttizettel ?? false}
-                        />{' '}
-                        Unter 18 nur mit Muttizettel
-                      </label>
-                    </li>
-                  ))}
-                </ol>
-                <label class="klein">
-                  <input
-                    type="checkbox"
-                    name="bestaetigt"
-                    value="ja"
-                    checked={wochenendBestaetigt}
-                  />{' '}
-                  Vom Veranstalter bestätigt (gilt für alle Veranstaltungen)
-                </label>
-                <div class="knopfreihe">
-                  <button class="knopf" type="submit">
-                    Ganzes Wochenende speichern
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
-        )}
-
-        {!wochenendModus && !alleModus && (
-          <h2>{zuBearbeiten ? 'Termin ändern' : 'Neuer Termin'}</h2>
-        )}
-        {!wochenendModus && !alleModus && (
-          <details class="filter" open={!zuBearbeiten}>
+        {!alleModus && <h2>Neuer Termin</h2>}
+        {!alleModus && (
+          <details class="filter" open>
             <summary>
               <Icon name="suche" />
               Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
@@ -786,11 +524,10 @@ const titelVorschlaege = [
           </details>
         )}
 
-        {!wochenendModus && !alleModus && (
+        {!alleModus && (
           <form class="melden" method="post" id="terminformular">
             <CsrfFeld />
             <input type="hidden" name="aktion" value="speichern" />
-            {zuBearbeiten && <input type="hidden" name="id" value={zuBearbeiten.id} />}
             <div class="zwei">
               <label>
                 Datum *<input name="datum" type="date" required value={einzelWerte?.datum ?? ''} />
@@ -880,91 +617,10 @@ const titelVorschlaege = [
               <button class="knopf" type="submit">
                 Speichern
               </button>
-              {zuBearbeiten && (
-                <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
-                  Abbrechen
-                </a>
-              )}
             </div>
           </form>
         )}
-        {zuBearbeiten && !wochenendModus && !alleModus && (
-          <section id="mittagstisch" aria-labelledby="mt-kopf">
-            <h2 id="mt-kopf">Mittagstisch</h2>
-            <p class="leise klein">
-              Z. B. beim Frühschoppen: Gericht und Preis. Leere Zeilen werden ignoriert; ohne
-              Gerichte erscheint nichts auf der Terminseite.
-            </p>
-            <form class="melden" method="post" data-ungespeichert>
-              <CsrfFeld />
-              <input type="hidden" name="aktion" value="speisen" />
-              <input
-                type="hidden"
-                name="version"
-                value={
-                  speisenEingabe && speisenEingabe.id === zuBearbeiten.id && fehler.length
-                    ? speisenEingabe.version
-                    : zuBearbeiten.version
-                }
-              />
-              <input type="hidden" name="id" value={zuBearbeiten.id} />
-              <ol class="speisen-zeilen">
-                {[
-                  ...(zuBearbeiten.speisen ?? []),
-                  ...Array.from(
-                    { length: Math.max(3, 6 - (zuBearbeiten.speisen?.length ?? 0)) },
-                    () => null,
-                  ),
-                ].map((sp, i) => (
-                  <li class="zwei">
-                    <label>
-                      Gericht {i + 1}
-                      <input
-                        name="sp-name"
-                        maxlength="120"
-                        list="speisen-liste"
-                        value={sp?.name ?? ''}
-                        placeholder={i === 0 ? 'z. B. Rostbrätel mit Brot' : ''}
-                      />
-                    </label>
-                    <label>
-                      Preis (€)
-                      <input
-                        name="sp-preis"
-                        inputmode="decimal"
-                        maxlength="10"
-                        value={
-                          sp?.preisCent != null
-                            ? (sp.preisCent / 100).toFixed(2).replace('.', ',')
-                            : ''
-                        }
-                        placeholder="7,50"
-                      />
-                    </label>
-                  </li>
-                ))}
-              </ol>
-              <datalist id="speisen-liste">
-                {[
-                  'Rostbrätel mit Brot',
-                  'Thüringer Rostbratwurst',
-                  'Klöße mit Rouladen und Rotkraut',
-                  'Schnitzel mit Kartoffelsalat',
-                  'Erbsensuppe',
-                  'Kaffee und Kuchen',
-                ].map((v) => (
-                  <option value={v} />
-                ))}
-              </datalist>
-              <div>
-                <button class="knopf" type="submit">
-                  Mittagstisch speichern
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-        {(wochenendModus || alleModus) && (
+        {alleModus && (
           <datalist id="vo-liste">
             {veranstaltungsorte.map((v) => (
               <option value={v!} />
