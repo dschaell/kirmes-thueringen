@@ -77,6 +77,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         </div>
       )
     }
+    <p class="klein">
+      <a href={`/kalender-abonnieren?ort=${ort.slug}`}>
+        Termine von {ort.name} im eigenen Kalender abonnieren
+      </a>
+    </p>
   </section>
 
   {

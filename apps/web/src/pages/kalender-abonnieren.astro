@@ -1,7 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
-const adresse = new URL('/kalender.ics', Astro.site).href;
+import { LANDKREISE, kreisKurz } from '../lib/anzeige';
+import { aboAuswahl } from '../lib/kalenderabo';
+import type { LandkreisKuerzel } from '@kirmes/core';
+
+// Abo für ganz Thüringen, einen Landkreis oder einen Ort (Issue #108)
+const abo =
+  (await aboAuswahl(Astro.url.searchParams)) ?? (await aboAuswahl(new URLSearchParams()))!;
+const adresse = new URL(`/kalender.ics${abo.query}`, Astro.site).href;
 const webcal = adresse.replace(/^https?:/, 'webcal:');
+const google = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`;
+const kreisWahl = (Astro.url.searchParams.get('kreis') ?? '').toUpperCase();
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
+  kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
+);
 ---
 
 <Base
@@ -10,11 +22,28 @@ const webcal = adresse.replace(/^https?:/, 'webcal:');
 >
   <section class="einstieg">
     <h1>Kirmes im eigenen Kalender</h1>
+    <p class="abo-name"><strong>{abo.name}</strong></p>
     <p class="unterzeile">
       Mit einem Abo erscheinen neue Termine und Änderungen automatisch. Wie schnell das passiert,
       bestimmt deine Kalender-App.
     </p>
   </section>
+  <form class="abo-wahl" method="get" action="/kalender-abonnieren">
+    <label>
+      Welche Termine?
+      <select name="kreis">
+        <option value="" selected={!kreisWahl}>Ganz Thüringen</option>
+        {
+          kreise.map((k) => (
+            <option value={k} selected={kreisWahl === k}>
+              {kreisKurz(k)}
+            </option>
+          ))
+        }
+      </select>
+    </label>
+    <button class="knopf zweit">Übernehmen</button>
+  </form>
   <section class="lesetext">
     <h2>iPhone, iPad und Mac</h2>
     <p><a class="knopf" href={webcal}>In der Kalender-App abonnieren</a></p>
@@ -28,6 +57,11 @@ const webcal = adresse.replace(/^https?:/, 'webcal:');
       >
     </p>
     <h2>Google Kalender / Android</h2>
+    <p>
+      <a class="knopf" href={google} target="_blank" rel="noopener">In Google Kalender hinzufügen</a
+      >
+    </p>
+    <p class="leise">Klappt das nicht, geht es auch so:</p>
     <p>
       Öffne Google Kalender im Browser am Computer. Wähle bei „Weitere Kalender“ das Pluszeichen und
       „Per URL“. Füge die Adresse unten ein. Der Kalender erscheint anschließend auch auf deinem
@@ -64,8 +98,8 @@ const webcal = adresse.replace(/^https?:/, 'webcal:');
       in deiner App ausdrücklich „Abonnieren“.
     </p>
     <p>
-      <a href="/kalender.ics">Kalenderdatei öffnen oder herunterladen</a> · <a href="/termine"
-        >Zurück zu den Terminen</a
+      <a href={`/kalender.ics${abo.query}`}>Kalenderdatei öffnen oder herunterladen</a> · <a
+        href="/termine">Zurück zu den Terminen</a
       >
     </p>
   </section>
@@ -87,8 +121,26 @@ const webcal = adresse.replace(/^https?:/, 'webcal:');
       }
     });
   }
+  // Auswahl sofort übernehmen (ohne JS bleibt der Knopf)
+  const wahl = document.querySelector<HTMLFormElement>('.abo-wahl');
+  wahl?.querySelector('select')?.addEventListener('change', () => wahl.requestSubmit());
 </script>
 <style>
+  .abo-wahl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+    max-width: 560px;
+    margin: 0 0 24px;
+  }
+  .abo-wahl label {
+    flex: 1 1 240px;
+  }
+  .abo-name {
+    font-size: 1.15rem;
+    margin: 0 0 8px;
+  }
   .abo-adresse {
     display: grid;
     gap: 6px;
