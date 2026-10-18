@@ -127,9 +127,19 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
 
   {
     Astro.url.searchParams.has('gesendet') ? (
-      <p class="meldung erfolg" role="status">
-        Danke! Dein Vorschlag ist angekommen. Die Redaktion prüft ihn vor der Veröffentlichung.
-      </p>
+      <>
+        <p class="meldung erfolg" role="status">
+          Danke! Dein Vorschlag ist angekommen. Die Redaktion prüft ihn vor der Veröffentlichung.
+        </p>
+        <div class="weiter-knoepfe">
+          <a class="knopf" href="/termin-melden">
+            Weitere Kirmes melden
+          </a>
+          <a class="knopf zweit" href="/termine">
+            Zu den Terminen
+          </a>
+        </div>
+      </>
     ) : (
       <KirmesAssistent
         stand={stand}
@@ -141,61 +151,90 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     )
   }
 
-  <details id="festplatz" open={ergebnis !== null && ergebnis.status !== 'gesendet'}>
-    <summary>Link für den Festplatz anfordern</summary>
-    <section class="lesetext">
-      <h2>Festplatz auf der Karte eintragen</h2>
-      <p>
-        Jeder Termin hat einen Knopf „Route“, der Google Maps oder Apple Karten öffnet. Ohne genaue
-        Angabe führt er nur in den Ort. Damit eure Gäste direkt am Festzelt, Saal oder Sportplatz
-        ankommen, könnt ihr den Platz selbst eintragen: Ihr bekommt einen persönlichen Link – ohne
-        Anmeldung und ohne Passwort – und setzt damit den Pin auf der Karte.
-      </p>
-    </section>
-    <form class="melden" method="post" action="/termin-melden#rueckmeldung">
-      <input type="hidden" name="art" value="link" />
-      <input type="hidden" name="geladen" value={geladen} />
-      <input type="hidden" name="csrf_token" value={csrf} />
-      <label class="falle" aria-hidden="true">
-        Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
-      </label>
-      <div class="zwei">
-        <label
-          >Für welchen Ort? *<input
-            name="ort"
-            required
-            maxlength="120"
-            value={art === 'link' ? werte.ort : (werte.ort ?? '')}
-          /></label
-        >
-        <label
-          >Landkreis<input name="landkreis" maxlength="60" value={werte.landkreis ?? ''} /></label
-        >
-      </div>
-      <div class="zwei">
-        <label
-          >Kirmesgesellschaft *<input
-            name="absender"
-            required
-            maxlength="120"
-            autocomplete="organization"
-            value={werte.absender ?? ''}
-          /></label
-        >
-        <label
-          >E-Mail für den Link *<input
-            name="email"
-            type="email"
-            required
-            maxlength="200"
-            autocomplete="email"
-            value={werte.email ?? ''}
-          /></label
-        >
-      </div>
-      <div>
-        <button class="knopf zweit" type="submit"><Icon name="ort" />Link anfordern</button>
-      </div>
-    </form>
-  </details>
+  {
+    /* Festplatz-Link nur außerhalb des laufenden Assistenten – lenkt sonst kurz vor dem Ziel ab (Issue #88) */
+  }
+  {
+    (stand.schritt === 1 || ergebnis !== null || Astro.url.searchParams.has('gesendet')) && (
+      <details
+        id="festplatz"
+        open={
+          (ergebnis !== null && ergebnis.status !== 'gesendet') ||
+          Astro.url.searchParams.has('festplatz')
+        }
+      >
+        <summary>Link für den Festplatz anfordern</summary>
+        <section class="lesetext">
+          <h2>Festplatz auf der Karte eintragen</h2>
+          <p>
+            Jeder Termin hat einen Knopf „Route“, der Google Maps oder Apple Karten öffnet. Ohne
+            genaue Angabe führt er nur in den Ort. Damit eure Gäste direkt am Festzelt, Saal oder
+            Sportplatz ankommen, könnt ihr den Platz selbst eintragen: Ihr bekommt einen
+            persönlichen Link – ohne Anmeldung und ohne Passwort – und setzt damit den Pin auf der
+            Karte.
+          </p>
+        </section>
+        <form class="melden" method="post" action="/termin-melden#rueckmeldung">
+          <input type="hidden" name="art" value="link" />
+          <input type="hidden" name="geladen" value={geladen} />
+          <input type="hidden" name="csrf_token" value={csrf} />
+          <label class="falle" aria-hidden="true">
+            Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+          </label>
+          <div class="zwei">
+            <label>
+              Für welchen Ort? *
+              <input
+                name="ort"
+                required
+                maxlength="120"
+                value={art === 'link' ? werte.ort : (werte.ort ?? '')}
+              />
+            </label>
+            <label>
+              Landkreis
+              <input name="landkreis" maxlength="60" value={werte.landkreis ?? ''} />
+            </label>
+          </div>
+          <div class="zwei">
+            <label>
+              Kirmesgesellschaft *
+              <input
+                name="absender"
+                required
+                maxlength="120"
+                autocomplete="organization"
+                value={werte.absender ?? ''}
+              />
+            </label>
+            <label>
+              E-Mail für den Link *
+              <input
+                name="email"
+                type="email"
+                required
+                maxlength="200"
+                autocomplete="email"
+                value={werte.email ?? ''}
+              />
+            </label>
+          </div>
+          <div>
+            <button class="knopf zweit" type="submit">
+              <Icon name="ort" />
+              Link anfordern
+            </button>
+          </div>
+        </form>
+      </details>
+    )
+  }
 </Base>
+<style>
+  .weiter-knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 16px 0 32px;
+  }
+</style>
