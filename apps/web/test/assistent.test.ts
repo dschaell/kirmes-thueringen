@@ -15,6 +15,13 @@ describe('Kirmes-Assistent', () => {
     ]);
     expect(z[0]?.veranstaltungsort).toBe('Kirche');
     expect(z[4]?.muttizettel).toBe(true);
+    // Nur der Kern ist vorab angehakt, der Rest wird angeboten (Issue #87)
+    expect(z.filter((z) => z.aktiv).map((z) => z.titel)).toEqual([
+      'Kirmesgottesdienst',
+      'Kirmestanz',
+      'Frühschoppen',
+    ]);
+    expect(z.some((z) => 'kern' in z)).toBe(false);
     expect(vorlage('2027-09-17', '3')).toHaveLength(6);
     expect(vorlage('2027-09-17', '2')).toHaveLength(5);
     expect(vorlage('bad', '4')).toEqual([]);
