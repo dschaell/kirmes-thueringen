@@ -149,6 +149,11 @@ const meldung = listenMeldung(p, ortName);
                 {offen.length > 0 && ` · ${offen.length} unbestätigt`}
               </span>
             </summary>
+            <p class="gruppenaktion klein">
+              <a href={`/admin/kirmes-eintragen?vorjahr=${g.ort}&von=${g.von}&bis=${g.bis}`}>
+                Für {Number(g.von.slice(0, 4)) + 1} übernehmen
+              </a>
+            </p>
             {offen.length > 1 && (
               <p class="gruppenaktion">
                 <a
