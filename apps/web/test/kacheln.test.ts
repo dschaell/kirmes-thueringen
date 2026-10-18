@@ -7,6 +7,13 @@ describe('Kachel-Proxy nur für Thüringen (#103)', () => {
     expect(kachelErlaubt('3', '4', '2')).toEqual([3, 4, 2]);
     expect(kachelErlaubt('8', '135', '85')).not.toBeNull();
   });
+  it('erlaubt den Rand rund um Thüringen bis Deutschlands Grenzen (Issue #129)', () => {
+    // Zoom 8: ganz Deutschland (x 131…139) – die Karte fragt per bounds nur diese an
+    for (let x = 131; x <= 139; x++)
+      expect(kachelErlaubt('8', String(x), '85'), String(x)).not.toBeNull();
+    expect(kachelErlaubt('12', '2156', '1365')).not.toBeNull(); // Kassel
+    expect(kachelErlaubt('8', '130', '85')).toBeNull(); // westlich von Deutschland
+  });
   it('lehnt fremde Gegenden, Unsinn und zu große Zoomstufen ab', () => {
     expect(kachelErlaubt('12', '2048', '1362')).toBeNull(); // Paris
     expect(kachelErlaubt('20', '1', '1')).toBeNull();
