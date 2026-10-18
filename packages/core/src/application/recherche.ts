@@ -7,12 +7,20 @@ import { err, ok, type Result, type Validierungsfehler } from '../domain/result.
 import { bereinigeTitel } from '../domain/text.js';
 import type { Kategorie } from '../domain/termin.js';
 
-/** RFC-4180-CSV mit automatischer Erkennung von „;“ (deutsches Excel) oder „,“. */
+/**
+ * RFC-4180-CSV mit automatischer Erkennung von Tabulator (aus Excel/Sheets eingefügt, Issue #105),
+ * „;“ (deutsches Excel) oder „,“.
+ */
 export function parseCsv(text: string): string[][] {
   const inhalt = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text; // Byte-Order-Mark aus Excel
   const ersteZeile = inhalt.split(/\r?\n/, 1)[0] ?? '';
+  const anzahl = (z: string) => ersteZeile.split(z).length - 1;
   const trenner =
-    (ersteZeile.match(/;/g)?.length ?? 0) > (ersteZeile.match(/,/g)?.length ?? 0) ? ';' : ',';
+    anzahl('\t') > 0 && anzahl('\t') >= anzahl(';') && anzahl('\t') >= anzahl(',')
+      ? '\t'
+      : anzahl(';') > anzahl(',')
+        ? ';'
+        : ',';
   const zeilen: string[][] = [];
   let zeile: string[] = [];
   let feld = '';
@@ -92,14 +100,36 @@ export interface RechercheZeile {
   muttizettel: boolean;
 }
 
-const normSpalte = (s: string) =>
-  s
+/** Gängige Spaltennamen aus eigenen Tabellen (Issue #105) */
+const SPALTEN_ALIAS: Record<string, string> = {
+  art: 'kategorie',
+  uhrzeit: 'beginn',
+  zeit: 'beginn',
+  uhr: 'beginn',
+  wo: 'veranstaltungsort',
+  platz: 'veranstaltungsort',
+  ortderveranstaltung: 'veranstaltungsort',
+  musik: 'band',
+  dj: 'band',
+  banddj: 'band',
+  hinweis: 'hinweise',
+  info: 'hinweise',
+  infos: 'hinweise',
+  u: 'muttizettel',
+  veranstaltung: 'titel',
+  kreis: 'landkreis',
+  tag: 'datum',
+};
+const normSpalte = (s: string) => {
+  const n = s
     .trim()
     .toLowerCase()
     .replace(/ä/g, 'ae')
     .replace(/ö/g, 'oe')
     .replace(/ü/g, 'ue')
     .replace(/[^a-z]/g, '');
+  return SPALTEN_ALIAS[n] ?? n;
+};
 
 /** „18.10.2026“, „18.10.26“, „2026-10-18“ → „2026-10-18“ (Prüfung auf gültiges Datum folgt im Domain). */
 export function normDatum(roh: string): string {
