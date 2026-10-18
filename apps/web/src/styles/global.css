@@ -1106,6 +1106,44 @@ dialog.mitteilung h2 {
   white-space: pre-line;
 }
 
+/* Ortssuche als Combobox (Issues #89, #104) – Elemente entstehen per Skript, daher global */
+.ortssuche {
+  position: relative;
+  display: block;
+}
+.ortssuche input {
+  width: 100%;
+}
+.ortssuche-liste {
+  position: absolute;
+  z-index: 20;
+  inset: calc(100% + 4px) 0 auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--papier);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.ortssuche-liste li {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.ortssuche-liste li:hover,
+.ortssuche-liste li[aria-selected='true'] {
+  background: var(--flaeche);
+  outline: 2px solid var(--fokus);
+  outline-offset: -2px;
+}
+
 @media print {
   .kopf,
   .wimpel,

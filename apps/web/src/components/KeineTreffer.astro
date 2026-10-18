@@ -1,0 +1,88 @@
+---
+/**
+ * Leeres Ergebnis mit Ausweg (Issue #104): erkannte Orte, „Kirmes melden“ mit vorbefülltem Ort,
+ * breiterer Zeitraum und die nächsten Termine überhaupt – nie nur „keine Termine“.
+ */
+import TerminListe from './TerminListe.astro';
+import type { TerminDto } from '../lib/api';
+import type { OrtTreffer } from '../lib/ortssuche';
+
+interface Props {
+  /** Ortstreffer zur Suche (sucheOrte) */
+  orte?: OrtTreffer[];
+  /** Link auf denselben Filter mit breiterem Zeitraum */
+  breiter?: { href: string; text: string } | null;
+  /** Nächste kommende Termine (ohne Filter) */
+  naechste?: TerminDto[];
+  text?: string;
+}
+const {
+  orte = [],
+  breiter = null,
+  naechste = [],
+  text = 'Für diesen Zeitraum sind keine Termine eingetragen.',
+} = Astro.props;
+const ortName = (wert: string) => wert.replace(/\s*\(.*$/, '');
+---
+
+<div class="keine-treffer">
+  <p class="leer">{text}</p>
+  {
+    orte.length > 0 && (
+      <ul class="auswege">
+        {orte.map((o) => (
+          <li>
+            <a href={`/orte/${o.slug}`}>Ortsseite {o.wert}</a>
+            {' · '}
+            <a href={`/termin-melden?ort=${encodeURIComponent(o.slug)}`}>
+              Kirmes in {ortName(o.wert)} melden
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <p class="auswege-knoepfe">
+    {
+      breiter && (
+        <a class="knopf zweit" href={breiter.href}>
+          {breiter.text}
+        </a>
+      )
+    }
+    {
+      orte.length === 0 && (
+        <a class="knopf zweit" href="/termin-melden">
+          Kirmes melden
+        </a>
+      )
+    }
+  </p>
+  {
+    naechste.length > 0 && (
+      <>
+        <h2>Die nächsten Termine in Thüringen</h2>
+        <TerminListe termine={naechste} monate={false} hinweis={false} />
+      </>
+    )
+  }
+</div>
+<style>
+  .auswege {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+  }
+  .auswege li {
+    min-height: 44px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+  .auswege-knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+</style>

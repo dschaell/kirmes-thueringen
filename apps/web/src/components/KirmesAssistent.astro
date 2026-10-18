@@ -532,43 +532,6 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
   button {
     min-height: 44px;
   }
-  /* Ortssuche (Issue #89) */
-  .ortssuche {
-    position: relative;
-    display: block;
-  }
-  .ortssuche input {
-    width: 100%;
-  }
-  .ortssuche :global(.ortssuche-liste) {
-    position: absolute;
-    z-index: 20;
-    inset: calc(100% + 4px) 0 auto;
-    margin: 0;
-    padding: 4px;
-    list-style: none;
-    max-height: 320px;
-    overflow: auto;
-    background: var(--papier);
-    border: 1px solid var(--linie);
-    border-radius: var(--r);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
-  }
-  .ortssuche :global(.ortssuche-liste li) {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .ortssuche :global(.ortssuche-liste li:hover),
-  .ortssuche :global(.ortssuche-liste li[aria-selected='true']) {
-    background: var(--flaeche);
-    outline: 2px solid var(--fokus);
-    outline-offset: -2px;
-  }
   .einsender p {
     margin: 0 0 4px;
   }
