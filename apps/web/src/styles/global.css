@@ -187,6 +187,16 @@ a:hover {
   box-shadow: inset 0 -2px 0 var(--rot);
   border-radius: 0;
 }
+.kopf.kompakt .wrap {
+  min-height: 56px;
+  flex-wrap: nowrap;
+  padding-top: 0;
+}
+.kopf.kompakt .nav {
+  width: auto;
+  margin: 0 0 0 auto;
+  padding: 0;
+}
 .wimpel {
   height: 22px;
   background: url('/wimpel.svg') repeat-x 0 0 / 72px 22px;

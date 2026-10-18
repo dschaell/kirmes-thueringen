@@ -5,8 +5,8 @@ import { adminApi } from '../../lib/admin';
 import type { TerminSeite } from '../../lib/api';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../components/admin/TerminHerkunft.astro';
-import { anzahl, datumLangJahr } from '../../lib/anzeige';
-import { listenMeldung, markierte, zurueckLink } from '../../lib/terminliste';
+import { KATEGORIEN, anzahl, datumKurz, datumLangJahr } from '../../lib/anzeige';
+import { listenMeldung, markierte, nachKirmes, zurueckLink } from '../../lib/terminliste';
 import type { TerminDto } from '../../lib/api';
 const p = Astro.url.searchParams;
 const q = (p.get('q') ?? '').slice(0, 100);
@@ -39,6 +39,7 @@ const fehlt =
     ? (await adminApi<TerminDto>(Astro.cookies, 'GET', `termine/${[...markiert][0]}`)).daten
     : null;
 const ortName = ort ? daten.termine[0]?.ort.name : undefined;
+const gruppen = nachKirmes(daten.termine);
 const seitenLink = (neu: number) => {
   const x = new URLSearchParams(parameter);
   x.set('offset', String(neu));
@@ -50,13 +51,10 @@ const meldung = listenMeldung(p, ortName);
 <AdminLayout titel="Termine" fehler={seite.fehler} meldung={meldung}>
   <div class="hauptaktionen">
     <a class="knopf" href="/admin/kirmes-eintragen"><Icon name="kalender" />Kirmes eintragen</a>
-    <a class="knopf zweit" href="/admin/vorschlaege">Vorschläge prüfen ({v.daten?.anzahl ?? '–'})</a
-    >
-    <a class="knopf zweit" href="#terminsuche"><Icon name="suche" />Termin suchen</a>
     {
-      Astro.locals.rolle === 'admin' && (
-        <a class="knopf zweit" href="/admin/mitglieder#einladen">
-          Redaktion einladen
+      (v.daten?.anzahl ?? 0) > 0 && (
+        <a href="/admin/vorschlaege">
+          {anzahl(v.daten?.anzahl ?? 0, 'Vorschlag wartet', 'Vorschläge warten')} auf Prüfung
         </a>
       )
     }
@@ -135,55 +133,82 @@ const meldung = listenMeldung(p, ortName);
         </p>
       )
     }
-    <ul class="terminkarten">
-      {
-        daten.termine.map((t) => (
-          <li id={`termin-${t.id}`} class:list={{ markiert: markiert.has(t.id) }}>
-            <div>
-              <>
-                <p class="klein leise">
-                  {datumLangJahr(t.datum)}
-                  {t.beginn && ` · ${t.beginn} Uhr`}
-                </p>
-                <h3>{t.titel}</h3>
-                <p>
-                  {t.ort.name}
-                  {t.band && ` · ${t.band}`}
-                </p>
-                <p class="klein leise">
-                  {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
-                </p>
-                <Herkunft herkunft={herkunft?.daten?.[t.id]} />
-              </>
-            </div>
-            <div class="terminaktionen">
-              <a
-                class="knopf zweit"
-                href={`/admin/termine/${t.id}?zurueck=${zurueck}`}
-                aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
-              >
-                <Icon name="stift" />
-                Bearbeiten
-              </a>
-              {!t.bestaetigt && (
+    {
+      gruppen.map((g) => {
+        const offen = g.termine.filter((t) => !t.bestaetigt);
+        const name = g.termine[0]?.ort.name ?? g.ort;
+        return (
+          <details class="kirmesgruppe" open>
+            <summary>
+              <span class="gruppenname">{name}</span>
+              <span class="klein leise">
+                {g.von === g.bis
+                  ? datumLangJahr(g.von)
+                  : `${datumKurz(g.von)} – ${datumLangJahr(g.bis)}`}{' '}
+                · {anzahl(g.termine.length, 'Termin', 'Termine')}
+                {offen.length > 0 && ` · ${offen.length} unbestätigt`}
+              </span>
+            </summary>
+            {offen.length > 1 && (
+              <p class="gruppenaktion">
                 <a
-                  class="klein"
-                  href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}
+                  class="knopf zweit"
+                  href={`/admin/bestaetigen?${offen.map((t) => `id=${t.id}`).join('&')}&zurueck=${zurueck}`}
                 >
-                  Bestätigen
+                  Alle {offen.length} bestätigen
                 </a>
-              )}
-              <a
-                class="klein"
-                href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
-              >
-                Löschen
-              </a>
-            </div>
-          </li>
-        ))
-      }
-    </ul>
+              </p>
+            )}
+            <ul class="terminkarten">
+              {g.termine.map((t) => (
+                <li id={`termin-${t.id}`} class:list={{ markiert: markiert.has(t.id) }}>
+                  <div>
+                    <p class="klein leise">
+                      {datumLangJahr(t.datum)}
+                      {t.beginn && ` · ${t.beginn} Uhr`}
+                    </p>
+                    <h3>{t.titel}</h3>
+                    <p>
+                      {KATEGORIEN[t.kategorie].label}
+                      {t.band && ` · ${t.band}`}
+                      {t.muttizettel && ' · Muttizettel'}
+                    </p>
+                    <p class="klein leise">
+                      {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
+                    </p>
+                    <Herkunft herkunft={herkunft?.daten?.[t.id]} />
+                  </div>
+                  <div class="terminaktionen">
+                    <a
+                      class="knopf zweit"
+                      href={`/admin/termine/${t.id}?zurueck=${zurueck}`}
+                      aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
+                    >
+                      <Icon name="stift" />
+                      Bearbeiten
+                    </a>
+                    {!t.bestaetigt && (
+                      <a
+                        class="klein"
+                        href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}
+                      >
+                        Bestätigen
+                      </a>
+                    )}
+                    <a
+                      class="klein"
+                      href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
+                    >
+                      Löschen
+                    </a>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
+      })
+    }
     <nav class="seiten" aria-label="Ergebnisseiten">
       {
         offset > 0 && (
@@ -206,8 +231,9 @@ const meldung = listenMeldung(p, ortName);
   .hauptaktionen {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin: 24px 0 36px;
+    align-items: center;
+    gap: 12px 20px;
+    margin: 20px 0 24px;
   }
   .hauptaktionen a {
     min-height: 48px;
@@ -218,6 +244,32 @@ const meldung = listenMeldung(p, ortName);
   .terminkarten {
     list-style: none;
     padding: 0;
+    margin: 0;
+  }
+  .kirmesgruppe {
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 0 16px;
+    margin: 16px 0;
+  }
+  .kirmesgruppe summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    min-height: 52px;
+    padding: 12px 0;
+    cursor: pointer;
+  }
+  .gruppenname {
+    font-weight: 700;
+    font-size: 1.15rem;
+  }
+  .gruppenaktion {
+    margin: 0 0 8px;
+  }
+  .terminkarten li:last-child {
+    border-bottom: 0;
   }
   .terminkarten li {
     display: flex;
@@ -262,6 +314,7 @@ const meldung = listenMeldung(p, ortName);
   @media (max-width: 600px) {
     .hauptaktionen {
       display: grid;
+      justify-items: start;
     }
     .terminkarten li {
       display: block;

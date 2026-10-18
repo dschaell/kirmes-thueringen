@@ -67,7 +67,39 @@ export function listenMeldung(p: URLSearchParams, ortName?: string): string | nu
     const n = zahl('gespeichert');
     return n === 1 ? `Termin${wo} gespeichert.` : `${n} Termine${wo} gespeichert.`;
   }
-  if (p.has('bestaetigt')) return 'Termin bestätigt.';
+  if (p.has('bestaetigt')) {
+    const n = zahl('bestaetigt');
+    return n === 1 ? 'Termin bestätigt.' : `${n} Termine bestätigt.`;
+  }
   if (p.has('geloescht')) return 'Termin gelöscht.';
   return null;
+}
+
+/** Termine einer Kirmes: gleicher Ort, höchstens `tage` Tage nach dem ersten Termin (Issue #91). */
+export interface KirmesGruppe<T> {
+  ort: string;
+  von: string;
+  bis: string;
+  termine: T[];
+}
+export function nachKirmes<T extends { datum: string; ort: { slug: string } }>(
+  termine: T[],
+  tage = 4,
+): KirmesGruppe<T>[] {
+  const gruppen: KirmesGruppe<T>[] = [];
+  const offen = new Map<string, KirmesGruppe<T>>();
+  const sortiert = [...termine].sort((a, b) => a.datum.localeCompare(b.datum));
+  for (const t of sortiert) {
+    const g = offen.get(t.ort.slug);
+    const abstand = g ? (Date.parse(t.datum) - Date.parse(g.von)) / 86_400_000 : Infinity;
+    if (g && abstand <= tage) {
+      g.termine.push(t);
+      g.bis = t.datum;
+    } else {
+      const neu = { ort: t.ort.slug, von: t.datum, bis: t.datum, termine: [t] };
+      gruppen.push(neu);
+      offen.set(t.ort.slug, neu);
+    }
+  }
+  return gruppen;
 }
