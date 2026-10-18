@@ -595,7 +595,8 @@ legend {
   font: 600 0.8rem/1 var(--text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #fff;
+  /* Hintergrundfarbe als Schrift: im hellen wie im dunklen Modus ≥ 6:1 (Issue #123) */
+  color: var(--papier);
   background: var(--rot);
   border-radius: 4px;
   padding: 4px 6px;
@@ -1001,6 +1002,7 @@ form.melden label > input[type='checkbox'] {
 }
 .karte {
   height: 420px;
+  /* Platz von Anfang an reservieren – kein Springen beim Laden (Issue #123) */
   border-radius: var(--r);
   border: 1px solid var(--linie);
   margin: 12px 0;

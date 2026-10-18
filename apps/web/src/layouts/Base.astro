@@ -2,6 +2,9 @@
 import '@fontsource-variable/bitter';
 import '@fontsource-variable/source-sans-3';
 import '../styles/global.css';
+// Schriften vorladen: kein Springen des Layouts beim Nachladen (Issue #123)
+import bitterUrl from '@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2?url';
+import sourceSansUrl from '@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2?url';
 import { ohneSchraegstrich } from '../lib/anzeige';
 
 interface Props {
@@ -41,6 +44,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
 <html lang="de">
   <head>
     <meta charset="utf-8" />
+    <link rel="preload" href={bitterUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={sourceSansUrl} as="font" type="font/woff2" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
