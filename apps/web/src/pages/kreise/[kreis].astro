@@ -29,6 +29,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <section class="einstieg">
     <h1>Kirmes {imKreis(k)}</h1>
     {kommend.gesamt > 0 && <p class="unterzeile">{zusammenfassung}</p>}
+    <p class="klein">
+      <a href={`/kalender-abonnieren?kreis=${k}`}>Alle Termine {imKreis(k)} abonnieren</a>
+    </p>
   </section>
 
   <div class="zweispaltig">
