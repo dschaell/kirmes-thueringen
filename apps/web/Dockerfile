@@ -12,6 +12,8 @@ RUN npm run build -w @kirmes/core && npm run build -w @kirmes/web \
  && npm prune --omit=dev --workspace @kirmes/web --workspace @kirmes/core
 
 FROM node:24-alpine
+# Freie Schrift für die Vorschaubilder der Termine (Issue #110)
+RUN apk add --no-cache font-dejavu
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4321
 WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules node_modules
