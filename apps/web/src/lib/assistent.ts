@@ -29,9 +29,12 @@ export interface AssistentStand {
 export function vorlage(ab: string, tage: string): AssistentZeile[] {
   if (!parseDatum(ab).ok) return [];
   if (tage === '1') return [{ datum: ab, titel: '', aktiv: true, beginn: '', speisen: [] }];
-  return wochenendVorlage(ab)
-    .filter((z) => z.datum < addiereTage(ab, Number(tage)))
-    .map((z) => ({ ...z, aktiv: true, speisen: [] }));
+  return (
+    wochenendVorlage(ab)
+      .filter((z) => z.datum < addiereTage(ab, Number(tage)))
+      // Nur der Kern ist vorab angehakt; der Rest wird angeboten (Issue #87)
+      .map(({ kern, ...z }) => ({ ...z, aktiv: kern === true, speisen: [] }))
+  );
 }
 function addiereTage(ab: string, tage: number) {
   const d = new Date(`${ab}T12:00:00Z`);
