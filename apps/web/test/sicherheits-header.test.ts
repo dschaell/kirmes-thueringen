@@ -22,3 +22,18 @@ describe('Google Maps nur auf Terminseiten und in der Termin-Redaktion (#62)', (
     expect(coep('/')).toBe('require-corp');
   });
 });
+
+describe('Karte und Festplatz-Seite ohne Drittanbieter (#103)', () => {
+  it('keine externen Kacheln oder Adresssuche, COEP wieder an, Standort erlaubt', () => {
+    for (const p of ['/karte', '/verwalten?link=x']) {
+      expect(csp(p), p).not.toContain('openstreetmap');
+      expect(coep(p), p).toBe('require-corp');
+      expect((headerFuer(p) as Record<string, string>)['Permissions-Policy'], p).toContain(
+        'geolocation=(self)',
+      );
+    }
+    expect((headerFuer('/') as Record<string, string>)['Permissions-Policy']).toContain(
+      'geolocation=()',
+    );
+  });
+});

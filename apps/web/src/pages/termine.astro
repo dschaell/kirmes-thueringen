@@ -6,7 +6,15 @@
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import TerminListe from '../components/TerminListe.astro';
-import { sucheTermine, UngueltigeAnfrage, type TerminSeite } from '../lib/api';
+import KeineTreffer from '../components/KeineTreffer.astro';
+import {
+  listeOrte,
+  sucheTermine,
+  UngueltigeAnfrage,
+  type TerminDto,
+  type TerminSeite,
+} from '../lib/api';
+import { sucheOrte, type OrtTreffer } from '../lib/ortssuche';
 import {
   KATEGORIEN,
   LANDKREISE,
@@ -53,6 +61,22 @@ try {
   if (!(e instanceof UngueltigeAnfrage)) throw e;
   fehler = e.fehler.map((f) => f.meldung).join(' ');
   Astro.response.status = 400;
+}
+
+// Keine Treffer? Auswege statt Sackgasse (Issue #104)
+let ortTreffer: OrtTreffer[] = [];
+let naechste: TerminDto[] = [];
+let breiter: { href: string; text: string } | null = null;
+if (!fehler && ergebnis.gesamt === 0) {
+  if (suchtext) ortTreffer = sucheOrte(await listeOrte(), suchtext, 3);
+  if (zeit !== 'alle') {
+    const u = new URLSearchParams(p);
+    u.set('zeit', 'alle');
+    u.delete('seite');
+    u.delete('von');
+    breiter = { href: `/termine?${u}`, text: 'Auch vergangene Termine durchsuchen' };
+  }
+  naechste = (await sucheTermine({ von: h, limit: 5 })).termine;
 }
 
 const aktiveFilter =
@@ -161,7 +185,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     )
   }
   <p class="leise" aria-live="polite">{anzahl(ergebnis.gesamt, 'Termin', 'Termine')}</p>
-  <TerminListe termine={ergebnis.termine} />
+  <TerminListe termine={ergebnis.termine} leer={false} />
+  {
+    !fehler && ergebnis.gesamt === 0 && (
+      <KeineTreffer orte={ortTreffer} breiter={breiter} naechste={naechste} />
+    )
+  }
 
   {
     seiten > 1 && (
