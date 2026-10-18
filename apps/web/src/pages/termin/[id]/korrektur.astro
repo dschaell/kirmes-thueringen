@@ -1,0 +1,162 @@
+---
+/**
+ * „Stimmt etwas nicht?“ zu genau diesem Termin (Issue #107) – statt des Assistenten für eine neue
+ * Kirmes. Gleicher Schutz wie „Termin melden“: CSRF-Cookie, Falle, Mindestzeit, Drosselung in der API.
+ */
+import Base from '../../../layouts/Base.astro';
+import Icon from '../../../components/Icon.astro';
+import { findeTermin } from '../../../lib/api';
+import { datumLangJahr } from '../../../lib/anzeige';
+import { CSRF_FELD, FORMULAR_COOKIE, csrfGueltig, csrfToken } from '../../../lib/csrf';
+import { feld } from '../../../lib/admin';
+import { besucherIp } from '../../../lib/meldung';
+
+const t = await findeTermin(Astro.params.id ?? '');
+if (!t) return new Response(null, { status: 404 });
+Astro.response.headers.set('Cache-Control', 'no-store');
+const pfad = `/termin/${t.id}`;
+let fehler: string[] = [];
+const werte = { text: '', kontaktName: '', kontaktEmail: '' };
+let geladen = Date.now();
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  werte.text = feld(f, 'text');
+  werte.kontaktName = feld(f, 'kontaktName');
+  werte.kontaktEmail = feld(f, 'kontaktEmail');
+  geladen = Number(feld(f, 'geladen')) || Date.now();
+  const origin = Astro.request.headers.get('origin');
+  const host = Astro.request.headers.get('x-forwarded-host') ?? Astro.request.headers.get('host');
+  let fremd = false;
+  try {
+    fremd = !!origin && new URL(origin).host !== host;
+  } catch {
+    fremd = true;
+  }
+  if (fremd || !csrfGueltig(Astro.cookies.get(FORMULAR_COOKIE)?.value, f.get(CSRF_FELD))) {
+    Astro.response.status = 403;
+    fehler = ['Bitte die Seite neu laden. Das Formular ist abgelaufen.'];
+  } else {
+    try {
+      const res = await fetch(
+        new URL(
+          `/api/v1/termine/${encodeURIComponent(t.id)}/korrekturen`,
+          process.env.API_URL ?? 'http://127.0.0.1:3100',
+        ),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-kirmes-client-ip': besucherIp(Astro.request, Astro.clientAddress),
+          },
+          body: JSON.stringify({
+            ...werte,
+            falle: feld(f, 'webseite'),
+            dauerMs: Math.max(0, Date.now() - geladen),
+          }),
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+      if (res.status === 202) return Astro.redirect(`${pfad}/korrektur?gesendet=1`, 303);
+      const json = await res.json().catch(() => ({}));
+      fehler = json.fehler?.map((x: { meldung: string }) => x.meldung) ?? [
+        json.title ?? 'Das Senden klappt gerade nicht. Bitte später versuchen.',
+      ];
+      Astro.response.status = res.status;
+    } catch {
+      fehler = ['Das Senden klappt gerade nicht. Bitte später versuchen.'];
+      Astro.response.status = 503;
+    }
+  }
+}
+const csrf = csrfToken(Astro.cookies, { cookie: FORMULAR_COOKIE, pfad: '/termin' });
+const gesendet = Astro.url.searchParams.has('gesendet');
+---
+
+<Base
+  title={`Korrektur melden: ${t.titel} in ${t.ort.name} – Kirmeskalender Thüringen`}
+  description="Hinweis an die Redaktion zu einem Kirmes-Termin."
+  noindex
+>
+  <section class="einstieg">
+    <p class="brotkrumen"><a href={pfad}>← Zurück zum Termin</a></p>
+    <h1>Stimmt etwas nicht?</h1>
+    <p class="unterzeile">
+      <strong>{t.titel}</strong> · {t.ort.name} · {datumLangJahr(t.datum)}
+      {t.beginn && ` · ${t.beginn} Uhr`}
+    </p>
+  </section>
+  {
+    gesendet ? (
+      <>
+        <p class="meldung erfolg" role="status">
+          <Icon name="haken" />
+          Danke! Die Redaktion prüft deinen Hinweis und korrigiert den Termin.
+        </p>
+        <p>
+          <a class="knopf zweit" href={pfad}>
+            Zurück zum Termin
+          </a>
+        </p>
+      </>
+    ) : (
+      <form class="melden" method="post">
+        {fehler.length > 0 && (
+          <p class="meldung" role="alert">
+            {fehler.join(' ')}
+          </p>
+        )}
+        <input type="hidden" name={CSRF_FELD} value={csrf} />
+        <input type="hidden" name="geladen" value={geladen} />
+        <label class="falle" aria-hidden="true">
+          Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+        </label>
+        <label>
+          Was stimmt nicht? *
+          <textarea
+            name="text"
+            required
+            maxlength="2000"
+            rows="5"
+            placeholder="z. B. Beginn ist erst 20 Uhr, die Band heißt …"
+            set:text={werte.text}
+          />
+        </label>
+        <fieldset class="kontakt">
+          <legend>Für Rückfragen (freiwillig)</legend>
+          <div class="zwei">
+            <label>
+              Name / Kirmesgesellschaft
+              <input name="kontaktName" maxlength="120" value={werte.kontaktName} />
+            </label>
+            <label>
+              E-Mail
+              <input
+                name="kontaktEmail"
+                type="email"
+                maxlength="200"
+                autocomplete="email"
+                value={werte.kontaktEmail}
+              />
+            </label>
+          </div>
+        </fieldset>
+        <p class="klein leise">
+          Kontaktdaten dienen nur Rückfragen und werden gelöscht, sobald der Hinweis erledigt ist.
+          Mehr im <a href="/datenschutz">Datenschutz</a>.
+        </p>
+        <button class="knopf">Hinweis senden</button>
+      </form>
+    )
+  }
+</Base>
+<style>
+  .kontakt {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .kontakt legend {
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+</style>
