@@ -1,6 +1,6 @@
 /** Öffentliche Vorschläge bleiben bis zur bewussten Übernahme von Terminen getrennt. */
 import { err, ok, type Validierungsfehler } from '../domain/result.js';
-import { validiereTermin, type NeuerTermin } from '../domain/termin.js';
+import { KATEGORIEN, validiereTermin, type NeuerTermin } from '../domain/termin.js';
 import { validiereSpeisen, type Speise } from '../domain/speisen.js';
 import type { Sitzungen } from './admin.js';
 import type { OrtRepository } from './ports.js';
@@ -94,7 +94,11 @@ export async function pruefeVorschlag(e: VorschlagEingabe, orte: OrtRepository) 
       band: text(z.band),
       info: text(z.info),
       veranstaltungsort: text(z.veranstaltungsort),
-      kategorie: erkenneKategorie(text(z.titel)),
+      // Gewählte Art gilt, sonst aus dem Titel erkennen (Issue #93)
+      kategorie:
+        z.kategorie && (KATEGORIEN as readonly string[]).includes(z.kategorie)
+          ? z.kategorie
+          : erkenneKategorie(text(z.titel)),
       bestaetigt: false,
     });
   });

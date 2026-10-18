@@ -1,7 +1,7 @@
 ---
 import type { AssistentStand } from '../lib/assistent';
 import type { OrtUebersichtDto } from '../lib/api';
-import { anzahl, datumKurz, datumLangJahr } from '../lib/anzeige';
+import { KATEGORIEN, anzahl, datumKurz, datumLangJahr } from '../lib/anzeige';
 import { bezeichner } from '../lib/ortssuche';
 interface Props {
   stand: AssistentStand;
@@ -122,8 +122,25 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       s.schritt === 2 && (
         <>
           <h2>Was ist los in {ort?.name ?? s.ortSlug}?</h2>
+          {redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
+            <section class="kasten einsender" aria-label="Eingereicht von">
+              <p class="klein leise">Eingereicht von</p>
+              <p>
+                {s.kontaktName || 'ohne Namen'}
+                {s.kontaktEmail && (
+                  <>
+                    {' · '}
+                    <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
+                  </>
+                )}
+              </p>
+              {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
+            </section>
+          )}
           <p class="leise">
-            Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.
+            {s.vorschlag
+              ? 'Prüfe den Vorschlag: Haken entfernen, was nicht stattfindet. Titel, Tag, Uhrzeit oder Art korrigieren über „ändern“.'
+              : 'Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.'}
           </p>
           <ul class="programm-kompakt">
             {s.zeilen.map((z, i) => (
@@ -163,6 +180,19 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                         <input name={`beginn-${i}`} type="time" value={z.beginn ?? ''} />
                       </label>
                     </div>
+                    <label>
+                      Art
+                      <select name={`kat-${i}`}>
+                        <option value="" selected={!z.kategorie}>
+                          Automatisch (aus dem Titel)
+                        </option>
+                        {Object.entries(KATEGORIEN).map(([k, { label }]) => (
+                          <option value={k} selected={z.kategorie === k}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 </details>
               </li>
@@ -188,6 +218,21 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       s.schritt === 3 && (
         <>
           <h2>Programm prüfen und Details ergänzen</h2>
+          {redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
+            <section class="kasten einsender" aria-label="Eingereicht von">
+              <p class="klein leise">Eingereicht von</p>
+              <p>
+                {s.kontaktName || 'ohne Namen'}
+                {s.kontaktEmail && (
+                  <>
+                    {' · '}
+                    <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
+                  </>
+                )}
+              </p>
+              {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
+            </section>
+          )}
           <p>
             <strong>{ort?.name ?? s.ortSlug}</strong> –{' '}
             {anzahl(s.zeilen.filter((z) => z.aktiv).length, 'Veranstaltung', 'Veranstaltungen')}{' '}
@@ -523,6 +568,12 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
     background: var(--flaeche);
     outline: 2px solid var(--fokus);
     outline-offset: -2px;
+  }
+  .einsender p {
+    margin: 0 0 4px;
+  }
+  .einsender .nachricht {
+    white-space: pre-line;
   }
 </style>
 <script>
