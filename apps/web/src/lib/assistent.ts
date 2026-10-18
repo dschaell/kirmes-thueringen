@@ -2,6 +2,7 @@ import type { APIContext } from 'astro';
 import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
 import { parseDatum } from '@kirmes/core';
 import { wochenendVorlage } from './wochenende';
+import { nachAktion } from './terminliste';
 import { adminApi, feld } from './admin';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
@@ -282,15 +283,29 @@ export async function assistent(
             `termine-vorschlaege/${encodeURIComponent(s.vorschlag)}/uebernehmen`,
             { ortSlug: s.ortSlug, zeilen, bestaetigt: s.bestaetigt },
           )
-        : await adminApi(ctx.cookies, 'POST', 'termine/wochenende', {
-            ortSlug: s.ortSlug,
-            zeilen: zeilen.map((z) => ({ ...z, bestaetigt: s.bestaetigt })),
-          });
-      if (r.status < 300)
+        : await adminApi<{ termine?: { id: string }[] }>(
+            ctx.cookies,
+            'POST',
+            'termine/wochenende',
+            {
+              ortSlug: s.ortSlug,
+              zeilen: zeilen.map((z) => ({ ...z, bestaetigt: s.bestaetigt })),
+            },
+          );
+      if (r.status < 300) {
+        if (s.vorschlag) return ctx.redirect('/admin/vorschlaege?gespeichert=1', 303);
+        // Liste genau auf diese Kirmes filtern – auch wenn sie schon vorbei ist (Issue #90)
+        const ids = (r.daten as { termine?: { id: string }[] } | null)?.termine?.map((t) => t.id);
+        const erster = zeilen.map((z) => z.datum).sort()[0] ?? '';
         return ctx.redirect(
-          s.vorschlag ? '/admin/vorschlaege?gespeichert=1' : '/admin?gespeichert=1',
+          nachAktion(null, 'gespeichert', ids ?? [], {
+            ort: s.ortSlug,
+            von: erster,
+            zeitraum: 'alle',
+          }),
           303,
         );
+      }
       s.fehler = r.fehler;
       ctx.response.status = r.status;
     } else {

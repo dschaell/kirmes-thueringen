@@ -6,13 +6,22 @@ import type { TerminSeite } from '../../lib/api';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../components/admin/TerminHerkunft.astro';
 import { anzahl, datumLangJahr } from '../../lib/anzeige';
+import { listenMeldung, markierte, zurueckLink } from '../../lib/terminliste';
+import type { TerminDto } from '../../lib/api';
 const p = Astro.url.searchParams;
 const q = (p.get('q') ?? '').slice(0, 100);
 const datum = p.get('datum') ?? '';
 const zeitraum = p.get('zeitraum') ?? 'kommend';
+const ort = (p.get('ort') ?? '').slice(0, 120);
+const von = (p.get('von') ?? '').slice(0, 10);
 const offsetText = p.get('offset') ?? '0';
 const offset = /^\d{1,7}$/.test(offsetText) ? Number(offsetText) : 0;
 const parameter = new URLSearchParams({ q, datum, zeitraum, limit: '25', offset: String(offset) });
+if (ort) parameter.set('ort', ort);
+if (von) parameter.set('von', von);
+// Aktuelle Liste als Rücksprungziel für Bearbeiten/Bestätigen/Löschen (Issue #90)
+const zurueck = encodeURIComponent(zurueckLink(parameter));
+const markiert = new Set(markierte(p));
 const [seite, v] = await Promise.all([
   adminApi<TerminSeite>(Astro.cookies, 'GET', `termine?${parameter}`),
   adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
@@ -24,18 +33,18 @@ const herkunft = daten.termine.length
       ids: daten.termine.map((t) => t.id),
     })
   : null;
+// Gespeicherter Termin passt nicht (mehr) zum Filter? Dann wenigstens einen Weg dorthin zeigen.
+const fehlt =
+  markiert.size === 1 && !daten.termine.some((t) => markiert.has(t.id))
+    ? (await adminApi<TerminDto>(Astro.cookies, 'GET', `termine/${[...markiert][0]}`)).daten
+    : null;
+const ortName = ort ? daten.termine[0]?.ort.name : undefined;
 const seitenLink = (neu: number) => {
   const x = new URLSearchParams(parameter);
   x.set('offset', String(neu));
   return `/admin?${x}#terminliste`;
 };
-const meldung = p.has('gespeichert')
-  ? 'Termin gespeichert.'
-  : p.has('bestaetigt')
-    ? 'Termin bestätigt.'
-    : p.has('geloescht')
-      ? 'Termin gelöscht.'
-      : null;
+const meldung = listenMeldung(p, ortName);
 ---
 
 <AdminLayout titel="Termine" fehler={seite.fehler} meldung={meldung}>
@@ -86,10 +95,33 @@ const meldung = p.has('gespeichert')
           ></label
         >
       </div>
+      {ort && <input type="hidden" name="ort" value={ort} />}
+      {von && <input type="hidden" name="von" value={von} />}
       <div class="knopfreihe">
         <button class="knopf zweit">Suchen</button><a href="/admin">Suche zurücksetzen</a>
       </div>
     </form>
+    {
+      fehlt && (
+        <p class="kasten">
+          „{fehlt.titel}“ ({datumLangJahr(fehlt.datum)}) passt nicht zum aktuellen Filter.{' '}
+          <a
+            href={`/admin?zeitraum=alle&datum=${fehlt.datum}&markiert=${fehlt.id}#termin-${fehlt.id}`}
+          >
+            Termin anzeigen
+          </a>
+        </p>
+      )
+    }
+    {
+      (ort || von) && (
+        <p class="klein">
+          {ortName ?? 'Ein Ort'}
+          {von && ` ab ${datumLangJahr(von)}`} ·{' '}
+          <a href={`/admin?zeitraum=${zeitraum}`}>Filter entfernen</a>
+        </p>
+      )
+    }
     <p class="klein leise">
       {anzahl(daten.gesamt, 'Termin', 'Termine', '0 Termine')}{
         daten.termine.length > 0 && ` · ${offset + 1}–${offset + daten.termine.length}`
@@ -106,7 +138,7 @@ const meldung = p.has('gespeichert')
     <ul class="terminkarten">
       {
         daten.termine.map((t) => (
-          <li>
+          <li id={`termin-${t.id}`} class:list={{ markiert: markiert.has(t.id) }}>
             <div>
               <>
                 <p class="klein leise">
@@ -127,18 +159,24 @@ const meldung = p.has('gespeichert')
             <div class="terminaktionen">
               <a
                 class="knopf zweit"
-                href={`/admin/termine/${t.id}`}
+                href={`/admin/termine/${t.id}?zurueck=${zurueck}`}
                 aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
               >
                 <Icon name="stift" />
                 Bearbeiten
               </a>
               {!t.bestaetigt && (
-                <a class="klein" href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen`}>
+                <a
+                  class="klein"
+                  href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}
+                >
                   Bestätigen
                 </a>
               )}
-              <a class="klein" href={`/admin/termine/${t.id}/aktion?aktion=loeschen`}>
+              <a
+                class="klein"
+                href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
+              >
                 Löschen
               </a>
             </div>
@@ -187,6 +225,13 @@ const meldung = p.has('gespeichert')
     gap: 20px;
     padding: 20px 0;
     border-bottom: 1px solid var(--linie);
+  }
+  .terminkarten li.markiert {
+    background: var(--flaeche);
+    box-shadow: inset 4px 0 0 var(--fokus);
+    padding-left: 16px;
+    padding-right: 12px;
+    scroll-margin-top: 24px;
   }
   .terminkarten h3,
   .terminkarten p {
