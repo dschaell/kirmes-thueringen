@@ -100,6 +100,36 @@ const ueberschrift = q
     ]
       .filter(Boolean)
       .join(' ');
+// Aktive Filter als einzeln entfernbare Chips (Issue #111)
+const ohne = (name: string, wert?: string) => {
+  const u = new URLSearchParams(p);
+  u.delete('seite');
+  if (wert === undefined) u.delete(name);
+  else {
+    const rest = u.getAll(name).filter((v) => v !== wert);
+    u.delete(name);
+    for (const v of rest) u.append(name, v);
+  }
+  const sauber = new URLSearchParams([...u].filter(([, v]) => v !== ''));
+  const text = sauber.toString();
+  return text ? `/termine?${text}` : '/termine';
+};
+const ZEIT_TEXT: Record<string, string> = {
+  wochenende: 'Dieses Wochenende',
+  jahr: `Ganzes Jahr ${jahr}`,
+  vergangen: 'Vergangene Termine',
+  alle: 'Ein Jahr zurück und voraus',
+};
+const chips = [
+  ...(kreisGewaehlt ? [{ text: kreisKurz(kreisGewaehlt), href: ohne('kreis') }] : []),
+  ...(zeit !== 'kommend' && zeitParam
+    ? [{ text: ZEIT_TEXT[zeit] ?? zeit, href: ohne('zeit') }]
+    : []),
+  ...kat
+    .filter((k) => k in KATEGORIEN)
+    .map((k) => ({ text: KATEGORIEN[k as keyof typeof KATEGORIEN].label, href: ohne('kat', k) })),
+  ...(nurBest ? [{ text: 'Nur bestätigte', href: ohne('best') }] : []),
+];
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
@@ -171,7 +201,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
               </a>
             )
           }
-          <button class="knopf" type="submit">Filter anwenden</button>
+          <button class="knopf" type="submit" data-ohne-js>Filter anwenden</button>
         </div>
       </details>
     </form>
@@ -184,7 +214,22 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
       </p>
     )
   }
-  <p class="leise" aria-live="polite">{anzahl(ergebnis.gesamt, 'Termin', 'Termine')}</p>
+  {
+    chips.length > 0 && (
+      <ul class="chips" aria-label="Aktive Filter">
+        {chips.map((c) => (
+          <li>
+            <a href={c.href} aria-label={`Filter entfernen: ${c.text}`}>
+              {c.text} <span aria-hidden="true">✕</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <p class="leise" aria-live="polite" id="trefferzahl">
+    {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
+  </p>
   <TerminListe termine={ergebnis.termine} leer={false} />
   {
     !fehler && ergebnis.gesamt === 0 && (
@@ -212,3 +257,68 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     )
   }
 </Base>
+<script>
+  // Filter sofort anwenden (Issue #111) – ohne JS bleibt „Filter anwenden“.
+  const form = document.querySelector<HTMLFormElement>('#filter');
+  const SCHLUESSEL = 'kirmes-filter-fokus';
+  if (form) {
+    form.querySelector<HTMLElement>('[data-ohne-js]')?.setAttribute('hidden', '');
+    form.addEventListener('change', (e) => {
+      const feld = e.target as HTMLInputElement | HTMLSelectElement;
+      if (!feld.name || feld.name === 'q') return;
+      try {
+        sessionStorage.setItem(SCHLUESSEL, JSON.stringify([feld.name, feld.value]));
+      } catch {
+        /* privater Modus */
+      }
+      form.requestSubmit();
+    });
+    // Nach dem Neuladen dort weitermachen, wo man war
+    try {
+      const gemerkt = sessionStorage.getItem(SCHLUESSEL);
+      sessionStorage.removeItem(SCHLUESSEL);
+      if (gemerkt) {
+        const [name, wert] = JSON.parse(gemerkt) as [string, string];
+        // Erst nach dem Aufbau der eigenen Auswahlfelder: sichtbaren Knopf statt verstecktem select
+        const fokus = () => {
+          const ziel = [
+            ...form.querySelectorAll<HTMLInputElement>(`[name="${CSS.escape(name)}"]`),
+          ].find((el) => el.tagName === 'SELECT' || el.value === wert);
+          const sichtbar =
+            ziel?.closest('.auswahlfeld')?.querySelector<HTMLElement>('.auswahl-ausloeser') ?? ziel;
+          sichtbar?.focus({ preventScroll: true });
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fokus);
+        else setTimeout(fokus, 0);
+      }
+    } catch {
+      /* privater Modus */
+    }
+  }
+</script>
+<style>
+  .chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    margin: 0 0 12px;
+  }
+  .chips a {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--linie);
+    background: var(--flaeche);
+    color: var(--tinte);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .chips a:hover {
+    border-color: var(--rot);
+  }
+</style>
