@@ -31,28 +31,18 @@ export const SICHERHEITS_HEADER = {
 };
 
 /**
- * Bearbeitungsseite: Kartenkacheln und Adresssuche von OpenStreetMap, Standort des Handys.
- * Ohne COEP, weil OSM-Kacheln keinen CORP-Header senden.
+ * Bearbeitungsseite und Karte: Kacheln und Adresssuche kommen über den eigenen Server (Issue #103),
+ * daher dieselbe strenge CSP samt COEP; zusätzlich darf die Seite nach Klick den Standort nutzen.
  */
 export const SICHERHEITS_HEADER_VERWALTUNG = {
-  ...BASIS,
-  'Content-Security-Policy': alsText({
-    ...CSP,
-    'img-src': "'self' data: https://tile.openstreetmap.org",
-    'connect-src': "'self' https://nominatim.openstreetmap.org",
-  }),
+  ...SICHERHEITS_HEADER,
   'Permissions-Policy': 'geolocation=(self), camera=(), microphone=()',
   'Cache-Control': 'no-store',
 };
 
-/** Kartenansicht: nur Kartenkacheln von OpenStreetMap zusätzlich; ohne COEP (Kacheln ohne CORP). */
 export const SICHERHEITS_HEADER_KARTE = {
-  ...BASIS,
-  'Content-Security-Policy': alsText({
-    ...CSP,
-    'img-src': "'self' data: https://tile.openstreetmap.org",
-  }),
-  'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
+  ...SICHERHEITS_HEADER,
+  'Permissions-Policy': 'geolocation=(self), camera=(), microphone=()',
 };
 
 /**

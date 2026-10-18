@@ -430,7 +430,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
     const zoom = vorhanden ? 17 : daten.ort.koordinate ? 15 : 9;
     if (!karte) {
       karte = L.map('karte').setView([start.lat, start.lon], zoom);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('/kacheln/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution:
           '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
@@ -482,18 +482,14 @@ import { KATEGORIEN } from '../../lib/anzeige';
     e.preventDefault();
     const q = $<HTMLInputElement>('adresse').value.trim();
     if (!q) return;
-    const url = new URL('https://nominatim.openstreetmap.org/search');
-    url.search = new URLSearchParams({
-      format: 'jsonv2',
-      limit: '1',
-      countrycodes: 'de',
-      viewbox: '9.8,51.75,12.75,50.1',
-      bounded: '1',
-      q: q.includes(daten.ort.name) ? q : `${q}, ${daten.ort.name}`,
-    }).toString();
+    const url = new URL('/adresssuche.json', location.origin);
+    url.searchParams.set('q', q.includes(daten.ort.name) ? q : `${q}, ${daten.ort.name}`);
     try {
-      const [treffer] = (await (await fetch(url)).json()) as { lat: string; lon: string }[];
-      if (treffer) setzePunkt({ lat: Number(treffer.lat), lon: Number(treffer.lon) }, 18);
+      const res = await fetch(url);
+      if (res.status === 429) return meldung('Bitte einen Moment warten und erneut suchen.');
+      if (!res.ok) throw new Error('nicht erreichbar');
+      const treffer = (await res.json()) as { lat: number; lon: number } | null;
+      if (treffer) setzePunkt(treffer, 18);
       else meldung('Adresse nicht gefunden – bitte den Pin direkt auf der Karte setzen.');
     } catch {
       meldung(

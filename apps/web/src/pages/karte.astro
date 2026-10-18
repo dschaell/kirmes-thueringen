@@ -82,7 +82,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   if (el) {
     el.hidden = false;
     const karte = L.map(el, { scrollWheelZoom: false }).setView([50.9, 11.0], 8);
-    const kacheln = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const kacheln = L.tileLayer('/kacheln/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',

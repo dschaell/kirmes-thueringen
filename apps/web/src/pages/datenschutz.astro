@@ -49,21 +49,23 @@ import Base from '../layouts/Base.astro';
     Passwort, keine biometrischen Daten (Face ID/Touch ID bleiben auf eurem Gerät). Wird ein
     Mitglied entfernt, werden diese Daten gelöscht (Art. 6 Abs. 1 lit. b und f DSGVO).
   </p>
-  <h2>Bearbeitungsseite für Kirmesgesellschaften</h2>
+  <h2>Karte und Festplatz-Seite</h2>
   <p>
-    Nur auf der Seite zum Eintragen des Festplatzes (erreichbar über einen persönlichen Link) werden
-    Kartenkacheln von OpenStreetMap (tile.openstreetmap.org) geladen und – nur bei Nutzung der
-    Adresssuche – Suchanfragen an den Dienst Nominatim der OpenStreetMap Foundation gesendet. Dabei
-    wird eure IP-Adresse an die OpenStreetMap Foundation übermittelt. Der Handy-Standort wird nur
-    nach eurer ausdrücklichen Freigabe im Browser verwendet und nicht gespeichert, solange ihr ihn
-    nicht als Pin speichert.
+    Die Karten (Seite „Karte“ und die Seite zum Eintragen des Festplatzes) nutzen Kartendaten von
+    OpenStreetMap. Die Kartenbilder und – nur bei Nutzung der Adresssuche – die Suchanfrage lädt
+    unser Server bei der OpenStreetMap Foundation und gibt sie an euren Browser weiter. Eure
+    IP-Adresse wird dabei <strong>nicht</strong> an OpenStreetMap übermittelt. Der Handy-Standort wird
+    nur nach eurem Klick und eurer ausdrücklichen Freigabe im Browser verwendet; auf der Karte bleibt
+    er im Browser, auf der Festplatz-Seite wird er nur gespeichert, wenn ihr ihn als Pin speichert.
   </p>
-  <h2>Karte</h2>
+  <h2>Speicher im Browser</h2>
   <p>
-    Auf der Seite „Karte“ lädt dein Browser Kartenkacheln von OpenStreetMap
-    (tile.openstreetmap.org). Dabei wird deine IP-Adresse an die OpenStreetMap Foundation
-    übermittelt. Auf allen anderen Seiten werden keine Daten an OpenStreetMap gesendet; die Liste
-    der Orte unter der Karte funktioniert auch ohne.
+    Ohne Cookie merkt sich euer Browser im lokalen Speicher, welche Mitteilung ihr schon geschlossen
+    habt und ob Google-Karten immer geladen werden sollen (nur wenn ihr das wählt). Im
+    Redaktionsbereich hält der Sitzungsspeicher des Tabs höchstens 20 Minuten ungespeicherte
+    Terminfelder vor, damit nach einem Fehler nichts verloren geht. Diese Angaben verlassen euren
+    Browser nicht; löschen könnt ihr sie über die Website-Daten eures Browsers (§ 25 Abs. 2 Nr. 2
+    TDDDG).
   </p>
   <h2 id="google-maps">Google Maps auf Terminseiten</h2>
   <p>
