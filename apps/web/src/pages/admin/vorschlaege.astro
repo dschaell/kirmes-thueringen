@@ -3,6 +3,7 @@ import type { Vorschlag } from '@kirmes/core';
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
+import { datumKurz } from '../../lib/anzeige';
 let fehler: string[] = [];
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
@@ -65,7 +66,8 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
         <ul>
           {v.termine.map((t) => (
             <li>
-              {t.datum} · {t.beginn} · {t.titel}
+              {datumKurz(t.datum)}
+              {t.beginn && ` · ${t.beginn} Uhr`} · {t.titel}
             </li>
           ))}
         </ul>

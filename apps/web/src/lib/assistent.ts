@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
-import { parseDatum } from '@kirmes/core';
+import { KATEGORIEN as KATEGORIEN_LISTE, parseDatum, type Kategorie } from '@kirmes/core';
 import { wochenendVorlage } from './wochenende';
 import { findeOrtEindeutig } from './ortssuche';
 import { nachAktion } from './terminliste';
@@ -40,6 +40,8 @@ export function vorlage(ab: string, tage: string): AssistentZeile[] {
       .map(({ kern, ...z }) => ({ ...z, aktiv: kern === true, speisen: [] }))
   );
 }
+const istKategorie = (k: string | null | undefined): k is Kategorie =>
+  !!k && (KATEGORIEN_LISTE as readonly string[]).includes(k);
 function addiereTage(ab: string, tage: number) {
   const d = new Date(`${ab}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + tage);
@@ -75,6 +77,8 @@ export function leseProgramm(
                 datum: feld(f, `datum-${i}`),
                 beginn: feld(f, `beginn-${i}`),
                 titel: feld(f, `titel-${i}`),
+                // Art wählbar (Issue #93); leer = beim Speichern aus dem Titel erkennen
+                kategorie: istKategorie(feld(f, `kat-${i}`)) ? feld(f, `kat-${i}`) : null,
               }),
         },
   );
@@ -247,9 +251,12 @@ export async function assistent(
     }
   } else {
     s.zeilen = leseProgramm(f, s.zeilen, true);
-    s.kontaktName = feld(f, 'kontaktName');
-    s.kontaktEmail = feld(f, 'kontaktEmail');
-    s.nachricht = feld(f, 'nachricht');
+    // In der Redaktion gibt es diese Felder nicht – Angaben des Einsenders bleiben erhalten
+    if (!redaktion) {
+      s.kontaktName = feld(f, 'kontaktName');
+      s.kontaktEmail = feld(f, 'kontaktEmail');
+      s.nachricht = feld(f, 'nachricht');
+    }
     s.bestaetigt = f.has('bestaetigt');
     if (aktion.startsWith('gerichte-')) {
       const index = Number(aktion.slice('gerichte-'.length));
@@ -267,6 +274,7 @@ export async function assistent(
         datum: z.datum,
         beginn: z.beginn || null,
         titel: z.titel,
+        kategorie: z.kategorie && istKategorie(z.kategorie) ? z.kategorie : null,
         band: z.band || null,
         veranstaltungsort: z.veranstaltungsort || null,
         info: z.info || null,
