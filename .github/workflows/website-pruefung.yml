@@ -1,0 +1,77 @@
+# Tägliche Prüfung der Live-Website: Funktionstests (alle wichtigen Seiten, Kalender, Sitemap,
+# Terminseiten mit Vorschaubild, Kachel-Proxy, Redaktions-Schutz) und Lighthouse mit Grenzwerten.
+# Bei Befunden wird ein Issue mit Label „überwachung“ angelegt bzw. ergänzt; ist alles wieder
+# grün, wird es mit einem Kommentar geschlossen. Die Prüfung liest nur – sie schickt nichts ab.
+name: Website-Prüfung
+
+on:
+  schedule:
+    - cron: '30 4 * * *' # täglich 06:30 MESZ / 05:30 MEZ
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-pruefung
+  cancel-in-progress: false
+
+env:
+  WEBSITE: https://kirmeskalender-thueringen.de
+
+jobs:
+  pruefen:
+    name: Live-Website prüfen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with: { egress-policy: audit }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: '24' }
+
+      - name: Lighthouse (mobil)
+        run: |
+          mkdir -p lighthouse
+          for seite in "standard:/" "termine:/termine" "karte:/karte" "termin-melden:/termin-melden" "ortsseite:/orte/alkersleben"; do
+            name="${seite%%:*}"; pfad="${seite#*:}"
+            npx -y lighthouse@12.8.2 "$WEBSITE$pfad" --quiet \
+              --chrome-flags="--headless=new --no-sandbox" --form-factor=mobile \
+              --only-categories=performance,accessibility,best-practices,seo \
+              --output=json --output-path="lighthouse/$name.json" || echo "Lighthouse $name fehlgeschlagen"
+          done
+
+      - name: Funktionstests und Grenzwerte
+        id: pruefung
+        run: |
+          set +e
+          node scripts/website-pruefen.mjs "$WEBSITE" --lighthouse lighthouse > bericht.md
+          echo "befunde=$?" >> "$GITHUB_OUTPUT"
+          cat bericht.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Issue anlegen, ergänzen oder schließen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFUNDE: ${{ steps.pruefung.outputs.befunde }}
+          LAUF: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create "überwachung" --color FBCA04 --description "Automatische Website-Prüfung" 2>/dev/null || true
+          offen=$(gh issue list --label "überwachung" --state open --json number --jq '.[0].number')
+          printf '\n\n[Lauf ansehen](%s)\n' "$LAUF" >> bericht.md
+          if [ "$BEFUNDE" != "0" ]; then
+            if [ -n "$offen" ]; then
+              gh issue comment "$offen" --body-file bericht.md
+            else
+              gh issue create --title "Website-Prüfung: Befunde $(date -u +%Y-%m-%d)" \
+                --label "überwachung" --label "bug" --body-file bericht.md
+            fi
+            exit 1
+          elif [ -n "$offen" ]; then
+            gh issue comment "$offen" --body "✔ Die tägliche Prüfung ist wieder ohne Befunde. $LAUF"
+            gh issue close "$offen"
+          fi
