@@ -10,10 +10,19 @@ interface Props {
   jsonLd?: unknown[];
   /** Für Seiten, die nicht in Suchmaschinen sollen (z. B. Verwaltung) */
   noindex?: boolean;
+  /** Eigenes Vorschaubild (1200×630), sonst /og.png (Issue #110) */
+  bild?: string;
   /** Redaktion: schlanker Kopf ohne öffentliche Navigation (Issue #91) */
   kompakt?: boolean;
 }
-const { title, description, jsonLd = [], noindex = false, kompakt = false } = Astro.props;
+const {
+  title,
+  description,
+  jsonLd = [],
+  noindex = false,
+  kompakt = false,
+  bild = '/og.png',
+} = Astro.props;
 const pfad = ohneSchraegstrich(Astro.url.pathname);
 const canonical = new URL(pfad, Astro.site);
 const nav = [
@@ -58,7 +67,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL('/og.png', Astro.site)} />
+    <meta property="og:image" content={new URL(bild, Astro.site)} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />

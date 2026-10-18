@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
-import { listeOrte } from '../lib/api';
-import { LANDKREISE, kreisSlug } from '../lib/anzeige';
+import { alleTermine, listeOrte } from '../lib/api';
+import { LANDKREISE, heute, kreisSlug } from '../lib/anzeige';
 
-/** Sitemap aus der Datenbank – enthält jede Ortsseite, auch neu angelegte Orte. */
+/** Sitemap aus der Datenbank – Ortsseiten mit Terminen und kommende Terminseiten (Issue #110). */
 export const GET: APIRoute = async ({ site }) => {
-  const orte = await listeOrte();
+  const [orte, termine] = await Promise.all([listeOrte(), alleTermine({ von: heute() })]);
   const pfade = [
     '/',
     '/termine',
@@ -18,6 +18,7 @@ export const GET: APIRoute = async ({ site }) => {
     '/kalender-abonnieren',
     ...Object.keys(LANDKREISE).map((k) => `/kreise/${kreisSlug(k)}`),
     ...orte.filter((o) => o.anzahlKommend > 0).map((o) => `/orte/${o.slug}`),
+    ...termine.map((t) => `/termin/${t.id}`),
   ];
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
