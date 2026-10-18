@@ -133,19 +133,39 @@ const GRENZEN = {
   karte: { performance: 0.7, accessibility: 0.95, 'best-practices': 0.9, seo: 0.95, cls: 0.1 },
 };
 const lighthouse = [];
+const hinweise = [];
 if (lhOrdner) {
+  // Je Seite mehrere Läufe (name-1.json, name-2.json …): der beste zählt – Lighthouse schwankt auf
+  // geteilten CI-Rechnern. Abgebrochene Läufe (z. B. NO_NAVSTART) zählen nicht als 0.
+  const laeufe = new Map();
   for (const datei of (await readdir(lhOrdner)).filter((d) => d.endsWith('.json'))) {
+    const name = datei.replace(/(-\d+)?\.json$/, '');
     const d = JSON.parse(await readFile(`${lhOrdner}/${datei}`, 'utf8'));
-    const name = datei.replace(/\.json$/, '');
+    if (d.runtimeError) {
+      hinweise.push(`Lighthouse ${name}: Messung abgebrochen (${d.runtimeError.code})`);
+      continue;
+    }
+    laeufe.set(name, [...(laeufe.get(name) ?? []), d]);
+  }
+  const erwartet = new Set(
+    (await readdir(lhOrdner))
+      .filter((d) => d.endsWith('.json'))
+      .map((d) => d.replace(/(-\d+)?\.json$/, '')),
+  );
+  for (const name of erwartet)
+    pruefe(laeufe.has(name), `Lighthouse ${name}: mindestens eine gültige Messung`);
+  for (const [name, berichte] of laeufe) {
     const g = GRENZEN[name] ?? GRENZEN.standard;
-    const werte = Object.fromEntries(
-      Object.entries(d.categories).map(([k, v]) => [k, v.score ?? 0]),
+    const werte = {};
+    for (const d of berichte)
+      for (const [k, v] of Object.entries(d.categories))
+        werte[k] = Math.max(werte[k] ?? 0, v.score ?? 0);
+    const cls = Math.min(
+      ...berichte.map((d) => d.audits['cumulative-layout-shift']?.numericValue ?? 0),
     );
-    const cls = d.audits['cumulative-layout-shift']?.numericValue ?? 0;
+    const spalte = (k) => (k in werte ? String(Math.round(werte[k] * 100)) : '–');
     lighthouse.push(
-      `| ${name} | ${Object.values(werte)
-        .map((w) => Math.round(w * 100))
-        .join(' | ')} | ${cls.toFixed(3)} |`,
+      `| ${name} | ${['performance', 'accessibility', 'best-practices', 'seo'].map(spalte).join(' | ')} | ${cls.toFixed(3)} | ${berichte.length} |`,
     );
     for (const [k, min] of Object.entries(g)) {
       if (k === 'cls')
@@ -166,14 +186,15 @@ const zeilen = [
   befunde.length
     ? `### ✖ ${befunde.length} Befund${befunde.length === 1 ? '' : 'e'}\n\n${befunde.map((b) => `- ${b}`).join('\n')}`
     : '### ✔ Keine Befunde',
+  ...(hinweise.length ? ['', `**Hinweise:** ${hinweise.join(' · ')}`] : []),
   '',
   `<details><summary>${ok.length} Prüfungen bestanden</summary>\n\n${ok.map((b) => `- ${b}`).join('\n')}\n</details>`,
 ];
 if (lighthouse.length)
   zeilen.push(
     '',
-    '| Seite | Leistung | Barrierefreiheit | Best Practices | SEO | CLS |',
-    '|---|---|---|---|---|---|',
+    '| Seite | Leistung | Barrierefreiheit | Best Practices | SEO | CLS | Läufe |',
+    '|---|---|---|---|---|---|---|',
     ...lighthouse,
   );
 console.log(zeilen.join('\n'));

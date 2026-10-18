@@ -35,15 +35,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: '24' }
 
-      - name: Lighthouse (mobil)
+      - name: Lighthouse (mobil, je Seite zwei Läufe)
         run: |
           mkdir -p lighthouse
           for seite in "standard:/" "termine:/termine" "karte:/karte" "termin-melden:/termin-melden" "ortsseite:/orte/alkersleben"; do
             name="${seite%%:*}"; pfad="${seite#*:}"
-            npx -y lighthouse@12.8.2 "$WEBSITE$pfad" --quiet \
-              --chrome-flags="--headless=new --no-sandbox" --form-factor=mobile \
-              --only-categories=performance,accessibility,best-practices,seo \
-              --output=json --output-path="lighthouse/$name.json" || echo "Lighthouse $name fehlgeschlagen"
+            for lauf in 1 2; do
+              npx -y lighthouse@12.8.2 "$WEBSITE$pfad" --quiet \
+                --chrome-flags="--headless=new --no-sandbox" --form-factor=mobile \
+                --only-categories=performance,accessibility,best-practices,seo \
+                --output=json --output-path="lighthouse/$name-$lauf.json" || echo "Lighthouse $name ($lauf) fehlgeschlagen"
+            done
           done
 
       - name: Funktionstests und Grenzwerte
