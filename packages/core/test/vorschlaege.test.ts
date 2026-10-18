@@ -88,6 +88,17 @@ describe('Öffentliche Vorschläge', () => {
       },
     });
   });
+  it('übernimmt eine gewählte Art, sonst aus dem Titel (Issue #93)', async () => {
+    const { orte } = setup();
+    const e = eingabe();
+    e.zeilen = [
+      { datum: '2027-09-19', titel: 'Ständchen', kategorie: 'party' },
+      { datum: '2027-09-19', titel: 'Kinderkirmes', kategorie: 'quatsch' as never },
+      { datum: '2027-09-19', titel: 'Mittagstisch' },
+    ];
+    const r = await pruefeVorschlag(e, orte);
+    expect(r.ok && r.value.termine.map((t) => t.kategorie)).toEqual(['party', 'familie', 'party']);
+  });
   it('optionaler Kontakt, Mindestzeit und Mail ohne Reply-To', async () => {
     const { v, post, repo } = setup();
     expect((await v.melde(eingabe(), 'ip')).ok).toBe(true);
