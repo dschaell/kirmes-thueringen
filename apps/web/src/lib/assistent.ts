@@ -2,6 +2,7 @@ import type { APIContext } from 'astro';
 import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
 import { parseDatum } from '@kirmes/core';
 import { wochenendVorlage } from './wochenende';
+import { findeOrtEindeutig } from './ortssuche';
 import { nachAktion } from './terminliste';
 import { adminApi, feld } from './admin';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
@@ -16,6 +17,8 @@ export interface AssistentStand {
   schritt: 1 | 2 | 3;
   zeitraumWechsel?: boolean;
   ortSlug: string;
+  /** Getippter Ortstext – bleibt bei „Ort nicht gefunden“ im Feld stehen */
+  ortEingabe?: string;
   ab: string;
   tage: string;
   zeilen: AssistentZeile[];
@@ -83,6 +86,7 @@ function leseStand(s: string): AssistentStand | null {
     if (
       ![1, 2, 3].includes(v.schritt) ||
       typeof v.ortSlug !== 'string' ||
+      (v.ortEingabe !== undefined && typeof v.ortEingabe !== 'string') ||
       typeof v.ab !== 'string' ||
       !['1', '2', '3', '4'].includes(v.tage) ||
       !Array.isArray(v.zeilen) ||
@@ -200,15 +204,9 @@ export async function assistent(
   if (s.schritt === 1) {
     const vorher = `${s.ortSlug}|${s.ab}|${s.tage}`;
     const ortText = feld(f, 'ort');
-    const orte = await listeOrte();
-    const passende = orte.filter(
-      (o) =>
-        o.slug === ortText ||
-        o.name === ortText ||
-        `${o.name} (${o.landkreis})` === ortText ||
-        `${o.name} (${o.landkreis}) · ${o.slug}` === ortText,
-    );
-    s.ortSlug = passende.length === 1 ? (passende[0]?.slug ?? '') : '';
+    // Eindeutig und tolerant (Groß-/Kleinschreibung, Umlaute) – Issue #89
+    s.ortSlug = findeOrtEindeutig(await listeOrte(), ortText)?.slug ?? '';
+    s.ortEingabe = ortText.slice(0, 200);
     s.ab = feld(f, 'ab');
     s.tage = feld(f, 'tage');
     if (!s.ortSlug) s.fehler.push('Bitte einen Ort aus den Vorschlägen wählen.');
