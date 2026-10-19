@@ -15,3 +15,5 @@ function zeige(fokus: boolean) {
 }
 zeige(false);
 auswahl?.addEventListener('change', () => zeige(true));
+
+export {};

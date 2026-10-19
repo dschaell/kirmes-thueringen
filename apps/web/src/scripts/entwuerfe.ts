@@ -168,3 +168,5 @@ for (const form of document.querySelectorAll<HTMLFormElement>('form[data-termine
     /* Defekter/gesperrter Speicher darf die Bearbeitung nicht verhindern. */
   }
 }
+
+export {};
