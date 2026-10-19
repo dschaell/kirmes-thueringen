@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '24'
+  NODE_VERSION: '26'
   SEMGREP_IMAGE: semgrep/semgrep:1.180.0
   # v2.6.0, per Digest festgenagelt
   OSV_SCANNER_IMAGE: ghcr.io/google/osv-scanner@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa
