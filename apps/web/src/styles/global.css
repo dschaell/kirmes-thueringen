@@ -355,6 +355,19 @@ select {
 .datumsfeld input::-webkit-calendar-picker-indicator {
   display: none;
 }
+/* Wochentag vor dem Datum (Issue #152) */
+.datum-wochentag {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  color: var(--grau);
+  pointer-events: none;
+}
+.datumsfeld.mit-wochentag input {
+  padding-left: 46px;
+}
 .kalender-ausloeser {
   display: inline-flex;
   align-items: center;

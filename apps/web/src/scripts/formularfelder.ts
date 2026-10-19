@@ -150,6 +150,7 @@ for (const feld of document.querySelectorAll<HTMLSelectElement>('select:not([mul
 
 const iso = (datum: Date) =>
   `${datum.getFullYear()}-${String(datum.getMonth() + 1).padStart(2, '0')}-${String(datum.getDate()).padStart(2, '0')}`;
+const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
 for (const feld of document.querySelectorAll<HTMLInputElement>('input[type="date"]')) {
   if (feld.disabled || feld.readOnly || typeof HTMLDialogElement === 'undefined') continue;
   const rahmen = document.createElement('span');
@@ -260,5 +261,20 @@ for (const feld of document.querySelectorAll<HTMLInputElement>('input[type="date
   aktionen.append(heute, leeren, fertig);
   dialog.append(kopf, tage, aktionen);
   rahmen.append(ausloeser);
+  // Wochentag vor dem Datum (Issue #152): „Do.“ – für Kirmes-Programme entscheidend
+  const wochentag = document.createElement('span');
+  wochentag.className = 'datum-wochentag';
+  wochentag.setAttribute('aria-hidden', 'true');
+  rahmen.prepend(wochentag);
+  const wochentagZeigen = () => {
+    const gueltig = /^\d{4}-\d{2}-\d{2}$/.test(feld.value);
+    wochentag.textContent = gueltig
+      ? (WOCHENTAGE[new Date(`${feld.value}T12:00:00Z`).getUTCDay()] ?? '')
+      : '';
+    rahmen.classList.toggle('mit-wochentag', gueltig);
+  };
+  feld.addEventListener('input', wochentagZeigen);
+  feld.addEventListener('change', wochentagZeigen);
+  wochentagZeigen();
   document.body.append(dialog);
 }
