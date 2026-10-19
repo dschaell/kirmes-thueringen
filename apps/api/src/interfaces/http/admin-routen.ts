@@ -361,12 +361,19 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         { schema: { params: SLUG } },
         async (req, reply) => (await fp.uebersicht(req.params.slug)) ?? nichtGefunden(reply),
       );
-      r.post<{ Params: { slug: string }; Body: { name: string; standort: string } }>(
+      r.post<{
+        Params: { slug: string };
+        Body: { name: string; standort: string; nameNoetig?: boolean };
+      }>(
         '/api/v1/admin/orte/:slug/festplaetze',
         {
           schema: {
             params: SLUG,
-            body: objekt(['name', 'standort'], { name: TEXT(120), standort: TEXT(2000) }),
+            body: objekt(['name', 'standort'], {
+              name: TEXT(120),
+              standort: TEXT(2000),
+              nameNoetig: { type: 'boolean' },
+            }),
           },
         },
         async (req, reply) => {

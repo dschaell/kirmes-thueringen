@@ -111,6 +111,25 @@ export function koordinateAusText(text: string): { lat: number; lon: number } | 
   return { lat: Number(a.replace(',', '.')), lon: Number(b.replace(',', '.')) };
 }
 
+/**
+ * Name des Ortes aus einem Google-Maps-Link (Issue #165):
+ * …/maps/place/Gastst%C3%A4tte+Zum+einkehrenden+Apostel/@… → „Gaststätte Zum einkehrenden Apostel“.
+ * null bei Kurzlinks, Koordinaten oder Links ohne Ortsnamen.
+ */
+export function nameAusKartenlink(text: string): string | null {
+  const m = /\/maps\/place\/([^/?#@]+)/.exec(text);
+  if (!m?.[1]) return null;
+  let name: string;
+  try {
+    name = decodeURIComponent(m[1].replace(/\+/g, ' '));
+  } catch {
+    return null;
+  }
+  name = name.replace(/\s+/g, ' ').trim().slice(0, 120);
+  // Reine Koordinaten („50.86,11.09“) sind kein Name
+  return name && !/^[-\d.,\s°NSEOW'"]+$/i.test(name) ? name : null;
+}
+
 /** Kurzlink aus „Teilen → Link kopieren“ in Google Maps (muss aufgelöst werden, enthält keine Koordinaten). */
 export const istKartenKurzlink = (text: string) =>
   /^\s*https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+\S*\s*$/.test(text);

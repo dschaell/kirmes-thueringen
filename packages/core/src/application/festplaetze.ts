@@ -1,6 +1,6 @@
 import { validiereFestplatz, type Festplatz } from '../domain/festplatz.js';
 import { err, ok, type Result, type Validierungsfehler } from '../domain/result.js';
-import { istKartenKurzlink, koordinateAusText } from '../domain/redaktion.js';
+import { istKartenKurzlink, koordinateAusText, nameAusKartenlink } from '../domain/redaktion.js';
 import type { Ort } from '../domain/termin.js';
 
 /** Wer darf bearbeiten? Ergebnis einer erfolgreichen Link-Prüfung – gilt immer nur für einen Ort. */
@@ -103,7 +103,7 @@ export class RedaktionsFestplaetze {
 
   async speichere(
     ortSlug: string,
-    e: { name: string; standort: string },
+    e: { name: string; standort: string; nameNoetig?: boolean },
     adminId: string,
   ): Promise<Result<Festplatz, Validierungsfehler[]>> {
     const b = await this.berechtigung(ortSlug, adminId);
@@ -122,7 +122,18 @@ export class RedaktionsFestplaetze {
         },
       ]);
     }
-    const v = validiereFestplatz({ name: e.name, lat: k.lat, lon: k.lon });
+    // Ohne eigenen Namen: Name aus dem (aufgelösten) Google-Maps-Link, sonst Hauptfestplatz (#165)
+    const name = e.name.trim() || nameAusKartenlink(text) || '';
+    if (!name && e.nameNoetig)
+      return err([
+        {
+          feld: 'name',
+          code: 'NAME_FEHLT',
+          meldung:
+            'Im Link steht kein Name (z. B. nur ein Punkt auf einem Feld) – bitte bei „Wo genau?“ einen Namen eintragen.',
+        },
+      ]);
+    const v = validiereFestplatz({ name, lat: k.lat, lon: k.lon });
     if (!v.ok) return v;
     await this.repo.speichere(ortSlug, v.value, b);
     return ok(v.value);
