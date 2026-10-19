@@ -11,13 +11,17 @@ const name =
     : h?.angelegtAm
       ? 'Nicht mehr zuordenbar'
       : 'Nicht dokumentiert');
-const datum = h?.angelegtAm
-  ? new Date(h.angelegtAm).toLocaleString('de-DE', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'Europe/Berlin',
-    })
-  : null;
+const zeit = (iso: string) =>
+  new Date(iso).toLocaleString('de-DE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Europe/Berlin',
+  });
+const datum = h?.angelegtAm ? zeit(h.angelegtAm) : null;
+// Zuletzt bearbeitet (Issue #181)
+const g = h?.geaendert;
+const gName =
+  g?.name ?? (g?.weg === 'bearbeitungslink' ? 'Kirmesgesellschaft' : 'Nicht mehr zuordenbar');
 ---
 
 <p class="klein leise">
@@ -30,3 +34,11 @@ const datum = h?.angelegtAm
   {h?.weg === 'vorschlag' && ' · aus öffentlichem Vorschlag übernommen'}
   {h?.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
 </p>
+{
+  g && (
+    <p class="klein leise">
+      Zuletzt bearbeitet von: {gName} · {zeit(g.am)}
+      {g.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
+    </p>
+  )
+}

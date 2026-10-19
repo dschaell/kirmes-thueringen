@@ -9,6 +9,8 @@ export interface TerminHerkunft {
   name: string | null;
   angelegtAm: string | null;
   weg: 'redaktion' | 'bearbeitungslink' | 'vorschlag' | 'unbekannt';
+  /** Letzte Bearbeitung (Ändern/Bestätigen) laut Änderungsprotokoll – Issue #181 */
+  geaendert?: { name: string | null; am: string; weg: 'redaktion' | 'bearbeitungslink' } | null;
 }
 
 export interface RedaktionsFilter {
