@@ -23,7 +23,7 @@ import type {
   TerminHerkunft,
   Validierungsfehler,
 } from '@kirmes/core';
-import { darfOrt } from '@kirmes/core';
+import { darf, darfOrt, nurEigenerOrt } from '@kirmes/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 export interface AdminAbhaengigkeiten {
@@ -324,7 +324,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     // nur der eigene Ort (aus Body, Query oder Pfad). Vergessene Routen bleiben so zu.
     r.addHook('preHandler', async (req, reply) => {
       const s = akteur(req);
-      if (s.rolle !== 'kirmesgesellschaft') return;
+      if (!nurEigenerOrt(s)) return;
       if (!KG_ROUTEN.has(`${req.method} ${req.routeOptions.url}`))
         return reply.status(403).send(problem(403, 'Für Kirmesgesellschaften nicht freigegeben.'));
       const ort =
@@ -339,7 +339,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     if (d.sicherungen) {
       const sicherungen = d.sicherungen;
       r.get('/api/v1/admin/sicherungen', async (req, reply) =>
-        akteur(req).rolle === 'admin'
+        darf(akteur(req), 'sicherungen')
           ? sicherungen()
           : reply.status(403).send(problem(403, 'Nur für Admins.')),
       );
@@ -589,7 +589,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       '/api/v1/admin/orte/:slug',
       { schema: { params: objekt(['slug'], { slug: TEXT(120) }) } },
       async (req, reply) => {
-        if (akteur(req).rolle !== 'admin')
+        if (!darf(akteur(req), 'orte.loeschen'))
           return reply.status(403).send(problem(403, 'Nur für Admins.'));
         const e = await d.redaktion.loescheOrt(req.params.slug, admin(req));
         if (e === 'geloescht') return reply.status(204).send();

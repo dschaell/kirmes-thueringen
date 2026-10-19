@@ -14,6 +14,7 @@ import {
   type Sitzungen,
 } from './admin.js';
 import type { Challenges, RegistrierterSchluessel, WebAuthn } from './passkeys.js';
+import { darf } from './rechte.js';
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
 export interface Mitglied {
@@ -197,7 +198,7 @@ export class Mitgliederverwaltung {
   ) {}
 
   private nurAdmin<T>(akteur: Sitzung, f: () => Promise<Result<T, VerwaltungsFehler>>) {
-    return akteur.rolle === 'admin' ? f() : Promise.resolve(err('NUR_ADMIN' as const));
+    return darf(akteur, 'mitglieder') ? f() : Promise.resolve(err('NUR_ADMIN' as const));
   }
 
   liste(akteur: Sitzung) {

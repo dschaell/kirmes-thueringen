@@ -40,9 +40,7 @@ export interface Sitzung {
   ortSlug?: string | null;
   ortName?: string | null;
 }
-/** Darf das Mitglied an diesem Ort arbeiten? Redaktion und Admin überall, KG nur am eigenen Ort. */
-export const darfOrt = (s: Pick<Sitzung, 'rolle' | 'ortSlug'>, ortSlug: string) =>
-  s.rolle !== 'kirmesgesellschaft' || (!!s.ortSlug && s.ortSlug === ortSlug);
+
 export interface AdminKonten {
   merkeLogin(id: string): Promise<void>;
 }

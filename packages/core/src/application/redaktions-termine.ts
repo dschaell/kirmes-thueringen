@@ -1,7 +1,8 @@
 import { istOrtSlug } from '../domain/termin.js';
 import { parseDatum, plusTage, type KalenderDatum } from '../domain/datum.js';
 import { err, ok, type Validierungsfehler } from '../domain/result.js';
-import { ROLLEN, type Sitzungen } from './admin.js';
+import type { Sitzungen } from './admin.js';
+import { darf, nurEigenerOrt } from './rechte.js';
 import type { TerminRepository, Uhr } from './ports.js';
 
 /** Interne Herkunft; absichtlich nicht Bestandteil des öffentlichen Terminmodells. */
@@ -32,9 +33,9 @@ export class RedaktionsTermine {
   ) {}
   async liste(token: string, e: RedaktionsFilter) {
     const s = token ? await this.sitzungen.pruefe(token) : null;
-    if (!s || !ROLLEN.includes(s.rolle)) return err('VERBOTEN' as const);
+    if (!s || !darf(s, 'termine')) return err('VERBOTEN' as const);
     // Kirmesgesellschaft sieht nur ihren Ort – egal was im Filter steht (Issue #180)
-    if (s.rolle === 'kirmesgesellschaft') {
+    if (nurEigenerOrt(s)) {
       if (!s.ortSlug) return err('VERBOTEN' as const);
       e = { ...e, ort: s.ortSlug };
     }

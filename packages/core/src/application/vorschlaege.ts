@@ -3,7 +3,8 @@ import { err, ok, type Validierungsfehler } from '../domain/result.js';
 import { KATEGORIEN, validiereTermin, type NeuerTermin } from '../domain/termin.js';
 import { LANDKREISE } from '../domain/landkreis.js';
 import { validiereSpeisen, type Speise } from '../domain/speisen.js';
-import { ROLLEN, darfOrt, type Sitzung, type Sitzungen } from './admin.js';
+import type { Sitzung, Sitzungen } from './admin.js';
+import { darf, nurEigenerOrt } from './rechte.js';
 import type { OrtRepository } from './ports.js';
 import type { Drosselung, Postausgang } from './meldungen.js';
 import { erkenneKategorie } from './recherche.js';
@@ -261,7 +262,7 @@ export class Vorschlaege {
     private readonly karten?: Kartenlinks,
   ) {}
   async melde(e: VorschlagEingabe, herkunft: string) {
-    if (text(e.falle) || !Number.isFinite(e.dauerMs) || (e.dauerMs ?? 0) < 3000)
+    if (text(e.falle) || !Number.isFinite(e.dauerMs) || (e.dauerMs as number) < 3000)
       return ok({ angenommen: true });
     if (!this.jeAbsender.erlaube(herkunft) || !this.gesamt.erlaube('gesamt'))
       return err('ZU_VIELE' as const);
@@ -288,27 +289,27 @@ export class Vorschlaege {
   }
   private async berechtigt(token: string) {
     const s = token ? await this.sitzungen.pruefe(token) : null;
-    return s && ROLLEN.includes(s.rolle) ? s : null;
+    return darf(s, 'vorschlaege') ? s : null;
   }
   async liste(token: string) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
     // Kirmesgesellschaft sieht nur Vorschläge für ihren Ort (Issue #180)
-    return ok((await this.repo.liste()).filter((v) => darfOrt(s, v.ortSlug)));
+    return ok((await this.repo.liste()).filter((v) => darf(s, 'vorschlaege', v.ortSlug)));
   }
   async anzahl(token: string) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
     return ok(
-      s.rolle === 'kirmesgesellschaft'
-        ? (await this.repo.liste()).filter((v) => darfOrt(s, v.ortSlug)).length
+      nurEigenerOrt(s)
+        ? (await this.repo.liste()).filter((v) => darf(s, 'vorschlaege', v.ortSlug)).length
         : await this.repo.anzahl(),
     );
   }
   /** Vorschlag nur, wenn der Ort zum Mitglied passt – sonst „nicht gefunden“ (nichts verraten). */
   private async eigener(s: Sitzung, id: string) {
     const v = UUID.test(id) ? await this.repo.finde(id) : null;
-    return v && darfOrt(s, v.ortSlug) ? v : null;
+    return v && darf(s, 'vorschlaege', v.ortSlug) ? v : null;
   }
   async finde(token: string, id: string) {
     const s = await this.berechtigt(token);
@@ -319,7 +320,7 @@ export class Vorschlaege {
   async uebernehme(token: string, id: string, e: VorschlagEingabe, bestaetigt: boolean) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
-    if (!(await this.eigener(s, id)) || !darfOrt(s, e.ortSlug))
+    if (!(await this.eigener(s, id)) || !darf(s, 'vorschlaege', e.ortSlug))
       return err('NICHT_GEFUNDEN' as const);
     const v = await pruefeVorschlag(e, this.orte, { redaktion: true });
     if (!v.ok) return v;
@@ -339,8 +340,7 @@ export class Vorschlaege {
     if (!s) return err('VERBOTEN' as const);
     const g = text(grund);
     if (g.length > 500) return err([fehler('grund', 'Grund: höchstens 500 Zeichen.')]);
-    const erlaubt =
-      s.rolle === 'kirmesgesellschaft' ? !!(await this.eigener(s, id)) : UUID.test(id);
+    const erlaubt = nurEigenerOrt(s) ? !!(await this.eigener(s, id)) : UUID.test(id);
     return erlaubt && (await this.repo.lehneAb(id, g || null, s.adminId))
       ? ok(true)
       : err('NICHT_GEFUNDEN' as const);

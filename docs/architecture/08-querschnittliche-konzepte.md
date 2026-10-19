@@ -121,3 +121,7 @@ mit `</script>` kann den Block nicht verlassen (Issue #22, Kap. 8.5 A03).
 - Vorschaubilder (`og.png`, App-Icons) erzeugt `scripts/bilder-erzeugen.mjs` aus dem SVG-Logo.
 - Farben als CSS-Variablen in `styles/global.css`, helles und dunkles Farbschema; Tippflächen auf
   Touch-Geräten ≥ 44 px (Issue #30), Druckansicht für die Muttizettel-Vorlage (Issue #32).
+
+## Rechte
+
+Wer was darf, steht an einer Stelle im Core (`rechte.ts`) – Tabelle und Regeln: [rechte.md](rechte.md).

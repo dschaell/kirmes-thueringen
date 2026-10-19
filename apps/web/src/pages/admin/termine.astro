@@ -1,4 +1,5 @@
 ---
+import { darf } from '@kirmes/core';
 /**
  * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
  * gezeigt und können angelegt, gesammelt geändert, bestätigt und gelöscht werden. Einzelne Termine
@@ -268,7 +269,7 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
   {
     ort && (
       <>
-        {Astro.locals.rolle === 'kirmesgesellschaft' ? (
+        {!darf(Astro.locals, 'links') ? (
           <p class="brotkrumen">
             <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
           </p>
