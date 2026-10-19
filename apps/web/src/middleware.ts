@@ -82,11 +82,13 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     pfad === '/admin/einladung' ||
     pfad.startsWith('/admin/zugang/');
   if (!ohneSitzung) {
-    const ich = await adminApi<{ adminId: string; name: string; rolle: 'admin' | 'redaktion' }>(
-      ctx.cookies,
-      'GET',
-      'ich',
-    );
+    const ich = await adminApi<{
+      adminId: string;
+      name: string;
+      rolle: 'admin' | 'redaktion' | 'kirmesgesellschaft';
+      ortSlug: string | null;
+      ortName: string | null;
+    }>(ctx.cookies, 'GET', 'ich');
     if (ich.status !== 200 || !ich.daten)
       return ctx.redirect(
         `/admin/anmelden?weiter=${encodeURIComponent(ctx.url.pathname + ctx.url.search)}`,
@@ -95,9 +97,30 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     ctx.locals.adminId = ich.daten.adminId;
     ctx.locals.name = ich.daten.name;
     ctx.locals.rolle = ich.daten.rolle;
+    ctx.locals.ortSlug = ich.daten.ortSlug;
+    ctx.locals.ortName = ich.daten.ortName;
     // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
     if (pfad.startsWith('/admin/mitglieder') && ich.daten.rolle !== 'admin') {
       return ctx.redirect('/admin', 303);
+    }
+    // Kirmesgesellschaft (Issue #180): nur ihre Seiten, nur ihr Ort – die API prüft zusätzlich
+    if (ich.daten.rolle === 'kirmesgesellschaft') {
+      const eigen = ich.daten.ortSlug ?? '';
+      const erlaubt =
+        pfad === '/admin' ||
+        pfad === '/admin/vorschlaege' ||
+        pfad === '/admin/kirmes-eintragen' ||
+        pfad === '/admin/termine' ||
+        pfad.startsWith('/admin/termine/') ||
+        pfad.startsWith('/admin/passkeys') ||
+        pfad === '/admin/abmelden';
+      if (!erlaubt) return ctx.redirect('/admin', 303);
+      const ort = ctx.url.searchParams.get('ort');
+      if (pfad === '/admin/termine' && ort !== eigen) {
+        const ziel = new URL(ctx.url);
+        ziel.searchParams.set('ort', eigen);
+        return ctx.redirect(`${ziel.pathname}${ziel.search}`, 303);
+      }
     }
   }
   const res = await next();

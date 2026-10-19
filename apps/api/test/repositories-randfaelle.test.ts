@@ -29,7 +29,8 @@ describe('Repositories ohne Ergebniszeilen', () => {
     expect(await m.anzahlAdmins()).toBe(0);
     const e = new PgEinladungen(leer as never);
     expect(await e.widerrufe('1')).toBe(false);
-    await expect(e.lege('T'.repeat(43), 'admin', null, 7)).rejects.toThrow('keine Einladung');
+    // ohne Ergebniszeile (z. B. unbekannter Ort) → null statt Absturz (Issue #180)
+    expect(await e.lege('T'.repeat(43), 'admin', null, 7)).toBeNull();
     const p = new PgPasskeys(leer as never);
     expect(await p.konto('1')).toBeNull();
     expect(await p.loesche('1', '1')).toBe(false);

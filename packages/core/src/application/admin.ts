@@ -25,15 +25,24 @@ import { erkenneKategorie } from './recherche.js';
 import { validiereAlle, type TerminFormular, type TerminVerwaltung } from './termine-verwalten.js';
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
-/** Admin verwaltet zusätzlich die Mitglieder; Redaktion pflegt Termine, Orte, Mitteilungen. */
-export type Rolle = 'admin' | 'redaktion';
-export const ROLLEN: readonly Rolle[] = ['admin', 'redaktion'];
+/**
+ * Admin verwaltet zusätzlich die Mitglieder; Redaktion pflegt alles (Moderation); eine
+ * Kirmesgesellschaft nur Termine, Plätze, Vorschläge und Korrekturen ihres einen Ortes (Issue #180).
+ */
+export type Rolle = 'admin' | 'redaktion' | 'kirmesgesellschaft';
+export const ROLLEN: readonly Rolle[] = ['admin', 'redaktion', 'kirmesgesellschaft'];
 /** Angemeldetes Mitglied – ohne personenbezogene Daten außer dem selbst gewählten Namen. */
 export interface Sitzung {
   adminId: string;
   name: string;
   rolle: Rolle;
+  /** Nur bei Kirmesgesellschaften: ihr Ort */
+  ortSlug?: string | null;
+  ortName?: string | null;
 }
+/** Darf das Mitglied an diesem Ort arbeiten? Redaktion und Admin überall, KG nur am eigenen Ort. */
+export const darfOrt = (s: Pick<Sitzung, 'rolle' | 'ortSlug'>, ortSlug: string) =>
+  s.rolle !== 'kirmesgesellschaft' || (!!s.ortSlug && s.ortSlug === ortSlug);
 export interface AdminKonten {
   merkeLogin(id: string): Promise<void>;
 }

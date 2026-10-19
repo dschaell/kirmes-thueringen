@@ -20,6 +20,8 @@ export interface Mitglied {
   id: string;
   name: string;
   rolle: Rolle;
+  /** Ort der Kirmesgesellschaft (sonst null) */
+  ortName?: string | null;
   erstelltAm: string;
   letzterLogin: string | null;
   passkeys: number;
@@ -34,6 +36,7 @@ export interface EinladungInfo {
   bezeichnung?: string;
   id: string;
   rolle: Rolle;
+  ortName?: string | null;
   erstelltAm: string;
   laeuftAb: string;
 }
@@ -45,7 +48,9 @@ export interface Einladungen {
     vonId: string | null,
     tage: number,
     bezeichnung?: string,
-  ): Promise<EinladungInfo>;
+    /** Pflicht bei Kirmesgesellschaft; null = Ort unbekannt */
+    ortSlug?: string | null,
+  ): Promise<EinladungInfo | null>;
   /** Offene (unbenutzte, nicht abgelaufene) Einladung zum Token */
   finde(token: string): Promise<{ id: string; rolle: Rolle } | null>;
   offene(): Promise<EinladungInfo[]>;
@@ -181,7 +186,8 @@ export class Beitritt {
 }
 
 // ── Mitgliederverwaltung (nur Admin) ───────────────────────────────────────────────────
-export type VerwaltungsFehler = 'NUR_ADMIN' | 'LETZTER_ADMIN' | 'NICHT_GEFUNDEN' | 'BEZEICHNUNG';
+export type VerwaltungsFehler =
+  'NUR_ADMIN' | 'LETZTER_ADMIN' | 'NICHT_GEFUNDEN' | 'BEZEICHNUNG' | 'ORT_FEHLT' | 'ROLLE';
 
 export class Mitgliederverwaltung {
   constructor(
@@ -207,6 +213,8 @@ export class Mitgliederverwaltung {
 
   setzeRolle(akteur: Sitzung, id: string, rolle: Rolle) {
     return this.nurAdmin(akteur, async () => {
+      // Zur Kirmesgesellschaft wird man nur per Einladung mit Ort (Issue #180)
+      if (rolle === 'kirmesgesellschaft') return err('ROLLE' as const);
       if (rolle !== 'admin' && (await this.letzterAdmin(id))) return err('LETZTER_ADMIN' as const);
       return (await this.mitglieder.setzeRolle(id, rolle))
         ? ok(true)
@@ -222,12 +230,22 @@ export class Mitgliederverwaltung {
   }
 
   /** Neuer Einladungslink – das Token wird nur einmal gezeigt, gespeichert ist nur sein Hash. */
-  lade(akteur: Sitzung, rolle: Rolle, bezeichnung = '') {
+  lade(akteur: Sitzung, rolle: Rolle, bezeichnung = '', ortSlug = '') {
     return this.nurAdmin(akteur, async () => {
       const name = bezeichnung.trim().replace(/[\p{Cc}\p{Cf}]/gu, '');
       if (name.length > 120) return err('BEZEICHNUNG' as const);
+      const ort = rolle === 'kirmesgesellschaft' ? ortSlug.trim() : '';
+      if (rolle === 'kirmesgesellschaft' && !ort) return err('ORT_FEHLT' as const);
       const token = this.krypto.neuesToken();
-      const info = await this.einladungen.lege(token, rolle, akteur.adminId, EINLADUNG_TAGE, name);
+      const info = await this.einladungen.lege(
+        token,
+        rolle,
+        akteur.adminId,
+        EINLADUNG_TAGE,
+        name,
+        ort || null,
+      );
+      if (!info) return err('ORT_FEHLT' as const);
       return ok({ ...info, token });
     });
   }

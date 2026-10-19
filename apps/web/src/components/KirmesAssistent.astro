@@ -30,6 +30,8 @@ const {
   titel = [],
   plaetze = [],
 } = Astro.props;
+// Kirmesgesellschaft: fester Ort ohne Suche (Issue #180)
+const kgOrt = redaktion && Astro.locals.rolle === 'kirmesgesellschaft';
 const ort = orte.find((o) => o.slug === s.ortSlug);
 // Frisch angelegter Ort steht evtl. noch nicht in der (zwischengespeicherten) Ortsliste
 const ortName = ort?.name ?? s.ortEingabe ?? s.ortSlug;
@@ -89,21 +91,30 @@ const eigeneDauer = Number(s.tage) > 4;
       s.schritt === 1 && (
         <>
           <h2>Wo und wann feiert ihr?</h2>
-          <label>
-            Ort
-            <span class="ortssuche">
-              <input
-                name="ort"
-                required
-                maxlength="200"
-                placeholder="Ort suchen …"
-                autocomplete="off"
-                data-ortssuche
-                value={ortText}
-              />
-            </span>
-          </label>
-          <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+          {kgOrt ? (
+            <p>
+              Ort: <strong>{Astro.locals.ortName}</strong>
+              <input type="hidden" name="ort" value={Astro.locals.ortName ?? ''} />
+            </p>
+          ) : (
+            <>
+              <label>
+                Ort
+                <span class="ortssuche">
+                  <input
+                    name="ort"
+                    required
+                    maxlength="200"
+                    placeholder="Ort suchen …"
+                    autocomplete="off"
+                    data-ortssuche
+                    value={ortText}
+                  />
+                </span>
+              </label>
+              <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+            </>
+          )}
           {unbekannt && (
             <section class="kasten neuer-ort" aria-labelledby="neuer-ort-titel">
               <h3 id="neuer-ort-titel">„{neuerOrtName}“ gibt es noch nicht</h3>
