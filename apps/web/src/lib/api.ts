@@ -22,6 +22,8 @@ export interface OrtUebersichtDto extends OrtDto {
 export interface TerminDto {
   /** Ausschließlich in geschützten Bearbeitungsantworten. */
   version?: string;
+  /** Letzte Änderung (UTC, ISO) – für Kalender-Abos */
+  geaendertAm?: string;
   id: string;
   datum: string;
   beginn: string | null;

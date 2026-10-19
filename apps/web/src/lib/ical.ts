@@ -57,6 +57,8 @@ const DAUER: Record<string, string> = {
 const naechsterTag = (d: string) =>
   new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 
+const alsUtc = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+
 export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendername: string): string {
   const stempel = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
   const zeilen = [
@@ -73,11 +75,18 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
   ];
   for (const t of termine) {
     const d = t.datum.replace(/-/g, '');
+    // Änderungszeitpunkt (Issue #139): stabiler DTSTAMP, LAST-MODIFIED und eine SEQUENCE, die mit
+    // jeder Änderung steigt (Minuten seit 1970) – so erkennen auch Outlook/Thunderbird Änderungen.
+    const geaendert = t.geaendertAm ? Date.parse(t.geaendertAm) : NaN;
+    const zeit = Number.isNaN(geaendert) ? stempel : alsUtc(geaendert);
+    const sequenz = Number.isNaN(geaendert) ? 0 : Math.floor(geaendert / 60_000) - 28_000_000;
     const geo = t.festplatz ?? t.ort.koordinate;
     zeilen.push(
       'BEGIN:VEVENT',
       `UID:${t.id}@kirmeskalender-thueringen.de`,
-      `DTSTAMP:${stempel}`,
+      `DTSTAMP:${zeit}`,
+      `LAST-MODIFIED:${zeit}`,
+      `SEQUENCE:${Math.max(0, sequenz)}`,
       ...(t.beginn
         ? [
             `DTSTART;TZID=Europe/Berlin:${d}T${t.beginn.replace(':', '')}00`,

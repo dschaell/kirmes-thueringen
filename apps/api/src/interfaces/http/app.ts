@@ -121,6 +121,8 @@ const terminDto = (t: Termin) => ({
   band: t.band,
   muttizettel: t.muttizettel,
   info: t.info,
+  // Letzte Änderung – Kalender-Abos erkennen damit Änderungen (Issue #139)
+  geaendertAm: t.geaendertAm,
   // Mittagstisch nur in der Einzelansicht
   ...(t.speisen && { speisen: t.speisen }),
 });

@@ -39,6 +39,8 @@ export interface Ort {
 export interface Termin {
   /** Nur in geschützten Bearbeitungsantworten ausliefern. */
   readonly version?: string;
+  /** Letzte Änderung (UTC, ISO) – für Kalender-Abos (Issue #139) */
+  readonly geaendertAm?: string;
   readonly id: string;
   readonly ort: Ort;
   readonly datum: KalenderDatum;
