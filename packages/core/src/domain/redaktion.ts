@@ -151,7 +151,7 @@ export function istErlaubterKartenlink(text: string): boolean {
   // Host nur aus Buchstaben, Ziffern, Punkt, Bindestrich – damit sind Zugangsdaten (@) und Ports (:) aus
   const m = /^https:\/\/([a-z0-9.-]+)(\/[^?#]*)?([?#].*)?$/i.exec(t);
   if (!m) return false;
-  const host = (m[1] ?? '').toLowerCase();
+  const host = (m[1] as string).toLowerCase(); // Gruppe 1 ist Pflicht im Muster
   const pfad = m[2] ?? '';
   if (host === 'maps.app.goo.gl') return /^\/[A-Za-z0-9_-]+$/.test(pfad);
   if (host === 'goo.gl') return /^\/maps\/[A-Za-z0-9_-]+$/.test(pfad);

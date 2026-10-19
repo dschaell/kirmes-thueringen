@@ -3,6 +3,7 @@ import {
   Vorschlaege,
   pruefeVorschlag,
   istErlaubterKartenlink,
+  vorschlagsMail,
   type VorschlagEingabe,
   type VorschlagsRepository,
   type OrtRepository,
@@ -15,7 +16,7 @@ const eingabe = (): VorschlagEingabe => ({
 });
 function setup() {
   const repo: VorschlagsRepository = {
-    lege: vi.fn(async () => true),
+    lege: vi.fn(async (): Promise<string | false> => '11111111-2222-4333-8444-555555555555'),
     liste: vi.fn(async () => []),
     finde: vi.fn(async () => null),
     anzahl: vi.fn(async () => 2),
@@ -347,5 +348,123 @@ describe('Kartenlink beim Melden (Issue #169)', () => {
       redaktion: true,
     });
     expect(fehlermeldungen(falsch)[0]).toContain('Kartenpunkt ungültig');
+  });
+});
+
+describe('Mail zum neuen Vorschlag (Issue #171)', () => {
+  const termin = (datum: string, beginn: string | null, titel: string, extra = {}) =>
+    ({
+      ortSlug: 'elleben',
+      landkreis: 'IK',
+      datum,
+      beginn,
+      titel,
+      veranstaltungsort: null,
+      kategorie: 'party',
+      bestaetigt: false,
+      speisen: [],
+      platz: null,
+      ...extra,
+    }) as never;
+  const v = {
+    ortSlug: 'elleben',
+    kontaktName: 'KG Elleben',
+    kontaktEmail: 'kg@example.org',
+    nachricht: 'Bitte Band ergänzen.',
+    termine: [
+      termin('2027-09-17', '18:00', 'Kirmesgottesdienst', {
+        veranstaltungsort: 'Kirche',
+        platz: { lat: 50.86, lon: 11.09 },
+      }),
+      termin('2027-09-18', '20:00', 'Kirmestanz', { band: 'Belconda' }),
+    ],
+  };
+  it('Betreff und Programm mit Wochentag, direkter Link', () => {
+    const m = vorschlagsMail(v, { name: 'Elleben', landkreis: 'IK' }, 'abc-123', 'https://k.de/');
+    expect(m.betreff).toBe(
+      'Neuer Kirmesvorschlag: Elleben (IK) – 2 Veranstaltungen ab Fr., 17.09.2027',
+    );
+    expect(m.text).toBe(
+      [
+        'Neuer Vorschlag für Elleben (Ilm-Kreis)',
+        '',
+        'Programm:',
+        '- Fr., 17.09.2027, 18:00 Uhr – Kirmesgottesdienst (Kirche · Kartenpunkt)',
+        '- Sa., 18.09.2027, 20:00 Uhr – Kirmestanz (Band/DJ: Belconda)',
+        '',
+        'Eingereicht von: KG Elleben – „Antworten“ geht direkt an den Einsender',
+        '',
+        'Nachricht:',
+        'Bitte Band ergänzen.',
+        '',
+        'Jetzt prüfen und übernehmen:',
+        'https://k.de/admin/kirmes-eintragen?vorschlag=abc-123',
+        '',
+        'Alle offenen Vorschläge: https://k.de/admin/vorschlaege',
+      ].join('\n'),
+    );
+  });
+  it('ohne Kontakt, eine Veranstaltung, lange Nachricht gekürzt', () => {
+    const m = vorschlagsMail(
+      {
+        ...v,
+        kontaktName: null,
+        kontaktEmail: null,
+        nachricht: 'x'.repeat(600),
+        termine: [termin('2027-09-19', null, 'Frühschoppen', { speisen: [{ name: 'Bier' }] })],
+      },
+      { name: 'Elleben', landkreis: 'XX' },
+      'id',
+      'https://k.de',
+    );
+    expect(m.betreff).toContain('– 1 Veranstaltung ab So., 19.09.2027');
+    expect(m.text).toContain('Neuer Vorschlag für Elleben (XX)');
+    expect(m.text).toContain('- So., 19.09.2027 – Frühschoppen (Essen & Getränke)');
+    expect(m.text).toContain('Eingereicht von: ohne Namen\n');
+    expect(m.text).toContain(`${'x'.repeat(500)} …`);
+  });
+});
+
+describe('Mail zum neuen Vorschlag – Grenzfälle (Issue #171)', () => {
+  it('ohne Nachricht keine Nachrichtzeilen, ohne Termine kein „ab“', () => {
+    const m = vorschlagsMail(
+      { ortSlug: 'x', kontaktName: 'A', kontaktEmail: null, nachricht: null, termine: [] },
+      { name: 'X', landkreis: 'GTH' },
+      'id',
+      'https://k.de',
+    );
+    expect(m.betreff).toBe('Neuer Kirmesvorschlag: X (GTH) – 0 Veranstaltungen');
+    expect(m.text).not.toContain('Nachricht:');
+    expect(m.text).toContain('(Gotha)');
+  });
+  it('erlaubt keinen Link ohne Pfad', () => {
+    expect(istErlaubterKartenlink('https://www.google.com')).toBe(false);
+  });
+});
+
+describe('Mail beim Melden (Issue #171)', () => {
+  it('nennt Ort, Kreis und Direktlink; fällt ohne Ortsdaten auf den Slug zurück', async () => {
+    const { v, post, orte } = setup();
+    expect((await v.melde(eingabe(), 'ip')).ok).toBe(true);
+    expect(post.sende).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        betreff: expect.stringContaining('Alkersleben (IK) – 1 Veranstaltung ab Fr., 17.09.2027'),
+        text: expect.stringContaining(
+          'https://example.org/admin/kirmes-eintragen?vorschlag=11111111-2222-4333-8444-555555555555',
+        ),
+      }),
+    );
+    vi.mocked(orte.finde)
+      .mockResolvedValueOnce({
+        slug: 'alkersleben',
+        name: 'Alkersleben',
+        landkreis: 'IK',
+        koordinate: null,
+      })
+      .mockResolvedValueOnce(null);
+    await v.melde(eingabe(), 'ip');
+    expect(post.sende).toHaveBeenLastCalledWith(
+      expect.objectContaining({ betreff: expect.stringContaining('alkersleben () – 1') }),
+    );
   });
 });

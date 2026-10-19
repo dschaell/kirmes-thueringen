@@ -1,6 +1,7 @@
 /** Öffentliche Vorschläge bleiben bis zur bewussten Übernahme von Terminen getrennt. */
 import { err, ok, type Validierungsfehler } from '../domain/result.js';
 import { KATEGORIEN, validiereTermin, type NeuerTermin } from '../domain/termin.js';
+import { LANDKREISE } from '../domain/landkreis.js';
 import { validiereSpeisen, type Speise } from '../domain/speisen.js';
 import type { Sitzungen } from './admin.js';
 import type { OrtRepository } from './ports.js';
@@ -52,8 +53,8 @@ export interface Vorschlag extends NeuerVorschlag {
   erstelltAm: string;
 }
 export interface VorschlagsRepository {
-  /** Ortszeile sperren und Grenze in derselben Transaktion prüfen. */
-  lege(v: NeuerVorschlag): Promise<boolean>;
+  /** Ortszeile sperren und Grenze in derselben Transaktion prüfen. ID oder false (Ort voll/unbekannt). */
+  lege(v: NeuerVorschlag): Promise<string | false>;
   liste(): Promise<Vorschlag[]>;
   finde(id: string): Promise<Vorschlag | null>;
   anzahl(): Promise<number>;
@@ -186,6 +187,65 @@ export async function pruefeVorschlag(
   } satisfies NeuerVorschlag);
 }
 
+/** „Fr., 17.09.2027“ aus ISO-Datum (UTC-Mittag, damit keine Zeitzone den Tag verschiebt). */
+const tagText = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00Z`).getUTCDay();
+  return `${'SoMoDiMiDoFrSa'.slice(d * 2, d * 2 + 2)}., ${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+};
+
+/**
+ * Benachrichtigung über einen neuen Vorschlag (Issue #171): Ort mit Landkreis, ganzes Programm,
+ * direkter Link zur Prüfung. Reiner Text; Eingaben sind schon von Steuerzeichen bereinigt, ein
+ * eingereichter Kartenlink kommt nie vor (nur „Kartenpunkt: ja“).
+ */
+export function vorschlagsMail(
+  v: NeuerVorschlag,
+  ort: { name: string; landkreis: string },
+  id: string,
+  website: string,
+): { betreff: string; text: string } {
+  const basis = website.replace(/\/$/, '');
+  const kreis = (LANDKREISE as Record<string, string>)[ort.landkreis] ?? ort.landkreis;
+  // Reihenfolge wie eingereicht – der Assistent sortiert nach Tag und Uhrzeit (#149)
+  const termine = v.termine;
+  const anzahl = termine.length === 1 ? '1 Veranstaltung' : `${termine.length} Veranstaltungen`;
+  const ab = termine[0] ? ` ab ${tagText(termine[0].datum)}` : '';
+  const programm = termine.map((t) => {
+    const details = [
+      t.veranstaltungsort,
+      t.band && `Band/DJ: ${t.band}`,
+      t.platz && 'Kartenpunkt',
+      t.speisen.length > 0 && 'Essen & Getränke',
+    ].filter(Boolean);
+    return `- ${tagText(t.datum)}${t.beginn ? `, ${t.beginn} Uhr` : ''} – ${t.titel}${
+      details.length ? ` (${details.join(' · ')})` : ''
+    }`;
+  });
+  const nachricht = v.nachricht
+    ? v.nachricht.length > 500
+      ? `${v.nachricht.slice(0, 500)} …`
+      : v.nachricht
+    : null;
+  const zeilen = [
+    `Neuer Vorschlag für ${ort.name} (${kreis})`,
+    '',
+    'Programm:',
+    ...programm,
+    '',
+    `Eingereicht von: ${v.kontaktName ?? 'ohne Namen'}${v.kontaktEmail ? ' – „Antworten“ geht direkt an den Einsender' : ''}`,
+    ...(nachricht ? ['', 'Nachricht:', nachricht] : []),
+    '',
+    'Jetzt prüfen und übernehmen:',
+    `${basis}/admin/kirmes-eintragen?vorschlag=${id}`,
+    '',
+    `Alle offenen Vorschläge: ${basis}/admin/vorschlaege`,
+  ];
+  return {
+    betreff: `Neuer Kirmesvorschlag: ${ort.name} (${ort.landkreis}) – ${anzahl}${ab}`,
+    text: zeilen.join('\n'),
+  };
+}
+
 export class Vorschlaege {
   constructor(
     private readonly repo: VorschlagsRepository,
@@ -205,12 +265,18 @@ export class Vorschlaege {
       return err('ZU_VIELE' as const);
     const v = await pruefeVorschlag(e, this.orte, { karten: this.karten });
     if (!v.ok) return v;
-    if (!(await this.repo.lege(v.value))) return err('ORT_VOLL' as const);
+    const id = await this.repo.lege(v.value);
+    if (!id) return err('ORT_VOLL' as const);
     // Der gespeicherte Vorschlag bleibt bei einer Mailstörung erreichbar. Kein zweites Eintragen erzwingen.
     try {
+      const ort = await this.orte.finde(v.value.ortSlug);
       await this.post.sende({
-        betreff: `Neuer Kirmesvorschlag: ${v.value.ortSlug}`,
-        text: `Ort: ${v.value.ortSlug}\nVeranstaltungen: ${v.value.termine.length}\nBitte prüfen: ${this.website.replace(/\/$/, '')}/admin/vorschlaege`,
+        ...vorschlagsMail(
+          v.value,
+          { name: ort?.name ?? v.value.ortSlug, landkreis: ort?.landkreis ?? '' },
+          id,
+          this.website,
+        ),
         ...(v.value.kontaktEmail ? { antwortAn: v.value.kontaktEmail } : {}),
       });
     } catch {
