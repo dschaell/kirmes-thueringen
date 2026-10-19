@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findeOrtEindeutig, normalisiere, sucheOrte } from '../src/lib/ortssuche';
+import { aehnlicheOrte, findeOrtEindeutig, normalisiere, sucheOrte } from '../src/lib/ortssuche';
 
 const orte = [
   { slug: 'alkersleben', name: 'Alkersleben', landkreis: 'IK' },
@@ -53,5 +53,24 @@ describe('Ortssuche (Issue #89)', () => {
     expect(findeOrtEindeutig(orte, 'Neudorf (SHK)')).toBeNull();
     expect(findeOrtEindeutig(orte, 'Atlantis')).toBeNull();
     expect(findeOrtEindeutig(orte, '')).toBeNull();
+  });
+});
+
+describe('aehnlicheOrte (Issue #167)', () => {
+  const orte = [
+    { slug: 'neudorf', name: 'Neudorf', landkreis: 'GTH' },
+    { slug: 'elleben', name: 'Elleben', landkreis: 'IK' },
+    { slug: 'ellichleben', name: 'Ellichleben', landkreis: 'IK' },
+    { slug: 'holzhausen', name: 'Holzhausen', landkreis: 'IK' },
+  ] as never;
+  it('findet Tippfehler und Teilwörter, Tippfehler zuerst', () => {
+    expect(aehnlicheOrte(orte, 'Neudrof').map((t) => t.slug)).toEqual(['neudorf']);
+    expect(aehnlicheOrte(orte, 'Elleben (IK)').map((t) => t.slug)[0]).toBe('elleben');
+    expect(aehnlicheOrte(orte, 'Holzhausn').map((t) => t.slug)).toEqual(['holzhausen']);
+    expect(aehnlicheOrte(orte, 'Ell').map((t) => t.slug)).toEqual(['elleben', 'ellichleben']);
+  });
+  it('nichts bei zu kurzen oder ganz fremden Eingaben', () => {
+    expect(aehnlicheOrte(orte, 'El')).toEqual([]);
+    expect(aehnlicheOrte(orte, 'Zwätzen')).toEqual([]);
   });
 });
