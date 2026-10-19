@@ -1042,7 +1042,8 @@ form.melden label > input[type='checkbox'] {
 }
 .fuss .wrap {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  /* Vier ruhige Spalten: Kurzbeschreibung + drei Linklisten (Issue #144) */
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 32px;
 }
 .fuss h2 {
@@ -1073,9 +1074,34 @@ form.melden label > input[type='checkbox'] {
   justify-content: space-between;
   gap: 8px 24px;
 }
+@media (max-width: 1000px) {
+  .fuss .wrap {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .fuss .wrap > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
 @media (max-width: 760px) {
   .fuss .wrap {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+}
+@media (max-width: 420px) {
+  .fuss .wrap {
     grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+/* Am Handy: genug Fingerfläche je Link statt eng gestapelter Zeilen (Issue #144) */
+@media (max-width: 760px) {
+  .fuss li {
+    margin: 0;
+  }
+  .fuss li a {
+    display: inline-block;
+    padding: 9px 0;
   }
 }
 

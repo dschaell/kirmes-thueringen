@@ -119,7 +119,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             – vom Kirmestanz über den Kindertanz bis zur Kirmesbeerdigung.
           </p>
           <p class="leise klein">
-            Alle Angaben ohne Gewähr. Im Zweifel beim Veranstalter nachfragen.
+            Kostenlos, werbefrei und ohne Tracking. Alle Angaben ohne Gewähr – im Zweifel beim
+            Veranstalter nachfragen.
           </p>
         </div>
         <div>
@@ -136,25 +137,25 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
           <h2>Für Kirmesgesellschaften</h2>
           <ul>
             <li><a href="/termin-melden">Termin melden oder ändern</a></li>
-            <li><a href="/ueber-die-kirmes#ueber-diesen-kalender">Über diesen Kalender</a></li>
             <li>
               <a href="/termin-melden?festplatz=1#festplatz">Festplatz auf der Karte eintragen</a>
             </li>
           </ul>
         </div>
         <div>
-          <h2>Redaktion</h2>
+          <h2>Mitmachen</h2>
           <ul>
-            <li><a href="/redaktion-mitmachen">Mitmachen</a></li>
-            <li><a href="/admin/anmelden" rel="nofollow">Anmelden</a></li>
+            <li><a href="/ueber-die-kirmes#ueber-diesen-kalender">Über diesen Kalender</a></li>
+            <li><a href="/redaktion-mitmachen">In der Redaktion mitmachen</a></li>
+            <li>
+              <a href={UNTERSTUETZEN_URL} target="_blank" rel="noopener"
+                >Mit PayPal unterstützen <span aria-hidden="true">↗</span><span class="sr-only">
+                  (öffnet PayPal)</span
+                ></a
+              >
+            </li>
+            <li><a href="/admin/anmelden" rel="nofollow">Anmelden (Redaktion)</a></li>
           </ul>
-        </div>
-        <div class="unterstuetzen">
-          <h2>Unterstützen</h2>
-          <p>Der Kirmeskalender ist kostenlos und werbefrei.</p>
-          <a class="knopf zweit" href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
-            Mit PayPal unterstützen
-          </a>
         </div>
         <div class="recht">
           <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
