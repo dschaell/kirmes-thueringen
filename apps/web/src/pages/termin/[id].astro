@@ -144,12 +144,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
     <h2 class="sr-only">Anfahrt und Teilen</h2>
     <div class="knopfreihe">
-      <a class="knopf" href={route.google} target="_blank" rel="noopener"
-        ><Icon name="route" />Route mit Google Maps</a
-      >
-      <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener"
-        ><Icon name="route" />Apple Karten</a
-      >
+      {
+        route && (
+          <>
+            <a class="knopf" href={route.google} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Route mit Google Maps
+            </a>
+            <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Apple Karten
+            </a>
+          </>
+        )
+      }
       <a class="knopf zweit" href={`/termin/${t.id}.ics`}
         ><Icon name="kalender" />In Kalender eintragen</a
       >
@@ -165,11 +173,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </div>
     <p class="genau">
       {
-        t.kategorie === 'staendchen' && !t.veranstaltungsort
-          ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
-          : route.exakt
+        !route
+          ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
+          : route.art === 'genau'
             ? 'Die Route führt genau zum Veranstaltungsort.'
-            : 'Die Route führt zur Adresse im Ort – der genaue Platz ist noch nicht eingetragen.'
+            : t.kategorie === 'staendchen'
+              ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
+              : 'Die Route führt in den Ort.'
       }
     </p>
     {

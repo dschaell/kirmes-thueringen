@@ -1,5 +1,5 @@
 /** Darstellungs-Helfer des Frontends (keine Fachlogik – die liegt im Core bzw. hinter der API). */
-import { LANDKREISE, istKirchlich, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
+import { LANDKREISE, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
 import type { TerminDto } from './api';
 
 export { LANDKREISE };
@@ -120,25 +120,22 @@ export function relativerTag(iso: string, h = heute()): string | null {
 }
 
 /**
- * Routen-Links: Mit hinterlegtem Festplatz exakt, sonst über die Adresse
- * („Festzelt, Mühlberg, Thüringen“) – das finden beide Kartendienste zuverlässig.
- * Ständchen führen in den Ort; Gottesdienste ohne Ortsangabe zur Kirche (Issue #157).
+ * Routen-Links (Issue #179): nur wohin man sich verlassen kann.
+ * - hinterlegter Platz → genau dorthin („genau“)
+ * - kein „Wo genau?“ → Ortsmitte (Koordinate, sonst Ortsname) („ort“)
+ * - nur ein Text wie „Sportplatz“ ohne Kartenpunkt → keine Route (Suche wäre beliebig)
  */
 export function routenLinks(
-  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'> &
-    Partial<Pick<TerminDto, 'kategorie' | 'titel'>>,
-) {
-  const wo =
-    t.veranstaltungsort ??
-    (istKirchlich({ kategorie: t.kategorie ?? '', titel: t.titel ?? '' }) ? 'Kirche' : null);
-  const ziel = t.festplatz
-    ? `${t.festplatz.lat},${t.festplatz.lon}`
-    : [wo, t.ort.name, 'Thüringen'].filter(Boolean).join(', ');
+  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'>,
+): { google: string; apple: string; art: 'genau' | 'ort' } | null {
+  const k = t.festplatz ?? (t.veranstaltungsort ? null : t.ort.koordinate);
+  if (!k && t.veranstaltungsort) return null;
+  const ziel = k ? `${k.lat},${k.lon}` : `${t.ort.name}, Thüringen`;
   const z = encodeURIComponent(ziel);
   return {
     google: `https://www.google.com/maps/dir/?api=1&destination=${z}`,
     apple: `https://maps.apple.com/?daddr=${z}&dirflg=d`,
-    exakt: Boolean(t.festplatz),
+    art: t.festplatz ? 'genau' : 'ort',
   };
 }
 
