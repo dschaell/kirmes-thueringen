@@ -113,3 +113,5 @@ for (const feld of document.querySelectorAll<HTMLInputElement>('input[data-ortss
   });
   feld.addEventListener('blur', schliessen);
 }
+
+export {};

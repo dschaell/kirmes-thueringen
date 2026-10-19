@@ -278,3 +278,5 @@ for (const feld of document.querySelectorAll<HTMLInputElement>('input[type="date
   wochentagZeigen();
   document.body.append(dialog);
 }
+
+export {};
