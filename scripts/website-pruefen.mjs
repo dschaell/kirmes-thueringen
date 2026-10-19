@@ -140,8 +140,9 @@ const GRENZEN = {
 const lighthouse = [];
 const hinweise = [];
 if (lhOrdner) {
-  // Je Seite mehrere Läufe (name-1.json, name-2.json …): der beste zählt – Lighthouse schwankt auf
-  // geteilten CI-Rechnern. Abgebrochene Läufe (z. B. NO_NAVSTART) zählen nicht als 0.
+  // Je Seite mehrere Läufe (name-1.json, name-2.json …): für die Punkte zählt der beste – Lighthouse
+  // schwankt auf geteilten CI-Rechnern –, für das Springen (CLS) der schlechteste.
+  // Abgebrochene Läufe (z. B. NO_NAVSTART) zählen nicht als 0.
   const laeufe = new Map();
   for (const datei of (await readdir(lhOrdner)).filter((d) => d.endsWith('.json'))) {
     const name = datei.replace(/(-\d+)?\.json$/, '');
@@ -165,7 +166,8 @@ if (lhOrdner) {
     for (const d of berichte)
       for (const [k, v] of Object.entries(d.categories))
         werte[k] = Math.max(werte[k] ?? 0, v.score ?? 0);
-    const cls = Math.min(
+    // Springen zählt im schlechteren Lauf: trifft es jeden zweiten Besuch, ist es ein echter Fehler
+    const cls = Math.max(
       ...berichte.map((d) => d.audits['cumulative-layout-shift']?.numericValue ?? 0),
     );
     const spalte = (k) => (k in werte ? String(Math.round(werte[k] * 100)) : '–');
@@ -174,9 +176,9 @@ if (lhOrdner) {
     );
     for (const [k, min] of Object.entries(g)) {
       if (k === 'cls') {
-        // Bei zu viel Springen gleich sagen, was springt und warum (aus dem besten Lauf)
+        // Bei zu viel Springen gleich sagen, was springt und warum (aus dem schlechtesten Lauf)
         const bester = berichte.reduce((a, b) =>
-          (a.audits['cumulative-layout-shift']?.numericValue ?? 0) <=
+          (a.audits['cumulative-layout-shift']?.numericValue ?? 0) >=
           (b.audits['cumulative-layout-shift']?.numericValue ?? 0)
             ? a
             : b,
