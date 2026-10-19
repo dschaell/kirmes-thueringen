@@ -110,7 +110,7 @@ describe.runIf(url)('Letzter Admin unter Parallelität (#85)', () => {
   beforeAll(async () => {
     await db.query('CREATE SCHEMA IF NOT EXISTS it_adminschutz');
     await db.query(
-      'CREATE TABLE it_adminschutz.admin(id bigint PRIMARY KEY, name text, rolle text)',
+      'CREATE TABLE it_adminschutz.admin(id bigint PRIMARY KEY, name text, rolle text, ort_id bigint)',
     );
   });
   afterAll(async () => {

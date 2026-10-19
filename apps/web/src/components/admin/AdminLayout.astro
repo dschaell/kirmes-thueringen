@@ -21,24 +21,42 @@ const offen =
   vorschlaege?.daten || korrekturen?.daten
     ? (vorschlaege?.daten?.anzahl ?? 0) + (korrekturen?.daten?.anzahl ?? 0)
     : null;
-const nav = [
-  ['/admin', 'Termine'],
-  ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
-  ['/admin/orte', 'Orte & Plätze'],
-  ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Redaktion & Einladungen']] : []),
-];
-const mehr = [
-  ['/admin/import', 'Termine importieren'],
-  ['/admin/mitteilungen', 'Mitteilungen'],
-  ['/admin/links', 'Bearbeitungslinks'],
-  ['/admin/passkeys', 'Passkeys'],
-];
+// Kirmesgesellschaft: nur ihr Ort (Issue #180)
+const kg = Astro.locals.rolle === 'kirmesgesellschaft';
+const nav = kg
+  ? [
+      ['/admin', 'Termine'],
+      ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
+      [`/admin/termine?ort=${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
+    ]
+  : [
+      ['/admin', 'Termine'],
+      ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
+      ['/admin/orte', 'Orte & Plätze'],
+      ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Redaktion & Einladungen']] : []),
+    ];
+const mehr = kg
+  ? [['/admin/passkeys', 'Passkeys']]
+  : [
+      ['/admin/import', 'Termine importieren'],
+      ['/admin/mitteilungen', 'Mitteilungen'],
+      ['/admin/links', 'Bearbeitungslinks'],
+      ['/admin/passkeys', 'Passkeys'],
+    ];
 ---
 
 <Base title={`${titel} – Redaktion`} description="Redaktionsbereich" noindex kompakt>
   <section class="einstieg admin-kopf">
     <p class="brotkrumen">
-      Redaktion · {Astro.locals.name} ({Astro.locals.rolle === 'admin' ? 'Admin' : 'Redaktion'})
+      Redaktion · {Astro.locals.name} (
+      {
+        Astro.locals.rolle === 'admin'
+          ? 'Admin'
+          : kg
+            ? `Kirmesgesellschaft ${Astro.locals.ortName}`
+            : 'Redaktion'
+      }
+      )
     </p>
     <h1>{titel}</h1>
     <nav class="admin-nav" aria-label="Redaktion">

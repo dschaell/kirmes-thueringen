@@ -21,10 +21,14 @@ const pool = erstellePool({
   maxVerbindungen: 1,
   statementTimeoutMs: 10_000,
 });
+const token = new NodeKryptografie().neuesToken();
 try {
-  if (befehl === 'einladen' && ROLLEN.includes(rolle as Rolle)) {
-    const token = new NodeKryptografie().neuesToken();
-    const e = await new PgEinladungen(pool).lege(token, rolle as Rolle, null, EINLADUNG_TAGE);
+  // Kirmesgesellschaften brauchen einen Ort – die lädt ein Admin in der Redaktion ein (Issue #180)
+  const e =
+    befehl === 'einladen' && ROLLEN.includes(rolle as Rolle) && rolle !== 'kirmesgesellschaft'
+      ? await new PgEinladungen(pool).lege(token, rolle as Rolle, null, EINLADUNG_TAGE)
+      : null;
+  if (e) {
     const basis = (k.websiteUrl ?? 'http://localhost:4321').replace(/\/+$/, '');
     console.log(`✔ Einladung (${e.rolle}) gültig bis ${e.laeuftAb}:`);
     console.log(`  ${basis}/admin/einladung?t=${token}`);

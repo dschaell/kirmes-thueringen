@@ -20,7 +20,7 @@ export class PgKorrekturen implements KorrekturRepository {
       `SELECT k.id, k.erstellt_am::text AS "erstelltAm", k.text, k.kontakt_name AS "kontaktName",
          k.kontakt_email AS "kontaktEmail",
          jsonb_build_object('id', t.id, 'titel', t.titel, 'datum', t.datum::text,
-           'beginn', to_char(t.beginn, 'HH24:MI'), 'ortName', o.name) AS termin
+           'beginn', to_char(t.beginn, 'HH24:MI'), 'ortName', o.name, 'ortSlug', o.slug) AS termin
        FROM korrektur k JOIN termin t ON t.id = k.termin_id JOIN ort o ON o.id = t.ort_id
        WHERE k.erledigt_am IS NULL ORDER BY k.erstellt_am LIMIT 100`,
     );

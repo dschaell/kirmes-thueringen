@@ -127,3 +127,24 @@ describe('Redaktions-Terminliste', () => {
     expect(repo.suche).toHaveBeenCalledOnce();
   });
 });
+
+describe('Kirmesgesellschaft (Issue #180)', () => {
+  it('sieht nur ihren Ort, egal was gefiltert wird; ohne Ort nichts', async () => {
+    const { liste, repo, sitzungen } = aufbau();
+    vi.mocked(sitzungen.pruefe).mockResolvedValue({
+      adminId: '9',
+      name: 'KG',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'muehlberg',
+    });
+    await liste.liste('kg', { ort: 'erfurt' });
+    expect(vi.mocked(repo.suche).mock.calls[0]?.[0].ortSlug).toBe('muehlberg');
+    vi.mocked(sitzungen.pruefe).mockResolvedValue({
+      adminId: '9',
+      name: 'KG',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: null,
+    });
+    expect(await liste.liste('kg', {})).toEqual({ ok: false, error: 'VERBOTEN' });
+  });
+});

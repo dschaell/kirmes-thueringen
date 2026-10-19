@@ -74,3 +74,36 @@ describe('Korrekturhinweise (#107)', () => {
     expect(await k.erledige('gut', 'x')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
   });
 });
+
+describe('Kirmesgesellschaft sieht nur ihren Ort (Issue #180)', () => {
+  const kg = {
+    adminId: '9',
+    name: 'KG',
+    rolle: 'kirmesgesellschaft' as const,
+    ortSlug: 'muehlberg',
+  };
+  const k = (ortSlug: string, id: string) => ({
+    id,
+    erstelltAm: '',
+    text: 'x',
+    kontaktName: null,
+    kontaktEmail: null,
+    termin: { id: 't', titel: 'T', datum: '2026-10-17', beginn: null, ortName: ortSlug, ortSlug },
+  });
+  it('Liste, Anzahl und Erledigen nur für eigene Termine', async () => {
+    const { k: korrekturen, repo } = setup();
+    const sitzungen = (korrekturen as unknown as { sitzungen: Sitzungen }).sitzungen;
+    vi.mocked(sitzungen.pruefe).mockResolvedValue(kg);
+    const eigene = '11111111-1111-4111-8111-111111111111';
+    const fremde = '22222222-2222-4222-8222-222222222222';
+    repo.liste.mockResolvedValue([k('muehlberg', eigene), k('erfurt', fremde)] as never);
+    expect(await korrekturen.liste('kg')).toMatchObject({ ok: true, value: [{ id: eigene }] });
+    expect(await korrekturen.anzahl('kg')).toEqual({ ok: true, value: 1 });
+    expect(await korrekturen.erledige('kg', fremde)).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    expect(repo.erledige).not.toHaveBeenCalled();
+    expect((await korrekturen.erledige('kg', eigene)).ok).toBe(true);
+  });
+});

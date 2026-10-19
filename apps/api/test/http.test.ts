@@ -122,6 +122,7 @@ let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
 let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
+const KG_SITZUNG = 'K'.repeat(43);
 const neuePasskeys = (gesperrt = false) =>
   new Passkeys(
     {
@@ -237,7 +238,15 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
             ? { adminId: '1', name: 'Ryan', rolle: 'admin' }
             : t === REDAKTION_SITZUNG
               ? { adminId: '2', name: 'Moni', rolle: 'redaktion' }
-              : null,
+              : t === KG_SITZUNG
+                ? {
+                    adminId: '3',
+                    name: 'KG Mühlberg',
+                    rolle: 'kirmesgesellschaft',
+                    ortSlug: 'muehlberg',
+                    ortName: 'Mühlberg',
+                  }
+                : null,
         beende: async () => {},
       }),
       terminFinden: (id) => repo.finde(id),
@@ -680,6 +689,8 @@ describe('Admin-Bereich', () => {
       adminId: '1',
       name: 'Ryan',
       rolle: 'admin',
+      ortSlug: null,
+      ortName: null,
       passkeys: false,
     });
     const m = await app.inject({
@@ -1769,4 +1780,99 @@ it('begrenzt interne Einladungsbezeichnungen auch im Use Case', async () => {
   });
   expect(r.statusCode).toBe(400);
   expect(r.json().title).toContain('120');
+});
+
+describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
+  const alsKG = { authorization: `Sitzung ${KG_SITZUNG}` };
+  const rufe = (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: object) =>
+    app.inject({ method, url, headers: alsKG, payload });
+  const termin = {
+    ortSlug: 'muehlberg',
+    datum: '2026-10-17',
+    titel: 'Kirmestanz',
+    kategorie: 'party',
+  };
+
+  it('nicht freigegebene Bereiche → 403', async () => {
+    await setup();
+    for (const [m, u, b] of [
+      ['GET', '/api/v1/admin/mitglieder'],
+      ['GET', '/api/v1/admin/einladungen'],
+      ['POST', '/api/v1/admin/einladungen', { rolle: 'admin' }],
+      ['GET', '/api/v1/admin/mitteilungen'],
+      ['POST', '/api/v1/admin/orte', { name: 'X', landkreis: 'GTH' }],
+      ['GET', '/api/v1/admin/orte/eigene'],
+      ['DELETE', '/api/v1/admin/orte/muehlberg'],
+      ['GET', '/api/v1/admin/links'],
+      ['DELETE', '/api/v1/admin/einladungen/1'],
+    ] as const) {
+      const r = await rufe(m, u, b);
+      expect(r.statusCode, `${m} ${u}`).toBe(403);
+    }
+  });
+
+  it('fremder Ort → 403, eigener Ort → durchgelassen', async () => {
+    festplaetzeAktiv = new RedaktionsFestplaetze(
+      {
+        uebersicht: async (o) =>
+          o === 'muehlberg'
+            ? ({ ort: {}, festplaetze: [], veranstaltungsorte: [] } as never)
+            : null,
+        speichere: async () => {},
+        loesche: async () => true,
+      },
+      async (o) => (o === 'muehlberg' ? 'GTH' : null),
+      { aufloesen: async () => null },
+    );
+    await setup();
+    festplaetzeAktiv = undefined;
+    const fremd = await rufe('POST', '/api/v1/admin/termine', { ...termin, ortSlug: 'erfurt' });
+    expect(fremd.statusCode, fremd.body).toBe(403);
+    expect(fremd.json().title).toContain('eures Ortes');
+    expect(
+      (
+        await rufe('POST', '/api/v1/admin/termine/wochenende', {
+          ortSlug: 'erfurt',
+          zeilen: [{ datum: termin.datum, titel: termin.titel }],
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await rufe(
+          'DELETE',
+          `/api/v1/admin/termine/${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}?ort=erfurt`,
+        )
+      ).statusCode,
+    ).toBe(403);
+    expect((await rufe('GET', '/api/v1/admin/orte/erfurt/festplaetze')).statusCode).toBe(403);
+    expect((await rufe('GET', '/api/v1/admin/orte/muehlberg/festplaetze')).statusCode).toBe(200);
+    // eigener Ort: Rechteprüfung lässt durch (Ergebnis kommt von der Fachlogik)
+    expect((await rufe('POST', '/api/v1/admin/termine', termin)).statusCode).not.toBe(403);
+    expect((await rufe('GET', '/api/v1/admin/ich')).json()).toMatchObject({
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'muehlberg',
+      ortName: 'Mühlberg',
+    });
+  });
+
+  it('Einladung als Kirmesgesellschaft nur mit Ort; Rolle nicht per Wechsel', async () => {
+    await setup();
+    const alsAdmin = { authorization: `Sitzung ${SITZUNG}` };
+    const ohneOrt = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/einladungen',
+      headers: alsAdmin,
+      payload: { rolle: 'kirmesgesellschaft' },
+    });
+    expect(ohneOrt.statusCode).toBe(400);
+    expect(ohneOrt.json().title).toContain('Ort der Kirmesgesellschaft');
+    const wechsel = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/mitglieder/2/rolle',
+      headers: alsAdmin,
+      payload: { rolle: 'kirmesgesellschaft' },
+    });
+    expect(wechsel.statusCode).toBe(400);
+  });
 });

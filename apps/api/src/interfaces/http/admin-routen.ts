@@ -23,6 +23,7 @@ import type {
   TerminHerkunft,
   Validierungsfehler,
 } from '@kirmes/core';
+import { darfOrt } from '@kirmes/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 export interface AdminAbhaengigkeiten {
@@ -263,26 +264,72 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     keinCache(reply);
   };
   const admin = (req: FastifyRequest) => req.sitzung?.adminId ?? '';
+  /** Routen, die eine Kirmesgesellschaft nutzen darf (Methode + Muster), Issue #180 */
+  const KG_ROUTEN = new Set([
+    'GET /api/v1/admin/ich',
+    'POST /api/v1/admin/abmelden',
+    'GET /api/v1/admin/passkeys',
+    'POST /api/v1/admin/passkeys/optionen',
+    'POST /api/v1/admin/passkeys',
+    'DELETE /api/v1/admin/passkeys/:id',
+    'GET /api/v1/admin/vorschlaege',
+    'GET /api/v1/admin/termine',
+    'GET /api/v1/admin/termine/:id',
+    'POST /api/v1/admin/termine',
+    'POST /api/v1/admin/termine/wochenende',
+    'POST /api/v1/admin/termine/sammel',
+    'PUT /api/v1/admin/termine/:id',
+    'PUT /api/v1/admin/termine/:id/speisen',
+    'POST /api/v1/admin/termine/:id/bestaetigen',
+    'DELETE /api/v1/admin/termine/:id',
+    'GET /api/v1/admin/orte/:slug/festplaetze',
+    'POST /api/v1/admin/orte/:slug/festplaetze',
+    'DELETE /api/v1/admin/orte/:slug/festplaetze',
+  ]);
   const akteur = (req: FastifyRequest) => req.sitzung as Sitzung;
   const verwaltungsFehler = (reply: FastifyReply, fehler: string) =>
     fehler === 'BEZEICHNUNG'
       ? reply.status(400).send(problem(400, 'Bezeichnung: höchstens 120 Zeichen.'))
-      : fehler === 'NUR_ADMIN'
-        ? reply.status(403).send(problem(403, 'Nur für Admins.'))
-        : fehler === 'LETZTER_ADMIN'
+      : fehler === 'ORT_FEHLT'
+        ? reply
+            .status(400)
+            .send(
+              problem(400, 'Bitte den Ort der Kirmesgesellschaft aus dem Ortsverzeichnis wählen.'),
+            )
+        : fehler === 'ROLLE'
           ? reply
-              .status(409)
-              .send(
-                problem(
-                  409,
-                  'Mindestens ein Admin muss bleiben – sonst verwaltet niemand die Redaktion.',
-                ),
-              )
-          : nichtGefunden(reply);
+              .status(400)
+              .send(problem(400, 'Kirmesgesellschaft wird man nur per Einladung mit Ort.'))
+          : fehler === 'NUR_ADMIN'
+            ? reply.status(403).send(problem(403, 'Nur für Admins.'))
+            : fehler === 'LETZTER_ADMIN'
+              ? reply
+                  .status(409)
+                  .send(
+                    problem(
+                      409,
+                      'Mindestens ein Admin muss bleiben – sonst verwaltet niemand die Redaktion.',
+                    ),
+                  )
+              : nichtGefunden(reply);
 
   await app.register(async (r) => {
     // onRequest: Anmeldung prüfen, BEVOR Eingaben validiert werden (keine Rückschlüsse für Nicht-Angemeldete)
     r.addHook('onRequest', geschuetzt);
+    // Kirmesgesellschaft (Issue #180): standardmäßig verboten – nur freigegebene Routen, und dort
+    // nur der eigene Ort (aus Body, Query oder Pfad). Vergessene Routen bleiben so zu.
+    r.addHook('preHandler', async (req, reply) => {
+      const s = akteur(req);
+      if (s.rolle !== 'kirmesgesellschaft') return;
+      if (!KG_ROUTEN.has(`${req.method} ${req.routeOptions.url}`))
+        return reply.status(403).send(problem(403, 'Für Kirmesgesellschaften nicht freigegeben.'));
+      const ort =
+        (req.body as { ortSlug?: string } | undefined)?.ortSlug ??
+        (req.query as { ort?: string } | undefined)?.ort ??
+        (req.params as { slug?: string } | undefined)?.slug;
+      if (ort !== undefined && !darfOrt(s, ort))
+        return reply.status(403).send(problem(403, 'Nur Termine und Plätze eures Ortes.'));
+    });
 
     // Stand der Sicherungen – nur Admins (Issue #45)
     if (d.sicherungen) {
@@ -298,6 +345,8 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       adminId: admin(req),
       name: akteur(req).name,
       rolle: akteur(req).rolle,
+      ortSlug: akteur(req).ortSlug ?? null,
+      ortName: akteur(req).ortName ?? null,
       passkeys: !!passkeys,
     }));
 
@@ -405,7 +454,10 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
 
     // Mitglieder und Einladungen (nur Admin – geprüft im Use Case)
     const v = d.mitglieder;
-    const ROLLE = { type: 'string', enum: ['admin', 'redaktion'] } as const;
+    const ROLLE = {
+      type: 'string',
+      enum: ['admin', 'redaktion', 'kirmesgesellschaft'],
+    } as const;
     r.get('/api/v1/admin/mitglieder', async (req, reply) => {
       const m = await v.liste(akteur(req));
       return m.ok ? m.value : verwaltungsFehler(reply, m.error);
@@ -437,11 +489,15 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
       const m = await v.offeneEinladungen(akteur(req));
       return m.ok ? m.value : verwaltungsFehler(reply, m.error);
     });
-    r.post<{ Body: { rolle: Rolle; bezeichnung?: string } }>(
+    r.post<{ Body: { rolle: Rolle; bezeichnung?: string; ortSlug?: string } }>(
       '/api/v1/admin/einladungen',
-      { schema: { body: objekt(['rolle'], { rolle: ROLLE, bezeichnung: TEXT(200) }) } },
+      {
+        schema: {
+          body: objekt(['rolle'], { rolle: ROLLE, bezeichnung: TEXT(200), ortSlug: TEXT(120) }),
+        },
+      },
       async (req, reply) => {
-        const m = await v.lade(akteur(req), req.body.rolle, req.body.bezeichnung);
+        const m = await v.lade(akteur(req), req.body.rolle, req.body.bezeichnung, req.body.ortSlug);
         if (!m.ok) return verwaltungsFehler(reply, m.error);
         // Das Token selbst wird nie geloggt
         req.log.info(
@@ -609,7 +665,10 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         { schema: { params: ID } },
         async (req, reply) => {
           const t = await finden(req.params.id);
-          return t ? { ...(d.terminDto(t) as object), version: t.version } : nichtGefunden(reply);
+          // Kirmesgesellschaft: fremde Termine gibt es für sie nicht (Issue #180)
+          return t && darfOrt(akteur(req), t.ort.slug)
+            ? { ...(d.terminDto(t) as object), version: t.version }
+            : nichtGefunden(reply);
         },
       );
     }
