@@ -8,9 +8,10 @@ import {
   datumKurz,
   datumLangJahr,
   kreisKurz,
+  musikFeld,
 } from '../lib/anzeige';
 import { aehnlicheOrte, bezeichner } from '../lib/ortssuche';
-import type { LandkreisKuerzel } from '@kirmes/core';
+import { erkenneKategorie, type LandkreisKuerzel } from '@kirmes/core';
 interface Props {
   stand: AssistentStand;
   redaktion?: boolean;
@@ -325,7 +326,7 @@ const eigeneDauer = Number(s.tage) > 4;
                   </summary>
                   <div class="details-inhalt">
                     <label>
-                      Band / DJ
+                      {musikFeld(z.kategorie || erkenneKategorie(z.titel))}
                       <input
                         name={`band-${i}`}
                         maxlength="120"
@@ -333,6 +334,12 @@ const eigeneDauer = Number(s.tage) > 4;
                         value={z.band ?? ''}
                       />
                     </label>
+                    {((z.kategorie || erkenneKategorie(z.titel)) === 'tradition' || z.pfarrer) && (
+                      <label>
+                        Pfarrer/in (optional)
+                        <input name={`pfarrer-${i}`} maxlength="120" value={z.pfarrer ?? ''} />
+                      </label>
+                    )}
                     <label>
                       Wo genau?
                       <input

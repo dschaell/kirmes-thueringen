@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  berlinVersatz,
+  brotkrumenJsonLd,
+  eventJsonLd,
   heute,
   kreisZusammenfassung,
+  musikFeld,
   ohneSchraegstrich,
   routenLinks,
   suchZeitraum,
@@ -113,23 +117,85 @@ describe('artName (robust gegen unbekannte Arten)', () => {
   });
 });
 
-describe('routenLinks (Issue #157)', () => {
-  const ort = { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate: null } as never;
-  const ziel = (t: object) =>
-    decodeURIComponent(
-      routenLinks({ festplatz: null, veranstaltungsort: null, ort, ...t }).google.split(
-        'destination=',
-      )[1] ?? '',
-    );
-  it('Ständchen in den Ort, Gottesdienst zur Kirche, Angabe hat Vorrang', () => {
-    expect(ziel({ kategorie: 'staendchen', titel: 'Ständchen' })).toBe('Mühlberg, Thüringen');
-    expect(ziel({ kategorie: 'tradition', titel: 'Kirmesgottesdienst' })).toBe(
-      'Kirche, Mühlberg, Thüringen',
+describe('routenLinks (Issue #179)', () => {
+  const ort = (koordinate: object | null) =>
+    ({ slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate }) as never;
+  const ziel = (r: ReturnType<typeof routenLinks>) =>
+    r && decodeURIComponent(r.google.split('destination=')[1] ?? '');
+  it('Platz → genau; ohne „Wo genau?“ → Ortsmitte; nur Text → keine Route', () => {
+    const mitte = ort({ lat: 50.87, lon: 10.82 });
+    const platz = { festplatz: { lat: 50.9, lon: 10.8 }, veranstaltungsort: 'Kirche', ort: mitte };
+    expect(routenLinks(platz)?.art).toBe('genau');
+    expect(ziel(routenLinks(platz))).toBe('50.9,10.8');
+    const ohne = routenLinks({ festplatz: null, veranstaltungsort: null, ort: mitte });
+    expect([ohne?.art, ziel(ohne)]).toEqual(['ort', '50.87,10.82']);
+    expect(ohne?.apple).toContain('daddr=50.87%2C10.82');
+    expect(ziel(routenLinks({ festplatz: null, veranstaltungsort: null, ort: ort(null) }))).toBe(
+      'Mühlberg, Thüringen',
     );
     expect(
-      ziel({ kategorie: 'tradition', titel: 'Gottesdienst', veranstaltungsort: 'Festzelt' }),
-    ).toBe('Festzelt, Mühlberg, Thüringen');
-    expect(ziel({ kategorie: 'party', titel: 'Kirmestanz' })).toBe('Mühlberg, Thüringen');
-    expect(ziel({ festplatz: { lat: 50, lon: 10 } })).toBe('50,10');
+      routenLinks({ festplatz: null, veranstaltungsort: 'Sportplatz', ort: mitte }),
+    ).toBeNull();
+  });
+});
+
+describe('musikFeld (Issue #175)', () => {
+  it('Gottesdienst: Chor statt Band', () => {
+    expect(musikFeld('tradition')).toBe('Chor / Gesang / musikalische Begleitung');
+    expect(musikFeld('party')).toBe('Band / DJ');
+    expect(musikFeld(null)).toBe('Band / DJ');
+  });
+});
+
+describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
+  const site = new URL('https://k.de');
+  const termin = (x: object = {}) =>
+    ({
+      id: 'abc',
+      datum: '2026-10-24',
+      beginn: '20:00',
+      titel: 'Kirmestanz',
+      veranstaltungsort: 'Festzelt',
+      kategorie: 'party',
+      bestaetigt: true,
+      ort: { slug: 'elleben', name: 'Elleben', landkreis: 'IK', koordinate: null },
+      festplatz: null,
+      band: 'Belconda',
+      info: null,
+      muttizettel: false,
+      ...x,
+    }) as never;
+  it('Zeitzone Sommer/Winter', () => {
+    expect(berlinVersatz('2026-10-24')).toBe('+02:00');
+    expect(berlinVersatz('2026-10-26')).toBe('+01:00');
+  });
+  it('Start mit Zeitzone, Ende nach Art (über Mitternacht), Beschreibung, Bild', () => {
+    const e = eventJsonLd(termin(), site);
+    expect(e.startDate).toBe('2026-10-24T20:00:00+02:00');
+    expect(e.endDate).toBe('2026-10-25T01:00:00+01:00');
+    expect(e.location.name).toBe('Festzelt, Elleben');
+    expect(e.description).toBe(
+      'Kirmestanz/Kirmesdisco in Elleben am Samstag, 24. Oktober ab 20:00 Uhr mit Belconda.',
+    );
+    expect(e.image).toEqual(['https://k.de/termin/abc/bild.png']);
+    const ganztags = eventJsonLd(
+      termin({ beginn: null, info: 'Eintritt frei', band: null, veranstaltungsort: null }),
+      site,
+    );
+    expect([
+      ganztags.startDate,
+      ganztags.endDate,
+      ganztags.description,
+      ganztags.location.name,
+    ]).toEqual(['2026-10-24', '2026-10-24', 'Eintritt frei', 'Elleben']);
+    expect(eventJsonLd(termin({ kategorie: 'unbekannt' }), site).endDate).toBe(
+      '2026-10-24T23:00:00+02:00',
+    );
+  });
+  it('Brotkrumen ab Start, mit Positionen', () => {
+    expect(brotkrumenJsonLd([['Ilm-Kreis', '/kreise/ik']], site).itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'Kirmeskalender Thüringen', item: 'https://k.de/' },
+      { '@type': 'ListItem', position: 2, name: 'Ilm-Kreis', item: 'https://k.de/kreise/ik' },
+    ]);
   });
 });

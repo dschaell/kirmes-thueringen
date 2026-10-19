@@ -11,7 +11,7 @@ const BASIS = `SELECT v.id, o.slug AS "ortSlug", o.name AS "ortName", v.erstellt
  coalesce((SELECT jsonb_agg(jsonb_build_object('ortSlug', o.slug, 'landkreis', o.landkreis,
  'datum', t.datum::text, 'beginn', to_char(t.beginn, 'HH24:MI'), 'titel', t.titel,
  'veranstaltungsort', t.veranstaltungsort, 'kategorie', t.kategorie, 'band', t.band,
- 'info', t.info, 'muttizettel', t.muttizettel, 'bestaetigt', false, 'speisen', t.speisen,
+ 'info', t.info, 'pfarrer', t.pfarrer, 'muttizettel', t.muttizettel, 'bestaetigt', false, 'speisen', t.speisen,
  'platz', CASE WHEN t.platz_lat IS NULL THEN NULL
    ELSE jsonb_build_object('lat', t.platz_lat, 'lon', t.platz_lon) END)
  ORDER BY t.position) FROM vorschlag_termin t WHERE t.vorschlag_id = v.id), '[]') AS termine
@@ -22,8 +22,8 @@ const ABSCHLUSS = `UPDATE vorschlag SET status = $2, bearbeitet_von = $3, bearbe
  kontakt_name = NULL, kontakt_email = NULL, nachricht = NULL, grund = $4 WHERE id = $1::uuid`;
 const AUDIT = `INSERT INTO aenderungsprotokoll(admin_id, ort_id, aktion, details) VALUES ($1, $2, $3, $4)`;
 const ANLEGEN = `INSERT INTO termin(ort_id, datum, beginn, titel, veranstaltungsort, kategorie,
- bestaetigt, quelle, eingetragen_von_admin, band, info, muttizettel)
- SELECT id, $2::date, $3::time, $4, $5, $6, $7, 'Redaktion', $8, $9, $10, $11 FROM ort WHERE slug = $1
+ bestaetigt, quelle, eingetragen_von_admin, band, info, muttizettel, pfarrer)
+ SELECT id, $2::date, $3::time, $4, $5, $6, $7, 'Redaktion', $8, $9, $10, $11, $12 FROM ort WHERE slug = $1
  ON CONFLICT (ort_id, datum, titel) DO NOTHING RETURNING id, ort_id`;
 
 const PLATZ = `INSERT INTO festplatz(ort_id, name, lage)
@@ -70,8 +70,8 @@ export class PgVorschlaege implements VorschlagsRepository {
       for (const [i, t] of v.termine.entries()) {
         await c.query(
           `INSERT INTO vorschlag_termin(vorschlag_id, position, datum, beginn, titel,
-          veranstaltungsort, kategorie, band, info, muttizettel, speisen, platz_lat, platz_lon)
-          VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)`,
+          veranstaltungsort, kategorie, band, info, muttizettel, speisen, platz_lat, platz_lon, pfarrer)
+          VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)`,
           [
             vid,
             i + 1,
@@ -86,6 +86,7 @@ export class PgVorschlaege implements VorschlagsRepository {
             JSON.stringify(t.speisen),
             t.platz?.lat ?? null,
             t.platz?.lon ?? null,
+            t.pfarrer,
           ],
         );
       }
@@ -134,6 +135,7 @@ export class PgVorschlaege implements VorschlagsRepository {
             t.band,
             t.info,
             t.muttizettel,
+            t.pfarrer,
           ]);
           const termin = neu.rows[0];
           if (!termin) throw new TerminKonflikt();

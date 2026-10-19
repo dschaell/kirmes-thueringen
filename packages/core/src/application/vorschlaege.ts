@@ -160,6 +160,7 @@ export async function pruefeVorschlag(
       titel: text(z.titel),
       beginn: z.beginn || null,
       band: text(z.band),
+      pfarrer: text(z.pfarrer),
       info: text(z.info),
       veranstaltungsort: punkt?.wo || text(z.veranstaltungsort),
       // Gewählte Art gilt, sonst aus dem Titel erkennen (Issue #93)
@@ -213,7 +214,8 @@ export function vorschlagsMail(
   const programm = termine.map((t) => {
     const details = [
       t.veranstaltungsort,
-      t.band && `Band/DJ: ${t.band}`,
+      t.band && `${t.kategorie === 'tradition' ? 'Musik' : 'Band/DJ'}: ${t.band}`,
+      t.pfarrer && `Pfarrer/in: ${t.pfarrer}`,
       t.platz && 'Kartenpunkt',
       t.speisen.length > 0 && 'Essen & Getränke',
     ].filter(Boolean);

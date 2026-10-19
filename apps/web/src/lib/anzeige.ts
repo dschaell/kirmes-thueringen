@@ -1,5 +1,5 @@
 /** Darstellungs-Helfer des Frontends (keine Fachlogik – die liegt im Core bzw. hinter der API). */
-import { LANDKREISE, istKirchlich, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
+import { LANDKREISE, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
 import type { TerminDto } from './api';
 
 export { LANDKREISE };
@@ -13,6 +13,10 @@ export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
   staendchen: { label: 'Ständchen', kurz: 'Ständchen' },
   sonstiges: { label: 'Sonstiges', kurz: 'Sonstiges' },
 };
+
+/** Beschriftung des Musik-Felds je Art – beim Gottesdienst Chor statt Band (Issue #175). */
+export const musikFeld = (kategorie: string | null | undefined) =>
+  kategorie === 'tradition' ? 'Chor / Gesang / musikalische Begleitung' : 'Band / DJ';
 
 /** Amtliche Bezeichnung und passende Präposition („im Landkreis Gotha“, „in Erfurt“). */
 const KREIS_ANZEIGE: Record<LandkreisKuerzel, { name: string; in: string }> = {
@@ -116,41 +120,75 @@ export function relativerTag(iso: string, h = heute()): string | null {
 }
 
 /**
- * Routen-Links: Mit hinterlegtem Festplatz exakt, sonst über die Adresse
- * („Festzelt, Mühlberg, Thüringen“) – das finden beide Kartendienste zuverlässig.
- * Ständchen führen in den Ort; Gottesdienste ohne Ortsangabe zur Kirche (Issue #157).
+ * Routen-Links (Issue #179): nur wohin man sich verlassen kann.
+ * - hinterlegter Platz → genau dorthin („genau“)
+ * - kein „Wo genau?“ → Ortsmitte (Koordinate, sonst Ortsname) („ort“)
+ * - nur ein Text wie „Sportplatz“ ohne Kartenpunkt → keine Route (Suche wäre beliebig)
  */
 export function routenLinks(
-  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'> &
-    Partial<Pick<TerminDto, 'kategorie' | 'titel'>>,
-) {
-  const wo =
-    t.veranstaltungsort ??
-    (istKirchlich({ kategorie: t.kategorie ?? '', titel: t.titel ?? '' }) ? 'Kirche' : null);
-  const ziel = t.festplatz
-    ? `${t.festplatz.lat},${t.festplatz.lon}`
-    : [wo, t.ort.name, 'Thüringen'].filter(Boolean).join(', ');
+  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'>,
+): { google: string; apple: string; art: 'genau' | 'ort' } | null {
+  const k = t.festplatz ?? (t.veranstaltungsort ? null : t.ort.koordinate);
+  if (!k && t.veranstaltungsort) return null;
+  const ziel = k ? `${k.lat},${k.lon}` : `${t.ort.name}, Thüringen`;
   const z = encodeURIComponent(ziel);
   return {
     google: `https://www.google.com/maps/dir/?api=1&destination=${z}`,
     apple: `https://maps.apple.com/?daddr=${z}&dirflg=d`,
-    exakt: Boolean(t.festplatz),
+    art: t.festplatz ? 'genau' : 'ort',
   };
 }
 
 /** schema.org Event für Google-Rich-Results */
+/** Übliche Dauer je Art in Stunden – für Kalender-Abo und Suchmaschinen (Ende fehlt meist). */
+export const DAUER_STUNDEN: Record<string, number> = {
+  party: 5,
+  familie: 3,
+  tradition: 2,
+  fruehschoppen: 3,
+  staendchen: 4,
+  sonstiges: 3,
+};
+
+/** Zeitzonen-Versatz in Thüringen an einem Tag: „+02:00“ (Sommer) bzw. „+01:00“. */
+export function berlinVersatz(datum: string): string {
+  const teil = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Berlin',
+    timeZoneName: 'shortOffset',
+  })
+    .formatToParts(new Date(`${datum}T12:00:00Z`))
+    .find((x) => x.type === 'timeZoneName')?.value;
+  return teil === 'GMT+2' ? '+02:00' : '+01:00';
+}
+
+/** Ortszeit + Stunden → „2026-10-24T01:00:00+02:00“ (über Mitternacht korrekt). */
+function plusStunden(datum: string, beginn: string, stunden: number): string {
+  const [h = 0, m = 0] = beginn.split(':').map(Number);
+  const d = new Date(
+    Date.UTC(+datum.slice(0, 4), +datum.slice(5, 7) - 1, +datum.slice(8, 10), h + stunden, m),
+  );
+  const tag = d.toISOString().slice(0, 10);
+  return `${tag}T${d.toISOString().slice(11, 16)}:00${berlinVersatz(tag)}`;
+}
+
+/**
+ * schema.org Event für Google-Rich-Results (Issue #182): mit Zeitzone, Ende, Beschreibung und
+ * Bild – sonst meldet Google fehlende empfohlene Felder.
+ */
 export function eventJsonLd(t: TerminDto, site: URL) {
   const geo = t.festplatz ?? t.ort.koordinate;
+  const url = new URL(`/termin/${t.id}`, site).href;
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
     name: `${t.titel} – ${t.ort.name}`,
-    startDate: t.beginn ? `${t.datum}T${t.beginn}:00` : t.datum,
+    startDate: t.beginn ? `${t.datum}T${t.beginn}:00${berlinVersatz(t.datum)}` : t.datum,
+    endDate: t.beginn ? plusStunden(t.datum, t.beginn, DAUER_STUNDEN[t.kategorie] ?? 3) : t.datum,
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     location: {
       '@type': 'Place',
-      name: t.veranstaltungsort ?? t.ort.name,
+      name: t.veranstaltungsort ? `${t.veranstaltungsort}, ${t.ort.name}` : t.ort.name,
       address: {
         '@type': 'PostalAddress',
         addressLocality: t.ort.name,
@@ -160,8 +198,27 @@ export function eventJsonLd(t: TerminDto, site: URL) {
       ...(geo && { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lon } }),
     },
     ...(t.band && { performer: { '@type': 'MusicGroup', name: t.band } }),
-    ...(t.info && { description: t.info }),
-    url: new URL(`/termin/${t.id}`, site).href,
+    description:
+      t.info ??
+      `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${t.band}` : ''}.`,
+    image: [new URL(`/termin/${t.id}/bild.png`, site).href],
+    url,
+  };
+}
+
+/** Brotkrumen für Suchmaschinen: Start › … › aktuelle Seite (Issue #182). */
+export function brotkrumenJsonLd(stufen: [name: string, pfad: string][], site: URL) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [['Kirmeskalender Thüringen', '/'] as const, ...stufen].map(
+      ([name, pfad], i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name,
+        item: new URL(pfad, site).href,
+      }),
+    ),
   };
 }
 

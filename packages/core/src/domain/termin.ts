@@ -77,8 +77,10 @@ export interface Termin {
   readonly bestaetigt: boolean;
   /** Von der Kirmesgesellschaft hinterlegter Festplatz (passend zum Veranstaltungsort oder Standard) */
   readonly festplatz: Koordinate | null;
-  /** Band oder DJ – eigenes Feld, damit man nach Bands suchen kann */
+  /** Band oder DJ – eigenes Feld, damit man nach Bands suchen kann; beim Gottesdienst Chor/Musik */
   readonly band: string | null;
+  /** Pfarrer/in beim Gottesdienst (Issue #175) */
+  readonly pfarrer?: string | null;
   /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
   readonly info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */
@@ -97,6 +99,7 @@ export interface TerminEingabe {
   kategorie: string;
   bestaetigt?: boolean;
   band?: string | null;
+  pfarrer?: string | null;
   info?: string | null;
   muttizettel?: boolean;
 }
@@ -114,6 +117,7 @@ export interface NeuerTermin {
   readonly kategorie: Kategorie;
   readonly bestaetigt: boolean;
   readonly band: string | null;
+  readonly pfarrer?: string | null;
   readonly info: string | null;
   readonly muttizettel: boolean;
 }
@@ -179,6 +183,14 @@ export function validiereTermin(
   if (band && band.length > BAND_MAX) {
     fehler.push({ feld: 'band', code: 'BAND_LAENGE', meldung: `Band: max. ${BAND_MAX} Zeichen.` });
   }
+  const pfarrer = e.pfarrer?.replace(/\s+/g, ' ').trim() || null;
+  if (pfarrer && pfarrer.length > BAND_MAX) {
+    fehler.push({
+      feld: 'pfarrer',
+      code: 'PFARRER_LAENGE',
+      meldung: `Pfarrer/in: max. ${BAND_MAX} Zeichen.`,
+    });
+  }
   const info = e.info?.trim().replace(/\r\n/g, '\n') || null;
   if (info && info.length > INFO_MAX) {
     fehler.push({
@@ -213,6 +225,7 @@ export function validiereTermin(
     kategorie,
     bestaetigt: e.bestaetigt ?? false,
     band,
+    pfarrer,
     info,
     muttizettel: e.muttizettel ?? false,
   };

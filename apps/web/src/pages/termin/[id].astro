@@ -6,6 +6,7 @@ import TerminListe from '../../components/TerminListe.astro';
 import { alleTermine, findeTermin } from '../../lib/api';
 import {
   datumLangJahr,
+  brotkrumenJsonLd,
   eventJsonLd,
   heute,
   kreisName,
@@ -38,7 +39,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <Base
   title={`${t.titel} in ${t.ort.name} am ${datum} – Kirmeskalender Thüringen`}
   description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}${t.band ? `, mit ${t.band}` : ''}. Mit Anfahrt und Kalendereintrag.`}
-  jsonLd={[eventJsonLd(t, Astro.site!)]}
+  jsonLd={[
+    eventJsonLd(t, Astro.site!),
+    brotkrumenJsonLd(
+      [
+        [kreisName(t.ort.landkreis), `/kreise/${kreisSlug(t.ort.landkreis)}`],
+        [t.ort.name, `/orte/${t.ort.slug}`],
+        [t.titel, `/termin/${t.id}`],
+      ],
+      Astro.site!,
+    ),
+  ]}
   bild={`/termin/${t.id}/bild.png`}
 >
   <p class="brotkrumen">
@@ -70,6 +81,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
               <span class="sr-only">Musik</span>
             </dt>
             <dd>{t.band}</dd>
+          </>
+        )
+      }
+      {
+        t.pfarrer && (
+          <>
+            <dt>
+              <Icon name="kirche" />
+              <span class="sr-only">Pfarrer/in</span>
+            </dt>
+            <dd>Pfarrer/in: {t.pfarrer}</dd>
           </>
         )
       }
@@ -133,12 +155,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
     <h2 class="sr-only">Anfahrt und Teilen</h2>
     <div class="knopfreihe">
-      <a class="knopf" href={route.google} target="_blank" rel="noopener"
-        ><Icon name="route" />Route mit Google Maps</a
-      >
-      <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener"
-        ><Icon name="route" />Apple Karten</a
-      >
+      {
+        route && (
+          <>
+            <a class="knopf" href={route.google} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Route mit Google Maps
+            </a>
+            <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Apple Karten
+            </a>
+          </>
+        )
+      }
       <a class="knopf zweit" href={`/termin/${t.id}.ics`}
         ><Icon name="kalender" />In Kalender eintragen</a
       >
@@ -154,11 +184,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </div>
     <p class="genau">
       {
-        t.kategorie === 'staendchen' && !t.veranstaltungsort
-          ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
-          : route.exakt
+        !route
+          ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
+          : route.art === 'genau'
             ? 'Die Route führt genau zum Veranstaltungsort.'
-            : 'Die Route führt zur Adresse im Ort – der genaue Platz ist noch nicht eingetragen.'
+            : t.kategorie === 'staendchen'
+              ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
+              : 'Die Route führt in den Ort.'
       }
     </p>
     {
