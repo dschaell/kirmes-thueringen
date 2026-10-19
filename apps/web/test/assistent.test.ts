@@ -5,6 +5,7 @@ import {
   doppelterTitel,
   gueltigeTage,
   leseProgramm,
+  mitEssen,
   sortiereProgramm,
   vorlage,
 } from '../src/lib/assistent';
@@ -374,5 +375,64 @@ describe('eigene Dauer (Issue #150)', () => {
   it('gueltigeTage', () => {
     expect(['1', '4', '14'].every(gueltigeTage)).toBe(true);
     expect(['0', '15', '', '1.5', 4].some(gueltigeTage)).toBe(false);
+  });
+});
+
+describe('Essen & Getränke nur mit Haken (Issue #155)', () => {
+  const senden = async (haken: boolean) => {
+    let gesendet: { zeilen: { speisen: unknown[] }[] } | undefined;
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      gesendet = JSON.parse(String(init?.body));
+      return new Response(null, { status: 202 });
+    });
+    const zeile = { ...vorlage('2027-09-17', '1')[0]!, titel: 'Frühschoppen', aktiv: true };
+    const form = new FormData();
+    form.set('csrf_token', 'token');
+    form.set(
+      'stand',
+      JSON.stringify({
+        schritt: 3,
+        ortSlug: 'musterort',
+        ab: '2027-09-17',
+        tage: '1',
+        zeilen: [zeile],
+        kontaktName: '',
+        kontaktEmail: '',
+        nachricht: '',
+        bestaetigt: false,
+        geladen: 0,
+        vorschlag: '',
+        fehler: [],
+      }),
+    );
+    form.set('gericht-0-0', 'Bratwurst');
+    form.set('preis-0-0', '3,50');
+    if (haken) form.set('essen-0', 'on');
+    try {
+      await assistent(
+        {
+          request: new Request('http://example.org/termin-melden', { method: 'POST', body: form }),
+          url: new URL('http://example.org/termin-melden'),
+          response: { status: 200, headers: new Headers() },
+          cookies: { get: () => ({ value: 'token' }) } as never,
+          redirect: () => new Response(null, { status: 303 }),
+          clientAddress: '127.0.0.1',
+        },
+        false,
+      );
+    } finally {
+      fetch.mockRestore();
+    }
+    return gesendet?.zeilen[0]?.speisen;
+  };
+  it('ohne Haken werden eingetippte Einträge nicht übernommen', async () => {
+    expect(await senden(false)).toEqual([]);
+    expect(await senden(true)).toEqual([{ name: 'Bratwurst', preis: '3,50' }]);
+  });
+  it('vorab gesetzt, wenn es schon Einträge gibt', () => {
+    const z = { ...vorlage('2027-09-17', '1')[0]!, aktiv: true };
+    expect(mitEssen(z)).toBe(false);
+    expect(mitEssen({ ...z, speisen: [{ name: 'Klöße', preis: '' }] })).toBe(true);
+    expect(mitEssen({ ...z, speisen: [{ name: 'Klöße', preis: '' }], essen: false })).toBe(false);
   });
 });

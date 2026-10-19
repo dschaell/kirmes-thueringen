@@ -49,7 +49,7 @@ export function wochenendVorlage(ab: string): WochenendZeile[] {
     zeile(1, '08:00', 'Ständchen', 'staendchen'),
     zeile(1, '15:00', 'Kinderkirmes', 'familie'),
     zeile(1, '20:00', 'Kirmesparty', 'party', { muttizettel: true }),
-    zeile(2, '10:00', 'Frühschoppen', 'tradition', { kern: true }),
+    zeile(2, '10:00', 'Frühschoppen', 'fruehschoppen', { kern: true }),
     zeile(3, '10:00', 'Kirmesausklang', 'tradition'),
   ];
 }

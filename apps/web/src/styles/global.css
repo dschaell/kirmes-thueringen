@@ -730,6 +730,10 @@ legend {
   color: #8a5a00;
   border-color: #e6cf9a;
 }
+.kat.kat-fruehschoppen {
+  color: #9a3d12;
+  border-color: #ecc7b2;
+}
 @media (prefers-color-scheme: dark) {
   .kat.kat-familie {
     color: #8cc8e3;
@@ -741,6 +745,10 @@ legend {
   .kat.kat-party {
     color: #c3a6ea;
     border-color: #45365a;
+  }
+  .kat.kat-fruehschoppen {
+    color: #f0a679;
+    border-color: #5c3420;
   }
   .kat.kat-staendchen {
     color: #e3b85c;
