@@ -1,8 +1,16 @@
 ---
 import { TAGE_MAX, mitEssen, type AssistentStand } from '../lib/assistent';
 import type { OrtUebersichtDto } from '../lib/api';
-import { KATEGORIEN, anzahl, datumKurz, datumLangJahr } from '../lib/anzeige';
-import { bezeichner } from '../lib/ortssuche';
+import {
+  KATEGORIEN,
+  LANDKREISE,
+  anzahl,
+  datumKurz,
+  datumLangJahr,
+  kreisKurz,
+} from '../lib/anzeige';
+import { aehnlicheOrte, bezeichner } from '../lib/ortssuche';
+import type { LandkreisKuerzel } from '@kirmes/core';
 interface Props {
   stand: AssistentStand;
   redaktion?: boolean;
@@ -22,6 +30,15 @@ const {
   plaetze = [],
 } = Astro.props;
 const ort = orte.find((o) => o.slug === s.ortSlug);
+// Frisch angelegter Ort steht evtl. noch nicht in der (zwischengespeicherten) Ortsliste
+const ortName = ort?.name ?? s.ortEingabe ?? s.ortSlug;
+// Redaktion: Ort nicht im Verzeichnis → ähnliche Orte oder neu anlegen (Issue #167)
+const unbekannt = redaktion && s.schritt === 1 && s.ortUnbekannt === true;
+const aehnliche = unbekannt ? aehnlicheOrte(orte, s.ortEingabe ?? '') : [];
+const neuerOrtName = (s.ortEingabe ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
+  kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
+);
 const ortBezeichnung = bezeichner(orte);
 const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
 const eigeneDauer = Number(s.tage) > 4;
@@ -51,7 +68,7 @@ const eigeneDauer = Number(s.tage) > 4;
         </>
         {redaktion && (
           <a
-            href={`/admin?zeitraum=alle&q=${encodeURIComponent(ort?.name ?? s.ortSlug)}`}
+            href={`/admin?zeitraum=alle&q=${encodeURIComponent(ortName)}`}
             target="_blank"
             rel="noopener"
           >
@@ -86,6 +103,47 @@ const eigeneDauer = Number(s.tage) > 4;
             </span>
           </label>
           <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+          {unbekannt && (
+            <section class="kasten neuer-ort" aria-labelledby="neuer-ort-titel">
+              <h3 id="neuer-ort-titel">„{neuerOrtName}“ gibt es noch nicht</h3>
+              {aehnliche.length > 0 && (
+                <>
+                  <p class="klein">Meintest du einen dieser Orte?</p>
+                  <div class="aehnliche">
+                    {aehnliche.map((t) => (
+                      <button class="knopf zweit" name="ortWahl" value={t.wert} formnovalidate>
+                        {t.wert}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <p class="klein">Oder als neuen Ort anlegen:</p>
+              <div class="zwei">
+                <label>
+                  Landkreis
+                  <select name="ortKreis">
+                    <option value="">bitte wählen</option>
+                    {kreise.map((k) => (
+                      <option value={k}>{kreisKurz(k)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Lage (optional)
+                  <input
+                    name="ortLage"
+                    maxlength="2000"
+                    placeholder="Google-Maps-Link oder „50.87, 10.82“"
+                  />
+                </label>
+              </div>
+              <label class="klein">
+                <input type="checkbox" name="ortAnlegen" /> Ja, „{neuerOrtName}“ als neuen Ort
+                anlegen
+              </label>
+            </section>
+          )}
           <div class="zwei zeitraumfelder">
             <label>
               Erster Kirmestag
@@ -135,7 +193,7 @@ const eigeneDauer = Number(s.tage) > 4;
     {
       s.schritt === 2 && (
         <>
-          <h2>Was ist los in {ort?.name ?? s.ortSlug}?</h2>
+          <h2>Was ist los in {ortName}?</h2>
           {redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
             <section class="kasten einsender" aria-label="Eingereicht von">
               <p class="klein leise">Eingereicht von</p>
@@ -248,7 +306,7 @@ const eigeneDauer = Number(s.tage) > 4;
             </section>
           )}
           <p>
-            <strong>{ort?.name ?? s.ortSlug}</strong> –{' '}
+            <strong>{ortName}</strong> –{' '}
             {anzahl(s.zeilen.filter((z) => z.aktiv).length, 'Veranstaltung', 'Veranstaltungen')}{' '}
             {redaktion ? 'werden veröffentlicht' : 'werden vorgeschlagen'}. Band, Ort oder Essen &
             Getränke? Tippe auf eine Veranstaltung – alles freiwillig.
@@ -565,6 +623,20 @@ const eigeneDauer = Number(s.tage) > 4;
   }
   .einsender .nachricht {
     white-space: pre-line;
+  }
+  /* Ort fehlt im Verzeichnis (Issue #167) */
+  .neuer-ort {
+    display: grid;
+    gap: 10px;
+    margin: 4px 0 16px;
+  }
+  .neuer-ort h3 {
+    margin: 0;
+  }
+  .neuer-ort .aehnliche {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 </style>
 <script>

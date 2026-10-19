@@ -436,3 +436,105 @@ describe('Essen & Getränke nur mit Haken (Issue #155)', () => {
     expect(mitEssen({ ...z, speisen: [{ name: 'Klöße', preis: '' }], essen: false })).toBe(false);
   });
 });
+
+describe('Ort beim Eintragen anlegen (Issue #167)', () => {
+  const schritt1 = async (redaktion: boolean, extra: Record<string, string> = {}) => {
+    const aufrufe: { url: string; methode: string; body?: unknown }[] = [];
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const u = String(url);
+      aufrufe.push({
+        url: u,
+        methode: init?.method ?? 'GET',
+        body: init?.body && JSON.parse(String(init.body)),
+      });
+      if (u.includes('/api/v1/admin/orte'))
+        return Response.json({ slug: 'neudorf-am-berg', name: 'Neudorf am Berg' }, { status: 201 });
+      return Response.json([
+        { slug: 'neudorf', name: 'Neudorf', landkreis: 'GTH', koordinate: null, anzahlKommend: 0 },
+      ]);
+    });
+    const form = new FormData();
+    form.set('csrf_token', 'token');
+    form.set(
+      'stand',
+      JSON.stringify({
+        schritt: 1,
+        ortSlug: '',
+        ab: '',
+        tage: '4',
+        zeilen: [],
+        kontaktName: '',
+        kontaktEmail: '',
+        nachricht: '',
+        bestaetigt: false,
+        geladen: Date.now(),
+        vorschlag: '',
+        fehler: [],
+      }),
+    );
+    form.set('ort', 'Neudorf am Berg');
+    form.set('ab', '2027-09-16');
+    form.set('tage', '4');
+    form.set('aktion', 'weiter');
+    for (const [k, v] of Object.entries(extra)) form.set(k, v);
+    try {
+      const s = (await assistent(
+        {
+          request: new Request('http://example.org/admin/kirmes-eintragen', {
+            method: 'POST',
+            body: form,
+          }),
+          url: new URL('http://example.org/admin/kirmes-eintragen'),
+          response: { status: 200, headers: new Headers() },
+          cookies: { get: () => ({ value: 'token' }) } as never,
+          redirect: () => new Response(),
+          clientAddress: '127.0.0.1',
+        },
+        redaktion,
+      )) as { schritt: number; ortSlug: string; ortUnbekannt?: boolean; fehler: string[] };
+      return { s, aufrufe };
+    } finally {
+      fetch.mockRestore();
+    }
+  };
+  it('Redaktion: unbekannter Ort → Angebot, ohne Haken nichts angelegt', async () => {
+    const { s, aufrufe } = await schritt1(true);
+    expect(s).toMatchObject({ schritt: 1, ortUnbekannt: true });
+    expect(s.fehler[0]).toContain('„Neudorf am Berg“ ist nicht im Ortsverzeichnis');
+    expect(aufrufe.some((a) => a.methode === 'POST')).toBe(false);
+  });
+  it('Redaktion: mit Haken anlegen und weiter zum Programm', async () => {
+    const { s, aufrufe } = await schritt1(true, {
+      ortAnlegen: 'on',
+      ortKreis: 'GTH',
+      ortLage: '50.87, 10.82',
+    });
+    expect(s).toMatchObject({ schritt: 2, ortSlug: 'neudorf-am-berg' });
+    expect(aufrufe.find((a) => a.methode === 'POST')?.body).toEqual({
+      name: 'Neudorf am Berg',
+      landkreis: 'GTH',
+      lat: 50.87,
+      lon: 10.82,
+    });
+  });
+  it('Redaktion: ungültige Lage → Meldung, nichts angelegt', async () => {
+    const { s, aufrufe } = await schritt1(true, {
+      ortAnlegen: 'on',
+      ortKreis: 'GTH',
+      ortLage: 'hä',
+    });
+    expect(s.schritt).toBe(1);
+    expect(s.fehler[0]).toContain('Lage nicht erkannt');
+    expect(aufrufe.some((a) => a.methode === 'POST')).toBe(false);
+  });
+  it('„Meintest du“: gewählter Ort ersetzt die Eingabe', async () => {
+    const { s } = await schritt1(true, { ortWahl: 'Neudorf' });
+    expect(s).toMatchObject({ schritt: 2, ortSlug: 'neudorf' });
+  });
+  it('öffentlich: kein Angebot, kein Anlegen', async () => {
+    const { s, aufrufe } = await schritt1(false, { ortAnlegen: 'on', ortKreis: 'GTH' });
+    expect(s.ortUnbekannt).toBeUndefined();
+    expect(s.fehler).toContain('Bitte einen Ort aus den Vorschlägen wählen.');
+    expect(aufrufe.some((a) => a.methode === 'POST')).toBe(false);
+  });
+});

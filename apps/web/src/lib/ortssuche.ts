@@ -76,3 +76,38 @@ export function findeOrtEindeutig(orte: OrtKurz[], text: string): OrtKurz | null
   );
   return gleich.length === 1 ? (gleich[0] ?? null) : null;
 }
+
+/** Buchstaben-Abstand (Levenshtein) mit Abbruch über `max` – für Tippfehler bei Ortsnamen. */
+function abstand(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let vorher = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const jetzt = [i];
+    for (let j = 1; j <= b.length; j++)
+      jetzt[j] = Math.min(
+        (vorher[j] ?? 0) + 1,
+        (jetzt[j - 1] ?? 0) + 1,
+        (vorher[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    vorher = jetzt;
+  }
+  return vorher[b.length] ?? max + 1;
+}
+
+/**
+ * Ähnliche Orte zu einer Eingabe, die es so nicht gibt (Issue #167): Teilwort-Treffer und
+ * Tippfehler (bis 2 Buchstaben, bei kurzen Namen 1) – damit niemand „Neudrof“ neu anlegt.
+ */
+export function aehnlicheOrte(orte: OrtKurz[], text: string, max = 5): OrtTreffer[] {
+  const n = normalisiere(text.replace(/\s*\([^)]*\).*$/, ''));
+  if (n.length < 3) return [];
+  const grenze = n.length <= 5 ? 1 : 2;
+  const name = bezeichner(orte);
+  const tipp = orte
+    .map((o) => ({ o, d: abstand(n, normalisiere(o.name), grenze) }))
+    .filter((x) => x.d <= grenze)
+    .sort((a, b) => a.d - b.d || name(a.o).localeCompare(name(b.o), 'de'))
+    .map(({ o }) => ({ wert: name(o), slug: o.slug }));
+  const alle = [...tipp, ...sucheOrte(orte, text, max)];
+  return alle.filter((t, i) => alle.findIndex((x) => x.slug === t.slug) === i).slice(0, max);
+}

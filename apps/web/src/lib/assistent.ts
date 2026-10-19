@@ -1,6 +1,11 @@
 import type { APIContext } from 'astro';
 import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
-import { KATEGORIEN as KATEGORIEN_LISTE, parseDatum, type Kategorie } from '@kirmes/core';
+import {
+  KATEGORIEN as KATEGORIEN_LISTE,
+  koordinateAusText,
+  parseDatum,
+  type Kategorie,
+} from '@kirmes/core';
 import { datumKurz } from './anzeige';
 import { wochenendVorlage } from './wochenende';
 import { findeOrtEindeutig } from './ortssuche';
@@ -25,6 +30,8 @@ export interface AssistentStand {
   ortSlug: string;
   /** Getippter Ortstext – bleibt bei „Ort nicht gefunden“ im Feld stehen */
   ortEingabe?: string;
+  /** Redaktion: Ort nicht im Verzeichnis – ähnliche Orte bzw. „neu anlegen“ anbieten (#167) */
+  ortUnbekannt?: boolean;
   ab: string;
   tage: string;
   zeilen: AssistentZeile[];
@@ -125,6 +132,7 @@ function leseStand(s: string): AssistentStand | null {
       ![1, 2, 3].includes(v.schritt) ||
       typeof v.ortSlug !== 'string' ||
       (v.ortEingabe !== undefined && typeof v.ortEingabe !== 'string') ||
+      (v.ortUnbekannt !== undefined && typeof v.ortUnbekannt !== 'boolean') ||
       typeof v.ab !== 'string' ||
       !gueltigeTage(v.tage) ||
       !Array.isArray(v.zeilen) ||
@@ -283,15 +291,48 @@ export async function assistent(
   const aktion = feld(f, 'aktion');
   if (s.schritt === 1) {
     const vorher = `${s.ortSlug}|${s.ab}|${s.tage}`;
-    const ortText = feld(f, 'ort');
+    // „Meintest du …?“ – Klick auf einen ähnlichen Ort ersetzt die Eingabe (Issue #167)
+    const ortText = feld(f, 'ortWahl') || feld(f, 'ort');
     // Eindeutig und tolerant (Groß-/Kleinschreibung, Umlaute) – Issue #89
     s.ortSlug = findeOrtEindeutig(await listeOrte(), ortText)?.slug ?? '';
     s.ortEingabe = ortText.slice(0, 200);
+    s.ortUnbekannt = undefined;
+    // Redaktion: fehlenden Ort gleich mit anlegen (Issue #167) – öffentlich nie
+    const neuerName = ortText.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (!s.ortSlug && redaktion && neuerName) {
+      s.ortUnbekannt = true;
+      if (f.has('ortAnlegen')) {
+        const lage = feld(f, 'ortLage');
+        const k = lage ? koordinateAusText(lage) : null;
+        if (lage && !k)
+          s.fehler.push(
+            'Lage nicht erkannt – bitte einen Google-Maps-Link mit Pin oder Koordinaten wie „50.87, 10.82“ einfügen (oder leer lassen).',
+          );
+        else {
+          const neu = await adminApi<{ slug: string; name: string }>(ctx.cookies, 'POST', 'orte', {
+            name: neuerName,
+            landkreis: feld(f, 'ortKreis'),
+            lat: k?.lat ?? null,
+            lon: k?.lon ?? null,
+          });
+          if (neu.daten) {
+            s.ortSlug = neu.daten.slug;
+            s.ortEingabe = neu.daten.name;
+            s.ortUnbekannt = undefined;
+          } else s.fehler.push(...neu.fehler);
+        }
+      }
+    }
     s.ab = feld(f, 'ab');
     const auswahl = feld(f, 'tage');
     // „Andere Dauer …“ (Issue #150): Zahl aus dem Zusatzfeld, führende Nullen weg
     s.tage = auswahl === 'eigen' ? String(Number(feld(f, 'tageEigen')) || '') : auswahl;
-    if (!s.ortSlug) s.fehler.push('Bitte einen Ort aus den Vorschlägen wählen.');
+    if (!s.ortSlug && !s.fehler.length)
+      s.fehler.push(
+        s.ortUnbekannt
+          ? `„${neuerName}“ ist nicht im Ortsverzeichnis – unten einen ähnlichen Ort wählen oder neu anlegen.`
+          : 'Bitte einen Ort aus den Vorschlägen wählen.',
+      );
     if (!parseDatum(s.ab).ok) s.fehler.push('Bitte ein gültiges Datum wählen.');
     if (!gueltigeTage(s.tage))
       s.fehler.push(`Bitte die Anzahl der Tage wählen (1 bis ${TAGE_MAX}).`);
