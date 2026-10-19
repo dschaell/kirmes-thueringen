@@ -13,3 +13,5 @@ document.addEventListener('keydown', (e) => {
     knopf?.focus();
   }
 });
+
+export {};
