@@ -123,3 +123,21 @@ describe('validiereTermin', () => {
     expect(r.ok && r.value.termin.beginn).toBeNull();
   });
 });
+
+describe('Pfarrer/in beim Gottesdienst (Issue #175)', () => {
+  const basis = {
+    ortSlug: 'alkersleben',
+    landkreis: 'IK',
+    datum: '2027-09-17',
+    titel: 'Kirmesgottesdienst',
+    kategorie: 'tradition',
+  };
+  it('bereinigt Leerraum, leer → null, max. 120 Zeichen', () => {
+    const r = validiereTermin({ ...basis, pfarrer: '  Pfarrerin   Anna  Muster ' });
+    expect(r.ok && r.value.termin.pfarrer).toBe('Pfarrerin Anna Muster');
+    const leer = validiereTermin({ ...basis, pfarrer: '   ' });
+    expect(leer.ok && leer.value.termin.pfarrer).toBeNull();
+    const lang = validiereTermin({ ...basis, pfarrer: 'x'.repeat(121) });
+    expect(!lang.ok && lang.error.map((f) => f.code)).toEqual(['PFARRER_LAENGE']);
+  });
+});

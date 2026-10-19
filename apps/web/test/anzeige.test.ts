@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   heute,
   kreisZusammenfassung,
+  musikFeld,
   ohneSchraegstrich,
   routenLinks,
   suchZeitraum,
@@ -131,5 +132,13 @@ describe('routenLinks (Issue #157)', () => {
     ).toBe('Festzelt, Mühlberg, Thüringen');
     expect(ziel({ kategorie: 'party', titel: 'Kirmestanz' })).toBe('Mühlberg, Thüringen');
     expect(ziel({ festplatz: { lat: 50, lon: 10 } })).toBe('50,10');
+  });
+});
+
+describe('musikFeld (Issue #175)', () => {
+  it('Gottesdienst: Chor statt Band', () => {
+    expect(musikFeld('tradition')).toBe('Chor / Gesang / musikalische Begleitung');
+    expect(musikFeld('party')).toBe('Band / DJ');
+    expect(musikFeld(null)).toBe('Band / DJ');
   });
 });

@@ -101,6 +101,7 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
       `DESCRIPTION:${esc(
         [
           t.band && `Musik: ${t.band}`,
+          t.pfarrer && `Pfarrer/in: ${t.pfarrer}`,
           t.info,
           t.speisen?.length ? `Essen & Getränke:\n${t.speisen.map(speiseZeile).join('\n')}` : null,
           (t.bestaetigt ? '' : 'Noch nicht vom Veranstalter bestätigt. ') + 'Angaben ohne Gewähr.',

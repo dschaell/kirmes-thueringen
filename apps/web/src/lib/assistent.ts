@@ -101,6 +101,7 @@ export function leseProgramm(
           ...(details
             ? {
                 band: feld(f, `band-${i}`),
+                pfarrer: feld(f, `pfarrer-${i}`),
                 veranstaltungsort: feld(f, `wo-${i}`),
                 info: feld(f, `info-${i}`),
                 muttizettel: f.has(`mutti-${i}`),
@@ -409,6 +410,7 @@ export async function assistent(
         titel: z.titel,
         kategorie: z.kategorie && istKategorie(z.kategorie) ? z.kategorie : null,
         band: z.band || null,
+        pfarrer: z.pfarrer,
         veranstaltungsort: z.veranstaltungsort || null,
         info: z.info || null,
         muttizettel: z.muttizettel ?? false,
