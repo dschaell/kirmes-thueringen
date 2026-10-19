@@ -79,7 +79,7 @@ RETURNING id`;
 
 interface Zeile {
   version: string;
-  geaendert_am: string | null;
+  geaendert_am: string;
   id: string;
   datum: string;
   beginn: string | null;
@@ -106,7 +106,7 @@ export const alsLikeMuster = (s: string): string => `%${s.replace(/[\\%_]/g, (c)
 const zuTermin = (z: Zeile): Termin => ({
   id: z.id,
   version: z.version,
-  ...(z.geaendert_am ? { geaendertAm: z.geaendert_am } : {}),
+  geaendertAm: z.geaendert_am, // NOT NULL in der Datenbank
   ort: {
     slug: z.ort_slug,
     name: z.ort_name,
