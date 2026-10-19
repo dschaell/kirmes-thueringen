@@ -5,7 +5,6 @@ import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
 import { alleTermine, findeTermin } from '../../lib/api';
 import {
-  KATEGORIEN,
   datumLangJahr,
   eventJsonLd,
   heute,
@@ -15,6 +14,7 @@ import {
   relativerTag,
   preisText,
   routenLinks,
+  artName,
 } from '../../lib/anzeige';
 
 const t = await findeTermin(Astro.params.id ?? '');
@@ -75,7 +75,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       }
       <dt><Icon name="zelt" /><span class="sr-only">Art</span></dt>
       <dd>
-        {KATEGORIEN[t.kategorie].label}
+        {artName(t.kategorie)}
         {
           t.bestaetigt ? (
             <span class="bestaetigt">
@@ -103,7 +103,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     {
       t.speisen && t.speisen.length > 0 && (
         <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
-          <h2 id="mittagstisch-kopf">Mittagstisch</h2>
+          <h2 id="mittagstisch-kopf">Essen & Getränke</h2>
           <ul>
             {t.speisen.map((s) => (
               <li>

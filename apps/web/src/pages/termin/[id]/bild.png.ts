@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { findeTermin } from '../../../lib/api';
-import { KATEGORIEN, datumLangJahr } from '../../../lib/anzeige';
+import { datumLangJahr, artName } from '../../../lib/anzeige';
 import { vorschauPng } from '../../../lib/vorschaubild';
 
 /** Kleiner Speicher: Bild je Termin-Inhalt (Titel/Datum/Ort ändern → neuer Schlüssel). */
@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ params }) => {
       t.veranstaltungsort && t.veranstaltungsort.includes(t.ort.name)
         ? t.veranstaltungsort
         : [t.veranstaltungsort, t.ort.name].filter(Boolean).join(' · '),
-    art: KATEGORIEN[t.kategorie].label,
+    art: artName(t.kategorie),
   };
   const schluessel = JSON.stringify(daten);
   let png = speicher.get(schluessel);

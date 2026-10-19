@@ -5,7 +5,7 @@ import { adminApi } from '../../lib/admin';
 import type { TerminSeite } from '../../lib/api';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../components/admin/TerminHerkunft.astro';
-import { KATEGORIEN, anzahl, datumKurz, datumLangJahr } from '../../lib/anzeige';
+import { anzahl, datumKurz, datumLangJahr, artName } from '../../lib/anzeige';
 import { listenMeldung, markierte, nachKirmes, zurueckLink } from '../../lib/terminliste';
 import type { TerminDto } from '../../lib/api';
 const p = Astro.url.searchParams;
@@ -175,7 +175,7 @@ const meldung = listenMeldung(p, ortName);
                     </p>
                     <h3>{t.titel}</h3>
                     <p>
-                      {KATEGORIEN[t.kategorie].label}
+                      {artName(t.kategorie)}
                       {t.band && ` · ${t.band}`}
                       {t.muttizettel && ' · Muttizettel'}
                     </p>
