@@ -325,18 +325,19 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
             <input type="hidden" name="aktion" value="platz" />
             <div class="zwei">
               <label>
-                Name des Platzes
+                Name des Platzes (optional)
                 <input
                   name="platzname"
                   maxlength="120"
                   list="vo-liste"
-                  placeholder="z. B. Kirche – leer = Hauptfestplatz"
+                  placeholder="leer = Name aus dem Link, sonst Hauptfestplatz"
                 />
               </label>
               <label>
                 Standort aus Google Maps *
                 <input
                   name="standort"
+                  data-kartenlink-name="platzname"
                   required
                   maxlength="2000"
                   placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"

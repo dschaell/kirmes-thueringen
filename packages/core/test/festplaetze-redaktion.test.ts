@@ -75,6 +75,43 @@ describe('RedaktionsFestplaetze', () => {
     ).toEqual(['STANDORT']);
   });
 
+  it('Name aus dem (aufgelösten) Link, sonst Hauptfestplatz; nameNoetig verhindert das (#165)', async () => {
+    const kurz = aufbau(
+      'https://www.google.com/maps/place/Gastst%C3%A4tte+Zum+einkehrenden+Apostel/@50.86,11.09,750m/data=!3d50.8603992!4d11.093031',
+    );
+    const r = await kurz.fp.speichere(
+      'alkersleben',
+      { name: '', standort: 'https://maps.app.goo.gl/Abc' },
+      '1',
+    );
+    expect(r.ok && r.value.name).toBe('Gaststätte Zum einkehrenden Apostel');
+    // eigener Name hat Vorrang
+    const eigen = await kurz.fp.speichere(
+      'alkersleben',
+      { name: 'Saal', standort: 'https://maps.app.goo.gl/Abc' },
+      '1',
+    );
+    expect(eigen.ok && eigen.value.name).toBe('Saal');
+    // nur Koordinaten: Hauptfestplatz – außer ein Name ist nötig
+    const feld = aufbau();
+    const haupt = await feld.fp.speichere(
+      'alkersleben',
+      { name: '', standort: '50.85, 11.04' },
+      '1',
+    );
+    expect(haupt.ok && haupt.value.name).toBe('');
+    expect(
+      codes(
+        await feld.fp.speichere(
+          'alkersleben',
+          { name: '', standort: '50.85, 11.04', nameNoetig: true },
+          '1',
+        ),
+      ),
+    ).toEqual(['NAME_FEHLT']);
+    expect(feld.gespeichert).toHaveLength(1);
+  });
+
   it('prüft Ort, Standort und Thüringen-Grenzen', async () => {
     const { fp, gespeichert } = aufbau();
     expect(

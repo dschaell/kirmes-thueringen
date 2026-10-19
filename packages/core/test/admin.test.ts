@@ -3,6 +3,7 @@ import {
   AdminAnmeldung,
   istKartenKurzlink,
   koordinateAusText,
+  nameAusKartenlink,
   Redaktion,
   slugAus,
   validiereMitteilung,
@@ -280,5 +281,25 @@ describe('Randfälle der Use Cases', () => {
     );
     const t = await r.legeTermin({ ortSlug: 'x', datum: '2026-02-30', titel: '' }, '1');
     expect(!t.ok && t.error.map((f) => f.code).sort()).toEqual(['DATUM_UNGUELTIG', 'TITEL_LAENGE']);
+  });
+});
+
+describe('nameAusKartenlink (Issue #165)', () => {
+  const apostel =
+    'https://www.google.com/maps/place/Gastst%C3%A4tte+Zum+einkehrenden+Apostel/@50.8603992,11.0904561,750m/data=!3m2!1e3!4b1!4m6!3m5!1s0x47a40a4b2daa8c43:0x8baf746836b47e95!8m2!3d50.8603992!4d11.093031!16s%2Fg%2F1td29bdg?entry=ttu&g_ep=EgoyMDI2MTAxMy4wIKXMDSoASAFQAw%3D%3D';
+  it.each([
+    [apostel, 'Gaststätte Zum einkehrenden Apostel'],
+    ['https://www.google.de/maps/place/Kirche+St.+Peter/@50.9,11.0,17z', 'Kirche St. Peter'],
+    [
+      "https://www.google.com/maps/place/50%C2%B051'37.4%22N+11%C2%B005'34.9%22E/@50.86,11.09",
+      null,
+    ],
+    ['https://www.google.com/maps/place/%E0%A4%A/@1,2', null],
+    ['https://maps.app.goo.gl/Abc123', null],
+    ['50.86, 11.09', null],
+    ['https://www.google.com/maps/@50.86,11.09,17z', null],
+  ])('%s → %s', (link, erwartet) => expect(nameAusKartenlink(link)).toBe(erwartet));
+  it('nimmt den Pin, nicht die Kartenmitte', () => {
+    expect(koordinateAusText(apostel)).toEqual({ lat: 50.8603992, lon: 11.093031 });
   });
 });

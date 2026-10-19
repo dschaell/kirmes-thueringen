@@ -1,4 +1,5 @@
 ---
+import { nameAusKartenlink } from '@kirmes/core';
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../lib/admin';
@@ -73,26 +74,23 @@ if (Astro.request.method === 'POST' && t) {
   speisen = namen.map((name, i) => ({ name, preis: preise[i] ?? '' }));
   essen = f.has('essen');
   standort = feld(f, 'standort');
+  // „Wo genau?“ leer? Namen aus dem Google-Maps-Link übernehmen (Issue #165)
+  if (standort && !werte.veranstaltungsort.trim())
+    werte.veranstaltungsort = nameAusKartenlink(standort) ?? '';
   if (feld(f, 'aktion') === 'gericht') {
     gerichte = Math.min(20, namen.length + 1);
     essen = true;
-  } else if (standort && !werte.veranstaltungsort.trim()) {
-    fehler = [
-      'Bitte bei „Wo genau?“ einen Namen eingeben (z. B. „Kirche“), damit der Kartenlink zugeordnet werden kann.',
-    ];
-    Astro.response.status = 400;
   } else {
     const platz = standort
-      ? await adminApi(
+      ? await adminApi<{ name: string }>(
           Astro.cookies,
           'POST',
           `orte/${encodeURIComponent(t.ort.slug)}/festplaetze`,
-          {
-            name: werte.veranstaltungsort.trim(),
-            standort,
-          },
+          // leerer Name: der Server nimmt ihn aus dem (Kurz-)Link oder meldet, dass einer fehlt
+          { name: werte.veranstaltungsort.trim(), standort, nameNoetig: true },
         )
       : null;
+    if (platz?.daten?.name) werte.veranstaltungsort = platz.daten.name;
     if (platz && platz.status >= 300) {
       fehler = platz.fehler;
       Astro.response.status = platz.status;
@@ -221,6 +219,7 @@ const hinterlegt =
             Google-Maps-Link zu „Wo genau?“ (optional)
             <input
               name="standort"
+              data-kartenlink-name="veranstaltungsort"
               maxlength="2000"
               inputmode="url"
               placeholder="Link aus Google Maps „Teilen“ oder „50.87, 10.82“"
