@@ -515,6 +515,29 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         return o.ok ? reply.status(201).send(o.value) : ungueltig(reply, o.error);
       },
     );
+    // Versehentlich angelegte Orte entfernen – nur Admins, nur ohne Termine (Issue #159)
+    r.get('/api/v1/admin/orte/eigene', async () => d.redaktion.eigeneOrte());
+    r.delete<{ Params: { slug: string } }>(
+      '/api/v1/admin/orte/:slug',
+      { schema: { params: objekt(['slug'], { slug: TEXT(120) }) } },
+      async (req, reply) => {
+        if (akteur(req).rolle !== 'admin')
+          return reply.status(403).send(problem(403, 'Nur für Admins.'));
+        const e = await d.redaktion.loescheOrt(req.params.slug, admin(req));
+        if (e === 'geloescht') return reply.status(204).send();
+        if (e === 'unbekannt') return nichtGefunden(reply);
+        return reply
+          .status(409)
+          .send(
+            problem(
+              409,
+              e === 'ortsverzeichnis'
+                ? 'Orte aus dem Ortsverzeichnis können nicht gelöscht werden.'
+                : 'Am Ort hängen noch Termine oder Vorschläge – bitte zuerst diese löschen oder verschieben.',
+            ),
+          );
+      },
+    );
 
     if (d.terminListe) {
       const liste = d.terminListe;

@@ -198,6 +198,42 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     expect(await ortLandkreis(pool)('it-admin-gibtsnicht')).toBeNull();
   });
 
+  it('Orte löschen: nur selbst angelegte ohne Termine und Vorschläge (Issue #159)', async () => {
+    const o = new PgOrtVerwaltung(pool);
+    for (const slug of ['it-admin-weg', 'it-admin-termin', 'it-admin-vorschlag'])
+      await o.lege({ slug, name: slug, landkreis: 'GTH', koordinate: null }, adminId);
+    await pool.query(
+      `INSERT INTO termin (ort_id, datum, titel, kategorie)
+       SELECT id, '2026-10-17', 'IT Tanz', 'party' FROM ort WHERE slug = 'it-admin-termin'`,
+    );
+    const v = await pool.query<{ id: string }>(
+      `INSERT INTO vorschlag (ort_id) SELECT id FROM ort WHERE slug = 'it-admin-vorschlag'
+       RETURNING id::text`,
+    );
+    const eigene = (await o.eigene()).filter((x) => x.slug.startsWith('it-admin-'));
+    expect(eigene.map((x) => [x.slug, x.termine, x.vorschlaege])).toEqual(
+      expect.arrayContaining([
+        ['it-admin-weg', 0, 0],
+        ['it-admin-termin', 1, 0],
+        ['it-admin-vorschlag', 0, 1],
+      ]),
+    );
+    expect(eigene.some((x) => x.slug === 'it-admin-ort')).toBe(false);
+    expect(await o.loesche('it-admin-ort', adminId)).toBe('ortsverzeichnis');
+    expect(await o.loesche('it-admin-termin', adminId)).toBe('belegt');
+    expect(await o.loesche('it-admin-vorschlag', adminId)).toBe('belegt');
+    expect(await o.loesche('it-admin-gibtsnicht', adminId)).toBe('unbekannt');
+    expect(await o.loesche('it-admin-weg', adminId)).toBe('geloescht');
+    expect(await o.loesche('it-admin-weg', adminId)).toBe('unbekannt');
+    const p = await pool.query(
+      `SELECT details FROM aenderungsprotokoll
+        WHERE aktion = 'ort_geloescht' AND admin_id = $1::bigint`,
+      [adminId],
+    );
+    expect(p.rows.at(-1)?.details).toEqual({ slug: 'it-admin-weg', name: 'it-admin-weg' });
+    await pool.query('DELETE FROM vorschlag WHERE id = $1', [v.rows[0]!.id]);
+  });
+
   it('Links: erstellen, auflisten, prüfen, sperren', async () => {
     const l = new PgLinkVerwaltung(pool);
     const token = krypto.neuesToken();

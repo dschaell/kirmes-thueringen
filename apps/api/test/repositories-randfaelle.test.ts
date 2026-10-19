@@ -6,6 +6,7 @@ import {
   PgMitglieder,
   PgMitteilungen,
   PgLinkVerwaltung,
+  PgOrtVerwaltung,
 } from '../src/infrastructure/postgres/admin-repository.js';
 import { PgPasskeys } from '../src/infrastructure/postgres/passkey-repository.js';
 
@@ -151,3 +152,26 @@ it.each(['UPDATE', 'DELETE'])(
     expect(protokoll).not.toContain('COMMIT');
   },
 );
+
+describe('Ort löschen bei Datenbankfehler (Issue #159)', () => {
+  it('rollt zurück, gibt die Verbindung frei und meldet den Fehler weiter', async () => {
+    const abfragen: string[] = [];
+    let freigegeben = false;
+    const pool = {
+      connect: async () => ({
+        query: async (sql: string) => {
+          abfragen.push(sql.trim().split(/\s+/)[0] ?? '');
+          if (sql === 'BEGIN') return { rows: [] };
+          if (sql === 'ROLLBACK') throw new Error('Verbindung weg');
+          throw new Error('kaputt');
+        },
+        release: () => {
+          freigegeben = true;
+        },
+      }),
+    };
+    await expect(new PgOrtVerwaltung(pool as never).loesche('x', '1')).rejects.toThrow('kaputt');
+    expect(abfragen).toEqual(['BEGIN', 'SELECT', 'ROLLBACK']);
+    expect(freigegeben).toBe(true);
+  });
+});

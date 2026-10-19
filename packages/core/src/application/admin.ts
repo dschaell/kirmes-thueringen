@@ -59,9 +59,21 @@ export interface MitteilungRepository {
   setzeVeroeffentlicht(id: string, an: boolean): Promise<boolean>;
   loesche(id: string): Promise<boolean>;
 }
+/** Von der Redaktion angelegter Ort – löschbar, solange nichts daran hängt (Issue #159). */
+export interface EigenerOrt {
+  slug: string;
+  name: string;
+  landkreis: string;
+  termine: number;
+  vorschlaege: number;
+}
+export type OrtLoeschen = 'geloescht' | 'unbekannt' | 'ortsverzeichnis' | 'belegt';
 export interface OrtVerwaltung {
   /** null, wenn der Slug schon vergeben ist */
   lege(o: NeuerOrt, adminId: string): Promise<Ort | null>;
+  eigene(): Promise<EigenerOrt[]>;
+  /** Nur selbst angelegte Orte ohne Termine und Vorschläge; protokolliert. */
+  loesche(slug: string, adminId: string): Promise<OrtLoeschen>;
 }
 export interface LinkInfo {
   id: string;
@@ -143,6 +155,13 @@ export class Redaktion {
             meldung: `Einen Ort mit der Adresse /orte/${v.value.slug} gibt es schon.`,
           },
         ]);
+  }
+
+  eigeneOrte() {
+    return this.orte.eigene();
+  }
+  loescheOrt(slug: string, adminId: string) {
+    return this.orte.loesche(slug, adminId);
   }
 
   // Termine für jeden Ort
