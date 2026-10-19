@@ -67,6 +67,7 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
     expect((await terminHerkunft(db, [t.id]))[t.id]).toMatchObject({
       name: 'IT Ersteller',
       weg: 'redaktion',
+      geaendert: null,
     });
     await verwaltung.aendere(t.id, daten, { ...berechtigt, adminId: admin2 });
     await verwaltung.bestaetige(t.id, { ...berechtigt, adminId: admin2 });
@@ -76,6 +77,18 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
     const h = (await terminHerkunft(db, [t.id]))[t.id];
     expect(h).toMatchObject({ name: 'IT Ersteller', weg: 'redaktion' });
     expect(h.angelegtAm).toBeTruthy();
+    // zuletzt bearbeitet: der zweite Admin (Issue #181)
+    expect(h.geaendert).toMatchObject({ name: 'IT Bearbeiter', weg: 'redaktion' });
+    expect(h.geaendert?.am).toBeTruthy();
+    // Bearbeitung über den Bearbeitungslink der Kirmesgesellschaft
+    await db.query(
+      "INSERT INTO aenderungsprotokoll(ort_id,link_id,aktion,details) VALUES ($1,$2,'termin_geaendert',$3)",
+      [ortId, linkId, { id: t.id }],
+    );
+    expect((await terminHerkunft(db, [t.id]))[t.id]?.geaendert).toMatchObject({
+      name: 'IT Gesellschaft',
+      weg: 'bearbeitungslink',
+    });
   });
   it('unterscheidet Bearbeitungslink, Vorschlag und fehlende Nachweise', async () => {
     const c = await db.connect();
@@ -113,7 +126,7 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
     const h = await terminHerkunft(db, ids);
     expect(h[ids[0]]).toMatchObject({ name: 'IT Gesellschaft', weg: 'bearbeitungslink' });
     expect(h[ids[1]]).toMatchObject({ name: 'IT Ersteller', weg: 'vorschlag' });
-    expect(h[ids[2]]).toEqual({ name: null, weg: 'unbekannt', angelegtAm: null });
+    expect(h[ids[2]]).toEqual({ name: null, weg: 'unbekannt', angelegtAm: null, geaendert: null });
     expect(await terminHerkunft(db, [])).toEqual({});
   });
 });
