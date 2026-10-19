@@ -13,7 +13,7 @@ import { nachAktion } from './terminliste';
 import { adminApi, feld } from './admin';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
-import { ApiNichtErreichbar, listeOrte, sucheTermine } from './api';
+import { ApiNichtErreichbar, alleTermine, listeOrte, sucheTermine, type TerminDto } from './api';
 import { tageZwischen, verschiebeProgramm } from './vorjahr';
 
 export interface AssistentZeile extends VorschlagsZeile {
@@ -27,6 +27,8 @@ export const mitEssen = (z: AssistentZeile) => z.essen ?? (z.speisen?.length ?? 
 export interface AssistentStand {
   schritt: 1 | 2 | 3;
   zeitraumWechsel?: boolean;
+  /** Mögliche Doppelungen mit vorhandenen Terminen – erst nach Bestätigung speichern (Issue #178) */
+  doppelt?: string[];
   ortSlug: string;
   /** Getippter Ortstext – bleibt bei „Ort nicht gefunden“ im Feld stehen */
   ortEingabe?: string;
@@ -79,6 +81,29 @@ export function doppelterTitel(zeilen: AssistentZeile[]): string | null {
     gesehen.add(schluessel);
   }
   return null;
+}
+/**
+ * Mögliche Doppelungen (Issue #178): gleicher Ort und Tag mit gleichem Titel oder Beginn höchstens
+ * eine Stunde auseinander. Zwei Leute in der Redaktion sollen nicht dieselbe Kirmes zweimal anlegen.
+ */
+export function moeglicheDoppelungen(
+  neu: { datum: string; beginn?: string | null; titel: string }[],
+  vorhanden: Pick<TerminDto, 'datum' | 'beginn' | 'titel'>[],
+): string[] {
+  const minuten = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+  const hinweise: string[] = [];
+  for (const n of neu)
+    for (const v of vorhanden) {
+      if (v.datum !== n.datum) continue;
+      const gleicherTitel = v.titel.trim().toLowerCase() === n.titel.trim().toLowerCase();
+      const naheZeit =
+        !!n.beginn && !!v.beginn && Math.abs(minuten(n.beginn) - minuten(v.beginn)) <= 60;
+      if (gleicherTitel || naheZeit)
+        hinweise.push(
+          `„${n.titel}“: am ${datumKurz(n.datum)} gibt es schon „${v.titel}“${v.beginn ? ` um ${v.beginn} Uhr` : ''}.`,
+        );
+    }
+  return hinweise;
 }
 const istKategorie = (k: string | null | undefined): k is Kategorie =>
   !!k && (KATEGORIEN_LISTE as readonly string[]).includes(k);
@@ -136,6 +161,8 @@ function leseStand(s: string): AssistentStand | null {
       ![1, 2, 3].includes(v.schritt) ||
       typeof v.ortSlug !== 'string' ||
       (v.ortEingabe !== undefined && typeof v.ortEingabe !== 'string') ||
+      (v.doppelt !== undefined &&
+        (!Array.isArray(v.doppelt) || !v.doppelt.every((x) => typeof x === 'string'))) ||
       (v.ortUnbekannt !== undefined && typeof v.ortUnbekannt !== 'boolean') ||
       typeof v.ab !== 'string' ||
       !gueltigeTage(v.tage) ||
@@ -409,6 +436,19 @@ export async function assistent(
       s.schritt = 2;
       return s;
     }
+    // Doppelungen prüfen (Issue #178) – nur Redaktion, bis ausdrücklich bestätigt
+    if (redaktion && !f.has('doppeltOk')) {
+      const aktive = s.zeilen.filter((z) => z.aktiv);
+      const daten = aktive.map((z) => z.datum).sort();
+      const vorhanden = await alleTermine({
+        ort: s.ortSlug,
+        von: daten[0] ?? s.ab,
+        bis: daten.at(-1) ?? s.ab,
+      });
+      s.doppelt = moeglicheDoppelungen(aktive, vorhanden);
+      if (s.doppelt.length) return s;
+    }
+    s.doppelt = undefined;
     // Redaktion (Issue #177): Kartenlink bei „Wo genau?“ legt den Platz des Ortes an – vor den
     // Terminen, damit die Route sofort stimmt. Name aus „Wo genau?“ oder dem Link (#165).
     if (redaktion && !s.vorschlag) {
