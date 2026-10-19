@@ -42,3 +42,19 @@ describe('iCalendar (Issue #108)', () => {
     for (const z of ics.split('\r\n')) expect(bytes(z)).toBeLessThanOrEqual(75);
   });
 });
+
+describe('Kalender-Abo erkennt Änderungen (Issue #139)', () => {
+  it('stabiler DTSTAMP, LAST-MODIFIED und steigende SEQUENCE aus geaendertAm', () => {
+    const vorher = alsIcal([t({ geaendertAm: '2026-10-18T10:00:00Z' })], undefined, 'K');
+    const nachher = alsIcal([t({ geaendertAm: '2026-10-19T08:30:00Z' })], undefined, 'K');
+    expect(vorher).toContain('DTSTAMP:20261018T100000Z');
+    expect(vorher).toContain('LAST-MODIFIED:20261018T100000Z');
+    const seq = (ics: string) => Number(/SEQUENCE:(\d+)/.exec(ics)?.[1]);
+    expect(seq(nachher)).toBeGreaterThan(seq(vorher));
+    // gleicher Stand → gleicher Inhalt (kein „Änderung“ bei jedem Abruf)
+    expect(alsIcal([t({ geaendertAm: '2026-10-18T10:00:00Z' })], undefined, 'K')).toBe(vorher);
+  });
+  it('ohne Änderungszeit: SEQUENCE 0', () => {
+    expect(alsIcal([t()], undefined, 'K')).toContain('SEQUENCE:0');
+  });
+});

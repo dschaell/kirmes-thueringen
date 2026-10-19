@@ -18,7 +18,9 @@ import { abfrage } from './pool.js';
  */
 /** Spalten und Joins eines Termins inkl. Ort und Festplatz – nur für bereits ausgewählte Termine. */
 const SQL_TERMIN_DETAILS = `
-SELECT t.id, t.version::text AS version, t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
+SELECT t.id, t.version::text AS version,
+       to_char(t.geaendert_am AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS geaendert_am,
+       t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.info, t.muttizettel,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
@@ -77,6 +79,7 @@ RETURNING id`;
 
 interface Zeile {
   version: string;
+  geaendert_am: string | null;
   id: string;
   datum: string;
   beginn: string | null;
@@ -103,6 +106,7 @@ export const alsLikeMuster = (s: string): string => `%${s.replace(/[\\%_]/g, (c)
 const zuTermin = (z: Zeile): Termin => ({
   id: z.id,
   version: z.version,
+  ...(z.geaendert_am ? { geaendertAm: z.geaendert_am } : {}),
   ort: {
     slug: z.ort_slug,
     name: z.ort_name,
