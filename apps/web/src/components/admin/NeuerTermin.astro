@@ -1,0 +1,154 @@
+---
+/** Neuer Einzeltermin mit Recherche-Assistent – aus admin/termine.astro (Issue #199). */
+import CsrfFeld from './CsrfFeld.astro';
+import Icon from '../Icon.astro';
+import type { TerminDto } from '../../lib/api';
+import { KATEGORIEN } from '../../lib/anzeige';
+interface Props {
+  einzelWerte: Partial<TerminDto> | null;
+  veranstaltungsorte: string[];
+}
+const { einzelWerte, veranstaltungsorte } = Astro.props;
+---
+
+<h2>Neuer Termin</h2>
+<details class="filter" open>
+  <summary>
+    <Icon name="suche" />
+    Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
+  </summary>
+  <div class="filterfelder">
+    <textarea
+      id="assistent"
+      rows="5"
+      placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
+    />
+    <p class="leise klein" id="assistent-info">
+      Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der Recherche
+      notieren.
+    </p>
+  </div>
+</details>
+
+<form class="melden" method="post" id="terminformular">
+  <CsrfFeld />
+  <input type="hidden" name="aktion" value="speichern" />
+  <div class="zwei">
+    <label>
+      Datum *<input name="datum" type="date" required value={einzelWerte?.datum ?? ''} />
+    </label>
+    <label>
+      Beginn
+      <input name="beginn" type="time" value={einzelWerte?.beginn ?? ''} />
+    </label>
+  </div>
+  <label>
+    Veranstaltung *
+    <input
+      name="titel"
+      required
+      maxlength="200"
+      list="titel-liste"
+      value={einzelWerte?.titel ?? ''}
+    />
+  </label>
+  <div class="zwei">
+    <label>
+      Wo genau?
+      <input
+        name="veranstaltungsort"
+        maxlength="120"
+        list="vo-liste"
+        value={einzelWerte?.veranstaltungsort ?? ''}
+      />
+    </label>
+    <label>
+      Art
+      <select name="kategorie">
+        <option value="">automatisch erkennen</option>
+        {Object.entries(KATEGORIEN).map(([k, v]) => (
+          <option value={k} selected={einzelWerte?.kategorie === k}>
+            {v.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  </div>
+  <div class="zwei">
+    <label>
+      Band / DJ
+      <input name="band" maxlength="120" list="band-liste" value={einzelWerte?.band ?? ''} />
+    </label>
+    <label>
+      Hinweise (öffentlich)
+      <textarea
+        name="info"
+        maxlength="500"
+        rows="2"
+        placeholder="z. B. Eintritt 8 €, Einlass ab 18"
+        set:text={einzelWerte?.info ?? ''}
+      />
+    </label>
+  </div>
+  <datalist id="vo-liste">
+    {veranstaltungsorte.map((v) => (
+      <option value={v!} />
+    ))}
+  </datalist>
+  <label class="klein">
+    <input
+      type="checkbox"
+      name="bestaetigt"
+      value="ja"
+      checked={einzelWerte?.bestaetigt ?? false}
+    />{' '}
+    Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+  </label>
+  <label class="klein">
+    <input
+      type="checkbox"
+      name="muttizettel"
+      value="ja"
+      checked={einzelWerte?.muttizettel ?? false}
+    />{' '}
+    Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
+  </label>
+  <div class="knopfreihe">
+    <button class="knopf" type="submit">
+      Speichern
+    </button>
+  </div>
+</form>
+
+<script>
+  import { erkenneTerminAusText } from '@kirmes/core';
+
+  const feld = document.getElementById('assistent') as HTMLTextAreaElement | null;
+  const formular = document.getElementById('terminformular') as HTMLFormElement | null;
+  const info = document.getElementById('assistent-info');
+  if (feld && formular && info) {
+    const setze = (name: string, wert: string | null) => {
+      const el = formular.elements.namedItem(name) as HTMLInputElement | null;
+      if (el && wert) el.value = wert;
+    };
+    feld.addEventListener('input', () => {
+      const heute = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(
+        new Date(),
+      );
+      const v = erkenneTerminAusText(feld.value, heute);
+      setze('datum', v.datum);
+      setze('beginn', v.beginn);
+      setze('titel', v.titel);
+      setze('veranstaltungsort', v.veranstaltungsort);
+      const gefunden = [
+        v.datum && 'Datum',
+        v.beginn && 'Uhrzeit',
+        v.titel && 'Titel',
+        v.veranstaltungsort && 'Ort',
+      ].filter(Boolean);
+      info.textContent = gefunden.length
+        ? `Erkannt: ${gefunden.join(', ')} – bitte im Formular prüfen.`
+        : 'Nichts erkannt – bitte Felder von Hand ausfüllen.';
+    });
+  }
+</script>

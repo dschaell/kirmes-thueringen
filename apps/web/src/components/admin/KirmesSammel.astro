@@ -1,0 +1,118 @@
+---
+/** Alle Termine eines Ortes auf einmal bearbeiten (Issue #65) – aus admin/termine.astro (Issue #199). */
+import type { TerminHerkunft } from '@kirmes/core';
+import CsrfFeld from './CsrfFeld.astro';
+import Herkunft from './TerminHerkunft.astro';
+import type { TerminDto } from '../../lib/api';
+import { KATEGORIEN, tagMonat, wochentag } from '../../lib/anzeige';
+interface Props {
+  ort: { name: string; slug: string };
+  termine: TerminDto[];
+  herkunft: Record<string, TerminHerkunft>;
+  sammelEingaben: Map<string, Partial<TerminDto> & { loeschen?: boolean }>;
+}
+const { ort, termine, herkunft, sammelEingaben } = Astro.props;
+---
+
+<section aria-labelledby="alle-kopf">
+  <h2 id="alle-kopf">Alle Termine in {ort.name} bearbeiten</h2>
+  {termine.length === 0 ? (
+    <p class="leer">Noch keine Termine.</p>
+  ) : (
+    <form class="melden wochenende" method="post" id="alle" data-ungespeichert data-terminentwurf>
+      <CsrfFeld />
+      <input type="hidden" name="aktion" value="sammel" />
+      <p class="leise klein">
+        Jedes Feld lässt sich direkt ändern. „Löschen“ anhaken, um einen Termin zu entfernen.
+        Gespeichert wird alles zusammen – oder bei einem Fehler gar nichts.
+      </p>
+      <ol class="we-zeilen">
+        {termine.map((t, i) => (
+          <li class="we-zeile">
+            <input type="hidden" name="s-id" value={t.id} />
+            <input type="hidden" name="s-version" value={t.version} />
+            <Herkunft herkunft={herkunft[t.id]} />
+            <div class="we-zeit">
+              <label>
+                Datum
+                <input name="s-datum" type="date" required value={t.datum} />
+              </label>
+              <label>
+                Beginn
+                <input name="s-beginn" type="time" value={t.beginn ?? ''} />
+              </label>
+              <span class="we-tag leise klein" aria-hidden="true">
+                {wochentag(t.datum)}, {tagMonat(t.datum)}
+              </span>
+            </div>
+            <div class="zwei">
+              <label>
+                Veranstaltung
+                <input name="s-titel" required maxlength="200" list="titel-liste" value={t.titel} />
+              </label>
+              <label>
+                Art
+                <select name="s-kat">
+                  {Object.entries(KATEGORIEN).map(([k, v]) => (
+                    <option value={k} selected={t.kategorie === k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div class="zwei">
+              <label>
+                Band / DJ
+                <input name="s-band" maxlength="120" list="band-liste" value={t.band ?? ''} />
+              </label>
+              <label>
+                Wo genau?
+                <input
+                  name="s-vo"
+                  maxlength="120"
+                  list="vo-liste"
+                  value={t.veranstaltungsort ?? ''}
+                />
+              </label>
+            </div>
+            <label>
+              Hinweise (öffentlich)
+              <textarea name="s-info" maxlength="500" rows="2" set:text={t.info ?? ''} />
+            </label>
+            <div class="haekchen">
+              <label class="klein">
+                <input type="checkbox" name="s-mutti" value={String(i)} checked={t.muttizettel} />{' '}
+                Muttizettel
+              </label>
+              <label class="klein">
+                <input type="checkbox" name="s-best" value={String(i)} checked={t.bestaetigt} /> Vom
+                Veranstalter bestätigt
+              </label>
+              <a class="klein" href={`/admin/termine/${t.id}`}>
+                Essen & Getränke
+              </a>
+              <label class="klein loeschen">
+                <input
+                  type="checkbox"
+                  checked={sammelEingaben.get(t.id)?.loeschen}
+                  name="s-loeschen"
+                  value={String(i)}
+                />{' '}
+                Löschen
+              </label>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div class="knopfreihe">
+        <button class="knopf" type="submit">
+          Alle Änderungen speichern
+        </button>
+        <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
+          Abbrechen
+        </a>
+      </div>
+    </form>
+  )}
+</section>
