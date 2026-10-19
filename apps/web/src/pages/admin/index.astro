@@ -55,7 +55,11 @@ const meldung = listenMeldung(p, ortName);
 <AdminLayout titel="Termine" fehler={seite.fehler} meldung={meldung}>
   <div class="hauptaktionen">
     <a class="knopf" href="/admin/kirmes-eintragen"><Icon name="kalender" />Kirmes eintragen</a>
-    <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
+    {
+      Astro.locals.rolle !== 'kirmesgesellschaft' && (
+        <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
+      )
+    }
     {
       (v.daten?.anzahl ?? 0) > 0 && (
         <a href="/admin/vorschlaege">

@@ -6,11 +6,14 @@
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
+import { listeOrte } from '../../lib/api';
+import { findeOrtEindeutig } from '../../lib/ortssuche';
 
 interface Mitglied {
   id: string;
   name: string;
-  rolle: 'admin' | 'redaktion';
+  rolle: 'admin' | 'redaktion' | 'kirmesgesellschaft';
+  ortName?: string | null;
   erstelltAm: string;
   letzterLogin: string | null;
   passkeys: number;
@@ -18,13 +21,18 @@ interface Mitglied {
 interface Einladung {
   bezeichnung?: string;
   id: string;
-  rolle: 'admin' | 'redaktion';
+  rolle: 'admin' | 'redaktion' | 'kirmesgesellschaft';
+  ortName?: string;
   erstelltAm: string;
   laeuftAb: string;
 }
 
-const ROLLEN = { admin: 'Admin', redaktion: 'Redaktion' } as const;
-const istRolle = (r: string): r is keyof typeof ROLLEN => r === 'admin' || r === 'redaktion';
+const ROLLEN = {
+  admin: 'Admin',
+  redaktion: 'Redaktion',
+  kirmesgesellschaft: 'Kirmesgesellschaft',
+} as const;
+const istRolle = (r: string): r is keyof typeof ROLLEN => r in ROLLEN;
 const id = (f: FormData) => encodeURIComponent(feld(f, 'id'));
 
 let meldung: string | null = null;
@@ -36,9 +44,15 @@ if (Astro.request.method === 'POST') {
   const aktion = feld(f, 'aktion');
   const rolle = feld(f, 'rolle');
   if (aktion === 'einladen' && istRolle(rolle)) {
+    // Kirmesgesellschaft: Ort aus dem Verzeichnis (Issue #180)
+    const ortSlug =
+      rolle === 'kirmesgesellschaft'
+        ? (findeOrtEindeutig(await listeOrte(), feld(f, 'ort'))?.slug ?? '')
+        : undefined;
     const r = await adminApi<Einladung & { token: string }>(Astro.cookies, 'POST', 'einladungen', {
       rolle,
       bezeichnung: feld(f, 'bezeichnung'),
+      ...(ortSlug !== undefined && { ortSlug }),
     });
     if (r.daten) {
       // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
@@ -158,9 +172,27 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
     <label>
       Rolle
       <select name="rolle">
-        <option value="redaktion">Redaktion – Termine, Orte, Mitteilungen, Links</option>
+        <option value="redaktion">Redaktion – moderiert alles inkl. Orte und Kartenlinks</option>
+        <option value="kirmesgesellschaft">
+          Kirmesgesellschaft – nur Termine, Plätze und Vorschläge des eigenen Ortes
+        </option>
         <option value="admin">Admin – zusätzlich Mitglieder verwalten</option>
       </select>
+    </label>
+    <label class="kg-ort">
+      Ort der Kirmesgesellschaft
+      <span class="ortssuche">
+        <input
+          name="ort"
+          maxlength="200"
+          placeholder="Ort suchen …"
+          autocomplete="off"
+          data-ortssuche
+        />
+      </span>
+      <span class="klein leise"
+        >Nur bei Kirmesgesellschaft: sie sieht und bearbeitet nur diesen Ort.</span
+      >
     </label>
     <div><button class="knopf" type="submit">Einladungslink erstellen</button></div>
   </form>
@@ -189,6 +221,7 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
                 <td>
                   <span class="tabellen-label">Rolle</span>
                   {ROLLEN[e.rolle]}
+                  {e.ortName && ` (${e.ortName})`}
                 </td>
                 <td>
                   <span class="tabellen-label">Erstellt</span>
@@ -238,22 +271,26 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
             </td>
             <td>
               <span class="tabellen-label">Rolle</span>
-              <form method="post" class="inline">
-                <CsrfFeld />
-                <input type="hidden" name="aktion" value="rolle" />
-                <input type="hidden" name="id" value={m.id} />
-                <select name="rolle" aria-label={`Rolle von ${m.name}`}>
-                  <option value="redaktion" selected={m.rolle === 'redaktion'}>
-                    Redaktion
-                  </option>
-                  <option value="admin" selected={m.rolle === 'admin'}>
-                    Admin
-                  </option>
-                </select>
-                <button class="knopf zweit" type="submit">
-                  Ändern
-                </button>
-              </form>
+              {m.rolle === 'kirmesgesellschaft' ? (
+                <span>Kirmesgesellschaft {m.ortName}</span>
+              ) : (
+                <form method="post" class="inline">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="rolle" />
+                  <input type="hidden" name="id" value={m.id} />
+                  <select name="rolle" aria-label={`Rolle von ${m.name}`}>
+                    <option value="redaktion" selected={m.rolle === 'redaktion'}>
+                      Redaktion
+                    </option>
+                    <option value="admin" selected={m.rolle === 'admin'}>
+                      Admin
+                    </option>
+                  </select>
+                  <button class="knopf zweit" type="submit">
+                    Ändern
+                  </button>
+                </form>
+              )}
             </td>
             <td>
               <span class="tabellen-label">Passkeys</span>
@@ -333,6 +370,13 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   }
 </script>
 <style>
+  /* Ortsfeld nur bei Rolle Kirmesgesellschaft (Issue #180), auch ohne JavaScript */
+  .kg-ort {
+    display: none;
+  }
+  form:has(select[name='rolle'] option[value='kirmesgesellschaft']:checked) .kg-ort {
+    display: grid;
+  }
   .einladungslink {
     display: grid;
     gap: 6px;
@@ -344,3 +388,6 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
     font-weight: 400;
   }
 </style>
+<script>
+  import '../../scripts/ortssuche';
+</script>

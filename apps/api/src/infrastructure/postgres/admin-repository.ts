@@ -51,14 +51,23 @@ export class PgSitzungen implements Sitzungen {
 
   async pruefe(token: string): Promise<Sitzung | null> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-    const { rows } = await abfrage<{ id: string; name: string; rolle: Rolle }>(
+    const { rows } = await abfrage<{
+      id: string;
+      name: string;
+      rolle: Rolle;
+      ort_slug: string | null;
+      ort_name: string | null;
+    }>(
       this.db,
-      `SELECT a.id::text, a.name, a.rolle FROM admin_sitzung s JOIN admin a ON a.id = s.admin_id
+      `SELECT a.id::text, a.name, a.rolle, o.slug AS ort_slug, o.name AS ort_name
+         FROM admin_sitzung s JOIN admin a ON a.id = s.admin_id LEFT JOIN ort o ON o.id = a.ort_id
         WHERE s.token_hash = $1 AND s.laeuft_ab > now()`,
       [hashToken(token)],
     );
     const r = rows[0];
-    return r ? { adminId: r.id, name: r.name, rolle: r.rolle } : null;
+    return r
+      ? { adminId: r.id, name: r.name, rolle: r.rolle, ortSlug: r.ort_slug, ortName: r.ort_name }
+      : null;
   }
 
   async beende(token: string): Promise<void> {
@@ -188,7 +197,8 @@ export class PgOrtVerwaltung implements OrtVerwaltung {
       }>(
         `SELECT o.id::text, o.name, o.herkunft,
                 EXISTS (SELECT 1 FROM termin t WHERE t.ort_id = o.id)
-                  OR EXISTS (SELECT 1 FROM vorschlag v WHERE v.ort_id = o.id) AS belegt
+                  OR EXISTS (SELECT 1 FROM vorschlag v WHERE v.ort_id = o.id)
+                  OR EXISTS (SELECT 1 FROM admin a WHERE a.ort_id = o.id) AS belegt
            FROM ort o WHERE o.slug = $1 FOR UPDATE`,
         [slug],
       );
@@ -314,11 +324,13 @@ export class PgMitglieder implements MitgliederRepository {
       erstellt_am: string;
       letzter_login: string | null;
       passkeys: number;
+      ort_name: string | null;
     }>(
       this.db,
       `SELECT a.id::text, a.name, a.rolle, a.erstellt_am::text, a.letzter_login::text,
-              (SELECT count(*)::int FROM admin_passkey p WHERE p.admin_id = a.id) AS passkeys
-         FROM admin a ORDER BY a.rolle, lower(a.name), a.id`,
+              (SELECT count(*)::int FROM admin_passkey p WHERE p.admin_id = a.id) AS passkeys,
+              o.name AS ort_name
+         FROM admin a LEFT JOIN ort o ON o.id = a.ort_id ORDER BY a.rolle, lower(a.name), a.id`,
       [],
     );
     return rows.map((r) => ({
@@ -328,6 +340,7 @@ export class PgMitglieder implements MitgliederRepository {
       erstelltAm: r.erstellt_am,
       letzterLogin: r.letzter_login,
       passkeys: r.passkeys,
+      ortName: r.ort_name,
     }));
   }
 
@@ -359,7 +372,12 @@ export class PgMitglieder implements MitgliederRepository {
       const r =
         rolle === null
           ? await c.query('DELETE FROM admin WHERE id = $1::bigint', [id])
-          : await c.query('UPDATE admin SET rolle = $2 WHERE id = $1::bigint', [id, rolle]);
+          : await c.query(
+              `UPDATE admin SET rolle = $2::text,
+                      ort_id = CASE WHEN $2::text = 'kirmesgesellschaft' THEN ort_id END
+                WHERE id = $1::bigint`,
+              [id, rolle],
+            );
       await c.query('COMMIT');
       return (r.rowCount ?? 0) > 0;
     } catch (e) {
@@ -386,12 +404,14 @@ const zuEinladung = (r: {
   erstellt_am: string;
   laeuft_ab: string;
   bezeichnung?: string;
+  ort_name?: string | null;
 }) => ({
   id: r.id,
   rolle: r.rolle,
   erstelltAm: r.erstellt_am,
   laeuftAb: r.laeuft_ab,
   ...(r.bezeichnung ? { bezeichnung: r.bezeichnung } : {}),
+  ...(r.ort_name ? { ortName: r.ort_name } : {}),
 });
 
 /** Einladungen in die Redaktion – gespeichert wird nur der SHA-256 des Tokens. */
@@ -404,23 +424,28 @@ export class PgEinladungen implements Einladungen {
     vonId: string | null,
     tage: number,
     bezeichnung = '',
-  ): Promise<EinladungInfo> {
+    ortSlug: string | null = null,
+  ): Promise<EinladungInfo | null> {
+    // Ort der Kirmesgesellschaft (Issue #180): unbekannter Ort → keine Einladung
     const { rows } = await abfrage<{
       id: string;
       rolle: Rolle;
       erstellt_am: string;
       laeuft_ab: string;
       bezeichnung: string;
+      ort_name: string | null;
     }>(
       this.db,
-      `INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab, bezeichnung)
-       VALUES ($1, $2, $3::bigint, now() + make_interval(days => $4), $5)
-       RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung`,
-      [hashToken(token), rolle, vonId, tage, bezeichnung],
+      `WITH o AS (SELECT id, name FROM ort WHERE slug = $6)
+       INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab, bezeichnung, ort_id)
+       SELECT $1, $2, $3::bigint, now() + make_interval(days => $4), $5, (SELECT id FROM o)
+        WHERE $6::text IS NULL OR EXISTS (SELECT 1 FROM o)
+       RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung,
+                 (SELECT name FROM o) AS ort_name`,
+      [hashToken(token), rolle, vonId, tage, bezeichnung, ortSlug],
     );
     const r = rows[0];
-    if (!r) throw new Error('INSERT lieferte keine Einladung');
-    return zuEinladung(r);
+    return r ? zuEinladung(r) : null;
   }
 
   async finde(token: string): Promise<{ id: string; rolle: Rolle } | null> {
@@ -441,10 +466,13 @@ export class PgEinladungen implements Einladungen {
       erstellt_am: string;
       laeuft_ab: string;
       bezeichnung: string;
+      ort_name: string | null;
     }>(
       this.db,
-      `SELECT id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung FROM einladung
-        WHERE genutzt_am IS NULL AND laeuft_ab > now() ORDER BY erstellt_am DESC`,
+      `SELECT e.id::text, e.rolle, e.erstellt_am::text, e.laeuft_ab::text, e.bezeichnung,
+              o.name AS ort_name
+         FROM einladung e LEFT JOIN ort o ON o.id = e.ort_id
+        WHERE e.genutzt_am IS NULL AND e.laeuft_ab > now() ORDER BY e.erstellt_am DESC`,
       [],
     );
     return rows.map(zuEinladung);
@@ -475,6 +503,7 @@ export class PgKontoAnlage implements KontoAnlage {
     bedingung: Anlagebedingung,
   ): Promise<string | null> {
     const c = await this.db.connect();
+    let einladung: { rolle: Rolle; ort_id: string | null } | null = null;
     try {
       await c.query('BEGIN');
       if (bedingung.art === 'erster-admin') {
@@ -486,19 +515,23 @@ export class PgKontoAnlage implements KontoAnlage {
         }
       } else {
         // Einladung genau einmal verbrauchen – parallel nur einer erfolgreich (Zeilensperre)
-        const { rows } = await c.query(
+        const { rows } = await c.query<{ rolle: Rolle; ort_id: string | null }>(
           `UPDATE einladung SET genutzt_am = now()
-            WHERE id = $1::bigint AND genutzt_am IS NULL AND laeuft_ab > now() RETURNING id`,
+            WHERE id = $1::bigint AND genutzt_am IS NULL AND laeuft_ab > now()
+            RETURNING rolle, ort_id::text`,
           [bedingung.einladungId],
         );
         if (!rows.length) {
           await c.query('ROLLBACK');
           return null;
         }
+        // Rolle und Ort kommen aus der Einladung in der Datenbank, nie aus dem Browser (Issue #180)
+        einladung = rows[0] as { rolle: Rolle; ort_id: string | null }; // Länge oben geprüft
       }
       const { rows } = await c.query<{ id: string }>(
-        'INSERT INTO admin (name, rolle, handle) VALUES ($1, $2, $3::uuid) RETURNING id::text',
-        [k.name, k.rolle, k.kennung],
+        `INSERT INTO admin (name, rolle, handle, ort_id) VALUES ($1, $2, $3::uuid, $4::bigint)
+         RETURNING id::text`,
+        [k.name, einladung?.rolle ?? k.rolle, k.kennung, einladung?.ort_id ?? null],
       );
       const id = rows[0]?.id;
       if (!id) throw new Error('INSERT lieferte kein Konto');

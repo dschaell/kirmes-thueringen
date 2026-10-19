@@ -3,7 +3,7 @@ import { err, ok, type Validierungsfehler } from '../domain/result.js';
 import { KATEGORIEN, validiereTermin, type NeuerTermin } from '../domain/termin.js';
 import { LANDKREISE } from '../domain/landkreis.js';
 import { validiereSpeisen, type Speise } from '../domain/speisen.js';
-import type { Sitzungen } from './admin.js';
+import { ROLLEN, darfOrt, type Sitzung, type Sitzungen } from './admin.js';
 import type { OrtRepository } from './ports.js';
 import type { Drosselung, Postausgang } from './meldungen.js';
 import { erkenneKategorie } from './recherche.js';
@@ -288,23 +288,39 @@ export class Vorschlaege {
   }
   private async berechtigt(token: string) {
     const s = token ? await this.sitzungen.pruefe(token) : null;
-    return s && (s.rolle === 'admin' || s.rolle === 'redaktion') ? s : null;
+    return s && ROLLEN.includes(s.rolle) ? s : null;
   }
   async liste(token: string) {
-    return (await this.berechtigt(token)) ? ok(await this.repo.liste()) : err('VERBOTEN' as const);
+    const s = await this.berechtigt(token);
+    if (!s) return err('VERBOTEN' as const);
+    // Kirmesgesellschaft sieht nur Vorschläge für ihren Ort (Issue #180)
+    return ok((await this.repo.liste()).filter((v) => darfOrt(s, v.ortSlug)));
   }
   async anzahl(token: string) {
-    return (await this.berechtigt(token)) ? ok(await this.repo.anzahl()) : err('VERBOTEN' as const);
+    const s = await this.berechtigt(token);
+    if (!s) return err('VERBOTEN' as const);
+    return ok(
+      s.rolle === 'kirmesgesellschaft'
+        ? (await this.repo.liste()).filter((v) => darfOrt(s, v.ortSlug)).length
+        : await this.repo.anzahl(),
+    );
+  }
+  /** Vorschlag nur, wenn der Ort zum Mitglied passt – sonst „nicht gefunden“ (nichts verraten). */
+  private async eigener(s: Sitzung, id: string) {
+    const v = UUID.test(id) ? await this.repo.finde(id) : null;
+    return v && darfOrt(s, v.ortSlug) ? v : null;
   }
   async finde(token: string, id: string) {
-    if (!(await this.berechtigt(token))) return err('VERBOTEN' as const);
-    const v = UUID.test(id) ? await this.repo.finde(id) : null;
+    const s = await this.berechtigt(token);
+    if (!s) return err('VERBOTEN' as const);
+    const v = await this.eigener(s, id);
     return v ? ok(v) : err('NICHT_GEFUNDEN' as const);
   }
   async uebernehme(token: string, id: string, e: VorschlagEingabe, bestaetigt: boolean) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
-    if (!UUID.test(id) || !(await this.repo.finde(id))) return err('NICHT_GEFUNDEN' as const);
+    if (!(await this.eigener(s, id)) || !darfOrt(s, e.ortSlug))
+      return err('NICHT_GEFUNDEN' as const);
     const v = await pruefeVorschlag(e, this.orte, { redaktion: true });
     if (!v.ok) return v;
     const r = await this.repo.uebernehme(
@@ -323,7 +339,9 @@ export class Vorschlaege {
     if (!s) return err('VERBOTEN' as const);
     const g = text(grund);
     if (g.length > 500) return err([fehler('grund', 'Grund: höchstens 500 Zeichen.')]);
-    return UUID.test(id) && (await this.repo.lehneAb(id, g || null, s.adminId))
+    const erlaubt =
+      s.rolle === 'kirmesgesellschaft' ? !!(await this.eigener(s, id)) : UUID.test(id);
+    return erlaubt && (await this.repo.lehneAb(id, g || null, s.adminId))
       ? ok(true)
       : err('NICHT_GEFUNDEN' as const);
   }

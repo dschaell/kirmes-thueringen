@@ -59,7 +59,16 @@ function aufbau() {
   // Einladungen im Speicher
   const einl = new Map<string, { id: string; rolle: Rolle; genutzt: boolean }>();
   const einladungen = {
-    lege: async (token: string, rolle: Rolle, _von: string | null, tage: number) => {
+    lege: async (
+      token: string,
+      rolle: Rolle,
+      _von: string | null,
+      tage: number,
+      _bez?: string,
+      ortSlug?: string | null,
+    ) => {
+      // unbekannter Ort der Kirmesgesellschaft → keine Einladung (wie die Datenbank)
+      if (rolle === 'kirmesgesellschaft' && ortSlug !== 'muehlberg') return null;
       const id = String(einl.size + 1);
       einl.set(token, { id, rolle, genutzt: false });
       return { id, rolle, erstelltAm: 'heute', laeuftAb: `in ${tage} Tagen` } as EinladungInfo;
@@ -331,6 +340,23 @@ describe('Mitgliederverwaltung', () => {
     expect(await v.lade(redakteurin, 'redaktion')).toEqual(nein);
     expect(await v.offeneEinladungen(redakteurin)).toEqual(nein);
     expect(await v.widerrufe(redakteurin, '1')).toEqual(nein);
+  });
+
+  it('Kirmesgesellschaft nur mit bekanntem Ort einladen, nie per Rollenwechsel (Issue #180)', async () => {
+    const { v } = verwaltung();
+    expect(await v.lade(admin, 'kirmesgesellschaft', 'KG')).toEqual({
+      ok: false,
+      error: 'ORT_FEHLT',
+    });
+    expect(await v.lade(admin, 'kirmesgesellschaft', 'KG', 'gibtsnicht')).toEqual({
+      ok: false,
+      error: 'ORT_FEHLT',
+    });
+    expect((await v.lade(admin, 'kirmesgesellschaft', 'KG', ' muehlberg ')).ok).toBe(true);
+    expect(await v.setzeRolle(admin, '2', 'kirmesgesellschaft')).toEqual({
+      ok: false,
+      error: 'ROLLE',
+    });
   });
 
   it('Admin lädt ein, ändert Rollen und entfernt – der letzte Admin bleibt', async () => {
