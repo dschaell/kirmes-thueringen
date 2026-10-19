@@ -8,6 +8,7 @@ import Herkunft from '../../components/admin/TerminHerkunft.astro';
 import { anzahl, datumKurz, datumLangJahr, artName } from '../../lib/anzeige';
 import { listenMeldung, markierte, nachKirmes, zurueckLink } from '../../lib/terminliste';
 import type { TerminDto } from '../../lib/api';
+import { sicherungsZeile, type SicherungsStand } from '../../lib/sicherungen';
 const p = Astro.url.searchParams;
 const q = (p.get('q') ?? '').slice(0, 100);
 const datum = p.get('datum') ?? '';
@@ -22,10 +23,13 @@ if (von) parameter.set('von', von);
 // Aktuelle Liste als Rücksprungziel für Bearbeiten/Bestätigen/Löschen (Issue #90)
 const zurueck = encodeURIComponent(zurueckLink(parameter));
 const markiert = new Set(markierte(p));
-const [seite, v] = await Promise.all([
+const [seite, v, sicherung] = await Promise.all([
   adminApi<TerminSeite>(Astro.cookies, 'GET', `termine?${parameter}`),
   adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
+  // Nur Admins und nur mit eingebundenem Sicherungsverzeichnis – sonst 403/404 und keine Zeile (#45)
+  adminApi<SicherungsStand>(Astro.cookies, 'GET', 'sicherungen'),
 ]);
+const sicherungsStand = sicherung.daten ? sicherungsZeile(sicherung.daten) : null;
 if (seite.status >= 400) Astro.response.status = seite.status;
 const daten = seite.daten ?? { termine: [], gesamt: 0 };
 const herkunft = daten.termine.length
@@ -60,6 +64,16 @@ const meldung = listenMeldung(p, ortName);
       )
     }
   </div>
+  {
+    sicherungsStand && (
+      <p
+        class:list={['sicherungsstand', { meldung: sicherungsStand.warnung }]}
+        role={sicherungsStand.warnung ? 'alert' : undefined}
+      >
+        {sicherungsStand.text}
+      </p>
+    )
+  }
   <section aria-labelledby="terminliste" class="terminliste">
     <h2 id="terminliste">Alle angelegten Termine</h2>
     <form class="melden listensuche" id="terminsuche" method="get" action="/admin#terminliste">
@@ -234,6 +248,13 @@ const meldung = listenMeldung(p, ortName);
   </section>
 </AdminLayout>
 <style>
+  .sicherungsstand {
+    font-size: 0.875rem;
+    color: var(--grau);
+  }
+  .sicherungsstand.meldung {
+    color: inherit;
+  }
   .hauptaktionen {
     display: flex;
     flex-wrap: wrap;

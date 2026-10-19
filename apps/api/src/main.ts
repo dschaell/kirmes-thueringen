@@ -22,6 +22,7 @@ import {
   RedaktionsFestplaetze,
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
+import { leseSicherungen } from './infrastructure/sicherungen.js';
 import {
   PgBearbeitungslinks,
   PgFestplatzRepository,
@@ -175,6 +176,7 @@ const app = await baueApp({
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
     mitglieder: new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto),
     vorschlaege: () => terminVorschlaege(pool),
+    sicherungen: k.sicherungen ? leseSicherungen.bind(null, k.sicherungen) : undefined,
     festplaetze: new RedaktionsFestplaetze(
       new PgFestplatzRepository(pool),
       ortLandkreis(pool),

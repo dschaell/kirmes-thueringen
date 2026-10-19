@@ -15,7 +15,11 @@ describe('ladeKonfiguration', () => {
       logLevel: 'info',
       websiteUrl: null,
       smtp: null,
+      sicherungen: null,
     });
+    expect(
+      ladeKonfiguration({ DATABASE_URL: 'x', SICHERUNGEN_VERZEICHNIS: '/sicherungen' }).sicherungen,
+    ).toBe('/sicherungen');
     expect(
       ladeKonfiguration({ DATABASE_URL: 'x', WEBSITE_URL: 'https://kirmes.example' }).websiteUrl,
     ).toBe('https://kirmes.example');

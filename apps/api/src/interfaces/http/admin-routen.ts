@@ -43,6 +43,8 @@ export interface AdminAbhaengigkeiten {
   festplaetze?: RedaktionsFestplaetze;
   /** Eingabe-Vorschläge (Bands, Titel) aus allen Terminen */
   vorschlaege?: () => Promise<{ bands: string[]; titel: string[] }>;
+  /** Stand der Datenbanksicherungen (nur Admins) – Issue #45 */
+  sicherungen?: () => Promise<unknown>;
 }
 
 const problem = (status: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -280,6 +282,16 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
   await app.register(async (r) => {
     // onRequest: Anmeldung prüfen, BEVOR Eingaben validiert werden (keine Rückschlüsse für Nicht-Angemeldete)
     r.addHook('onRequest', geschuetzt);
+
+    // Stand der Sicherungen – nur Admins (Issue #45)
+    if (d.sicherungen) {
+      const sicherungen = d.sicherungen;
+      r.get('/api/v1/admin/sicherungen', async (req, reply) =>
+        akteur(req).rolle === 'admin'
+          ? sicherungen()
+          : reply.status(403).send(problem(403, 'Nur für Admins.')),
+      );
+    }
 
     r.get('/api/v1/admin/ich', async (req) => ({
       adminId: admin(req),
