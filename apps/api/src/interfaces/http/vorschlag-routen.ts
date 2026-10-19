@@ -16,7 +16,7 @@ export const vorschlagsZeileSchema = {
     muttizettel: { type: 'boolean' },
     kategorie: {
       type: ['string', 'null'],
-      enum: ['party', 'familie', 'tradition', 'staendchen', null],
+      enum: ['party', 'familie', 'tradition', 'staendchen', 'sonstiges', null],
     },
     speisen: {
       type: 'array',

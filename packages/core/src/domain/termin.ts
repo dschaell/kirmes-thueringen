@@ -5,8 +5,11 @@ import { err, ok, type Result, type Validierungsfehler } from './result.js';
 import type { Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
-/** Klare Arten (Issues #64, #135): Tanz & Party, Familien & Kinder, Tradition, Ständchen. */
-export const KATEGORIEN = ['party', 'familie', 'tradition', 'staendchen'] as const;
+/**
+ * Klare Arten (Issues #64, #135, #147): Tanz & Party, Familien & Kinder, Tradition, Ständchen und
+ * Sonstiges für alles, was nicht passt (z. B. Seniorennachmittag).
+ */
+export const KATEGORIEN = ['party', 'familie', 'tradition', 'staendchen', 'sonstiges'] as const;
 export type Kategorie = (typeof KATEGORIEN)[number];
 
 /** Frühere Bezeichnungen (Importe, alte Links) → neue Art. */
