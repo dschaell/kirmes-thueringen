@@ -468,3 +468,40 @@ describe('Mail beim Melden (Issue #171)', () => {
     );
   });
 });
+
+describe('Mail: Gottesdienst mit Chor und Pfarrer/in (Issue #175)', () => {
+  it('nennt Musik und Pfarrer/in', () => {
+    const m = vorschlagsMail(
+      {
+        ortSlug: 'x',
+        kontaktName: null,
+        kontaktEmail: null,
+        nachricht: null,
+        termine: [
+          {
+            ortSlug: 'x',
+            landkreis: 'IK',
+            datum: '2027-09-17',
+            beginn: '10:00',
+            titel: 'Kirmesgottesdienst',
+            veranstaltungsort: null,
+            kategorie: 'tradition',
+            bestaetigt: false,
+            band: 'Kirchenchor',
+            pfarrer: 'Pfarrer Muster',
+            info: null,
+            muttizettel: false,
+            speisen: [],
+            platz: null,
+          } as never,
+        ],
+      },
+      { name: 'X', landkreis: 'IK' },
+      'id',
+      'https://k.de',
+    );
+    expect(m.text).toContain(
+      'Kirmesgottesdienst (Musik: Kirchenchor · Pfarrer/in: Pfarrer Muster)',
+    );
+  });
+});

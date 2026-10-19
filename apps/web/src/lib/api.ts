@@ -36,6 +36,8 @@ export interface TerminDto {
   festplatz: { lat: number; lon: number } | null;
   /** Band oder DJ des Abends */
   band: string | null;
+  /** Pfarrer/in beim Gottesdienst (Issue #175) */
+  pfarrer?: string | null;
   /** Hinweise der Kirmesgesellschaft (Eintritt, Programm, Einlass …) */
   info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung (Muttizettel) */

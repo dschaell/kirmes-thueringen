@@ -83,7 +83,13 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       </span>
                     )}
                     <div class="wo">
-                      {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
+                      {ortLinks ? (
+                        <a class="ortname" href={`/orte/${t.ort.slug}`}>
+                          {t.ort.name}
+                        </a>
+                      ) : (
+                        <span class="ortname">{t.ort.name}</span>
+                      )}
                       {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
                     </div>
                     {t.band && (
@@ -94,17 +100,19 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       </div>
                     )}
                   </div>
-                  <a
-                    class="route"
-                    href={route.google}
-                    data-apple={route.apple}
-                    rel="noopener"
-                    target="_blank"
-                    aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
-                  >
-                    <Icon name="route" groesse={16} />
-                    Route
-                  </a>
+                  {route && (
+                    <a
+                      class="route"
+                      href={route.google}
+                      data-apple={route.apple}
+                      rel="noopener"
+                      target="_blank"
+                      aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
+                    >
+                      <Icon name="route" groesse={16} />
+                      Route
+                    </a>
+                  )}
                 </li>
               );
             })}

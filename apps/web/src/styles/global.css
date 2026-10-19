@@ -677,7 +677,13 @@ legend {
 }
 .eintrag .wo {
   color: var(--grau);
-  margin-top: 3px;
+  margin-top: 4px;
+}
+/* Ortsname gut lesbar – man sucht in der Liste zuerst nach dem Ort (Issue #176) */
+.eintrag .wo .ortname {
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--tinte);
 }
 .eintrag .band {
   display: flex;

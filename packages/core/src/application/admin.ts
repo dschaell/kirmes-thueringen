@@ -304,6 +304,7 @@ export class Redaktion {
       kategorie: f.kategorie || erkenneKategorie(f.titel),
       bestaetigt: f.bestaetigt ?? false,
       band: f.band ?? null,
+      pfarrer: f.pfarrer,
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,
     });
