@@ -94,17 +94,19 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       </div>
                     )}
                   </div>
-                  <a
-                    class="route"
-                    href={route.google}
-                    data-apple={route.apple}
-                    rel="noopener"
-                    target="_blank"
-                    aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
-                  >
-                    <Icon name="route" groesse={16} />
-                    Route
-                  </a>
+                  {route && (
+                    <a
+                      class="route"
+                      href={route.google}
+                      data-apple={route.apple}
+                      rel="noopener"
+                      target="_blank"
+                      aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
+                    >
+                      <Icon name="route" groesse={16} />
+                      Route
+                    </a>
+                  )}
                 </li>
               );
             })}
