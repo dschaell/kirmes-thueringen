@@ -1,6 +1,5 @@
 import { vorschlagRouten } from './vorschlag-routen.js';
 import { korrekturRouten } from './korrektur-routen.js';
-import type { Korrekturen, Vorschlaege } from '@kirmes/core';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { isIP } from 'node:net';
@@ -9,40 +8,16 @@ import {
   TerminKonflikt,
   LetzterAdmin,
   PersistenzNichtVerfuegbar,
-  type FindeOrt,
-  type FindeTermin,
-  type ListeOrte,
-  type SucheTermine,
-  type VerwalteFestplaetze,
-  type VerwalteTermine,
-  type Mitteilung,
   type Validierungsfehler,
-  type MeldeAnRedaktion,
   type MeldungEingabe,
 } from '@kirmes/core';
-import { adminRouten, type AdminAbhaengigkeiten } from './admin-routen.js';
+import { adminRouten } from './admin-routen.js';
 import { liste, problem, terminDto } from './antworten.js';
 import { verwaltungRouten } from './verwaltung-routen.js';
-import Fastify, { type FastifyError, type FastifyServerOptions } from 'fastify';
+import type { AppAbhaengigkeiten } from './abhaengigkeiten.js';
+import Fastify, { type FastifyError } from 'fastify';
 
-export interface AppAbhaengigkeiten {
-  sucheTermine: SucheTermine;
-  listeOrte: ListeOrte;
-  findeOrt: FindeOrt;
-  findeTermin: FindeTermin;
-  verwalteFestplaetze: VerwalteFestplaetze;
-  verwalteTermine: VerwalteTermine;
-  /** Neueste veröffentlichte Mitteilung (öffentlich) */
-  aktuelleMitteilung: () => Promise<Mitteilung | null>;
-  /** Redaktionszugang; ohne diese Abhängigkeit gibt es keine Admin-Endpunkte */
-  admin?: Omit<AdminAbhaengigkeiten, 'terminDto'>;
-  /** Meldungen an die Redaktion per E-Mail; fehlt sie, antwortet der Endpunkt mit 503 */
-  meldungen?: MeldeAnRedaktion;
-  terminVorschlaege?: Vorschlaege;
-  korrekturen?: Korrekturen;
-  datenbankErreichbar: () => Promise<boolean>;
-  logger?: FastifyServerOptions['logger'];
-}
+export type { AppAbhaengigkeiten };
 
 interface TermineQuery {
   von?: string;

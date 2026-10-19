@@ -1,17 +1,12 @@
 ---
-import { TAGE_MAX, mitEssen, type AssistentStand } from '../lib/assistent';
+import type { AssistentStand } from '../lib/assistent';
+import Schritt1 from './assistent/Schritt1.astro';
+import Schritt2 from './assistent/Schritt2.astro';
+import Schritt3 from './assistent/Schritt3.astro';
 import type { OrtUebersichtDto } from '../lib/api';
-import {
-  KATEGORIEN,
-  LANDKREISE,
-  anzahl,
-  datumKurz,
-  datumLangJahr,
-  kreisKurz,
-  musikFeld,
-} from '../lib/anzeige';
+import { LANDKREISE, kreisKurz } from '../lib/anzeige';
 import { aehnlicheOrte, bezeichner } from '../lib/ortssuche';
-import { erkenneKategorie, nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
+import { nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
 interface Props {
   stand: AssistentStand;
   redaktion?: boolean;
@@ -85,439 +80,20 @@ const eigeneDauer = Number(s.tage) > 4;
       <input name="webseite" tabindex="-1" autocomplete="off" />
     </label>
     {s.schritt === 1 && (
-      <>
-        <h2>Wo und wann feiert ihr?</h2>
-        {kgOrt ? (
-          <p>
-            Ort: <strong>{Astro.locals.ortName}</strong>
-            <input type="hidden" name="ort" value={Astro.locals.ortName ?? ''} />
-          </p>
-        ) : (
-          <>
-            <label>
-              Ort
-              <span class="ortssuche">
-                <input
-                  name="ort"
-                  required
-                  maxlength="200"
-                  placeholder="Ort suchen …"
-                  autocomplete="off"
-                  data-ortssuche
-                  value={ortText}
-                />
-              </span>
-            </label>
-            <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
-          </>
-        )}
-        {unbekannt && (
-          <section class="kasten neuer-ort" aria-labelledby="neuer-ort-titel">
-            <h3 id="neuer-ort-titel">„{neuerOrtName}“ gibt es noch nicht</h3>
-            {aehnliche.length > 0 && (
-              <>
-                <p class="klein">Meintest du einen dieser Orte?</p>
-                <div class="aehnliche">
-                  {aehnliche.map((t) => (
-                    <button class="knopf zweit" name="ortWahl" value={t.wert} formnovalidate>
-                      {t.wert}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            <p class="klein">Oder als neuen Ort anlegen:</p>
-            <div class="zwei">
-              <label>
-                Landkreis
-                <select name="ortKreis">
-                  <option value="">bitte wählen</option>
-                  {kreise.map((k) => (
-                    <option value={k}>{kreisKurz(k)}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Lage (optional)
-                <input
-                  name="ortLage"
-                  maxlength="2000"
-                  placeholder="Google-Maps-Link oder „50.87, 10.82“"
-                />
-              </label>
-            </div>
-            <label class="klein">
-              <input type="checkbox" name="ortAnlegen" /> Ja, „{neuerOrtName}“ als neuen Ort anlegen
-            </label>
-          </section>
-        )}
-        <div class="zwei zeitraumfelder">
-          <label>
-            Erster Kirmestag
-            <input name="ab" type="date" required value={s.ab} />
-          </label>
-          <label>
-            Wie lange?
-            <select name="tage">
-              {[
-                ['1', 'Nur ein Termin'],
-                ['2', '2 Tage'],
-                ['3', '3 Tage'],
-                ['4', '4 Tage (meist Donnerstag bis Sonntag)'],
-                ['eigen', 'Andere Dauer …'],
-              ].map(([v, t]) => (
-                <option value={v} selected={v === 'eigen' ? eigeneDauer : s.tage === v}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label class="eigene-dauer" data-eigene-dauer>
-            Anzahl Tage (bei „Andere Dauer“)
-            <input
-              name="tageEigen"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max={TAGE_MAX}
-              value={eigeneDauer ? s.tage : ''}
-              placeholder="z. B. 6"
-            />
-          </label>
-        </div>
-        {s.zeitraumWechsel && (
-          <label>
-            <input type="checkbox" name="programmErsetzen" required /> Ja, mein bisheriges Programm
-            durch eine neue Vorlage ersetzen.
-          </label>
-        )}
-        <button class="knopf" name="aktion" value="weiter">
-          Weiter zum Programm
-        </button>
-      </>
+      <Schritt1
+        s={s}
+        kgOrt={kgOrt}
+        ort={ort}
+        unbekannt={unbekannt}
+        aehnliche={aehnliche}
+        neuerOrtName={neuerOrtName}
+        kreise={kreise}
+        ortText={ortText}
+        eigeneDauer={eigeneDauer}
+      />
     )}
-    {s.schritt === 2 && (
-      <>
-        <h2>Was ist los in {ortName}?</h2>
-        {redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
-          <section class="kasten einsender" aria-label="Eingereicht von">
-            <p class="klein leise">Eingereicht von</p>
-            <p>
-              {s.kontaktName || 'ohne Namen'}
-              {s.kontaktEmail && (
-                <>
-                  {' · '}
-                  <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
-                </>
-              )}
-            </p>
-            {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
-          </section>
-        )}
-        <p class="leise">
-          {s.vorschlag
-            ? 'Prüfe den Vorschlag: Haken entfernen, was nicht stattfindet. Titel, Tag, Uhrzeit oder Art korrigieren über „ändern“.'
-            : 'Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.'}
-        </p>
-        <ul class="programm-kompakt">
-          {s.zeilen.map((z, i) => (
-            <li class:list={['programmzeile', { abgewaehlt: !z.aktiv }]}>
-              <label class="zeilenwahl">
-                <input type="checkbox" name={`aktiv-${i}`} checked={z.aktiv} />
-                <span>
-                  <strong>{z.titel || 'Eigene Veranstaltung'}</strong>
-                  <span class="klein leise zeitangabe">
-                    {[datumKurz(z.datum), z.beginn && `${z.beginn} Uhr`]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </span>
-              </label>
-              <details open={!z.titel.trim()}>
-                <summary aria-label={`${z.titel || 'Eigene Veranstaltung'} ändern`}>ändern</summary>
-                <div class="zeilenfelder">
-                  <label>
-                    Veranstaltung
-                    <input
-                      name={`titel-${i}`}
-                      list="titel-assistent"
-                      maxlength="200"
-                      value={z.titel}
-                    />
-                  </label>
-                  <div class="zwei">
-                    <label>
-                      Tag
-                      <input name={`datum-${i}`} type="date" value={z.datum} />
-                    </label>
-                    <label>
-                      Uhrzeit
-                      <input name={`beginn-${i}`} type="time" value={z.beginn ?? ''} />
-                    </label>
-                  </div>
-                  <label>
-                    Art
-                    <select name={`kat-${i}`}>
-                      <option value="" selected={!z.kategorie}>
-                        Automatisch (aus dem Titel)
-                      </option>
-                      {Object.entries(KATEGORIEN).map(([k, { label }]) => (
-                        <option value={k} selected={z.kategorie === k}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
-        <button class="knopf zweit" name="aktion" value="eigen" formnovalidate>
-          + Eigene Veranstaltung
-        </button>
-        <div class="knopfreihe">
-          <>
-            <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
-              Zurück
-            </button>
-            <button class="knopf" name="aktion" value="weiter">
-              Weiter zu den Details
-            </button>
-          </>
-        </div>
-      </>
-    )}
-    {s.schritt === 3 && (
-      <>
-        <h2>Programm prüfen und Details ergänzen</h2>
-        {redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
-          <section class="kasten einsender" aria-label="Eingereicht von">
-            <p class="klein leise">Eingereicht von</p>
-            <p>
-              {s.kontaktName || 'ohne Namen'}
-              {s.kontaktEmail && (
-                <>
-                  {' · '}
-                  <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
-                </>
-              )}
-            </p>
-            {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
-          </section>
-        )}
-        <p>
-          <strong>{ortName}</strong> –{' '}
-          {anzahl(s.zeilen.filter((z) => z.aktiv).length, 'Veranstaltung', 'Veranstaltungen')}{' '}
-          {redaktion ? 'werden veröffentlicht' : 'werden vorgeschlagen'}. Band, Ort oder Essen &
-          Getränke? Tippe auf eine Veranstaltung – alles freiwillig.
-        </p>
-        <p class="klein leise">Titel, Tag oder Uhrzeit ändern: „Zurück zum Programm“.</p>
-        {s.zeilen.map(
-          (z, i) =>
-            z.aktiv && (
-              <details class="veranstaltung">
-                <summary>
-                  <strong>{z.titel}</strong>
-                  <span class="leise klein">
-                    {datumLangJahr(z.datum)}
-                    {z.beginn && ` · ${z.beginn} Uhr`}
-                  </span>
-                </summary>
-                <div class="details-inhalt">
-                  <label>
-                    {musikFeld(z.kategorie || erkenneKategorie(z.titel))}
-                    <input
-                      name={`band-${i}`}
-                      maxlength="120"
-                      list="bands-assistent"
-                      value={z.band ?? ''}
-                    />
-                  </label>
-                  {((z.kategorie || erkenneKategorie(z.titel)) === 'tradition' || z.pfarrer) && (
-                    <label>
-                      Pfarrer/in (optional)
-                      <input name={`pfarrer-${i}`} maxlength="120" value={z.pfarrer ?? ''} />
-                    </label>
-                  )}
-                  <label>
-                    Wo genau?
-                    <input
-                      name={`wo-${i}`}
-                      maxlength="120"
-                      list="plaetze-assistent"
-                      placeholder="z. B. Festzelt oder Kirche"
-                      value={z.veranstaltungsort ?? ''}
-                    />
-                  </label>
-                  {(!redaktion || !s.vorschlag) && (
-                    <label>
-                      Google-Maps-Link zum Ort (optional)
-                      <input
-                        name={`karte-${i}`}
-                        data-kartenlink-name={`wo-${i}`}
-                        maxlength="2000"
-                        inputmode="url"
-                        placeholder="In Google Maps „Teilen → Link kopieren“"
-                        value={z.karte ?? ''}
-                      />
-                      <span class="klein leise">
-                        {redaktion
-                          ? 'Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“.'
-                          : 'Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die Redaktion prüft ihn.'}
-                      </span>
-                    </label>
-                  )}
-                  {redaktion && z.platz && (
-                    <div class="kasten kartenpunkt">
-                      <p class="klein">
-                        Kartenpunkt vom Einsender:{' '}
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${z.platz.lat},${z.platz.lon}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          auf der Karte ansehen
-                        </a>
-                      </p>
-                      <label class="klein">
-                        <input
-                          type="checkbox"
-                          name={`platz-${i}`}
-                          checked={z.platzUebernehmen === true}
-                        />{' '}
-                        Als Platz „{z.veranstaltungsort || '–'}“ in {ortName} übernehmen (gilt dann
-                        für alle Termine mit diesem „Wo genau?“)
-                      </label>
-                    </div>
-                  )}
-                  <label>
-                    Hinweise (öffentlich)
-                    <textarea name={`info-${i}`} rows="2" maxlength="500" set:text={z.info ?? ''} />
-                  </label>
-                  <label class="klein">
-                    <input name={`mutti-${i}`} type="checkbox" checked={z.muttizettel ?? false} />{' '}
-                    Unter 18 nur mit Muttizettel
-                  </label>
-                  <label class="klein">
-                    <input name={`essen-${i}`} type="checkbox" checked={mitEssen(z)} /> Essen &
-                    Getränke anbieten
-                  </label>
-                  <div class="speisen-felder">
-                    {Array.from(
-                      {
-                        length: Math.min(
-                          20,
-                          Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1),
-                        ),
-                      },
-                      (_, j) => (
-                        <div class="zwei">
-                          <label>
-                            Essen/Getränk {j + 1}
-                            <input
-                              name={`gericht-${i}-${j}`}
-                              maxlength="120"
-                              value={z.speisen?.[j]?.name ?? ''}
-                            />
-                          </label>
-                          <label>
-                            Preis (€)
-                            <input
-                              name={`preis-${i}-${j}`}
-                              inputmode="decimal"
-                              maxlength="20"
-                              placeholder="z. B. 9,50"
-                              value={z.speisen?.[j]?.preis ?? ''}
-                            />
-                          </label>
-                        </div>
-                      ),
-                    )}
-                    <button
-                      class="knopf zweit"
-                      name="aktion"
-                      value={`gerichte-${i}`}
-                      formnovalidate
-                    >
-                      + Weiterer Eintrag
-                    </button>
-                  </div>
-                </div>
-              </details>
-            ),
-        )}
-        {redaktion && (s.doppelt?.length ?? 0) > 0 && (
-          <section class="kasten doppelt" role="alert" aria-labelledby="doppelt-titel">
-            <h3 id="doppelt-titel">Gibt es das schon?</h3>
-            <ul>
-              {s.doppelt?.map((d) => (
-                <li>{d}</li>
-              ))}
-            </ul>
-            <p class="klein">
-              Vielleicht hat jemand aus der Redaktion die Kirmes schon eingetragen. Bitte kurz
-              prüfen.
-            </p>
-            <label>
-              <input type="checkbox" name="doppeltOk" /> Geprüft – trotzdem zusätzlich anlegen
-            </label>
-          </section>
-        )}
-        {redaktion ? (
-          <label>
-            <input type="checkbox" name="bestaetigt" checked={s.bestaetigt} /> Vom Veranstalter
-            bestätigt
-          </label>
-        ) : (
-          <>
-            <h3>Für Rückfragen (freiwillig)</h3>
-            <label>
-              Name / Kirmesgesellschaft
-              <input
-                name="kontaktName"
-                maxlength="120"
-                autocomplete="organization"
-                value={s.kontaktName}
-              />
-            </label>
-            <label>
-              E-Mail
-              <input
-                name="kontaktEmail"
-                type="email"
-                maxlength="200"
-                autocomplete="email"
-                value={s.kontaktEmail}
-              />
-            </label>
-            <label>
-              Nachricht an die Redaktion
-              <textarea name="nachricht" maxlength="2000" rows="3" set:text={s.nachricht} />
-            </label>
-            <p class="klein leise">
-              Dein Vorschlag wird erst nach Prüfung veröffentlicht. Kontaktdaten dienen nur
-              Rückfragen und werden nach der Prüfung gelöscht. Mehr im{' '}
-              <a href="/datenschutz#vorschlaege">Datenschutz</a>.
-            </p>
-          </>
-        )}
-        <div class="knopfreihe">
-          <>
-            <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
-              Zurück zum Programm
-            </button>
-            <button class="knopf" name="aktion" value="speichern">
-              {redaktion
-                ? s.vorschlag
-                  ? 'Prüfung abschließen und übernehmen'
-                  : 'Kirmes speichern'
-                : 'Vorschlag senden'}
-            </button>
-          </>
-        </div>
-      </>
-    )}
+    {s.schritt === 2 && <Schritt2 s={s} redaktion={redaktion} ortName={ortName} />}
+    {s.schritt === 3 && <Schritt3 s={s} redaktion={redaktion} ortName={ortName} />}
   </form>
   <datalist id="bands-assistent">
     {bands.map((b) => (
@@ -535,193 +111,196 @@ const eigeneDauer = Number(s.tage) > 4;
     ))}
   </datalist>
 </div>
-<style>
+<style is:global>
+  /* Global, aber unter .kirmes-assistent begrenzt – wirkt so auch in den Schritt-Komponenten (#199) */
   .kirmes-assistent {
     max-width: 680px;
   }
-  .zeitraumfelder {
-    grid-template-columns: 1fr;
-  }
-  @media (min-width: 700px) {
+  .kirmes-assistent {
     .zeitraumfelder {
-      grid-template-columns: 0.8fr 1.2fr;
+      grid-template-columns: 1fr;
     }
-    .eigene-dauer {
-      grid-column: 2;
+    @media (min-width: 700px) {
+      .zeitraumfelder {
+        grid-template-columns: 0.8fr 1.2fr;
+      }
+      .eigene-dauer {
+        grid-column: 2;
+      }
     }
-  }
-  .schritte {
-    display: flex;
-    list-style: none;
-    padding: 0;
-    gap: 10px;
-    margin: 24px 0;
-  }
-  .schritte li {
-    flex: 1;
-    font-size: 0.9rem;
-    color: var(--grau);
-    border-bottom: 3px solid var(--linie);
-    padding-bottom: 12px;
-  }
-  .schritte li[aria-current] {
-    color: var(--rot);
-    font-weight: 700;
-    border-color: var(--rot);
-  }
-  .schritte span {
-    display: block;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  .programm {
-    display: grid;
-    gap: 16px;
-  }
-  .veranstaltung {
-    min-width: 0;
-    border: 1px solid var(--linie);
-    border-radius: var(--r);
-    padding: 16px;
-    margin: 0;
-    background: var(--flaeche);
-  }
-  .veranstaltung legend {
-    padding: 0 8px;
-    font-weight: 700;
-  }
-  .veranstaltung legend label {
-    display: inline;
-  }
-  .veranstaltung summary {
-    cursor: pointer;
-    min-height: 44px;
-  }
-  .veranstaltung summary span {
-    display: block;
-    margin-top: 4px;
-  }
-  .details-inhalt {
-    display: grid;
-    gap: 16px;
-    margin-top: 16px;
-  }
-  .speisen-felder {
-    display: grid;
-    gap: 12px;
-  }
-  /* Essen & Getränke erst nach Haken – auch ohne JavaScript (Issue #155) */
-  .details-inhalt:not(:has(input[name^='essen-']:checked)) .speisen-felder {
-    display: none;
-  }
-  .abgewaehlt {
-    opacity: 0.65;
-  }
-  /* Schritt 2: eine kompakte Zeile je Veranstaltung (Issue #87) */
-  .programm-kompakt {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 16px;
-    border: 1px solid var(--linie);
-    border-radius: var(--r);
-    background: var(--flaeche);
-  }
-  .programmzeile {
-    position: relative;
-    padding: 6px 12px;
-  }
-  .programmzeile + .programmzeile {
-    border-top: 1px solid var(--linie);
-  }
-  .programmzeile:has(input[type='checkbox']:checked) {
-    opacity: 1;
-  }
-  .programmzeile:has(input[type='checkbox']:not(:checked)) {
-    opacity: 0.65;
-  }
-  .zeilenwahl {
-    padding-right: 72px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 52px;
-    cursor: pointer;
-  }
-  .zeilenwahl input {
-    width: 24px;
-    height: 24px;
-    flex: none;
-  }
-  .zeilenwahl > span {
-    display: grid;
-    gap: 2px;
-  }
-  .programmzeile summary {
-    position: absolute;
-    top: 10px;
-    right: 8px;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    padding: 0 8px;
-    cursor: pointer;
-    color: var(--fokus);
-    text-decoration: underline;
-    list-style: none;
-  }
-  .programmzeile summary::-webkit-details-marker {
-    display: none;
-  }
-  .zeilenfelder {
-    display: grid;
-    gap: 12px;
-    padding: 4px 0 12px;
-  }
-  .zeilenfelder input {
-    width: 100%;
-    max-width: none;
-  }
-  .knopfreihe {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  button {
-    min-height: 44px;
-  }
-  .einsender p {
-    margin: 0 0 4px;
-  }
-  .einsender .nachricht {
-    white-space: pre-line;
-  }
-  /* Ort fehlt im Verzeichnis (Issue #167) */
-  .neuer-ort {
-    display: grid;
-    gap: 10px;
-    margin: 4px 0 16px;
-  }
-  .neuer-ort h3 {
-    margin: 0;
-  }
-  .neuer-ort .aehnliche {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .kartenpunkt {
-    display: grid;
-    gap: 6px;
-  }
-  /* Mögliche Doppelungen (Issue #178) */
-  .doppelt {
-    border-color: var(--gold);
-    display: grid;
-    gap: 8px;
-  }
-  .doppelt h3,
-  .doppelt ul {
-    margin: 0;
+    .schritte {
+      display: flex;
+      list-style: none;
+      padding: 0;
+      gap: 10px;
+      margin: 24px 0;
+    }
+    .schritte li {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--grau);
+      border-bottom: 3px solid var(--linie);
+      padding-bottom: 12px;
+    }
+    .schritte li[aria-current] {
+      color: var(--rot);
+      font-weight: 700;
+      border-color: var(--rot);
+    }
+    .schritte span {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .programm {
+      display: grid;
+      gap: 16px;
+    }
+    .veranstaltung {
+      min-width: 0;
+      border: 1px solid var(--linie);
+      border-radius: var(--r);
+      padding: 16px;
+      margin: 0;
+      background: var(--flaeche);
+    }
+    .veranstaltung legend {
+      padding: 0 8px;
+      font-weight: 700;
+    }
+    .veranstaltung legend label {
+      display: inline;
+    }
+    .veranstaltung summary {
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .veranstaltung summary span {
+      display: block;
+      margin-top: 4px;
+    }
+    .details-inhalt {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .speisen-felder {
+      display: grid;
+      gap: 12px;
+    }
+    /* Essen & Getränke erst nach Haken – auch ohne JavaScript (Issue #155) */
+    .details-inhalt:not(:has(input[name^='essen-']:checked)) .speisen-felder {
+      display: none;
+    }
+    .abgewaehlt {
+      opacity: 0.65;
+    }
+    /* Schritt 2: eine kompakte Zeile je Veranstaltung (Issue #87) */
+    .programm-kompakt {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+      border: 1px solid var(--linie);
+      border-radius: var(--r);
+      background: var(--flaeche);
+    }
+    .programmzeile {
+      position: relative;
+      padding: 6px 12px;
+    }
+    .programmzeile + .programmzeile {
+      border-top: 1px solid var(--linie);
+    }
+    .programmzeile:has(input[type='checkbox']:checked) {
+      opacity: 1;
+    }
+    .programmzeile:has(input[type='checkbox']:not(:checked)) {
+      opacity: 0.65;
+    }
+    .zeilenwahl {
+      padding-right: 72px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 52px;
+      cursor: pointer;
+    }
+    .zeilenwahl input {
+      width: 24px;
+      height: 24px;
+      flex: none;
+    }
+    .zeilenwahl > span {
+      display: grid;
+      gap: 2px;
+    }
+    .programmzeile summary {
+      position: absolute;
+      top: 10px;
+      right: 8px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 8px;
+      cursor: pointer;
+      color: var(--fokus);
+      text-decoration: underline;
+      list-style: none;
+    }
+    .programmzeile summary::-webkit-details-marker {
+      display: none;
+    }
+    .zeilenfelder {
+      display: grid;
+      gap: 12px;
+      padding: 4px 0 12px;
+    }
+    .zeilenfelder input {
+      width: 100%;
+      max-width: none;
+    }
+    .knopfreihe {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    button {
+      min-height: 44px;
+    }
+    .einsender p {
+      margin: 0 0 4px;
+    }
+    .einsender .nachricht {
+      white-space: pre-line;
+    }
+    /* Ort fehlt im Verzeichnis (Issue #167) */
+    .neuer-ort {
+      display: grid;
+      gap: 10px;
+      margin: 4px 0 16px;
+    }
+    .neuer-ort h3 {
+      margin: 0;
+    }
+    .neuer-ort .aehnliche {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .kartenpunkt {
+      display: grid;
+      gap: 6px;
+    }
+    /* Mögliche Doppelungen (Issue #178) */
+    .doppelt {
+      border-color: var(--gold);
+      display: grid;
+      gap: 8px;
+    }
+    .doppelt h3,
+    .doppelt ul {
+      margin: 0;
+    }
   }
 </style>
 <script>

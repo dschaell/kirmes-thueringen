@@ -2,7 +2,7 @@
 import type { TerminFormular, Validierungsfehler } from '@kirmes/core';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { problem, terminDto, bearer } from './antworten.js';
-import type { AppAbhaengigkeiten } from './app.js';
+import type { AppAbhaengigkeiten } from './abhaengigkeiten.js';
 
 const terminFormularSchema = {
   type: 'object',
