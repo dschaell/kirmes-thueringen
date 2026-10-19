@@ -663,7 +663,8 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
         (req) =>
           herkunft(
             req.body.ids,
-            akteur(req).rolle === 'kirmesgesellschaft' ? (akteur(req).ortSlug ?? '') : null,
+            // KG hat laut Datenbank immer einen Ort; „null“ als Text träfe keinen Ort
+            akteur(req).rolle === 'kirmesgesellschaft' ? `${akteur(req).ortSlug}` : null,
           ),
       );
     }
