@@ -36,3 +36,5 @@ liste?.addEventListener('change', (e) => {
   const ruhig = matchMedia('(prefers-reduced-motion: reduce)').matches;
   zeile?.scrollIntoView({ block: 'nearest', behavior: ruhig ? 'auto' : 'smooth' });
 });
+
+export {};

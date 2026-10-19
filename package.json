@@ -15,7 +15,7 @@
     "dev:api": "npm run dev -w @kirmes/api",
     "dev:web": "npm run dev -w @kirmes/web",
     "build": "npm run build --workspaces --if-present",
-    "lint": "eslint . && prettier --check . && node scripts/migrationen-pruefen.mjs && depcruise packages apps/api/src apps/web/src --config .dependency-cruiser.cjs",
+    "lint": "eslint . && prettier --check . && node scripts/migrationen-pruefen.mjs && node scripts/client-skripte-pruefen.mjs && depcruise packages apps/api/src apps/web/src --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
