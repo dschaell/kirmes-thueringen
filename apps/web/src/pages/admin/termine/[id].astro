@@ -4,7 +4,7 @@ import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
-import { KATEGORIEN, datumLangJahr, speiseZeile, artName } from '../../../lib/anzeige';
+import { KATEGORIEN, datumLangJahr, speiseZeile, artName, musikFeld } from '../../../lib/anzeige';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../../components/admin/TerminHerkunft.astro';
 import { listenFilter, nachAktion } from '../../../lib/terminliste';
@@ -34,6 +34,7 @@ let werte = {
   beginn: t?.beginn ?? '',
   titel: t?.titel ?? '',
   band: t?.band ?? '',
+  pfarrer: t?.pfarrer ?? '',
   veranstaltungsort: t?.veranstaltungsort ?? '',
   info: t?.info ?? '',
   kategorie: t?.kategorie ?? '',
@@ -57,6 +58,7 @@ if (Astro.request.method === 'POST' && t) {
     beginn: feld(f, 'beginn'),
     titel: feld(f, 'titel'),
     band: feld(f, 'band'),
+    pfarrer: feld(f, 'pfarrer'),
     veranstaltungsort: feld(f, 'veranstaltungsort'),
     info: feld(f, 'info'),
     kategorie: feld(f, 'kategorie'),
@@ -146,8 +148,14 @@ const hinterlegt =
                 <dd>
                   {datumLangJahr(t.datum)} {t.beginn && `· ${t.beginn} Uhr`}
                 </dd>
-                <dt>Band / DJ</dt>
+                <dt>{musikFeld(t.kategorie)}</dt>
                 <dd>{t.band ?? '–'}</dd>
+                {t.pfarrer && (
+                  <>
+                    <dt>Pfarrer/in</dt>
+                    <dd>{t.pfarrer}</dd>
+                  </>
+                )}
                 <dt>Hinweise</dt>
                 <dd>{t.info ?? '–'}</dd>
                 <dt>Wo genau?</dt>
@@ -201,9 +209,15 @@ const hinterlegt =
           <div class="zwei">
             <>
               <label>
-                Band / DJ
+                {musikFeld(werte.kategorie)}
                 <input name="band" maxlength="120" list="bands-bearbeiten" value={werte.band} />
               </label>
+              {(werte.kategorie === 'tradition' || werte.pfarrer) && (
+                <label>
+                  Pfarrer/in (optional)
+                  <input name="pfarrer" maxlength="120" value={werte.pfarrer} />
+                </label>
+              )}
               <label>
                 Wo genau?
                 <input

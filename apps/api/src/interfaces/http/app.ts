@@ -119,6 +119,7 @@ const terminDto = (t: Termin) => ({
   ort: t.ort,
   festplatz: t.festplatz,
   band: t.band,
+  pfarrer: t.pfarrer,
   muttizettel: t.muttizettel,
   info: t.info,
   // Letzte Änderung – Kalender-Abos erkennen damit Änderungen (Issue #139)
@@ -143,6 +144,7 @@ const terminFormularSchema = {
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     kategorie: { type: ['string', 'null'], maxLength: 20 },
     band: { type: ['string', 'null'], maxLength: 200 },
+    pfarrer: { type: ['string', 'null'], maxLength: 120 },
     muttizettel: { type: 'boolean' },
     info: { type: ['string', 'null'], maxLength: 1000 },
   },

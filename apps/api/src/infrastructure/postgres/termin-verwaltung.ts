@@ -10,16 +10,16 @@ import { abfrage } from './pool.js';
  */
 const SQL_ANLEGEN = `
 INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle,
-                    eingetragen_durch, eingetragen_von_admin, band, info, muttizettel)
+                    eingetragen_durch, eingetragen_von_admin, band, info, muttizettel, pfarrer)
 SELECT o.id, $2::date, $3::time, $4, $5, $6, $8,
-       CASE WHEN $7::bigint IS NULL THEN 'Redaktion' ELSE 'Kirmesgesellschaft' END, $7, $9, $10, $11, $12
+       CASE WHEN $7::bigint IS NULL THEN 'Redaktion' ELSE 'Kirmesgesellschaft' END, $7, $9, $10, $11, $12, $13
   FROM ort o WHERE o.slug = $1
 RETURNING id, version::text AS version, ort_id, (SELECT name FROM ort WHERE id = termin.ort_id) AS ort_name`;
 
 const SQL_AENDERN = `
 UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltungsort = $6,
        kategorie = $7, bestaetigt = $9, eingetragen_durch = $8, eingetragen_von_admin = $10,
-       band = $11, info = $12, muttizettel = $13, geaendert_am = clock_timestamp(), version = t.version + 1
+       band = $11, info = $12, muttizettel = $13, pfarrer = $14, geaendert_am = clock_timestamp(), version = t.version + 1
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
@@ -88,6 +88,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
           t.band,
           t.info,
           t.muttizettel ?? false,
+          t.pfarrer,
         ],
         durch,
         'termin_geaendert',
@@ -137,6 +138,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
               t.band,
               t.info,
               t.muttizettel,
+              t.pfarrer,
             ],
             durch,
             'termin_geaendert',
@@ -234,6 +236,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         t.band,
         t.info,
         t.muttizettel ?? false,
+        t.pfarrer,
       ],
     );
     const neu = r.rows[0];
@@ -263,6 +266,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       bestaetigt: t.bestaetigt,
       festplatz: null,
       band: t.band,
+      pfarrer: t.pfarrer,
       info: t.info,
       muttizettel: t.muttizettel ?? false,
     };

@@ -58,3 +58,16 @@ describe('Kalender-Abo erkennt Änderungen (Issue #139)', () => {
     expect(alsIcal([t()], undefined, 'K')).toContain('SEQUENCE:0');
   });
 });
+
+describe('Pfarrer/in im Kalender (Issue #175)', () => {
+  it('steht in der Beschreibung', () => {
+    const ics = alsIcal(
+      [t({ titel: 'Kirmesgottesdienst', band: 'Kirchenchor', pfarrer: 'Pfarrerin Muster' })],
+      undefined,
+      'K',
+    );
+    expect(ics.replace(/\r\n /g, '')).toContain(
+      'Musik: Kirchenchor\\nPfarrer/in: Pfarrerin Muster',
+    );
+  });
+});

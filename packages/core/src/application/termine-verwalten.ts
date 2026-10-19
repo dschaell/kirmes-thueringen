@@ -44,6 +44,7 @@ export interface TerminFormular {
   veranstaltungsort?: string | null;
   kategorie?: string | null;
   band?: string | null;
+  pfarrer?: string | null;
   info?: string | null;
   muttizettel?: boolean;
 }
@@ -207,6 +208,7 @@ export class VerwalteTermine {
       kategorie: f.kategorie || erkenneKategorie(f.titel),
       bestaetigt: true,
       band: f.band ?? null,
+      pfarrer: f.pfarrer,
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,
     });

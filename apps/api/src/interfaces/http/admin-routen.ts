@@ -87,6 +87,7 @@ const terminSchema = objekt(['ortSlug', 'datum', 'titel'], {
   kategorie: OPT_TEXT(20),
   bestaetigt: { type: 'boolean' },
   band: OPT_TEXT(200),
+  pfarrer: OPT_TEXT(120),
   muttizettel: { type: 'boolean' },
   info: OPT_TEXT(1000),
   speisen: vorschlagsZeileSchema.properties.speisen,

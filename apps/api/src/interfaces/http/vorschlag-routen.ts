@@ -12,6 +12,7 @@ export const vorschlagsZeileSchema = {
     titel: text(200),
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     band: { type: ['string', 'null'], maxLength: 120 },
+    pfarrer: { type: ['string', 'null'], maxLength: 120 },
     info: { type: ['string', 'null'], maxLength: 500 },
     muttizettel: { type: 'boolean' },
     kategorie: {
