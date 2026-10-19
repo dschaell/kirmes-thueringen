@@ -41,7 +41,9 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Familiennachmittag', 'familie'],
     ['Kirmesbeerdigung', 'tradition'],
     ['Kirmesgottesdienst', 'tradition'],
-    ['Ständchen', 'tradition'],
+    ['Ständchen', 'staendchen'], // eigene Art seit #135
+    ['Kirmes-Staendchen am Morgen', 'staendchen'],
+    ['Kinderständchen', 'familie'],
     ['Kirmesumzug', 'tradition'],
     ['Frühschoppen mit den „Thanas“', 'tradition'],
     ['Traditionelles Frühshoppen', 'tradition'],
