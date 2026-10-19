@@ -2,109 +2,99 @@
 
 [![Security & Quality](https://github.com/dschaell/kirmes-thueringen/actions/workflows/security-and-quality.yml/badge.svg)](https://github.com/dschaell/kirmes-thueringen/actions/workflows/security-and-quality.yml)
 
-Alle Kirmes-Termine in Thüringen suchen, nach Landkreis filtern und verwalten – recherchiert und
-gepflegt von der Redaktion und den Kirmesgesellschaften selbst.
+Alle Kirmessen in Thüringen an einem Ort: suchen, nach Landkreis, Ort und Art filtern, aufs Handy
+abonnieren – gepflegt von der Redaktion, den Kirmesgesellschaften und allen, die Termine melden.
 
-## Architektur (N-Tier + Clean Architecture)
+**Live:** <https://kirmeskalender-thueringen.de>
+
+## Funktionen
+
+- **Termine** – Liste nach Tag und Uhrzeit, Filter nach Zeitraum, Landkreis, Art (Kirmestanz,
+  Kindertanz, Gottesdienst, Frühschoppen, Ständchen, Sonstiges) und „nur bestätigte“; Ortsseiten,
+  Landkreisseiten, Karte
+- **Terminseite** – Programm, Band bzw. Chor, Pfarrer/in, Essen & Getränke, Muttizettel-Hinweis und
+  -Vorlage, Route (nur mit hinterlegtem Kartenpunkt oder zur Ortsmitte), Kalender-Eintrag, Teilen
+- **Kalender-Abo** (`/kalender.ics`) für ganz Thüringen, Landkreis oder Ort – Änderungen kommen
+  automatisch an
+- **Termin melden** – Assistent in drei Schritten ohne Anmeldung, inkl. optionalem
+  Google-Maps-Link (geprüft, nur Koordinaten gespeichert); die Redaktion prüft jeden Vorschlag
+- **Korrektur melden** auf jeder Terminseite
+- **Plätze** (Kirche, Festzelt …) mit Kartenpunkt je Ort – per Google-Maps-Link, Name wird aus dem
+  Link übernommen
+
+## Redaktion
+
+Unter `/admin` (Footer „Anmelden (Redaktion)“), Anmeldung **nur mit Passkey** – ohne Passwort
+(ADR 023).
+
+| Rolle         | Darf                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| **Redaktion** | alle Termine, Orte, Plätze und Kartenlinks, Vorschläge und Korrekturen prüfen, Import     |
+| **Admin**     | zusätzlich Mitglieder einladen, Rollen ändern, selbst angelegte Orte löschen, Sicherungen |
+
+- Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey
+- Mitmachen: `/redaktion-mitmachen` → Anfrage per Mail → Admin lädt unter „Redaktion &
+  Einladungen“ ein
+- „Kirmes eintragen“: ganzes Programm auf einmal, fehlende Orte direkt mit anlegen, Kirmes vom
+  Vorjahr übernehmen; Tabellen-Import unter „Mehr → Termine importieren“
+
+Kirmesgesellschaften können zusätzlich über einen **persönlichen Bearbeitungslink** (ohne Konto)
+ihre Termine und Festplätze pflegen: Redaktion → „Mehr → Bearbeitungslinks“.
+
+## Architektur
 
 ```
-apps/web        Client-Tier   Astro mit Server-Rendering, holt Daten nur über die API
-apps/api        Server-Tier   Fastify-API, PostgreSQL-Adapter, Migrationen
-packages/core   Fachlogik     Domain + Use Cases – keine Framework-/DB-Abhängigkeiten
-db/             Data-Tier     PostgreSQL 17 + PostGIS im Docker-Container, Migrationen, Seed
-deploy/         Betrieb       Caddy (HTTPS) und .env-Vorlage für den Server
-docs/architecture             arc42-Dokumentation
+apps/web        Astro (SSR) – holt Daten nur über die API, strenge CSP
+apps/api        Fastify-API, PostgreSQL-Adapter, Migrationen
+apps/backup     Sicherungs-Container (täglich, optional verschlüsselt außer Haus)
+packages/core   Fachlogik (Domain + Use Cases) – ohne Framework-/DB-Abhängigkeiten
+db/             Migrationen, Ortsverzeichnis (OpenStreetMap), Testdaten für Upgrade-Tests
+docs/           arc42-Architektur, ADRs, Betrieb, Reviews
 ```
 
-Abhängigkeiten zeigen nur nach innen (`apps → core`). Das prüfen dependency-cruiser und ESLint
-bei jedem Lint-Lauf. Details: [docs/architecture](docs/architecture/README.md).
+Abhängigkeiten zeigen nur nach innen (`apps → core`); dependency-cruiser prüft das bei jedem Lint.
+Details: [docs/architecture](docs/architecture/README.md).
 
-## Schnellstart
+## Entwicklung
 
-Voraussetzungen: Node.js ≥ 22, Docker (z. B. Docker Desktop oder Rancher Desktop).
+Voraussetzungen: **Node.js ≥ 26**, Docker (z. B. Rancher Desktop).
 
 ```bash
 npm install
-npm run dev        # startet PostgreSQL im Container, migriert, startet API + Website
+npm run dev          # PostgreSQL im Container, Migrationen, API (3100) + Website (4321)
+npm run db:orte      # einmalig: 3.000+ Thüringer Orte aus OpenStreetMap
+npm run db:beispiele # erfundene Beispieltermine (nie auf dem Server)
 ```
 
-Website: http://localhost:4321 · API: http://localhost:3100/api/v1/termine
+| Befehl                                        | Zweck                                                       |
+| --------------------------------------------- | ----------------------------------------------------------- |
+| `npm run lint`                                | ESLint, Prettier, Migrationssperre, Schichtenregeln         |
+| `npm run typecheck`                           | TypeScript (Core, API, Web)                                 |
+| `npm run test:db`                             | eigene Test-Datenbank `kirmes_test` anlegen und migrieren   |
+| `npm test` / `npm run test:coverage`          | Unit-, HTTP- und Integrationstests (`TEST_DATABASE_URL`)    |
+| `node scripts/upgrade-test.mjs main`          | Update-Test: Migrationen dürfen keine Nutzerdaten verändern |
+| `node scripts/website-pruefen.mjs [url]`      | Live-Prüfung (Seiten, Kalender, Sitemap, SEO, Kacheln)      |
+| `npm run termine:import -- datei.csv --probe` | Recherche-Tabelle prüfen bzw. einspielen                    |
 
-Beim ersten Start Ortsverzeichnis und Beispieltermine laden:
-
-```bash
-npm run db:orte        # 3.000+ Thüringer Orte aus OpenStreetMap
-npm run db:beispiele   # erfundene Beispieltermine zum Ausprobieren (nicht auf dem Server)
-```
-
-Alles in Containern wie auf dem Server: `docker compose --profile app up -d --build` → http://localhost:8080
-Server-Umzug: [docs/betrieb/server-umzug.md](docs/betrieb/server-umzug.md)
-
-| Befehl                   | Zweck                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| `npm run lint`           | ESLint, Prettier, Schichtenregeln                                              |
-| `npm run test:db`        | Eigene Test-Datenbank anlegen (einmalig) – Tests berühren nie die Arbeitsdaten |
-| `npm test`               | Unit-, HTTP- und (mit `DATABASE_URL`) Integrationstests                        |
-| `npm run test:coverage`  | wie oben, mit Abdeckungs-Schwelle 85 %                                         |
-| `npm run build`          | Core, API und Web bauen                                                        |
-| `npm run db:backup`      | Datenbank sichern nach `backups/`                                              |
-| `npm run termine:import` | Recherche-Tabelle (CSV) einspielen                                             |
-| `npm run link`           | Bearbeitungslinks erstellen / auflisten / sperren                              |
-| `npm run db:restore`     | Backup einspielen                                                              |
+**Regeln:** Migrationen sind nur ergänzend (Sperre in `scripts/migrationen-pruefen.mjs`;
+Datenänderungen nur mit Freigabe-Kommentar `-- datenaenderung-freigegeben: #<issue>`). Tests laufen
+nie gegen die Arbeitsdatenbank. Jede Arbeit beginnt mit einem Issue, PRs schließen es.
 
 ## Qualität und Sicherheit
 
-Die Pipeline [`security-and-quality.yml`](.github/workflows/security-and-quality.yml) prüft jeden
-Push und Pull Request: Secret Scanning (TruffleHog) · SAST (Semgrep, eigene SQL-Injection-Regeln) ·
-SCA (npm audit, OSV-Scanner) · DAST (OWASP ZAP gegen Web und API) · Lint/Typen ·
-Tests mit Coverage-Gate und -Ratchet. Ein Merge ist nur bei grünem **Quality Gate** möglich.
+[`security-and-quality.yml`](.github/workflows/security-and-quality.yml) prüft jeden Pull Request:
+Secret Scanning (TruffleHog) · SAST (Semgrep, eigene SQL-Injection-Regeln) · SCA (npm audit,
+OSV-Scanner) · DAST (OWASP ZAP) · Lint/Typen · Tests mit Coverage-Gate und **Ratchet** (Abdeckung
+darf nicht sinken). Gemergt wird nur bei grünem **Quality Gate**.
 
-Repository-Einrichtung (Labels, Branch Protection, Backlog): `./scripts/setup-github.sh`
+Täglich: [`website-pruefung.yml`](.github/workflows/website-pruefung.yml) (Inhalte, Lighthouse,
+SEO); [`erreichbarkeit.yml`](.github/workflows/erreichbarkeit.yml) als Rückfallebene – für
+verlässlichen Ausfall-Alarm einen externen Monitor nutzen (siehe Betrieb).
 
-## Redaktion (Admin-Bereich)
+## Betrieb
 
-Unter `/admin` (Link „Redaktion → Anmelden“ im Footer) pflegt die Redaktion Termine aller Orte (mit
-Recherche-Assistent für Texte aus Instagram/Facebook), Mitteilungen, Orte und Bearbeitungslinks.
-Admins laden zusätzlich Mitglieder ein und verwalten Rollen. Anmeldung **nur mit Passkey** – ohne
-Passwort und ohne E-Mail-Adresse (ADR 023).
+Läuft auf einem geteilten Hetzner-Server per GitOps (Stack in `intershopper/server-deployments`).
+Deploy, Secrets, Sicherungen, Wiederherstellung und Überwachung:
+[docs/betrieb/hetzner-gitops.md](docs/betrieb/hetzner-gitops.md).
 
-- Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey
-- Mitmachen: `/redaktion-mitmachen` → Anfrage per Mail → Admin erzeugt unter „Mitglieder“ eine Einladung
-
-```bash
-npm run admin -- einladen admin|redaktion    # Einladungslink lokal erzeugen (z. B. Notfall)
-npm run admin -- abmelden-alle               # alle Sitzungen beenden
-```
-
-## Festplätze: Bearbeitungslinks für Kirmesgesellschaften
-
-Kirmesgesellschaften tragen ihren Festplatz selbst auf der Karte ein – über einen persönlichen Link
-(ohne Konto, ohne Passwort). Die Route-Knöpfe (Google Maps / Apple Karten) führen dann exakt dorthin.
-
-```bash
-npm run link -- erstellen muehlberg "Kirmesgesellschaft Mühlberg"   # Link wird einmalig angezeigt
-npm run link -- liste
-npm run link -- sperren 3
-```
-
-Auf dem Server: `docker compose run --rm migrate node apps/api/dist/infrastructure/postgres/links.js erstellen …`
-(mit `WEBSITE_URL=https://<domain>` für den richtigen Link).
-
-## Termine einpflegen
-
-Der Kalender enthält nur eigene Recherche und Einträge der Kirmesgesellschaften:
-
-```bash
-npm run termine:import -- meine-recherche.csv --probe   # Recherche-Tabelle prüfen
-npm run termine:import -- meine-recherche.csv           # einspielen
-```
-
-Vorlage und Regeln: [docs/betrieb/recherche.md](docs/betrieb/recherche.md). Ortsdaten
-© OpenStreetMap-Mitwirkende (ODbL), siehe [db/seed/ORTE-LIZENZ.md](db/seed/ORTE-LIZENZ.md).
-
-## Vor dem Livegang
-
-- [ ] Genug eigene Termine für den Start (Recherche + Links an Kirmesgesellschaften)
-- [ ] Domain registrieren (`apps/web/astro.config.mjs`, `apps/web/public/robots.txt`)
-- [ ] Impressum, Datenschutz und Kontaktadresse ausfüllen
-- [ ] Offene P0/P1-Issues abarbeiten (Authentifizierung, Frontend auf API, DB-Rollen)
+Ortsdaten © OpenStreetMap-Mitwirkende (ODbL), siehe [db/seed/ORTE-LIZENZ.md](db/seed/ORTE-LIZENZ.md).
