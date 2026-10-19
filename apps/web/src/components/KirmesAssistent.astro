@@ -11,7 +11,7 @@ import {
   musikFeld,
 } from '../lib/anzeige';
 import { aehnlicheOrte, bezeichner } from '../lib/ortssuche';
-import { erkenneKategorie, type LandkreisKuerzel } from '@kirmes/core';
+import { erkenneKategorie, nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
 interface Props {
   stand: AssistentStand;
   redaktion?: boolean;
@@ -31,7 +31,7 @@ const {
   plaetze = [],
 } = Astro.props;
 // Kirmesgesellschaft: fester Ort ohne Suche (Issue #180)
-const kgOrt = redaktion && Astro.locals.rolle === 'kirmesgesellschaft';
+const kgOrt = redaktion && nurEigenerOrt(Astro.locals);
 const ort = orte.find((o) => o.slug === s.ortSlug);
 // Frisch angelegter Ort steht evtl. noch nicht in der (zwischengespeicherten) Ortsliste
 const ortName = ort?.name ?? s.ortEingabe ?? s.ortSlug;

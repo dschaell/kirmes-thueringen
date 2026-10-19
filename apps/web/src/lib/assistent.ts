@@ -3,8 +3,10 @@ import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
 import {
   KATEGORIEN as KATEGORIEN_LISTE,
   koordinateAusText,
+  nurEigenerOrt,
   parseDatum,
   type Kategorie,
+  type Rolle,
 } from '@kirmes/core';
 import { datumKurz } from './anzeige';
 import { wochenendVorlage } from './wochenende';
@@ -204,7 +206,7 @@ type AssistentContext = Pick<
   'request' | 'url' | 'cookies' | 'redirect' | 'clientAddress'
 > & {
   response: { status?: number; headers: Headers };
-  locals?: { rolle?: string; ortSlug?: string | null };
+  locals?: { rolle?: Rolle; ortSlug?: string | null };
 };
 export async function assistent(
   ctx: AssistentContext,
@@ -212,8 +214,7 @@ export async function assistent(
   nurStart = false,
 ): Promise<AssistentStand | Response> {
   // Kirmesgesellschaft: fester Ort (Issue #180)
-  const kgOrt =
-    redaktion && ctx.locals?.rolle === 'kirmesgesellschaft' ? (ctx.locals.ortSlug ?? '') : '';
+  const kgOrt = redaktion && nurEigenerOrt(ctx.locals) ? (ctx.locals?.ortSlug ?? '') : '';
   let s: AssistentStand = {
     schritt: 1,
     ortSlug: kgOrt || (ctx.url.searchParams.get('ort') ?? ''),

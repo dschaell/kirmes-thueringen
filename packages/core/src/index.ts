@@ -14,6 +14,7 @@ export * from './application/festplaetze.js';
 export * from './application/recherche.js';
 export * from './application/termine-verwalten.js';
 export * from './application/admin.js';
+export * from './application/rechte.js';
 export * from './application/text-erkennung.js';
 export * from './application/passkeys.js';
 export * from './application/meldungen.js';

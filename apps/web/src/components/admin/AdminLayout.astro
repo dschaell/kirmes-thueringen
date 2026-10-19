@@ -1,4 +1,5 @@
 ---
+import { darf, nurEigenerOrt } from '@kirmes/core';
 import { adminApi } from '../../lib/admin';
 import Base from '../../layouts/Base.astro';
 import CsrfFeld from './CsrfFeld.astro';
@@ -22,7 +23,7 @@ const offen =
     ? (vorschlaege?.daten?.anzahl ?? 0) + (korrekturen?.daten?.anzahl ?? 0)
     : null;
 // Kirmesgesellschaft: nur ihr Ort (Issue #180)
-const kg = Astro.locals.rolle === 'kirmesgesellschaft';
+const kg = nurEigenerOrt(Astro.locals);
 const nav = kg
   ? [
       ['/admin', 'Termine'],
@@ -33,7 +34,9 @@ const nav = kg
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
       ['/admin/orte', 'Orte & Plätze'],
-      ...(Astro.locals.rolle === 'admin' ? [['/admin/mitglieder', 'Redaktion & Einladungen']] : []),
+      ...(darf(Astro.locals, 'mitglieder')
+        ? [['/admin/mitglieder', 'Redaktion & Einladungen']]
+        : []),
     ];
 const mehr = kg
   ? [['/admin/passkeys', 'Passkeys']]

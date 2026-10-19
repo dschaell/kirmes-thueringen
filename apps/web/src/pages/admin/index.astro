@@ -1,4 +1,5 @@
 ---
+import { darf } from '@kirmes/core';
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { adminApi } from '../../lib/admin';
@@ -56,7 +57,7 @@ const meldung = listenMeldung(p, ortName);
   <div class="hauptaktionen">
     <a class="knopf" href="/admin/kirmes-eintragen"><Icon name="kalender" />Kirmes eintragen</a>
     {
-      Astro.locals.rolle !== 'kirmesgesellschaft' && (
+      darf(Astro.locals, 'import') && (
         <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
       )
     }

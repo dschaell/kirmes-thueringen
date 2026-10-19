@@ -3,7 +3,8 @@
  * sich auf genau diesen Termin – nicht auf eine neue Kirmes. Gleicher Schutz wie bei Vorschlägen.
  */
 import { err, ok, type Validierungsfehler } from '../domain/result.js';
-import { ROLLEN, darfOrt, type Sitzung, type Sitzungen } from './admin.js';
+import type { Sitzung, Sitzungen } from './admin.js';
+import { darf, nurEigenerOrt } from './rechte.js';
 import type { Drosselung, Postausgang } from './meldungen.js';
 
 export interface Korrektur {
@@ -86,7 +87,7 @@ export class Korrekturen {
 
   async melde(terminId: string, e: KorrekturEingabe, herkunft: string) {
     // Falle oder zu schnell ausgefüllt: still annehmen, nichts speichern
-    if (sauber(e.falle) || !Number.isFinite(e.dauerMs) || (e.dauerMs ?? 0) < 3000)
+    if (sauber(e.falle) || !Number.isFinite(e.dauerMs) || (e.dauerMs as number) < 3000)
       return ok({ angenommen: true });
     if (!this.jeAbsender.erlaube(herkunft) || !this.gesamt.erlaube('gesamt'))
       return err('ZU_VIELE' as const);
@@ -105,14 +106,12 @@ export class Korrekturen {
   }
   private async berechtigt(token: string) {
     const s = token ? await this.sitzungen.pruefe(token) : null;
-    return s && ROLLEN.includes(s.rolle) ? s : null;
+    return darf(s, 'korrekturen') ? s : null;
   }
   /** Kirmesgesellschaft sieht nur Hinweise zu Terminen ihres Ortes (Issue #180). */
   private async sichtbar(s: Sitzung) {
     const alle = await this.repo.liste();
-    return s.rolle === 'kirmesgesellschaft'
-      ? alle.filter((k) => darfOrt(s, k.termin.ortSlug))
-      : alle;
+    return alle.filter((k) => darf(s, 'korrekturen', k.termin.ortSlug));
   }
   async liste(token: string) {
     const s = await this.berechtigt(token);
@@ -121,14 +120,12 @@ export class Korrekturen {
   async anzahl(token: string) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
-    return ok(
-      s.rolle === 'kirmesgesellschaft' ? (await this.sichtbar(s)).length : await this.repo.anzahl(),
-    );
+    return ok(nurEigenerOrt(s) ? (await this.sichtbar(s)).length : await this.repo.anzahl());
   }
   async erledige(token: string, id: string) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
-    if (s.rolle === 'kirmesgesellschaft' && !(await this.sichtbar(s)).some((k) => k.id === id))
+    if (nurEigenerOrt(s) && !(await this.sichtbar(s)).some((k) => k.id === id))
       return err('NICHT_GEFUNDEN' as const);
     return UUID.test(id) && (await this.repo.erledige(id, s.adminId))
       ? ok(true)

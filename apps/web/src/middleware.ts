@@ -1,3 +1,4 @@
+import { darf, nurEigenerOrt } from '@kirmes/core';
 import { defineMiddleware, sequence } from 'astro:middleware';
 import { adminApi } from './lib/admin';
 import { CSRF_COOKIE, CSRF_FELD, CSRF_HEADER, csrfGueltig, csrfToken } from './lib/csrf';
@@ -100,11 +101,11 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     ctx.locals.ortSlug = ich.daten.ortSlug;
     ctx.locals.ortName = ich.daten.ortName;
     // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
-    if (pfad.startsWith('/admin/mitglieder') && ich.daten.rolle !== 'admin') {
+    if (pfad.startsWith('/admin/mitglieder') && !darf(ich.daten, 'mitglieder')) {
       return ctx.redirect('/admin', 303);
     }
     // Kirmesgesellschaft (Issue #180): nur ihre Seiten, nur ihr Ort – die API prüft zusätzlich
-    if (ich.daten.rolle === 'kirmesgesellschaft') {
+    if (nurEigenerOrt(ich.daten)) {
       const eigen = ich.daten.ortSlug ?? '';
       const erlaubt =
         pfad === '/admin' ||
