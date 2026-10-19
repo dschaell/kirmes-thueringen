@@ -77,6 +77,7 @@ RCLONE_CONFIG_OFFSITE_TYPE=s3     # z. B. Hetzner Storage Box (sftp) oder S3-kom
 RCLONE_CONFIG_OFFSITE_…=…         # Zugangsdaten des Ziels, siehe rclone-Doku
 ```
 
+Passwörter für rclone-Ziele wie `sftp` müssen mit `rclone obscure` umgewandelt eingetragen werden.
 Die Dumps gehen nur **verschlüsselt** (`*.dump.age`) nach außen; dort bleiben 30 Tage.
 
 **Wiederherstellen** (lokal getestet: gleiche Zeilenzahlen in allen Tabellen):

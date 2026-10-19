@@ -15,6 +15,9 @@ set -u
 ZIEL=/backups
 TAGE="${SICHERUNG_TAGE:-14}"
 OFFSITE_TAGE="${OFFSITE_TAGE:-30}"
+# Dumps nur für root lesbar; die API (Benutzer node) braucht nur Namen, Größen und status.json.
+umask 077
+chmod 0755 "$ZIEL" 2>/dev/null || true
 
 status() {
   # $1 lokal-ok/-fehler, $2 Datei, $3 offsite-status, $4 offsite-meldung
@@ -23,7 +26,8 @@ status() {
     --arg offsite "$3" --arg meldung "$4" \
     --argjson anzahl "$(ls "$ZIEL"/kirmes-*.dump 2>/dev/null | wc -l)" \
     '{zeit:$zeit, lokal:$lokal, datei:$datei, groesse:$groesse, anzahl:$anzahl, offsite:$offsite, meldung:$meldung}' \
-    > "$ZIEL/status.json.neu" && mv "$ZIEL/status.json.neu" "$ZIEL/status.json"
+    > "$ZIEL/status.json.neu" && chmod 0644 "$ZIEL/status.json.neu" \
+    && mv "$ZIEL/status.json.neu" "$ZIEL/status.json"
 }
 
 sichere() {
