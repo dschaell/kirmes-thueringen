@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import Base from '../layouts/Base.astro';
+import { UNTERSTUETZEN_URL } from '../lib/anzeige';
 ---
 
 <Base
@@ -24,7 +25,9 @@ import Base from '../layouts/Base.astro';
 
     <h2>Viele Namen, ein Fest</h2>
     <p>
-      Je nach Region heißt die Kirchweih anders: In Thüringen und Sachsen sagt man <em>Kirmes</em> oder
+      Je nach Region heißt die Kirchweih anders: In Thüringen und Sachsen sagt man <em>Kirmes</em> oder{
+        ' '
+      }
       <em>Kirmse</em>, in Franken <em>Kerwa</em> oder <em>Kärwa</em>, in Hessen und der Pfalz <em
         >Kerb</em
       > oder <em>Kerwe</em>, in Bayern <em>Kirta</em>, in Österreich <em>Kirtag</em>, in der Schweiz <em
@@ -59,17 +62,68 @@ import Base from '../layouts/Base.astro';
       im September und Oktober statt. <a href="/termine">Alle Termine ansehen →</a>
     </p>
 
-    <h2>Über diesen Kalender</h2>
+    <h2 id="ueber-diesen-kalender">Über diesen Kalender</h2>
     <p>
       Der Kirmeskalender Thüringen sammelt die Termine der Kirmesgesellschaften an einem Ort – damit
       niemand mehr fünf Facebook-Gruppen und drei Aushänge braucht, um zu wissen, wo am Wochenende
-      Kirmes ist. Die Termine stammen von den Kirmesgesellschaften selbst und aus öffentlichen
-      Ankündigungen; was der Veranstalter bestätigt hat, ist mit einem Häkchen markiert.
+      Kirmes ist.
+    </p>
+
+    <h3>Dieser Kalender lebt von euch</h3>
+    <p>
+      Hinter dem Kalender steht kein großer Verlag und keine Agentur, sondern eure{' '}
+      <strong>tatkräftige Unterstützung</strong>. Jeder Termin hier ist da, weil jemand ihn
+      eingetragen hat: Kirmesgesellschaften, Kirmesburschen und -mädchen, Vereine – und Gäste, die
+      eine Ankündigung gesehen und weitergegeben haben. Je mehr mitmachen, desto vollständiger wird
+      der Kalender für alle. Danke an alle, die schon dabei sind!
+    </p>
+
+    <h3>So helft ihr mit</h3>
+    <ul class="mithelfen">
+      <li>
+        <a href="/termin-melden"><strong>Termin melden</strong></a> – eure Kirmes in drei Schritten, ohne
+        Anmeldung. Gerne gleich das ganze Programm mit Band, Ort und Essen & Getränken.
+      </li>
+      <li>
+        <strong>Korrektur melden</strong> – stimmt etwas nicht? Auf jeder Terminseite gibt es den Link
+        „Korrektur melden“.
+      </li>
+      <li>
+        <a href="/termin-melden?festplatz=1#festplatz"><strong>Festplatz eintragen</strong></a> – mit
+        einem persönlichen Link setzt ihr den Pin selbst, dann führt „Route“ eure Gäste direkt zum Zelt
+        oder Saal.
+      </li>
+      <li>
+        <a href="/redaktion-mitmachen"><strong>In der Redaktion mitmachen</strong></a> – Termine prüfen,
+        Ankündigungen aus eurer Gegend eintragen, Kirmesgesellschaften ansprechen.
+      </li>
+      <li>
+        <strong>Weitersagen</strong> – teilt Termine per WhatsApp oder in eurer Gruppe und erzählt anderen
+        Kirmesgesellschaften vom Kalender. Jede neue Kirmes macht ihn für alle wertvoller.
+      </li>
+      <li>
+        <a href="/kalender-abonnieren"><strong>Kalender abonnieren</strong></a> – ganz Thüringen, euer
+        Landkreis oder euer Ort, neue Termine kommen automatisch.
+      </li>
+    </ul>
+
+    <h3>Wie wir arbeiten</h3>
+    <p>
+      Neue Termine prüft die Redaktion, bevor sie erscheinen. Was der Veranstalter selbst bestätigt
+      hat, trägt ein Häkchen „bestätigt“; alles andere stammt aus öffentlichen Ankündigungen – im
+      Zweifel lieber beim Veranstalter nachfragen. Der Kalender ist kostenlos, ohne Werbung und ohne
+      Tracking. Betrieben wird er von Ryan Dustin Schällert aus Elleben im Ilm-Kreis.
+    </p>
+
+    <h3>Unterstützen</h3>
+    <p>
+      Server, Kartendienst und Weiterentwicklung kosten Zeit und ein wenig Geld. Wer mag, kann den
+      Kirmeskalender mit einem kleinen Betrag unterstützen – freiwillig und ohne Gegenleistung.
     </p>
     <p>
-      Betrieben wird der Kalender von Ryan Dustin Schällert aus Elleben im Ilm-Kreis – ohne Werbung
-      und ohne Tracking. Kirmesgesellschaften können ihre Termine und Festplätze über einen
-      persönlichen Link selbst pflegen.
+      <a class="knopf zweit" href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
+        Mit PayPal unterstützen
+      </a>
     </p>
     <p>
       Eure Kirmes fehlt oder ein Termin stimmt nicht? <a href="/termin-melden">Sagt uns Bescheid.</a
@@ -77,3 +131,11 @@ import Base from '../layouts/Base.astro';
     </p>
   </article>
 </Base>
+<style>
+  .mithelfen {
+    padding-left: 1.2em;
+  }
+  .mithelfen li {
+    margin: 0 0 10px;
+  }
+</style>
