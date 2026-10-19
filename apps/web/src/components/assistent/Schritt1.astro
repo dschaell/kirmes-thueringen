@@ -1,0 +1,127 @@
+---
+/** Schritt 1: Wo und wann – aus KirmesAssistent.astro (Issue #199). */
+import type { AssistentStand } from '../../lib/assistent';
+import type { OrtUebersichtDto } from '../../lib/api';
+import type { OrtTreffer } from '../../lib/ortssuche';
+import type { LandkreisKuerzel } from '@kirmes/core';
+import { TAGE_MAX } from '../../lib/assistent';
+import { kreisKurz } from '../../lib/anzeige';
+interface Props {
+  s: AssistentStand;
+  kgOrt: boolean;
+  ort: OrtUebersichtDto | undefined;
+  unbekannt: boolean;
+  aehnliche: OrtTreffer[];
+  neuerOrtName: string;
+  kreise: LandkreisKuerzel[];
+  ortText: string;
+  eigeneDauer: boolean;
+}
+const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, eigeneDauer } =
+  Astro.props;
+---
+
+<h2>Wo und wann feiert ihr?</h2>
+{kgOrt ? (
+  <p>
+    Ort: <strong>{Astro.locals.ortName}</strong>
+    <input type="hidden" name="ort" value={Astro.locals.ortName ?? ''} />
+  </p>
+) : (
+  <>
+    <label>
+      Ort
+      <span class="ortssuche">
+        <input
+          name="ort"
+          required
+          maxlength="200"
+          placeholder="Ort suchen …"
+          autocomplete="off"
+          data-ortssuche
+          value={ortText}
+        />
+      </span>
+    </label>
+    <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+  </>
+)}
+{unbekannt && (
+  <section class="kasten neuer-ort" aria-labelledby="neuer-ort-titel">
+    <h3 id="neuer-ort-titel">„{neuerOrtName}“ gibt es noch nicht</h3>
+    {aehnliche.length > 0 && (
+      <>
+        <p class="klein">Meintest du einen dieser Orte?</p>
+        <div class="aehnliche">
+          {aehnliche.map((t) => (
+            <button class="knopf zweit" name="ortWahl" value={t.wert} formnovalidate>
+              {t.wert}
+            </button>
+          ))}
+        </div>
+      </>
+    )}
+    <p class="klein">Oder als neuen Ort anlegen:</p>
+    <div class="zwei">
+      <label>
+        Landkreis
+        <select name="ortKreis">
+          <option value="">bitte wählen</option>
+          {kreise.map((k) => (
+            <option value={k}>{kreisKurz(k)}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Lage (optional)
+        <input name="ortLage" maxlength="2000" placeholder="Google-Maps-Link oder „50.87, 10.82“" />
+      </label>
+    </div>
+    <label class="klein">
+      <input type="checkbox" name="ortAnlegen" /> Ja, „{neuerOrtName}“ als neuen Ort anlegen
+    </label>
+  </section>
+)}
+<div class="zwei zeitraumfelder">
+  <label>
+    Erster Kirmestag
+    <input name="ab" type="date" required value={s.ab} />
+  </label>
+  <label>
+    Wie lange?
+    <select name="tage">
+      {[
+        ['1', 'Nur ein Termin'],
+        ['2', '2 Tage'],
+        ['3', '3 Tage'],
+        ['4', '4 Tage (meist Donnerstag bis Sonntag)'],
+        ['eigen', 'Andere Dauer …'],
+      ].map(([v, t]) => (
+        <option value={v} selected={v === 'eigen' ? eigeneDauer : s.tage === v}>
+          {t}
+        </option>
+      ))}
+    </select>
+  </label>
+  <label class="eigene-dauer" data-eigene-dauer>
+    Anzahl Tage (bei „Andere Dauer“)
+    <input
+      name="tageEigen"
+      type="number"
+      inputmode="numeric"
+      min="1"
+      max={TAGE_MAX}
+      value={eigeneDauer ? s.tage : ''}
+      placeholder="z. B. 6"
+    />
+  </label>
+</div>
+{s.zeitraumWechsel && (
+  <label>
+    <input type="checkbox" name="programmErsetzen" required /> Ja, mein bisheriges Programm durch
+    eine neue Vorlage ersetzen.
+  </label>
+)}
+<button class="knopf" name="aktion" value="weiter">
+  Weiter zum Programm
+</button>

@@ -1,0 +1,63 @@
+---
+/** Termine eines Ortes mit Ändern/Bestätigen/Löschen – aus admin/termine.astro (Issue #199). */
+import type { TerminHerkunft } from '@kirmes/core';
+import CsrfFeld from './CsrfFeld.astro';
+import Herkunft from './TerminHerkunft.astro';
+import type { TerminDto } from '../../lib/api';
+import { datumLangJahr } from '../../lib/anzeige';
+interface Props {
+  ort: { name: string };
+  termine: TerminDto[];
+  herkunft: Record<string, TerminHerkunft>;
+}
+const { ort, termine, herkunft } = Astro.props;
+---
+
+<h2>Termine in {ort.name}</h2>
+{termine.length === 0 ? (
+  <p class="leer">Noch keine Termine.</p>
+) : (
+  <table class="admin-tabelle">
+    <tbody>
+      {termine.map((t) => (
+        <tr>
+          <td class="klein">
+            {datumLangJahr(t.datum)}
+            {t.beginn && <>, {t.beginn}</>}
+          </td>
+          <td>
+            <strong>{t.titel}</strong>
+            <Herkunft herkunft={herkunft[t.id]} />
+            {(t.veranstaltungsort || t.band) && (
+              <div class="leise klein">
+                {[t.veranstaltungsort, t.band && `Musik: ${t.band}`].filter(Boolean).join(' · ')}
+              </div>
+            )}
+          </td>
+          <td class="klein">
+            {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
+          </td>
+          <td>
+            <div class="klein-knoepfe">
+              <a class="knopf zweit" href={`/admin/termine/${t.id}`}>
+                Ändern
+              </a>
+              <form method="post">
+                <CsrfFeld />
+                <input type="hidden" name="id" value={t.id} />
+                {!t.bestaetigt && (
+                  <button class="knopf zweit" name="aktion" value="bestaetigen">
+                    Bestätigen
+                  </button>
+                )}
+                <button class="knopf zweit" name="aktion" value="loeschen">
+                  Löschen
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)}

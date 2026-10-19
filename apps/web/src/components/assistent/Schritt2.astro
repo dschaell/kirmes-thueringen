@@ -1,0 +1,93 @@
+---
+/** Schritt 2: Was ist los – aus KirmesAssistent.astro (Issue #199). */
+import type { AssistentStand } from '../../lib/assistent';
+import { KATEGORIEN, datumKurz } from '../../lib/anzeige';
+interface Props {
+  s: AssistentStand;
+  redaktion: boolean;
+  ortName: string;
+}
+const { s, redaktion, ortName } = Astro.props;
+---
+
+<h2>Was ist los in {ortName}?</h2>
+{redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
+  <section class="kasten einsender" aria-label="Eingereicht von">
+    <p class="klein leise">Eingereicht von</p>
+    <p>
+      {s.kontaktName || 'ohne Namen'}
+      {s.kontaktEmail && (
+        <>
+          {' · '}
+          <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
+        </>
+      )}
+    </p>
+    {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
+  </section>
+)}
+<p class="leise">
+  {s.vorschlag
+    ? 'Prüfe den Vorschlag: Haken entfernen, was nicht stattfindet. Titel, Tag, Uhrzeit oder Art korrigieren über „ändern“.'
+    : 'Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.'}
+</p>
+<ul class="programm-kompakt">
+  {s.zeilen.map((z, i) => (
+    <li class:list={['programmzeile', { abgewaehlt: !z.aktiv }]}>
+      <label class="zeilenwahl">
+        <input type="checkbox" name={`aktiv-${i}`} checked={z.aktiv} />
+        <span>
+          <strong>{z.titel || 'Eigene Veranstaltung'}</strong>
+          <span class="klein leise zeitangabe">
+            {[datumKurz(z.datum), z.beginn && `${z.beginn} Uhr`].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+      </label>
+      <details open={!z.titel.trim()}>
+        <summary aria-label={`${z.titel || 'Eigene Veranstaltung'} ändern`}>ändern</summary>
+        <div class="zeilenfelder">
+          <label>
+            Veranstaltung
+            <input name={`titel-${i}`} list="titel-assistent" maxlength="200" value={z.titel} />
+          </label>
+          <div class="zwei">
+            <label>
+              Tag
+              <input name={`datum-${i}`} type="date" value={z.datum} />
+            </label>
+            <label>
+              Uhrzeit
+              <input name={`beginn-${i}`} type="time" value={z.beginn ?? ''} />
+            </label>
+          </div>
+          <label>
+            Art
+            <select name={`kat-${i}`}>
+              <option value="" selected={!z.kategorie}>
+                Automatisch (aus dem Titel)
+              </option>
+              {Object.entries(KATEGORIEN).map(([k, { label }]) => (
+                <option value={k} selected={z.kategorie === k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </details>
+    </li>
+  ))}
+</ul>
+<button class="knopf zweit" name="aktion" value="eigen" formnovalidate>
+  + Eigene Veranstaltung
+</button>
+<div class="knopfreihe">
+  <>
+    <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
+      Zurück
+    </button>
+    <button class="knopf" name="aktion" value="weiter">
+      Weiter zu den Details
+    </button>
+  </>
+</div>

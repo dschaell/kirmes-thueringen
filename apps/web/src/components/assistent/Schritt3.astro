@@ -1,0 +1,215 @@
+---
+/** Schritt 3: Details – aus KirmesAssistent.astro (Issue #199). */
+import type { AssistentStand } from '../../lib/assistent';
+import { mitEssen } from '../../lib/assistent';
+import { anzahl, datumLangJahr, musikFeld } from '../../lib/anzeige';
+import { erkenneKategorie } from '@kirmes/core';
+interface Props {
+  s: AssistentStand;
+  redaktion: boolean;
+  ortName: string;
+}
+const { s, redaktion, ortName } = Astro.props;
+---
+
+<h2>Programm prüfen und Details ergänzen</h2>
+{redaktion && s.vorschlag && (s.kontaktName || s.kontaktEmail || s.nachricht) && (
+  <section class="kasten einsender" aria-label="Eingereicht von">
+    <p class="klein leise">Eingereicht von</p>
+    <p>
+      {s.kontaktName || 'ohne Namen'}
+      {s.kontaktEmail && (
+        <>
+          {' · '}
+          <a href={`mailto:${s.kontaktEmail}`}>{s.kontaktEmail}</a>
+        </>
+      )}
+    </p>
+    {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
+  </section>
+)}
+<p>
+  <strong>{ortName}</strong> –{' '}
+  {anzahl(s.zeilen.filter((z) => z.aktiv).length, 'Veranstaltung', 'Veranstaltungen')}{' '}
+  {redaktion ? 'werden veröffentlicht' : 'werden vorgeschlagen'}. Band, Ort oder Essen & Getränke?
+  Tippe auf eine Veranstaltung – alles freiwillig.
+</p>
+<p class="klein leise">Titel, Tag oder Uhrzeit ändern: „Zurück zum Programm“.</p>
+{s.zeilen.map(
+  (z, i) =>
+    z.aktiv && (
+      <details class="veranstaltung">
+        <summary>
+          <strong>{z.titel}</strong>
+          <span class="leise klein">
+            {datumLangJahr(z.datum)}
+            {z.beginn && ` · ${z.beginn} Uhr`}
+          </span>
+        </summary>
+        <div class="details-inhalt">
+          <label>
+            {musikFeld(z.kategorie || erkenneKategorie(z.titel))}
+            <input name={`band-${i}`} maxlength="120" list="bands-assistent" value={z.band ?? ''} />
+          </label>
+          {((z.kategorie || erkenneKategorie(z.titel)) === 'tradition' || z.pfarrer) && (
+            <label>
+              Pfarrer/in (optional)
+              <input name={`pfarrer-${i}`} maxlength="120" value={z.pfarrer ?? ''} />
+            </label>
+          )}
+          <label>
+            Wo genau?
+            <input
+              name={`wo-${i}`}
+              maxlength="120"
+              list="plaetze-assistent"
+              placeholder="z. B. Festzelt oder Kirche"
+              value={z.veranstaltungsort ?? ''}
+            />
+          </label>
+          {(!redaktion || !s.vorschlag) && (
+            <label>
+              Google-Maps-Link zum Ort (optional)
+              <input
+                name={`karte-${i}`}
+                data-kartenlink-name={`wo-${i}`}
+                maxlength="2000"
+                inputmode="url"
+                placeholder="In Google Maps „Teilen → Link kopieren“"
+                value={z.karte ?? ''}
+              />
+              <span class="klein leise">
+                {redaktion
+                  ? 'Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“.'
+                  : 'Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die Redaktion prüft ihn.'}
+              </span>
+            </label>
+          )}
+          {redaktion && z.platz && (
+            <div class="kasten kartenpunkt">
+              <p class="klein">
+                Kartenpunkt vom Einsender:{' '}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${z.platz.lat},${z.platz.lon}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  auf der Karte ansehen
+                </a>
+              </p>
+              <label class="klein">
+                <input type="checkbox" name={`platz-${i}`} checked={z.platzUebernehmen === true} />{' '}
+                Als Platz „{z.veranstaltungsort || '–'}“ in {ortName} übernehmen (gilt dann für alle
+                Termine mit diesem „Wo genau?“)
+              </label>
+            </div>
+          )}
+          <label>
+            Hinweise (öffentlich)
+            <textarea name={`info-${i}`} rows="2" maxlength="500" set:text={z.info ?? ''} />
+          </label>
+          <label class="klein">
+            <input name={`mutti-${i}`} type="checkbox" checked={z.muttizettel ?? false} /> Unter 18
+            nur mit Muttizettel
+          </label>
+          <label class="klein">
+            <input name={`essen-${i}`} type="checkbox" checked={mitEssen(z)} /> Essen & Getränke
+            anbieten
+          </label>
+          <div class="speisen-felder">
+            {Array.from(
+              {
+                length: Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1)),
+              },
+              (_, j) => (
+                <div class="zwei">
+                  <label>
+                    Essen/Getränk {j + 1}
+                    <input
+                      name={`gericht-${i}-${j}`}
+                      maxlength="120"
+                      value={z.speisen?.[j]?.name ?? ''}
+                    />
+                  </label>
+                  <label>
+                    Preis (€)
+                    <input
+                      name={`preis-${i}-${j}`}
+                      inputmode="decimal"
+                      maxlength="20"
+                      placeholder="z. B. 9,50"
+                      value={z.speisen?.[j]?.preis ?? ''}
+                    />
+                  </label>
+                </div>
+              ),
+            )}
+            <button class="knopf zweit" name="aktion" value={`gerichte-${i}`} formnovalidate>
+              + Weiterer Eintrag
+            </button>
+          </div>
+        </div>
+      </details>
+    ),
+)}
+{redaktion && (s.doppelt?.length ?? 0) > 0 && (
+  <section class="kasten doppelt" role="alert" aria-labelledby="doppelt-titel">
+    <h3 id="doppelt-titel">Gibt es das schon?</h3>
+    <ul>
+      {s.doppelt?.map((d) => (
+        <li>{d}</li>
+      ))}
+    </ul>
+    <p class="klein">
+      Vielleicht hat jemand aus der Redaktion die Kirmes schon eingetragen. Bitte kurz prüfen.
+    </p>
+    <label>
+      <input type="checkbox" name="doppeltOk" /> Geprüft – trotzdem zusätzlich anlegen
+    </label>
+  </section>
+)}
+{redaktion ? (
+  <label>
+    <input type="checkbox" name="bestaetigt" checked={s.bestaetigt} /> Vom Veranstalter bestätigt
+  </label>
+) : (
+  <>
+    <h3>Für Rückfragen (freiwillig)</h3>
+    <label>
+      Name / Kirmesgesellschaft
+      <input name="kontaktName" maxlength="120" autocomplete="organization" value={s.kontaktName} />
+    </label>
+    <label>
+      E-Mail
+      <input
+        name="kontaktEmail"
+        type="email"
+        maxlength="200"
+        autocomplete="email"
+        value={s.kontaktEmail}
+      />
+    </label>
+    <label>
+      Nachricht an die Redaktion
+      <textarea name="nachricht" maxlength="2000" rows="3" set:text={s.nachricht} />
+    </label>
+    <p class="klein leise">
+      Dein Vorschlag wird erst nach Prüfung veröffentlicht. Kontaktdaten dienen nur Rückfragen und
+      werden nach der Prüfung gelöscht. Mehr im <a href="/datenschutz#vorschlaege">Datenschutz</a>.
+    </p>
+  </>
+)}
+<div class="knopfreihe">
+  <>
+    <button class="knopf zweit" name="aktion" value="zurueck" formnovalidate>
+      Zurück zum Programm
+    </button>
+    <button class="knopf" name="aktion" value="speichern">
+      {redaktion
+        ? s.vorschlag
+          ? 'Prüfung abschließen und übernehmen'
+          : 'Kirmes speichern'
+        : 'Vorschlag senden'}
+    </button>
+  </>
+</div>
