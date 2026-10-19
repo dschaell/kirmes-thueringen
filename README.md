@@ -27,14 +27,15 @@ abonnieren – gepflegt von der Redaktion, den Kirmesgesellschaften und allen, d
 Unter `/admin` (Footer „Anmelden (Redaktion)“), Anmeldung **nur mit Passkey** – ohne Passwort
 (ADR 023).
 
-| Rolle         | Darf                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| **Redaktion** | alle Termine, Orte, Plätze und Kartenlinks, Vorschläge und Korrekturen prüfen, Import     |
-| **Admin**     | zusätzlich Mitglieder einladen, Rollen ändern, selbst angelegte Orte löschen, Sicherungen |
+| Rolle                  | Darf                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| **Kirmesgesellschaft** | nur der eigene Ort: Termine, Plätze inkl. Kartenlinks, Vorschläge und Korrekturen         |
+| **Redaktion**          | alle Termine, Orte, Plätze und Kartenlinks, Vorschläge und Korrekturen prüfen, Import     |
+| **Admin**              | zusätzlich Mitglieder einladen, Rollen ändern, selbst angelegte Orte löschen, Sicherungen |
 
 - Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey
 - Mitmachen: `/redaktion-mitmachen` → Anfrage per Mail → Admin lädt unter „Redaktion &
-  Einladungen“ ein
+  Einladungen“ ein – Kirmesgesellschaften mit Rolle „Kirmesgesellschaft“ und ihrem Ort
 - „Kirmes eintragen“: ganzes Programm auf einmal, fehlende Orte direkt mit anlegen, Kirmes vom
   Vorjahr übernehmen; Tabellen-Import unter „Mehr → Termine importieren“
 
