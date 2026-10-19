@@ -55,9 +55,9 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Sonstiges', 'sonstiges'],
     ['Kinder- und Seniorennachmittag', 'familie'],
     ['Kirmesumzug', 'tradition'],
-    ['Frühschoppen mit den „Thanas“', 'tradition'],
-    ['Traditionelles Frühshoppen', 'tradition'],
-    ['Früh-Schoppen', 'tradition'],
+    ['Frühschoppen mit den „Thanas“', 'fruehschoppen'], // eigene Art seit #154
+    ['Traditionelles Frühshoppen', 'fruehschoppen'],
+    ['Früh-Schoppen', 'fruehschoppen'],
     ['Kirmesausklang', 'tradition'],
     ['Osterfeuer mit Tanz', 'tradition'],
     ['Kirmestanz mit „Belconda“', 'party'],

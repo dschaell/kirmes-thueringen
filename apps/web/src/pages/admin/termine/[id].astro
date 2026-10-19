@@ -44,6 +44,8 @@ let speisen = (t?.speisen ?? []).map((s) => ({
   preis: s.preisCent === null ? '' : (s.preisCent / 100).toFixed(2).replace('.', ','),
 }));
 let gerichte = Math.min(20, Math.max(3, speisen.length + 1));
+// Felder erst nach Haken (Issue #155); vorab gesetzt, wenn es schon Einträge gibt
+let essen = speisen.length > 0;
 if (Astro.request.method === 'POST' && t) {
   const f = await Astro.request.formData();
   version = feld(f, 'version');
@@ -67,14 +69,18 @@ if (Astro.request.method === 'POST' && t) {
     .slice(0, 20)
     .map((v) => (typeof v === 'string' ? v : ''));
   speisen = namen.map((name, i) => ({ name, preis: preise[i] ?? '' }));
-  if (feld(f, 'aktion') === 'gericht') gerichte = Math.min(20, namen.length + 1);
-  else {
+  essen = f.has('essen');
+  if (feld(f, 'aktion') === 'gericht') {
+    gerichte = Math.min(20, namen.length + 1);
+    essen = true;
+  } else {
     const r = await adminApi(Astro.cookies, 'PUT', `termine/${encodeURIComponent(id)}`, {
       ...werte,
       version,
       beginn: werte.beginn || null,
       ortSlug: t.ort.slug,
-      speisen,
+      // ohne Haken keine Einträge übernehmen (Issue #155)
+      speisen: essen ? speisen : [],
     });
     if (r.status < 300) return Astro.redirect(nachAktion(zurueck, 'gespeichert', [id]), 303);
     fehler = r.fehler;
@@ -209,32 +215,38 @@ const plaetze = t
           <fieldset class="mittagstisch">
             <>
               <legend>Essen & Getränke (freiwillig)</legend>
-              <p class="klein leise">
-                Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren.
-              </p>
+              <label>
+                <input type="checkbox" name="essen" checked={essen} /> Essen & Getränke anbieten
+              </label>
             </>
-            {Array.from({ length: gerichte }, (_, i) => (
-              <div class="zwei">
-                <label>
-                  Essen/Getränk {i + 1}
-                  <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
-                </label>
-                <label>
-                  Preis (€)
-                  <input
-                    name="preis"
-                    inputmode="decimal"
-                    maxlength="20"
-                    value={speisen[i]?.preis ?? ''}
-                  />
-                </label>
-              </div>
-            ))}
-            {gerichte < 20 && (
-              <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
-                + Weiterer Eintrag
-              </button>
-            )}
+            <div class="speisen-felder">
+              <p class="klein leise">
+                Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren oder den Haken
+                entfernen.
+              </p>
+              {Array.from({ length: gerichte }, (_, i) => (
+                <div class="zwei">
+                  <label>
+                    Essen/Getränk {i + 1}
+                    <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
+                  </label>
+                  <label>
+                    Preis (€)
+                    <input
+                      name="preis"
+                      inputmode="decimal"
+                      maxlength="20"
+                      value={speisen[i]?.preis ?? ''}
+                    />
+                  </label>
+                </div>
+              ))}
+              {gerichte < 20 && (
+                <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
+                  + Weiterer Eintrag
+                </button>
+              )}
+            </div>
           </fieldset>
           <div class="knopfreihe">
             <>
@@ -277,6 +289,14 @@ const plaetze = t
     padding: 16px;
     display: grid;
     gap: 12px;
+  }
+  .speisen-felder {
+    display: grid;
+    gap: 12px;
+  }
+  /* ohne Haken keine Felder – auch ohne JavaScript (Issue #155) */
+  .mittagstisch:not(:has(input[name='essen']:checked)) .speisen-felder {
+    display: none;
   }
   .knopfreihe {
     display: flex;

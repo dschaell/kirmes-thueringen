@@ -76,7 +76,7 @@ describe('Öffentliche Vorschläge', () => {
         nachricht: 'Hallo Welt',
         termine: [
           {
-            kategorie: 'tradition',
+            kategorie: 'fruehschoppen',
             bestaetigt: false,
             beginn: null,
             band: 'Musik',

@@ -54,8 +54,8 @@ export function parseCsv(text: string): string[][] {
 
 /** Kategorie aus dem Titel ableiten, wenn die Tabelle keine angibt. */
 /**
- * Art aus dem Titel (Issues #64, #135, #147): Familien & Kinder, Ständchen, Sonstiges (z. B.
- * Seniorennachmittag), Tradition oder – sonst – Tanz & Party.
+ * Art aus dem Titel (Issues #64, #135, #147, #154): Familien & Kinder, Ständchen, Sonstiges (z. B.
+ * Seniorennachmittag), Frühschoppen, Gottesdienst/Brauchtum (`tradition`) oder – sonst – Tanz & Party.
  * Erkennt auch gängige Schreibweisen („Frühshoppen“, „Früh-Schoppen“).
  */
 export function erkenneKategorie(titel: string): Kategorie {
@@ -65,8 +65,10 @@ export function erkenneKategorie(titel: string): Kategorie {
   if (/ständchen|staendchen|standchen/.test(t)) return 'staendchen';
   // Passt in keine Art – z. B. Seniorennachmittag (Issue #147)
   if (/senior|sonstig/.test(t)) return 'sonstiges';
+  // Frühschoppen ist eine eigene Art (Issue #154)
+  if (/fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(t)) return 'fruehschoppen';
   if (
-    /gottesdienst|andacht|messe\b|kirchgang|umzug|beerdigung|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster|fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(
+    /gottesdienst|andacht|messe\b|kirchgang|umzug|beerdigung|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster/.test(
       t,
     )
   )

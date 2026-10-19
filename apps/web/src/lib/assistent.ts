@@ -13,8 +13,12 @@ import { tageZwischen, verschiebeProgramm } from './vorjahr';
 
 export interface AssistentZeile extends VorschlagsZeile {
   gerichte?: number;
+  /** Haken „Essen & Getränke anbieten“ (Issue #155); fehlt er, zählt, ob es Einträge gibt */
+  essen?: boolean;
   aktiv: boolean;
 }
+/** Essen & Getränke nur mit Haken – sonst bleiben eingetippte Einträge unberücksichtigt. */
+export const mitEssen = (z: AssistentZeile) => z.essen ?? (z.speisen?.length ?? 0) > 0;
 export interface AssistentStand {
   schritt: 1 | 2 | 3;
   zeitraumWechsel?: boolean;
@@ -93,6 +97,7 @@ export function leseProgramm(
                 veranstaltungsort: feld(f, `wo-${i}`),
                 info: feld(f, `info-${i}`),
                 muttizettel: f.has(`mutti-${i}`),
+                essen: f.has(`essen-${i}`),
                 speisen: Array.from(
                   { length: Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1)) },
                   (_, j) => ({
@@ -130,6 +135,7 @@ function leseStand(s: string): AssistentStand | null {
           typeof z.titel === 'string' &&
           typeof z.datum === 'string' &&
           (v.schritt !== 3 || !z.aktiv || parseDatum(z.datum).ok) &&
+          (z.essen === undefined || typeof z.essen === 'boolean') &&
           (z.gerichte === undefined ||
             (Number.isInteger(z.gerichte) && z.gerichte >= 3 && z.gerichte <= 20)) &&
           (z.speisen === undefined ||
@@ -336,7 +342,10 @@ export async function assistent(
     if (aktion.startsWith('gerichte-')) {
       const index = Number(aktion.slice('gerichte-'.length));
       const z = s.zeilen[index];
-      if (z) z.gerichte = Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1) + 1);
+      if (z) {
+        z.gerichte = Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1) + 1);
+        z.essen = true;
+      }
       return s;
     }
     if (aktion === 'zurueck') {
@@ -354,7 +363,7 @@ export async function assistent(
         veranstaltungsort: z.veranstaltungsort || null,
         info: z.info || null,
         muttizettel: z.muttizettel ?? false,
-        speisen: z.speisen ?? [],
+        speisen: mitEssen(z) ? (z.speisen ?? []) : [],
       }));
     if (redaktion) {
       const r = s.vorschlag
