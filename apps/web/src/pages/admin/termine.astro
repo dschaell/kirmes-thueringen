@@ -268,11 +268,17 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
   {
     ort && (
       <>
-        <p class="brotkrumen">
-          <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
-          <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
-          <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
-        </p>
+        {Astro.locals.rolle === 'kirmesgesellschaft' ? (
+          <p class="brotkrumen">
+            <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
+          </p>
+        ) : (
+          <p class="brotkrumen">
+            <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
+            <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
+            <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
+          </p>
+        )}
 
         <details
           class="filter plaetze"

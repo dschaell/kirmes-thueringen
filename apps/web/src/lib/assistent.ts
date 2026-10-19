@@ -175,15 +175,21 @@ function leseStand(s: string): AssistentStand | null {
 type AssistentContext = Pick<
   APIContext,
   'request' | 'url' | 'cookies' | 'redirect' | 'clientAddress'
-> & { response: { status?: number; headers: Headers } };
+> & {
+  response: { status?: number; headers: Headers };
+  locals?: { rolle?: string; ortSlug?: string | null };
+};
 export async function assistent(
   ctx: AssistentContext,
   redaktion: boolean,
   nurStart = false,
 ): Promise<AssistentStand | Response> {
+  // Kirmesgesellschaft: fester Ort (Issue #180)
+  const kgOrt =
+    redaktion && ctx.locals?.rolle === 'kirmesgesellschaft' ? (ctx.locals.ortSlug ?? '') : '';
   let s: AssistentStand = {
     schritt: 1,
-    ortSlug: ctx.url.searchParams.get('ort') ?? '',
+    ortSlug: kgOrt || (ctx.url.searchParams.get('ort') ?? ''),
     ab: '',
     tage: '4',
     zeilen: [],
@@ -302,13 +308,14 @@ export async function assistent(
     const vorher = `${s.ortSlug}|${s.ab}|${s.tage}`;
     // „Meintest du …?“ – Klick auf einen ähnlichen Ort ersetzt die Eingabe (Issue #167)
     const ortText = feld(f, 'ortWahl') || feld(f, 'ort');
-    // Eindeutig und tolerant (Groß-/Kleinschreibung, Umlaute) – Issue #89
-    s.ortSlug = findeOrtEindeutig(await listeOrte(), ortText)?.slug ?? '';
+    // Eindeutig und tolerant (Groß-/Kleinschreibung, Umlaute) – Issue #89; Kirmesgesellschaft immer
+    // ihr Ort (Issue #180), egal was im Formular steht
+    s.ortSlug = kgOrt || (findeOrtEindeutig(await listeOrte(), ortText)?.slug ?? '');
     s.ortEingabe = ortText.slice(0, 200);
     s.ortUnbekannt = undefined;
     // Redaktion: fehlenden Ort gleich mit anlegen (Issue #167) – öffentlich nie
     const neuerName = ortText.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    if (!s.ortSlug && redaktion && neuerName) {
+    if (!s.ortSlug && redaktion && neuerName && !kgOrt) {
       s.ortUnbekannt = true;
       if (f.has('ortAnlegen')) {
         const lage = feld(f, 'ortLage');
@@ -401,6 +408,24 @@ export async function assistent(
     if (aktion === 'zurueck') {
       s.schritt = 2;
       return s;
+    }
+    // Redaktion (Issue #177): Kartenlink bei „Wo genau?“ legt den Platz des Ortes an – vor den
+    // Terminen, damit die Route sofort stimmt. Name aus „Wo genau?“ oder dem Link (#165).
+    if (redaktion && !s.vorschlag) {
+      for (const z of s.zeilen.filter((x) => x.aktiv && x.karte?.trim())) {
+        const p = await adminApi<{ name: string }>(
+          ctx.cookies,
+          'POST',
+          `orte/${encodeURIComponent(s.ortSlug)}/festplaetze`,
+          { name: (z.veranstaltungsort ?? '').trim(), standort: z.karte, nameNoetig: true },
+        );
+        if (p.daten?.name) z.veranstaltungsort = p.daten.name;
+        else s.fehler.push(...p.fehler.map((f) => `„${z.titel}“: ${f}`));
+      }
+      if (s.fehler.length) {
+        ctx.response.status = 400;
+        return s;
+      }
     }
     const zeilen = s.zeilen
       .filter((z) => z.aktiv)

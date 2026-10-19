@@ -538,3 +538,78 @@ describe('Ort beim Eintragen anlegen (Issue #167)', () => {
     expect(aufrufe.some((a) => a.methode === 'POST')).toBe(false);
   });
 });
+
+describe('Kartenlink beim Anlegen in der Redaktion (Issue #177)', () => {
+  const senden = async (platzAntwort: Response) => {
+    const aufrufe: { url: string; body: unknown }[] = [];
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const u = String(url);
+      aufrufe.push({ url: u, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (u.includes('/festplaetze')) return platzAntwort.clone();
+      return Response.json({ termine: [{ id: 'neu' }] }, { status: 201 });
+    });
+    const zeile = { ...vorlage('2027-09-17', '1')[0]!, titel: 'Kirmesgottesdienst', aktiv: true };
+    const form = new FormData();
+    form.set(
+      'stand',
+      JSON.stringify({
+        schritt: 3,
+        ortSlug: 'muehlberg',
+        ab: '2027-09-17',
+        tage: '1',
+        zeilen: [zeile],
+        kontaktName: '',
+        kontaktEmail: '',
+        nachricht: '',
+        bestaetigt: true,
+        geladen: 0,
+        vorschlag: '',
+        fehler: [],
+      }),
+    );
+    form.set('karte-0', 'https://www.google.de/maps/place/Kirche+St.+Peter/@50.9,11.0,17z');
+    try {
+      const s = await assistent(
+        {
+          request: new Request('http://example.org/admin/kirmes-eintragen', {
+            method: 'POST',
+            body: form,
+          }),
+          url: new URL('http://example.org/admin/kirmes-eintragen'),
+          response: { status: 200, headers: new Headers() },
+          cookies: { get: () => ({ value: 'token' }) } as never,
+          redirect: (ziel: string) =>
+            new Response(null, { status: 303, headers: { location: ziel } }),
+          clientAddress: '127.0.0.1',
+        },
+        true,
+      );
+      return { s, aufrufe };
+    } finally {
+      fetch.mockRestore();
+    }
+  };
+  it('legt den Platz an und übernimmt den Namen in „Wo genau?“', async () => {
+    const { s, aufrufe } = await senden(
+      Response.json({ name: 'Kirche St. Peter' }, { status: 201 }),
+    );
+    expect(s).toBeInstanceOf(Response);
+    expect(aufrufe[0]).toMatchObject({
+      url: expect.stringContaining('/orte/muehlberg/festplaetze'),
+      body: { name: '', nameNoetig: true },
+    });
+    const termine = aufrufe.find((a) => a.url.includes('termine/wochenende'))?.body as {
+      zeilen: { veranstaltungsort: string }[];
+    };
+    expect(termine.zeilen[0]?.veranstaltungsort).toBe('Kirche St. Peter');
+  });
+  it('Fehler beim Platz: Meldung, keine Termine gespeichert', async () => {
+    const { s, aufrufe } = await senden(
+      Response.json({ title: 'Standort nicht erkannt' }, { status: 400 }),
+    );
+    expect((s as { schritt: number; fehler: string[] }).fehler).toEqual([
+      '„Kirmesgottesdienst“: Standort nicht erkannt',
+    ]);
+    expect(aufrufe.some((a) => a.url.includes('termine/wochenende'))).toBe(false);
+  });
+});

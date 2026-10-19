@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  berlinVersatz,
+  brotkrumenJsonLd,
+  eventJsonLd,
   heute,
   kreisZusammenfassung,
   musikFeld,
@@ -141,5 +144,58 @@ describe('musikFeld (Issue #175)', () => {
     expect(musikFeld('tradition')).toBe('Chor / Gesang / musikalische Begleitung');
     expect(musikFeld('party')).toBe('Band / DJ');
     expect(musikFeld(null)).toBe('Band / DJ');
+  });
+});
+
+describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
+  const site = new URL('https://k.de');
+  const termin = (x: object = {}) =>
+    ({
+      id: 'abc',
+      datum: '2026-10-24',
+      beginn: '20:00',
+      titel: 'Kirmestanz',
+      veranstaltungsort: 'Festzelt',
+      kategorie: 'party',
+      bestaetigt: true,
+      ort: { slug: 'elleben', name: 'Elleben', landkreis: 'IK', koordinate: null },
+      festplatz: null,
+      band: 'Belconda',
+      info: null,
+      muttizettel: false,
+      ...x,
+    }) as never;
+  it('Zeitzone Sommer/Winter', () => {
+    expect(berlinVersatz('2026-10-24')).toBe('+02:00');
+    expect(berlinVersatz('2026-10-26')).toBe('+01:00');
+  });
+  it('Start mit Zeitzone, Ende nach Art (über Mitternacht), Beschreibung, Bild', () => {
+    const e = eventJsonLd(termin(), site);
+    expect(e.startDate).toBe('2026-10-24T20:00:00+02:00');
+    expect(e.endDate).toBe('2026-10-25T01:00:00+01:00');
+    expect(e.location.name).toBe('Festzelt, Elleben');
+    expect(e.description).toBe(
+      'Kirmestanz/Kirmesdisco in Elleben am Samstag, 24. Oktober ab 20:00 Uhr mit Belconda.',
+    );
+    expect(e.image).toEqual(['https://k.de/termin/abc/bild.png']);
+    const ganztags = eventJsonLd(
+      termin({ beginn: null, info: 'Eintritt frei', band: null, veranstaltungsort: null }),
+      site,
+    );
+    expect([
+      ganztags.startDate,
+      ganztags.endDate,
+      ganztags.description,
+      ganztags.location.name,
+    ]).toEqual(['2026-10-24', '2026-10-24', 'Eintritt frei', 'Elleben']);
+    expect(eventJsonLd(termin({ kategorie: 'unbekannt' }), site).endDate).toBe(
+      '2026-10-24T23:00:00+02:00',
+    );
+  });
+  it('Brotkrumen ab Start, mit Positionen', () => {
+    expect(brotkrumenJsonLd([['Ilm-Kreis', '/kreise/ik']], site).itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'Kirmeskalender Thüringen', item: 'https://k.de/' },
+      { '@type': 'ListItem', position: 2, name: 'Ilm-Kreis', item: 'https://k.de/kreise/ik' },
+    ]);
   });
 });

@@ -91,7 +91,8 @@ describe.runIf(url)('Redaktionskonten (PostgreSQL)', () => {
     pool = new pg.Pool({
       connectionString: url ?? '',
       max: 6,
-      options: '-c search_path=it_konten',
+      // public dahinter: Ort-Namen für Kirmesgesellschaften (Issue #180)
+      options: '-c search_path=it_konten,public',
     });
   });
   afterAll(async () => {

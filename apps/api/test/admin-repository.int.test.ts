@@ -4,6 +4,9 @@ import { NodeKryptografie } from '../src/infrastructure/krypto.js';
 import {
   ortLandkreis,
   PgAdminKonten,
+  PgEinladungen,
+  PgKontoAnlage,
+  PgMitglieder,
   PgLinkVerwaltung,
   PgMitteilungen,
   PgOrtVerwaltung,
@@ -31,6 +34,9 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
   let adminId = '';
 
   beforeAll(async () => {
+    await pool.query(
+      "DELETE FROM vorschlag WHERE ort_id IN (SELECT id FROM ort WHERE slug LIKE 'it-admin-%')",
+    );
     await pool.query("DELETE FROM ort WHERE slug LIKE 'it-admin-%'");
     await pool.query("DELETE FROM mitteilung WHERE titel LIKE 'IT %'");
     await pool.query("DELETE FROM admin WHERE name = 'IT Redaktion'");
@@ -104,6 +110,8 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       adminId,
       name: 'IT Redaktion',
       rolle: 'redaktion',
+      ortSlug: null,
+      ortName: null,
     });
     expect(await sitzungen.pruefe(krypto.neuesToken())).toBeNull();
     expect(await sitzungen.pruefe("' OR 1=1 --")).toBeNull();
@@ -232,6 +240,61 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     );
     expect(p.rows.at(-1)?.details).toEqual({ slug: 'it-admin-weg', name: 'it-admin-weg' });
     await pool.query('DELETE FROM vorschlag WHERE id = $1', [v.rows[0]!.id]);
+  });
+
+  it('Kirmesgesellschaft: Einladung mit Ort → Konto mit Ort → Sitzung kennt den Ort (Issue #180)', async () => {
+    const einladungen = new PgEinladungen(pool);
+    expect(
+      await einladungen.lege(
+        krypto.neuesToken(),
+        'kirmesgesellschaft',
+        adminId,
+        7,
+        'KG',
+        'it-admin-gibtsnicht',
+      ),
+    ).toBeNull();
+    const token = krypto.neuesToken();
+    const e = await einladungen.lege(
+      token,
+      'kirmesgesellschaft',
+      adminId,
+      7,
+      'KG Adminort',
+      'it-admin-ort',
+    );
+    expect(e).toMatchObject({ rolle: 'kirmesgesellschaft', ortName: 'IT-Adminort' });
+    expect((await einladungen.offene()).find((x) => x.id === e!.id)?.ortName).toBe('IT-Adminort');
+    // Rolle/Ort kommen aus der Einladung – auch wenn der Browser „admin“ behauptet
+    const kontoId = await new PgKontoAnlage(pool).lege(
+      { name: 'IT KG', rolle: 'admin', kennung: '00000000-0000-4000-8000-0000000000c1' },
+      {
+        credentialId: 'it-kg-ABCDEFGHIJKLMNOP',
+        publicKey: new Uint8Array([1]),
+        zaehler: 0,
+        transports: [],
+      },
+      'Erster Passkey',
+      { art: 'einladung', einladungId: e!.id },
+    );
+    expect(kontoId).toBeTruthy();
+    const sitzungen = new PgSitzungen(pool);
+    const st = krypto.neuesToken();
+    await sitzungen.lege(kontoId!, st, 1);
+    expect(await sitzungen.pruefe(st)).toMatchObject({
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'it-admin-ort',
+      ortName: 'IT-Adminort',
+    });
+    const m = new PgMitglieder(pool);
+    expect((await m.liste()).find((x) => x.id === kontoId)?.ortName).toBe('IT-Adminort');
+    // Ort mit KG-Konto lässt sich nicht löschen; wird sie Redaktion, fällt der Ort weg
+    await pool.query("UPDATE ort SET herkunft = 'redaktion' WHERE slug = 'it-admin-ort'");
+    expect(await new PgOrtVerwaltung(pool).loesche('it-admin-ort', adminId)).toBe('belegt');
+    await pool.query("UPDATE ort SET herkunft = 'osm' WHERE slug = 'it-admin-ort'");
+    expect(await m.setzeRolle(kontoId!, 'redaktion')).toBe(true);
+    expect(await sitzungen.pruefe(st)).toMatchObject({ rolle: 'redaktion', ortSlug: null });
+    await pool.query('DELETE FROM admin WHERE id = $1::bigint', [kontoId]);
   });
 
   it('Links: erstellen, auflisten, prüfen, sperren', async () => {

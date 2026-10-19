@@ -505,3 +505,43 @@ describe('Mail: Gottesdienst mit Chor und Pfarrer/in (Issue #175)', () => {
     );
   });
 });
+
+describe('Vorschläge für die Kirmesgesellschaft (Issue #180)', () => {
+  it('nur eigener Ort: Liste, Anzahl, Ansehen, Übernehmen, Ablehnen', async () => {
+    const { v, repo, sitzungen } = setup();
+    vi.mocked(sitzungen.pruefe).mockResolvedValue({
+      adminId: '9',
+      name: 'KG',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'alkersleben',
+    });
+    const eigen = { id: ID, ortSlug: 'alkersleben' } as never;
+    const fremd = { id: 'ab000000-0000-4000-8000-000000000002', ortSlug: 'erfurt' } as never;
+    vi.mocked(repo.liste).mockResolvedValue([eigen, fremd]);
+    expect(await v.liste('kg')).toEqual({ ok: true, value: [eigen] });
+    expect(await v.anzahl('kg')).toEqual({ ok: true, value: 1 });
+    vi.mocked(repo.finde).mockResolvedValue(fremd);
+    expect(await v.finde('kg', 'ab000000-0000-4000-8000-000000000002')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    expect(await v.lehneAb('kg', 'ab000000-0000-4000-8000-000000000002')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    expect(
+      await v.uebernehme('kg', 'ab000000-0000-4000-8000-000000000002', eingabe(), false),
+    ).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    vi.mocked(repo.finde).mockResolvedValue(eigen);
+    expect((await v.finde('kg', ID)).ok).toBe(true);
+    expect((await v.lehneAb('kg', ID)).ok).toBe(true);
+    // eigener Vorschlag, aber Übernahme in fremden Ort umgeschrieben → nein
+    expect(await v.uebernehme('kg', ID, { ...eingabe(), ortSlug: 'erfurt' }, false)).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+  });
+});

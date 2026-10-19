@@ -4,7 +4,10 @@ declare namespace App {
     adminId?: string;
     /** Anzeigename und Rolle des angemeldeten Mitglieds */
     name?: string;
-    rolle?: 'admin' | 'redaktion';
+    rolle?: 'admin' | 'redaktion' | 'kirmesgesellschaft';
+    /** nur Kirmesgesellschaft: ihr Ort (Issue #180) */
+    ortSlug?: string | null;
+    ortName?: string | null;
     /** CSRF-Token für Admin-Formulare */
     csrf?: string;
   }

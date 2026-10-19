@@ -3,7 +3,15 @@ import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
 import { listeOrte, sucheTermine } from '../../lib/api';
-import { heute, imKreis, kreisAusSlug, kreisName, kreisZusammenfassung } from '../../lib/anzeige';
+import {
+  brotkrumenJsonLd,
+  heute,
+  imKreis,
+  kreisAusSlug,
+  kreisName,
+  kreisSlug,
+  kreisZusammenfassung,
+} from '../../lib/anzeige';
 
 const k = kreisAusSlug(Astro.params.kreis ?? '');
 if (!k) return Astro.rewrite('/404');
@@ -24,6 +32,15 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <Base
   title={`Kirmes ${imKreis(k)} ${jahr} – alle Termine`}
   description={`Kirmes ${imKreis(k)}: ${zusammenfassung} Kirmestanz, Kindertanz und Brauchtum.`}
+  jsonLd={[
+    brotkrumenJsonLd(
+      [
+        ['Landkreise', '/kreise'],
+        [kreisName(k), `/kreise/${kreisSlug(k)}`],
+      ],
+      Astro.site!,
+    ),
+  ]}
 >
   <p class="brotkrumen"><a href="/kreise">Landkreise</a></p>
   <section class="einstieg">
