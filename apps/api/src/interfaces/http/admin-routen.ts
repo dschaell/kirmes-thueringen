@@ -32,7 +32,10 @@ export interface AdminAbhaengigkeiten {
   terminListe?: RedaktionsTermine;
   terminFinden?: (id: string) => Promise<Termin | null>;
   terminDto: (t: Termin) => unknown;
-  terminHerkunft?: (ids: string[]) => Promise<Record<string, TerminHerkunft>>;
+  terminHerkunft?: (
+    ids: string[],
+    ortSlug?: string | null,
+  ) => Promise<Record<string, TerminHerkunft>>;
   /** Passkeys sind optional (fehlt WEBSITE_URL, bleibt es bei Passwort + Einmalcode) */
   passkeys?: Passkeys;
   /** Erster Admin im Browser – braucht E-Mail-Versand und WEBSITE_URL */
@@ -274,6 +277,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     'DELETE /api/v1/admin/passkeys/:id',
     'GET /api/v1/admin/vorschlaege',
     'GET /api/v1/admin/termine',
+    'POST /api/v1/admin/termine/herkunft',
     'GET /api/v1/admin/termine/:id',
     'POST /api/v1/admin/termine',
     'POST /api/v1/admin/termine/wochenende',
@@ -655,7 +659,12 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
             }),
           },
         },
-        (req) => herkunft(req.body.ids),
+        // Kirmesgesellschaft: nur Termine des eigenen Ortes (Issue #200)
+        (req) =>
+          herkunft(
+            req.body.ids,
+            akteur(req).rolle === 'kirmesgesellschaft' ? (akteur(req).ortSlug ?? '') : null,
+          ),
       );
     }
     if (d.terminFinden) {

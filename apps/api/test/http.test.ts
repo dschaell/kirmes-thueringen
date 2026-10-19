@@ -204,7 +204,8 @@ const einladungenRepo = () => {
 };
 
 let terminListeAktiv: RedaktionsTermine | undefined;
-let herkunftAktiv: ((ids: string[]) => Promise<Record<string, TerminHerkunft>>) | undefined;
+let herkunftAktiv:
+  ((ids: string[], ortSlug?: string | null) => Promise<Record<string, TerminHerkunft>>) | undefined;
 let terminVorschlaegeAktiv: Vorschlaege | undefined;
 let app: Awaited<ReturnType<typeof baueApp>>;
 async function setup(repo = new FakeRepo(), dbOk = true) {
@@ -1874,5 +1875,24 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
       payload: { rolle: 'kirmesgesellschaft' },
     });
     expect(wechsel.statusCode).toBe(400);
+  });
+});
+
+describe('Herkunft für Kirmesgesellschaften (Issue #200)', () => {
+  it('Route filtert nach dem Ort der Sitzung, Redaktion ohne Filter', async () => {
+    const orte: (string | null | undefined)[] = [];
+    herkunftAktiv = async (_ids, ortSlug) => (orte.push(ortSlug), {});
+    await setup();
+    herkunftAktiv = undefined;
+    const rufe = (token: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/termine/herkunft',
+        headers: { authorization: `Sitzung ${token}` },
+        payload: { ids: ['11111111-1111-4111-8111-111111111111'] },
+      });
+    expect((await rufe(KG_SITZUNG)).statusCode).toBe(200);
+    expect((await rufe(REDAKTION_SITZUNG)).statusCode).toBe(200);
+    expect(orte).toEqual(['muehlberg', null]);
   });
 });

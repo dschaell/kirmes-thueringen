@@ -6,6 +6,8 @@ import { abfrage } from './pool.js';
 export async function terminHerkunft(
   db: pg.Pool,
   ids: string[],
+  /** Kirmesgesellschaft: nur Termine dieses Ortes (Issue #200) */
+  ortSlug: string | null = null,
 ): Promise<Record<string, TerminHerkunft>> {
   const { rows } = await abfrage<{
     id: string;
@@ -39,8 +41,9 @@ export async function terminHerkunft(
        ) g ON true
        LEFT JOIN admin ga ON ga.id = g.admin_id
        LEFT JOIN bearbeitungslink gb ON gb.id = g.link_id
-      WHERE t.id = ANY($1::uuid[])`,
-    [ids],
+      WHERE t.id = ANY($1::uuid[])
+        AND ($2::text IS NULL OR t.ort_id = (SELECT id FROM ort WHERE slug = $2))`,
+    [ids, ortSlug],
   );
   return Object.fromEntries(
     rows.map((r) => [
