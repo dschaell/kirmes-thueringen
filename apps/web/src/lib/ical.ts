@@ -53,6 +53,7 @@ const DAUER: Record<string, string> = {
   familie: 'PT3H',
   tradition: 'PT2H',
   staendchen: 'PT4H',
+  sonstiges: 'PT3H',
 };
 const naechsterTag = (d: string) =>
   new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
