@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { erkenneKategorie, leseRecherche, normDatum, normUhrzeit, parseCsv } from '../src/index.js';
+import {
+  erkenneKategorie,
+  istKirchlich,
+  leseRecherche,
+  normDatum,
+  normUhrzeit,
+  parseCsv,
+} from '../src/index.js';
 
 describe('parseCsv', () => {
   it('erkennt Semikolon (deutsches Excel) und Anführungszeichen', () => {
@@ -188,5 +195,18 @@ describe('Eingefügte Tabellen und eigene Spaltennamen (Issue #105)', () => {
       info: 'Eintritt 5 €',
       muttizettel: true,
     });
+  });
+});
+
+describe('istKirchlich (Issue #157)', () => {
+  it.each([
+    [{ kategorie: 'tradition', titel: 'Kirmesgottesdienst' }, true],
+    [{ kategorie: 'tradition', titel: 'Festmesse' }, true],
+    [{ kategorie: 'tradition', titel: 'Kirmesumzug' }, false],
+    [{ kategorie: 'party', titel: 'Gottesdienst-Party' }, false],
+    [{ kategorie: 'party', titel: 'Konzert', veranstaltungsort: 'Kirche' }, true],
+    [{ kategorie: 'tradition', titel: 'Messestand' }, false],
+  ])('%o → %s', (t, erwartet) => {
+    expect(istKirchlich(t)).toBe(erwartet);
   });
 });

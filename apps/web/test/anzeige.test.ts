@@ -3,6 +3,7 @@ import {
   heute,
   kreisZusammenfassung,
   ohneSchraegstrich,
+  routenLinks,
   suchZeitraum,
   wochenende,
 } from '../src/lib/anzeige';
@@ -109,5 +110,26 @@ describe('artName (robust gegen unbekannte Arten)', () => {
     expect(artName('familie')).toBe('Kindertanz');
     expect(artName('party', true)).toBe('Kirmestanz/Disco');
     expect(artName('gibtsnicht')).toBe('gibtsnicht');
+  });
+});
+
+describe('routenLinks (Issue #157)', () => {
+  const ort = { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate: null } as never;
+  const ziel = (t: object) =>
+    decodeURIComponent(
+      routenLinks({ festplatz: null, veranstaltungsort: null, ort, ...t }).google.split(
+        'destination=',
+      )[1] ?? '',
+    );
+  it('Ständchen in den Ort, Gottesdienst zur Kirche, Angabe hat Vorrang', () => {
+    expect(ziel({ kategorie: 'staendchen', titel: 'Ständchen' })).toBe('Mühlberg, Thüringen');
+    expect(ziel({ kategorie: 'tradition', titel: 'Kirmesgottesdienst' })).toBe(
+      'Kirche, Mühlberg, Thüringen',
+    );
+    expect(
+      ziel({ kategorie: 'tradition', titel: 'Gottesdienst', veranstaltungsort: 'Festzelt' }),
+    ).toBe('Festzelt, Mühlberg, Thüringen');
+    expect(ziel({ kategorie: 'party', titel: 'Kirmestanz' })).toBe('Mühlberg, Thüringen');
+    expect(ziel({ festplatz: { lat: 50, lon: 10 } })).toBe('50,10');
   });
 });

@@ -605,3 +605,76 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     expect(u?.ort.koordinate).toEqual({ lat: 50.87, lon: 10.82 });
   });
 });
+
+describe.runIf(url)('Route: Ständchen und Gottesdienst (Issue #157)', () => {
+  const pool = erstellePool({
+    connectionString: url ?? '',
+    ssl: false,
+    maxVerbindungen: 2,
+    statementTimeoutMs: 5_000,
+  });
+  const repo = new PgTerminRepository(pool);
+  beforeAll(async () => {
+    await pool.query("DELETE FROM ort WHERE slug = 'it-route'");
+    await pool.query(
+      `INSERT INTO ort (slug, name, landkreis, lage) VALUES
+        ('it-route', 'IT-Route', 'GTH', ST_SetSRID(ST_MakePoint(10.0, 50.0), 4326))`,
+    );
+  });
+  afterAll(async () => {
+    await pool.query("DELETE FROM ort WHERE slug = 'it-route'");
+    await pool.end();
+  });
+  const anlegen = (titel: string, kategorie: string, veranstaltungsort: string | null) =>
+    repo.speichere({
+      ortSlug: 'it-route',
+      landkreis: 'GTH',
+      datum: d('2026-10-17'),
+      beginn: null,
+      titel: `ZZROUTE ${titel}`,
+      veranstaltungsort,
+      kategorie: kategorie as never,
+      bestaetigt: true,
+    });
+  const ziele = async () =>
+    Object.fromEntries(
+      (await repo.suche({ ...basis, ortSlug: 'it-route', suchtext: 'ZZROUTE' })).eintraege.map(
+        (t) => [t.titel.slice(8), t.festplatz?.lat ?? null],
+      ),
+    );
+  const platz = (name: string, lat: number) =>
+    pool.query(
+      `INSERT INTO festplatz (ort_id, name, lage)
+       SELECT id, $1, ST_SetSRID(ST_MakePoint(10.0, $2), 4326) FROM ort WHERE slug = 'it-route'`,
+      [name, lat],
+    );
+
+  it('Ständchen nie zum Festplatz, Gottesdienst zur Kirche, sonst wie bisher', async () => {
+    await anlegen('Ständchen', 'staendchen', null);
+    await anlegen('Ständchen am Dorfplatz', 'staendchen', 'Dorfplatz');
+    await anlegen('Kirmesgottesdienst', 'tradition', null);
+    await anlegen('Kirmesumzug', 'tradition', null);
+    await anlegen('Kirmestanz', 'party', null);
+    await anlegen('Konzert', 'party', 'Kirche St. Martin');
+    await platz('', 51);
+    // ohne Kirche: kirchliche Termine nicht zum Festzelt
+    expect(await ziele()).toEqual({
+      Ständchen: null,
+      'Ständchen am Dorfplatz': null,
+      Kirmesgottesdienst: null,
+      Kirmesumzug: 51,
+      Kirmestanz: 51,
+      Konzert: null,
+    });
+    await platz('Kirche', 52);
+    await platz('Dorfplatz', 53);
+    expect(await ziele()).toEqual({
+      Ständchen: null,
+      'Ständchen am Dorfplatz': 53,
+      Kirmesgottesdienst: 52,
+      Kirmesumzug: 51,
+      Kirmestanz: 51,
+      Konzert: 52,
+    });
+  });
+});
