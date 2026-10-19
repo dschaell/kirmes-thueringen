@@ -82,22 +82,76 @@ const mehr = [
   <slot />
 </Base>
 
+<script>
+  import '../../scripts/mehr-menue';
+</script>
+
 <style is:global>
+  /* „Mehr“ als Aufklapp-Menü rechts (Issue #161) */
   .mehr-nav {
     margin-left: auto;
+    position: relative;
   }
   .mehr-nav summary {
     cursor: pointer;
-    padding: 10px;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
     min-height: 44px;
+    border-radius: 6px;
     font-weight: 600;
   }
+  .mehr-nav summary::-webkit-details-marker {
+    display: none;
+  }
+  .mehr-nav summary::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 0.15s;
+  }
+  .mehr-nav[open] summary {
+    background: var(--rot-zart);
+    color: var(--rot);
+  }
+  .mehr-nav[open] summary::after {
+    transform: translateY(2px) rotate(-135deg);
+  }
   .mehr-nav > div {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 20;
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    padding: 8px 0;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 230px;
+    max-width: calc(100vw - 32px);
+    padding: 8px;
+    background: var(--flaeche);
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  }
+  .admin-nav .mehr-nav > div a {
+    padding: 10px 12px;
+  }
+  .admin-nav .mehr-nav > div a:hover {
+    background: var(--papier);
+  }
+  .admin-nav .mehr-nav form {
+    margin: 6px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--linie);
+  }
+  .admin-nav .mehr-nav form .knopf {
+    width: 100%;
   }
   .einstieg.admin-kopf {
     padding-top: 20px;
