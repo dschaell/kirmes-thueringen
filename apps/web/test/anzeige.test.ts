@@ -113,23 +113,24 @@ describe('artName (robust gegen unbekannte Arten)', () => {
   });
 });
 
-describe('routenLinks (Issue #157)', () => {
-  const ort = { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate: null } as never;
-  const ziel = (t: object) =>
-    decodeURIComponent(
-      routenLinks({ festplatz: null, veranstaltungsort: null, ort, ...t }).google.split(
-        'destination=',
-      )[1] ?? '',
-    );
-  it('Ständchen in den Ort, Gottesdienst zur Kirche, Angabe hat Vorrang', () => {
-    expect(ziel({ kategorie: 'staendchen', titel: 'Ständchen' })).toBe('Mühlberg, Thüringen');
-    expect(ziel({ kategorie: 'tradition', titel: 'Kirmesgottesdienst' })).toBe(
-      'Kirche, Mühlberg, Thüringen',
+describe('routenLinks (Issue #179)', () => {
+  const ort = (koordinate: object | null) =>
+    ({ slug: 'muehlberg', name: 'Mühlberg', landkreis: 'GTH', koordinate }) as never;
+  const ziel = (r: ReturnType<typeof routenLinks>) =>
+    r && decodeURIComponent(r.google.split('destination=')[1] ?? '');
+  it('Platz → genau; ohne „Wo genau?“ → Ortsmitte; nur Text → keine Route', () => {
+    const mitte = ort({ lat: 50.87, lon: 10.82 });
+    const platz = { festplatz: { lat: 50.9, lon: 10.8 }, veranstaltungsort: 'Kirche', ort: mitte };
+    expect(routenLinks(platz)?.art).toBe('genau');
+    expect(ziel(routenLinks(platz))).toBe('50.9,10.8');
+    const ohne = routenLinks({ festplatz: null, veranstaltungsort: null, ort: mitte });
+    expect([ohne?.art, ziel(ohne)]).toEqual(['ort', '50.87,10.82']);
+    expect(ohne?.apple).toContain('daddr=50.87%2C10.82');
+    expect(ziel(routenLinks({ festplatz: null, veranstaltungsort: null, ort: ort(null) }))).toBe(
+      'Mühlberg, Thüringen',
     );
     expect(
-      ziel({ kategorie: 'tradition', titel: 'Gottesdienst', veranstaltungsort: 'Festzelt' }),
-    ).toBe('Festzelt, Mühlberg, Thüringen');
-    expect(ziel({ kategorie: 'party', titel: 'Kirmestanz' })).toBe('Mühlberg, Thüringen');
-    expect(ziel({ festplatz: { lat: 50, lon: 10 } })).toBe('50,10');
+      routenLinks({ festplatz: null, veranstaltungsort: 'Sportplatz', ort: mitte }),
+    ).toBeNull();
   });
 });
