@@ -89,6 +89,9 @@ describe.runIf(url)('Ursprünglicher Terminersteller über PostgreSQL', () => {
       name: 'IT Gesellschaft',
       weg: 'bearbeitungslink',
     });
+    // Kirmesgesellschaft: nur Termine ihres Ortes (Issue #200)
+    expect(Object.keys(await terminHerkunft(db, [t.id], 'it-herkunft'))).toEqual([t.id]);
+    expect(await terminHerkunft(db, [t.id], 'anderer-ort')).toEqual({});
   });
   it('unterscheidet Bearbeitungslink, Vorschlag und fehlende Nachweise', async () => {
     const c = await db.connect();
