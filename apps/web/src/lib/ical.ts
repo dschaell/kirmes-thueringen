@@ -48,7 +48,12 @@ const ZEITZONE = [
 ];
 
 /** Übliche Dauer je Art, damit Termine im Kalender nicht als 0-Minuten-Einträge erscheinen */
-const DAUER: Record<string, string> = { party: 'PT5H', familie: 'PT3H', tradition: 'PT2H' };
+const DAUER: Record<string, string> = {
+  party: 'PT5H',
+  familie: 'PT3H',
+  tradition: 'PT2H',
+  staendchen: 'PT4H',
+};
 const naechsterTag = (d: string) =>
   new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 

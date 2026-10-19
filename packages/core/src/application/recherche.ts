@@ -54,14 +54,17 @@ export function parseCsv(text: string): string[][] {
 
 /** Kategorie aus dem Titel ableiten, wenn die Tabelle keine angibt. */
 /**
- * Art aus dem Titel (Issue #64): Familien & Kinder, Tradition oder – sonst – Tanz & Party.
+ * Art aus dem Titel (Issues #64, #135): Familien & Kinder, Ständchen, Tradition oder – sonst –
+ * Tanz & Party.
  * Erkennt auch gängige Schreibweisen („Frühshoppen“, „Früh-Schoppen“).
  */
 export function erkenneKategorie(titel: string): Kategorie {
   const t = titel.toLowerCase();
   if (/kinder|familie/.test(t)) return 'familie';
+  // Ständchen ist eine eigene Art (Issue #135)
+  if (/ständchen|staendchen|standchen/.test(t)) return 'staendchen';
   if (
-    /gottesdienst|andacht|messe\b|kirchgang|ständchen|staendchen|umzug|beerdigung|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster|fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(
+    /gottesdienst|andacht|messe\b|kirchgang|umzug|beerdigung|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster|fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(
       t,
     )
   )
