@@ -133,7 +133,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
 <Base
-  title={`${ueberschrift} – Kirmeskalender Thüringen`}
+  title={ueberschrift === 'Kirmes-Termine'
+    ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
+    : `${ueberschrift} – Kirmeskalender Thüringen`}
   description={`Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`}
 >
   <section class="einstieg">

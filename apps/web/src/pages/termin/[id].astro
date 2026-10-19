@@ -6,6 +6,7 @@ import TerminListe from '../../components/TerminListe.astro';
 import { alleTermine, findeTermin } from '../../lib/api';
 import {
   datumLangJahr,
+  brotkrumenJsonLd,
   eventJsonLd,
   heute,
   kreisName,
@@ -38,7 +39,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <Base
   title={`${t.titel} in ${t.ort.name} am ${datum} – Kirmeskalender Thüringen`}
   description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}${t.band ? `, mit ${t.band}` : ''}. Mit Anfahrt und Kalendereintrag.`}
-  jsonLd={[eventJsonLd(t, Astro.site!)]}
+  jsonLd={[
+    eventJsonLd(t, Astro.site!),
+    brotkrumenJsonLd(
+      [
+        [kreisName(t.ort.landkreis), `/kreise/${kreisSlug(t.ort.landkreis)}`],
+        [t.ort.name, `/orte/${t.ort.slug}`],
+        [t.titel, `/termin/${t.id}`],
+      ],
+      Astro.site!,
+    ),
+  ]}
   bild={`/termin/${t.id}/bild.png`}
 >
   <p class="brotkrumen">
