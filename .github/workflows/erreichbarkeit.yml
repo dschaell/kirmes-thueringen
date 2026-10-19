@@ -1,0 +1,75 @@
+# Erreichbarkeit der Live-Website (Issue #45): alle 10 Minuten Startseite, Terminliste (braucht API und
+# Datenbank) und Kalender-Abo. Erst wenn eine Prüfung auch nach einer Minute noch scheitert, gilt die
+# Seite als ausgefallen: Issue mit Label „ausfall“ anlegen bzw. ergänzen – GitHub schickt dazu eine
+# Mail. Ist alles wieder erreichbar, wird das Issue kommentiert und geschlossen.
+name: Erreichbarkeit
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erreichbarkeit
+  cancel-in-progress: false
+
+env:
+  WEBSITE: https://kirmeskalender-thueringen.de
+
+jobs:
+  pruefen:
+    name: Website erreichbar?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Seiten abrufen (mit einer Wiederholung)
+        id: abruf
+        run: |
+          pruefe() {
+            fehler=""
+            for ziel in "/|Kirmes in Thüringen" "/termine|Kirmes-Termine" "/kalender.ics|BEGIN:VCALENDAR"; do
+              pfad="${ziel%%|*}"; erwartet="${ziel#*|}"
+              antwort=$(curl -sS --max-time 20 -A "Kirmeskalender-Erreichbarkeit/1.0" -w '\n%{http_code}' "$WEBSITE$pfad" 2>&1) || true
+              code=$(printf '%s' "$antwort" | tail -n1)
+              if [ "$code" != "200" ] || ! printf '%s' "$antwort" | grep -q "$erwartet"; then
+                fehler="$fehler\n- \`$pfad\` → HTTP $code"
+              fi
+            done
+            printf '%b' "$fehler"
+          }
+          erst=$(pruefe)
+          if [ -n "$erst" ]; then sleep 60; zweit=$(pruefe); else zweit=""; fi
+          {
+            echo "fehler<<ENDE"
+            printf '%b\n' "$zweit"
+            echo "ENDE"
+          } >> "$GITHUB_OUTPUT"
+          [ -z "$zweit" ] && echo "✔ erreichbar" >> "$GITHUB_STEP_SUMMARY" || printf '✖ nicht erreichbar%b\n' "$zweit" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Issue „ausfall“ anlegen, ergänzen oder schließen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FEHLER: ${{ steps.abruf.outputs.fehler }}
+          LAUF: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          offen=$(gh issue list --label "ausfall" --state open --json number --jq '.[0].number')
+          zeit=$(TZ=Europe/Berlin date '+%d.%m.%Y %H:%M')
+          if [ -n "$(printf '%s' "$FEHLER" | tr -d '[:space:]')" ]; then
+            text=$(printf '**%s Uhr:** Website nicht erreichbar (auch nach einer Minute):\n%s\n\n[Lauf ansehen](%s)' "$zeit" "$FEHLER" "$LAUF")
+            if [ -n "$offen" ]; then
+              gh issue comment "$offen" --body "$text"
+            else
+              gh issue create --title "Ausfall: Website nicht erreichbar ($zeit Uhr)" --label "ausfall" --body "$text"
+            fi
+            exit 1
+          elif [ -n "$offen" ]; then
+            gh issue comment "$offen" --body "✔ $zeit Uhr: wieder erreichbar. $LAUF"
+            gh issue close "$offen"
+          fi

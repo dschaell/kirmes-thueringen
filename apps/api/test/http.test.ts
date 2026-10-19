@@ -119,6 +119,7 @@ let meldungenAktiv: MeldeAnRedaktion | undefined;
 let einrichtungAktiv: Ersteinrichtung | undefined;
 let beitrittAktiv: Beitritt | undefined;
 let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
+let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const neuePasskeys = (gesperrt = false) =>
@@ -246,6 +247,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       beitritt: beitrittAktiv,
       festplaetze: festplaetzeAktiv,
       vorschlaege: vorschlaegeAktiv,
+      sicherungen: sicherungenAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -1133,6 +1135,21 @@ describe('Mitglieder und Einladungen', () => {
     }
     // die eigene Rolle sieht die Redaktion
     expect((await rufe('GET', '/api/v1/admin/ich', alsRedaktion)).json().rolle).toBe('redaktion');
+  });
+
+  it('Sicherungsstand nur für Admins und nur, wenn das Verzeichnis eingebunden ist', async () => {
+    sicherungenAktiv = undefined;
+    await setup();
+    expect((await rufe('GET', '/api/v1/admin/sicherungen', alsAdmin)).statusCode).toBe(404);
+    await app.close();
+    sicherungenAktiv = async () => ({ status: null, dateien: [] });
+    await setup();
+    sicherungenAktiv = undefined;
+    expect((await rufe('GET', '/api/v1/admin/sicherungen', alsRedaktion)).statusCode).toBe(403);
+    expect((await rufe('GET', '/api/v1/admin/sicherungen', {})).statusCode).toBe(401);
+    const r = await rufe('GET', '/api/v1/admin/sicherungen', alsAdmin);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ status: null, dateien: [] });
   });
 
   it('Admin verwaltet Mitglieder – der letzte Admin bleibt', async () => {

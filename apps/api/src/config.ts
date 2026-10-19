@@ -11,6 +11,8 @@ export interface Konfiguration {
   websiteUrl: string | null;
   /** SMTP für Meldungen an die Redaktion (Brevo); null = Formular nutzt mailto */
   smtp: SmtpKonfiguration | null;
+  /** Nur lesend eingebundenes Sicherungsverzeichnis – Anzeige in der Redaktion (Issue #45) */
+  sicherungen: string | null;
 }
 
 export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfiguration {
@@ -24,6 +26,7 @@ export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfigu
     logLevel: env.LOG_LEVEL ?? 'info',
     websiteUrl: env.WEBSITE_URL || null,
     smtp: ladeSmtp(env),
+    sicherungen: env.SICHERUNGEN_VERZEICHNIS || null,
   };
 }
 
