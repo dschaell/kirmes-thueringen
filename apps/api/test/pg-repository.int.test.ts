@@ -678,3 +678,41 @@ describe.runIf(url)('Route: Ständchen und Gottesdienst (Issue #157)', () => {
     });
   });
 });
+
+describe.runIf(url)('Pfarrer/in speichern und lesen (Issue #175)', () => {
+  const pool = erstellePool({
+    connectionString: url ?? '',
+    ssl: false,
+    maxVerbindungen: 1,
+    statementTimeoutMs: 5_000,
+  });
+  const repo = new PgTerminRepository(pool);
+  beforeAll(async () => {
+    await pool.query("DELETE FROM ort WHERE slug = 'it-pfarrer'");
+    await pool.query(
+      "INSERT INTO ort (slug, name, landkreis) VALUES ('it-pfarrer', 'IT-Pfarrer', 'GTH')",
+    );
+  });
+  afterAll(async () => {
+    await pool.query("DELETE FROM ort WHERE slug = 'it-pfarrer'");
+    await pool.end();
+  });
+  it('wird gespeichert und in Suche/Einzelansicht geliefert', async () => {
+    const t = await repo.speichere({
+      ortSlug: 'it-pfarrer',
+      landkreis: 'GTH',
+      datum: d('2026-10-18'),
+      beginn: '10:00',
+      titel: 'ZZPF Kirmesgottesdienst',
+      veranstaltungsort: 'Kirche',
+      kategorie: 'tradition',
+      bestaetigt: true,
+      band: 'Kirchenchor',
+      pfarrer: 'Pfarrerin Muster',
+    });
+    expect(t.pfarrer).toBe('Pfarrerin Muster');
+    expect((await repo.finde(t.id))?.pfarrer).toBe('Pfarrerin Muster');
+    const s = await repo.suche({ ...basis, ortSlug: 'it-pfarrer' });
+    expect(s.eintraege[0]?.pfarrer).toBe('Pfarrerin Muster');
+  });
+});

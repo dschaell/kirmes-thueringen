@@ -73,6 +73,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           </>
         )
       }
+      {
+        t.pfarrer && (
+          <>
+            <dt>
+              <Icon name="kirche" />
+              <span class="sr-only">Pfarrer/in</span>
+            </dt>
+            <dd>Pfarrer/in: {t.pfarrer}</dd>
+          </>
+        )
+      }
       <dt><Icon name="zelt" /><span class="sr-only">Art</span></dt>
       <dd>
         {artName(t.kategorie)}

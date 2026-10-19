@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   heute,
   kreisZusammenfassung,
+  musikFeld,
   ohneSchraegstrich,
   routenLinks,
   suchZeitraum,
@@ -132,5 +133,13 @@ describe('routenLinks (Issue #179)', () => {
     expect(
       routenLinks({ festplatz: null, veranstaltungsort: 'Sportplatz', ort: mitte }),
     ).toBeNull();
+  });
+});
+
+describe('musikFeld (Issue #175)', () => {
+  it('Gottesdienst: Chor statt Band', () => {
+    expect(musikFeld('tradition')).toBe('Chor / Gesang / musikalische Begleitung');
+    expect(musikFeld('party')).toBe('Band / DJ');
+    expect(musikFeld(null)).toBe('Band / DJ');
   });
 });

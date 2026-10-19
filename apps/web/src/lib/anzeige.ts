@@ -14,6 +14,10 @@ export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
   sonstiges: { label: 'Sonstiges', kurz: 'Sonstiges' },
 };
 
+/** Beschriftung des Musik-Felds je Art – beim Gottesdienst Chor statt Band (Issue #175). */
+export const musikFeld = (kategorie: string | null | undefined) =>
+  kategorie === 'tradition' ? 'Chor / Gesang / musikalische Begleitung' : 'Band / DJ';
+
 /** Amtliche Bezeichnung und passende Präposition („im Landkreis Gotha“, „in Erfurt“). */
 const KREIS_ANZEIGE: Record<LandkreisKuerzel, { name: string; in: string }> = {
   ABG: { name: 'Altenburger Land', in: 'im Altenburger Land' },
