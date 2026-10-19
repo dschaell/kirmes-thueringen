@@ -1,5 +1,5 @@
 ---
-import type { AssistentStand } from '../lib/assistent';
+import { TAGE_MAX, type AssistentStand } from '../lib/assistent';
 import type { OrtUebersichtDto } from '../lib/api';
 import { KATEGORIEN, anzahl, datumKurz, datumLangJahr } from '../lib/anzeige';
 import { bezeichner } from '../lib/ortssuche';
@@ -24,6 +24,7 @@ const {
 const ort = orte.find((o) => o.slug === s.ortSlug);
 const ortBezeichnung = bezeichner(orte);
 const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
+const eigeneDauer = Number(s.tage) > 4;
 ---
 
 <div class="kirmes-assistent">
@@ -98,12 +99,25 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                   ['2', '2 Tage'],
                   ['3', '3 Tage'],
                   ['4', '4 Tage (meist Donnerstag bis Sonntag)'],
+                  ['eigen', 'Andere Dauer …'],
                 ].map(([v, t]) => (
-                  <option value={v} selected={s.tage === v}>
+                  <option value={v} selected={v === 'eigen' ? eigeneDauer : s.tage === v}>
                     {t}
                   </option>
                 ))}
               </select>
+            </label>
+            <label class="eigene-dauer" data-eigene-dauer>
+              Anzahl Tage (bei „Andere Dauer“)
+              <input
+                name="tageEigen"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                max={TAGE_MAX}
+                value={eigeneDauer ? s.tage : ''}
+                placeholder="z. B. 6"
+              />
             </label>
           </div>
           {s.zeitraumWechsel && (
@@ -149,7 +163,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                   <input type="checkbox" name={`aktiv-${i}`} checked={z.aktiv} />
                   <span>
                     <strong>{z.titel || 'Eigene Veranstaltung'}</strong>
-                    <span class="klein leise">
+                    <span class="klein leise zeitangabe">
                       {[datumKurz(z.datum), z.beginn && `${z.beginn} Uhr`]
                         .filter(Boolean)
                         .join(' · ')}
@@ -400,6 +414,9 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
     .zeitraumfelder {
       grid-template-columns: 0.8fr 1.2fr;
     }
+    .eigene-dauer {
+      grid-column: 2;
+    }
   }
   .schritte {
     display: flex;
@@ -541,4 +558,6 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
 </style>
 <script>
   import '../scripts/ortssuche';
+  import '../scripts/programmreihenfolge';
+  import '../scripts/eigene-dauer';
 </script>

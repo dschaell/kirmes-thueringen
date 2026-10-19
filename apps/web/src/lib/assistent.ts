@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import type { Vorschlag, VorschlagsZeile } from '@kirmes/core';
 import { KATEGORIEN as KATEGORIEN_LISTE, parseDatum, type Kategorie } from '@kirmes/core';
+import { datumKurz } from './anzeige';
 import { wochenendVorlage } from './wochenende';
 import { findeOrtEindeutig } from './ortssuche';
 import { nachAktion } from './terminliste';
@@ -31,6 +32,10 @@ export interface AssistentStand {
   vorschlag: string;
   fehler: string[];
 }
+/** Dauer einer Kirmes: Auswahl 1–4 oder eigene Angabe bis 14 Tage (Issue #150). */
+export const TAGE_MAX = 14;
+export const gueltigeTage = (t: unknown): t is string =>
+  typeof t === 'string' && /^\d{1,2}$/.test(t) && Number(t) >= 1 && Number(t) <= TAGE_MAX;
 export function vorlage(ab: string, tage: string): AssistentZeile[] {
   if (!parseDatum(ab).ok) return [];
   if (tage === '1') return [{ datum: ab, titel: '', aktiv: true, beginn: '', speisen: [] }];
@@ -40,6 +45,29 @@ export function vorlage(ab: string, tage: string): AssistentZeile[] {
       // Nur der Kern ist vorab angehakt; der Rest wird angeboten (Issue #87)
       .map(({ kern, ...z }) => ({ ...z, aktiv: kern === true, speisen: [] }))
   );
+}
+/**
+ * Programm der Reihe nach (Issue #149): Tag, dann Uhrzeit; ohne Uhrzeit ans Ende des Tages.
+ * Stabil – gleiche Zeitpunkte behalten ihre Reihenfolge.
+ */
+export const sortiereProgramm = <T extends { datum: string; beginn?: string | null }>(
+  zeilen: T[],
+): T[] =>
+  [...zeilen].sort(
+    (a, b) =>
+      a.datum.localeCompare(b.datum) || (a.beginn || '99:99').localeCompare(b.beginn || '99:99'),
+  );
+
+/** Gleicher Titel am gleichen Tag ist nicht erlaubt (ein Termin je Ort, Tag und Titel). */
+export function doppelterTitel(zeilen: AssistentZeile[]): string | null {
+  const gesehen = new Set<string>();
+  for (const z of zeilen.filter((z) => z.aktiv)) {
+    const schluessel = `${z.datum}|${z.titel.trim().toLowerCase()}`;
+    if (gesehen.has(schluessel))
+      return `„${z.titel.trim()}“ steht am ${datumKurz(z.datum)} zweimal im Programm. Bitte einen der beiden anders nennen (z. B. „${z.titel.trim()} am Nachmittag“) oder auf einen anderen Tag legen.`;
+    gesehen.add(schluessel);
+  }
+  return null;
 }
 const istKategorie = (k: string | null | undefined): k is Kategorie =>
   !!k && (KATEGORIEN_LISTE as readonly string[]).includes(k);
@@ -93,7 +121,7 @@ function leseStand(s: string): AssistentStand | null {
       typeof v.ortSlug !== 'string' ||
       (v.ortEingabe !== undefined && typeof v.ortEingabe !== 'string') ||
       typeof v.ab !== 'string' ||
-      !['1', '2', '3', '4'].includes(v.tage) ||
+      !gueltigeTage(v.tage) ||
       !Array.isArray(v.zeilen) ||
       v.zeilen.length > 20 ||
       !v.zeilen.every(
@@ -159,9 +187,7 @@ export async function assistent(
     tageZwischen(vonV, bisV) <= 13
   ) {
     const alt = (await sucheTermine({ ort: vorjahr, von: vonV, bis: bisV, limit: 20 })).termine;
-    const neu = verschiebeProgramm(alt).sort(
-      (a, b) => a.datum.localeCompare(b.datum) || (a.beginn ?? '').localeCompare(b.beginn ?? ''),
-    );
+    const neu = sortiereProgramm(verschiebeProgramm(alt));
     if (neu.length) {
       const ab = neu[0]?.datum ?? '';
       s = {
@@ -169,7 +195,9 @@ export async function assistent(
         schritt: 2,
         ortSlug: vorjahr,
         ab,
-        tage: String(Math.min(4, Math.max(1, tageZwischen(ab, neu.at(-1)?.datum ?? ab) + 1))),
+        tage: String(
+          Math.min(TAGE_MAX, Math.max(1, tageZwischen(ab, neu.at(-1)?.datum ?? ab) + 1)),
+        ),
         zeilen: neu.map((t) => ({
           datum: t.datum,
           beginn: t.beginn ?? '',
@@ -206,7 +234,7 @@ export async function assistent(
       kontaktName: v.daten.kontaktName ?? '',
       kontaktEmail: v.daten.kontaktEmail ?? '',
       nachricht: v.daten.nachricht ?? '',
-      zeilen: v.daten.termine.map((z) => ({
+      zeilen: sortiereProgramm(v.daten.termine).map((z) => ({
         ...z,
         aktiv: true,
         speisen: z.speisen.map((sp) => ({
@@ -254,10 +282,13 @@ export async function assistent(
     s.ortSlug = findeOrtEindeutig(await listeOrte(), ortText)?.slug ?? '';
     s.ortEingabe = ortText.slice(0, 200);
     s.ab = feld(f, 'ab');
-    s.tage = feld(f, 'tage');
+    const auswahl = feld(f, 'tage');
+    // „Andere Dauer …“ (Issue #150): Zahl aus dem Zusatzfeld, führende Nullen weg
+    s.tage = auswahl === 'eigen' ? String(Number(feld(f, 'tageEigen')) || '') : auswahl;
     if (!s.ortSlug) s.fehler.push('Bitte einen Ort aus den Vorschlägen wählen.');
     if (!parseDatum(s.ab).ok) s.fehler.push('Bitte ein gültiges Datum wählen.');
-    if (!['1', '2', '3', '4'].includes(s.tage)) s.fehler.push('Bitte die Anzahl der Tage wählen.');
+    if (!gueltigeTage(s.tage))
+      s.fehler.push(`Bitte die Anzahl der Tage wählen (1 bis ${TAGE_MAX}).`);
     if (!s.fehler.length) {
       const wechsel = vorher !== `${s.ortSlug}|${s.ab}|${s.tage}` || s.zeitraumWechsel;
       if (wechsel && s.zeilen.length && !f.has('programmErsetzen')) {
@@ -272,7 +303,7 @@ export async function assistent(
       s.schritt = 2;
     }
   } else if (s.schritt === 2) {
-    s.zeilen = leseProgramm(f, s.zeilen, false);
+    s.zeilen = sortiereProgramm(leseProgramm(f, s.zeilen, false));
     if (aktion === 'zurueck') s.schritt = 1;
     else if (aktion === 'eigen') {
       if (s.zeilen.length < 20)
@@ -289,6 +320,8 @@ export async function assistent(
         s.fehler.push('Bitte mindestens eine Veranstaltung wählen.');
       if (s.zeilen.some((z) => z.aktiv && (!z.titel.trim() || !parseDatum(z.datum).ok)))
         s.fehler.push('Bitte Titel und Datum der gewählten Veranstaltungen ausfüllen.');
+      const doppelt = doppelterTitel(s.zeilen);
+      if (doppelt) s.fehler.push(doppelt);
       if (!s.fehler.length) s.schritt = 3;
     }
   } else {
