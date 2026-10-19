@@ -201,3 +201,9 @@ export function suchZeitraum(
       return { zeit, von: e.von ?? h, text };
   }
 }
+
+/** Name einer Art – unbekannte Werte (z. B. während eines Deploys) werden angezeigt statt abzustürzen. */
+export const artName = (k: string, kurz = false): string => {
+  const a = (KATEGORIEN as Record<string, { label: string; kurz: string } | undefined>)[k];
+  return a ? (kurz ? a.kurz : a.label) : k;
+};
