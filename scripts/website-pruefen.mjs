@@ -72,6 +72,20 @@ for (const [pfad, status, inhalt] of SEITEN) {
   }
 }
 
+// ── Zusammengeklebte Wörter (Astro entfernt Zeilenumbrüche vor Tags, Issue #142) ─────────
+for (const [pfad] of SEITEN.filter(([, status]) => status === 200)) {
+  const { text } = await hole(pfad);
+  const html = text.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<svg[\s\S]*?<\/svg>/g, '');
+  const kleber = [
+    ...html.matchAll(/[A-Za-zäöüßÄÖÜ0-9,;:]{2}<(?:em|strong|a|b|i|abbr)\b[^>]*>[A-Za-zäöüßÄÖÜ]/g),
+    ...html.matchAll(/<\/(?:em|strong|a|b|i|abbr)>[A-Za-zäöüß]{2}/g),
+  ].map((m) => m[0].replace(/<[^>]+>/g, '|'));
+  pruefe(
+    kleber.length === 0,
+    `${pfad}: keine zusammengeklebten Wörter${kleber.length ? ` (${kleber.slice(0, 3).join(', ')})` : ''}`,
+  );
+}
+
 // ── Sonderfälle ───────────────────────────────────────────────────────────────────────
 const ics = await hole('/kalender.ics');
 pruefe(

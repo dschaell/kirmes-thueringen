@@ -4,7 +4,7 @@ import '../styles/global.css';
 // Schriften vorladen: kein Springen des Layouts beim Nachladen (Issue #123)
 import bitterUrl from '@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2?url';
 import sourceSansUrl from '@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2?url';
-import { ohneSchraegstrich } from '../lib/anzeige';
+import { ohneSchraegstrich, UNTERSTUETZEN_URL } from '../lib/anzeige';
 
 interface Props {
   title: string;
@@ -136,6 +136,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
           <h2>Für Kirmesgesellschaften</h2>
           <ul>
             <li><a href="/termin-melden">Termin melden oder ändern</a></li>
+            <li><a href="/ueber-die-kirmes#ueber-diesen-kalender">Über diesen Kalender</a></li>
             <li>
               <a href="/termin-melden?festplatz=1#festplatz">Festplatz auf der Karte eintragen</a>
             </li>
@@ -147,6 +148,13 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             <li><a href="/redaktion-mitmachen">Mitmachen</a></li>
             <li><a href="/admin/anmelden" rel="nofollow">Anmelden</a></li>
           </ul>
+        </div>
+        <div class="unterstuetzen">
+          <h2>Unterstützen</h2>
+          <p>Der Kirmeskalender ist kostenlos und werbefrei.</p>
+          <a class="knopf zweit" href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
+            Mit PayPal unterstützen
+          </a>
         </div>
         <div class="recht">
           <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
