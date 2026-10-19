@@ -402,6 +402,24 @@ export async function assistent(
       s.schritt = 2;
       return s;
     }
+    // Redaktion (Issue #177): Kartenlink bei „Wo genau?“ legt den Platz des Ortes an – vor den
+    // Terminen, damit die Route sofort stimmt. Name aus „Wo genau?“ oder dem Link (#165).
+    if (redaktion && !s.vorschlag) {
+      for (const z of s.zeilen.filter((x) => x.aktiv && x.karte?.trim())) {
+        const p = await adminApi<{ name: string }>(
+          ctx.cookies,
+          'POST',
+          `orte/${encodeURIComponent(s.ortSlug)}/festplaetze`,
+          { name: (z.veranstaltungsort ?? '').trim(), standort: z.karte, nameNoetig: true },
+        );
+        if (p.daten?.name) z.veranstaltungsort = p.daten.name;
+        else s.fehler.push(...p.fehler.map((f) => `„${z.titel}“: ${f}`));
+      }
+      if (s.fehler.length) {
+        ctx.response.status = 400;
+        return s;
+      }
+    }
     const zeilen = s.zeilen
       .filter((z) => z.aktiv)
       .map((z) => ({

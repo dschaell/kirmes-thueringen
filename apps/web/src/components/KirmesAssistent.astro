@@ -350,7 +350,7 @@ const eigeneDauer = Number(s.tage) > 4;
                         value={z.veranstaltungsort ?? ''}
                       />
                     </label>
-                    {!redaktion && (
+                    {(!redaktion || !s.vorschlag) && (
                       <label>
                         Google-Maps-Link zum Ort (optional)
                         <input
@@ -362,8 +362,9 @@ const eigeneDauer = Number(s.tage) > 4;
                           value={z.karte ?? ''}
                         />
                         <span class="klein leise">
-                          Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die
-                          Redaktion prüft ihn.
+                          {redaktion
+                            ? 'Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“.'
+                            : 'Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die Redaktion prüft ihn.'}
                         </span>
                       </label>
                     )}
