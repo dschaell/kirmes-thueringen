@@ -208,3 +208,6 @@ export const artName = (k: string, kurz = false): string => {
   const a = (KATEGORIEN as Record<string, { label: string; kurz: string } | undefined>)[k];
   return a ? (kurz ? a.kurz : a.label) : k;
 };
+
+/** Freiwillige Unterstützung des Kirmeskalenders (Issue #141) – nur ein Link, nichts wird geladen. */
+export const UNTERSTUETZEN_URL = 'https://paypal.me/dustinschaellert';
