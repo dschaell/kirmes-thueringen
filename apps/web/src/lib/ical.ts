@@ -52,6 +52,7 @@ const DAUER: Record<string, string> = {
   party: 'PT5H',
   familie: 'PT3H',
   tradition: 'PT2H',
+  fruehschoppen: 'PT3H',
   staendchen: 'PT4H',
   sonstiges: 'PT3H',
 };
