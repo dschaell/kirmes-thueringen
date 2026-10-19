@@ -4,11 +4,12 @@ import type { TerminDto } from './api';
 
 export { LANDKREISE };
 
-/** Anzeige der drei Arten – so, wie Kirmesleute sie nennen (Issue #64). */
+/** Anzeige der Arten – so, wie Kirmesleute sie nennen (Issues #64, #135). */
 export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
   party: { label: 'Kirmestanz/Kirmesdisco', kurz: 'Kirmestanz/Disco' },
   familie: { label: 'Kindertanz', kurz: 'Kindertanz' },
   tradition: { label: 'Gottesdienst/Frühschoppen', kurz: 'Gottesdienst/Frühschoppen' },
+  staendchen: { label: 'Ständchen', kurz: 'Ständchen' },
 };
 
 /** Amtliche Bezeichnung und passende Präposition („im Landkreis Gotha“, „in Erfurt“). */

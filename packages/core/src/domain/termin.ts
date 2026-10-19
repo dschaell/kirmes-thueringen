@@ -5,8 +5,8 @@ import { err, ok, type Result, type Validierungsfehler } from './result.js';
 import type { Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
-/** Drei klare Arten (Issue #64): Tanz & Party, Familien & Kinder, Tradition. */
-export const KATEGORIEN = ['party', 'familie', 'tradition'] as const;
+/** Klare Arten (Issues #64, #135): Tanz & Party, Familien & Kinder, Tradition, Ständchen. */
+export const KATEGORIEN = ['party', 'familie', 'tradition', 'staendchen'] as const;
 export type Kategorie = (typeof KATEGORIEN)[number];
 
 /** Frühere Bezeichnungen (Importe, alte Links) → neue Art. */

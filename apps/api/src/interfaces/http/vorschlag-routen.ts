@@ -14,7 +14,10 @@ export const vorschlagsZeileSchema = {
     band: { type: ['string', 'null'], maxLength: 120 },
     info: { type: ['string', 'null'], maxLength: 500 },
     muttizettel: { type: 'boolean' },
-    kategorie: { type: ['string', 'null'], enum: ['party', 'familie', 'tradition', null] },
+    kategorie: {
+      type: ['string', 'null'],
+      enum: ['party', 'familie', 'tradition', 'staendchen', null],
+    },
     speisen: {
       type: 'array',
       maxItems: 20,
