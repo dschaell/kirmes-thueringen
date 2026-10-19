@@ -10,6 +10,7 @@ import {
   datumKurz,
   datumLang,
   datumLangJahr,
+  brotkrumenJsonLd,
   eventJsonLd,
   heute,
   imKreis,
@@ -45,7 +46,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   noindex={kommend.length === 0 && vergangen.length === 0}
   title={`Kirmes ${ort.name} ${jahr} – Termine & Anfahrt`}
   description={`Kirmes in ${ort.name} ${imKreis(ort.landkreis)}: ${naechster ? `nächster Termin ${datumLang(naechster.datum)} – ${naechster.titel}` : `alle Termine ${jahr}`}. Mit Anfahrt und Kalender.`}
-  jsonLd={kommend.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!))}
+  jsonLd={[
+    brotkrumenJsonLd(
+      [
+        [kreisName(ort.landkreis), `/kreise/${kreisSlug(ort.landkreis)}`],
+        [ort.name, `/orte/${ort.slug}`],
+      ],
+      Astro.site!,
+    ),
+    ...kommend.slice(0, 20).map((t) => eventJsonLd(t, Astro.site!)),
+  ]}
 >
   <p class="brotkrumen">
     <a href="/orte">Orte</a> › <a href={`/kreise/${kreisSlug(ort.landkreis)}`}

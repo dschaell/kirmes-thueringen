@@ -103,6 +103,12 @@ pruefe((await hole('/kalender.ics?kreis=XX')).r?.status === 404, '/kalender.ics?
 const sitemap = await hole('/sitemap.xml');
 const urls = [...sitemap.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 pruefe(urls.length >= 30, `Sitemap mit ${urls.length} URLs`);
+pruefe(
+  /<loc>[^<]*\/termin\/[^<]*<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/.test(sitemap.text),
+  'Sitemap: Termine mit lastmod',
+);
+const robots = await hole('/robots.txt');
+pruefe(/Disallow: \/admin/.test(robots.text), 'robots.txt sperrt /admin');
 // Jede Terminseite aus der Sitemap muss erreichbar sein und ein eigenes Vorschaubild haben
 const terminSeiten = urls.filter((u) => u.includes('/termin/')).slice(0, 25);
 for (const u of terminSeiten) {
@@ -114,6 +120,28 @@ for (const u of terminSeiten) {
     const b = await hole(new URL(bild).pathname);
     pruefe(b.r?.headers.get('content-type') === 'image/png', `${pfad}/bild.png ist ein PNG`);
   }
+  // SEO (Issue #182): Event mit Zeitzone, Ende, Beschreibung, Bild + Brotkrumen
+  const ld = [...text.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].map(
+    (m) => {
+      try {
+        return JSON.parse(m[1]);
+      } catch {
+        return {};
+      }
+    },
+  );
+  const ev = ld.find((x) => x['@type'] === 'Event');
+  pruefe(
+    !!ev?.endDate &&
+      !!ev?.description &&
+      !!ev?.image &&
+      /^\d{4}-\d{2}-\d{2}(T.*[+-]\d{2}:\d{2})?$/.test(ev?.startDate ?? ''),
+    `${pfad}: Event-Daten vollständig (Start mit Zeitzone, Ende, Beschreibung, Bild)`,
+  );
+  pruefe(
+    ld.some((x) => x['@type'] === 'BreadcrumbList'),
+    `${pfad}: Brotkrumen-Daten`,
+  );
   const k = await hole(`${pfad}/korrektur`);
   pruefe(k.r?.status === 200, `${pfad}/korrektur erreichbar`);
 }
