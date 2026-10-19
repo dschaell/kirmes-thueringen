@@ -23,6 +23,7 @@ import {
   imKreis,
   kreisKurz,
   suchZeitraum,
+  artName,
 } from '../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
 
@@ -125,9 +126,7 @@ const chips = [
   ...(zeit !== 'kommend' && zeitParam
     ? [{ text: ZEIT_TEXT[zeit] ?? zeit, href: ohne('zeit') }]
     : []),
-  ...kat
-    .filter((k) => k in KATEGORIEN)
-    .map((k) => ({ text: KATEGORIEN[k as keyof typeof KATEGORIEN].label, href: ohne('kat', k) })),
+  ...kat.filter((k) => k in KATEGORIEN).map((k) => ({ text: artName(k), href: ohne('kat', k) })),
   ...(nurBest ? [{ text: 'Nur bestätigte', href: ohne('best') }] : []),
 ];
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');

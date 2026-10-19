@@ -4,14 +4,7 @@
  * „Route“ öffnet Google Maps bzw. auf Apple-Geräten Apple Karten (siehe Skript unten).
  */
 import type { TerminDto } from '../lib/api';
-import {
-  KATEGORIEN,
-  monatName,
-  relativerTag,
-  routenLinks,
-  tagMonat,
-  wochentag,
-} from '../lib/anzeige';
+import { monatName, relativerTag, routenLinks, tagMonat, wochentag, artName } from '../lib/anzeige';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -80,7 +73,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       {t.titel}
                     </a>
                     {t.kategorie !== 'party' && (
-                      <span class={`kat kat-${t.kategorie}`}>{KATEGORIEN[t.kategorie].kurz}</span>
+                      <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
                     )}
                     {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
                     {t.bestaetigt && (

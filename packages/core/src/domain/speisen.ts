@@ -34,7 +34,7 @@ export function validiereSpeisen(
     const name = z.name.trim().replace(/\s+/g, ' ');
     const preisText = z.preis.trim();
     if (!name && !preisText) return;
-    const nr = `Gericht ${i + 1}`;
+    const nr = `Essen/Getränk ${i + 1}`;
     if (!name) {
       fehler.push({ feld: `speise${i + 1}.name`, code: 'PFLICHT', meldung: `${nr}: Name fehlt.` });
       return;
@@ -62,7 +62,7 @@ export function validiereSpeisen(
     fehler.push({
       feld: 'speisen',
       code: 'ZU_VIELE',
-      meldung: `Höchstens ${SPEISEN_MAX} Gerichte.`,
+      meldung: `Höchstens ${SPEISEN_MAX} Einträge bei Essen & Getränke.`,
     });
   }
   return fehler.length ? err(fehler) : ok(speisen);

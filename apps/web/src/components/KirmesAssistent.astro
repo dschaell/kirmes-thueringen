@@ -236,8 +236,8 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
           <p>
             <strong>{ort?.name ?? s.ortSlug}</strong> –{' '}
             {anzahl(s.zeilen.filter((z) => z.aktiv).length, 'Veranstaltung', 'Veranstaltungen')}{' '}
-            {redaktion ? 'werden veröffentlicht' : 'werden vorgeschlagen'}. Band, Ort oder
-            Mittagstisch? Tippe auf eine Veranstaltung – alles freiwillig.
+            {redaktion ? 'werden veröffentlicht' : 'werden vorgeschlagen'}. Band, Ort oder Essen &
+            Getränke? Tippe auf eine Veranstaltung – alles freiwillig.
           </p>
           <p class="klein leise">Titel, Tag oder Uhrzeit ändern: „Zurück zum Programm“.</p>
           {s.zeilen.map(
@@ -285,7 +285,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                       Unter 18 nur mit Muttizettel
                     </label>
                     <details>
-                      <summary>Mittagstisch ergänzen</summary>
+                      <summary>Essen & Getränke ergänzen</summary>
                       {Array.from(
                         {
                           length: Math.min(
@@ -296,7 +296,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                         (_, j) => (
                           <div class="zwei">
                             <label>
-                              Gericht {j + 1}
+                              Essen/Getränk {j + 1}
                               <input
                                 name={`gericht-${i}-${j}`}
                                 maxlength="120"
@@ -322,7 +322,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
                         value={`gerichte-${i}`}
                         formnovalidate
                       >
-                        + Weiteres Gericht
+                        + Weiterer Eintrag
                       </button>
                     </details>
                   </div>

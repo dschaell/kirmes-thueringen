@@ -3,7 +3,7 @@ import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
-import { KATEGORIEN, datumLangJahr, speiseZeile } from '../../../lib/anzeige';
+import { KATEGORIEN, datumLangJahr, speiseZeile, artName } from '../../../lib/anzeige';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../../components/admin/TerminHerkunft.astro';
 import { listenFilter, nachAktion } from '../../../lib/terminliste';
@@ -122,14 +122,14 @@ const plaetze = t
                 <dt>Wo genau?</dt>
                 <dd>{t.veranstaltungsort ?? '–'}</dd>
                 <dt>Art</dt>
-                <dd>{KATEGORIEN[t.kategorie].label}</dd>
+                <dd>{artName(t.kategorie)}</dd>
                 <dt>Vom Veranstalter bestätigt</dt>
                 <dd>{t.bestaetigt ? 'Ja' : 'Nein'}</dd>
                 <dt>Muttizettel erforderlich</dt>
                 <dd>{t.muttizettel ? 'Ja' : 'Nein'}</dd>
-                <dt>Mittagstisch</dt>
+                <dt>Essen & Getränke</dt>
                 <dd>
-                  {t.speisen?.length ? t.speisen.map(speiseZeile).join('; ') : 'Kein Mittagstisch'}
+                  {t.speisen?.length ? t.speisen.map(speiseZeile).join('; ') : 'Keine Angaben'}
                 </dd>
               </dl>
             </details>
@@ -208,7 +208,7 @@ const plaetze = t
           </label>
           <fieldset class="mittagstisch">
             <>
-              <legend>Mittagstisch (freiwillig)</legend>
+              <legend>Essen & Getränke (freiwillig)</legend>
               <p class="klein leise">
                 Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren.
               </p>
@@ -216,7 +216,7 @@ const plaetze = t
             {Array.from({ length: gerichte }, (_, i) => (
               <div class="zwei">
                 <label>
-                  Gericht {i + 1}
+                  Essen/Getränk {i + 1}
                   <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
                 </label>
                 <label>
@@ -232,7 +232,7 @@ const plaetze = t
             ))}
             {gerichte < 20 && (
               <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
-                + Weiteres Gericht
+                + Weiterer Eintrag
               </button>
             )}
           </fieldset>

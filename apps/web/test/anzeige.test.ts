@@ -102,3 +102,12 @@ describe('datumKurz (Issue #87)', () => {
     expect(datumKurz('2026-13-45')).toBe('');
   });
 });
+
+describe('artName (robust gegen unbekannte Arten)', () => {
+  it('Name, Kurzname, unbekannt → Rohwert', async () => {
+    const { artName } = await import('../src/lib/anzeige');
+    expect(artName('familie')).toBe('Kindertanz');
+    expect(artName('party', true)).toBe('Kirmestanz/Disco');
+    expect(artName('gibtsnicht')).toBe('gibtsnicht');
+  });
+});
