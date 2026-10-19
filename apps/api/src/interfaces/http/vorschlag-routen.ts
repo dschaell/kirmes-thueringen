@@ -28,6 +28,16 @@ export const vorschlagsZeileSchema = {
         properties: { name: text(120), preis: text(20) },
       },
     },
+    // Issue #169: öffentlich nur der Link (wird geprüft, nie gespeichert); die Redaktion schickt
+    // den gespeicherten Punkt zurück. Öffentlich gesendete Punkte ignoriert der Core.
+    karte: text(2000),
+    platz: {
+      type: ['object', 'null'],
+      additionalProperties: false,
+      required: ['lat', 'lon'],
+      properties: { lat: { type: 'number' }, lon: { type: 'number' } },
+    },
+    platzUebernehmen: { type: 'boolean' },
   },
 } as const;
 const eingabe = {

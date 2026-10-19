@@ -23,6 +23,7 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     info: 'Eintritt frei',
     muttizettel: true,
     speisen: [{ name: 'Klöße', preisCent: 950 }],
+    platz: null,
   };
   const eingabe = (): NeuerVorschlag => ({
     ortSlug: 'it-vorschlag',
@@ -197,5 +198,102 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
         )
       ).rows[0]?.n,
     ).toBe(1);
+  });
+});
+
+describe.runIf(url)('Vorschlag mit Kartenpunkt (Issue #169)', () => {
+  const db = new pg.Pool({ connectionString: url, max: 2 });
+  const repo = new PgVorschlaege(db);
+  let adminId = '';
+  const d = parseDatum('2027-09-18');
+  if (!d.ok) throw new Error('Testdatum ungültig');
+  const termin = (titel: string, platzUebernehmen: boolean): VorschlagsTermin => ({
+    ortSlug: 'it-kartenpunkt',
+    landkreis: 'IK',
+    datum: d.value,
+    beginn: null,
+    titel,
+    veranstaltungsort: `Kirche ${titel}`,
+    kategorie: 'tradition',
+    bestaetigt: false,
+    muttizettel: false,
+    speisen: [],
+    platz: { lat: 50.860399, lon: 11.093031 },
+    platzUebernehmen,
+  });
+  const bereinige = async () => {
+    await db.query(
+      "DELETE FROM vorschlag WHERE ort_id IN (SELECT id FROM ort WHERE slug = 'it-kartenpunkt')",
+    );
+    await db.query("DELETE FROM ort WHERE slug = 'it-kartenpunkt'");
+    await db.query("DELETE FROM admin WHERE name = 'IT Kartenpunkt'");
+  };
+  beforeAll(async () => {
+    await bereinige();
+    await db.query(
+      "INSERT INTO ort(slug, name, landkreis) VALUES ('it-kartenpunkt', 'IT Kartenpunkt', 'IK')",
+    );
+    adminId =
+      (
+        await db.query<{ id: string }>(
+          "INSERT INTO admin(name, rolle) VALUES ('IT Kartenpunkt', 'redaktion') RETURNING id::text",
+        )
+      ).rows[0]?.id ?? '';
+  });
+  afterAll(async () => {
+    await bereinige();
+    await db.end();
+  });
+
+  it('speichert nur Zahlen, Platz entsteht nur mit Haken', async () => {
+    expect(
+      await repo.lege({
+        ortSlug: 'it-kartenpunkt',
+        kontaktName: null,
+        kontaktEmail: null,
+        nachricht: null,
+        termine: [termin('A', false), { ...termin('B', false), platz: null }],
+      }),
+    ).toBe(true);
+    const spalten = await db.query(
+      `SELECT column_name, data_type FROM information_schema.columns
+        WHERE table_name = 'vorschlag_termin' AND column_name LIKE 'platz%' ORDER BY 1`,
+    );
+    expect(spalten.rows).toEqual([
+      { column_name: 'platz_lat', data_type: 'double precision' },
+      { column_name: 'platz_lon', data_type: 'double precision' },
+    ]);
+    const v = (await repo.liste()).find((x) => x.ortSlug === 'it-kartenpunkt');
+    expect(v?.termine.map((t) => t.platz)).toEqual([{ lat: 50.860399, lon: 11.093031 }, null]);
+    // Übernahme: A mit Haken → Platz, B ohne Punkt → nichts
+    expect(
+      await repo.uebernehme(
+        v?.id ?? '',
+        [termin('A', true), { ...termin('B', true), platz: null }],
+        adminId,
+      ),
+    ).toBe(true);
+    const plaetze = await db.query(
+      `SELECT name, round(ST_Y(lage::geometry)::numeric, 6)::float8 AS lat
+         FROM festplatz WHERE ort_id = (SELECT id FROM ort WHERE slug = 'it-kartenpunkt')`,
+    );
+    expect(plaetze.rows).toEqual([{ name: 'Kirche A', lat: 50.860399 }]);
+  });
+
+  it('ohne Haken kein Platz', async () => {
+    await repo.lege({
+      ortSlug: 'it-kartenpunkt',
+      kontaktName: null,
+      kontaktEmail: null,
+      nachricht: null,
+      termine: [termin('C', false)],
+    });
+    const v = (await repo.liste()).find((x) => x.ortSlug === 'it-kartenpunkt');
+    await repo.uebernehme(v?.id ?? '', [termin('C', false)], adminId);
+    const n = await db.query(
+      `SELECT count(*)::int AS n FROM festplatz
+        WHERE ort_id = (SELECT id FROM ort WHERE slug = 'it-kartenpunkt') AND name = 'Kirche C'`,
+    );
+    expect(n.rows[0]?.n).toBe(0);
   });
 });

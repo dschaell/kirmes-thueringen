@@ -343,6 +343,46 @@ const eigeneDauer = Number(s.tage) > 4;
                         value={z.veranstaltungsort ?? ''}
                       />
                     </label>
+                    {!redaktion && (
+                      <label>
+                        Google-Maps-Link zum Ort (optional)
+                        <input
+                          name={`karte-${i}`}
+                          data-kartenlink-name={`wo-${i}`}
+                          maxlength="2000"
+                          inputmode="url"
+                          placeholder="In Google Maps „Teilen → Link kopieren“"
+                          value={z.karte ?? ''}
+                        />
+                        <span class="klein leise">
+                          Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die
+                          Redaktion prüft ihn.
+                        </span>
+                      </label>
+                    )}
+                    {redaktion && z.platz && (
+                      <div class="kasten kartenpunkt">
+                        <p class="klein">
+                          Kartenpunkt vom Einsender:{' '}
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${z.platz.lat},${z.platz.lon}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            auf der Karte ansehen
+                          </a>
+                        </p>
+                        <label class="klein">
+                          <input
+                            type="checkbox"
+                            name={`platz-${i}`}
+                            checked={z.platzUebernehmen === true}
+                          />{' '}
+                          Als Platz „{z.veranstaltungsort || '–'}“ in {ortName} übernehmen (gilt
+                          dann für alle Termine mit diesem „Wo genau?“)
+                        </label>
+                      </div>
+                    )}
                     <label>
                       Hinweise (öffentlich)
                       <textarea
@@ -638,9 +678,14 @@ const eigeneDauer = Number(s.tage) > 4;
     flex-wrap: wrap;
     gap: 8px;
   }
+  .kartenpunkt {
+    display: grid;
+    gap: 6px;
+  }
 </style>
 <script>
   import '../scripts/ortssuche';
   import '../scripts/programmreihenfolge';
   import '../scripts/eigene-dauer';
+  import '../scripts/kartenlink-name';
 </script>

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   Vorschlaege,
   pruefeVorschlag,
+  istErlaubterKartenlink,
   type VorschlagEingabe,
   type VorschlagsRepository,
   type OrtRepository,
@@ -256,5 +257,95 @@ describe('Öffentliche Vorschläge', () => {
     expect(repo.lehneAb).toHaveBeenCalledWith(ID, 'Falsches  Datum', '1');
     await v.lehneAb('token', ID);
     expect(repo.lehneAb).toHaveBeenCalledWith(ID, null, '1');
+  });
+});
+
+describe('Kartenlink beim Melden (Issue #169)', () => {
+  const APOSTEL =
+    'https://www.google.com/maps/place/Gastst%C3%A4tte+Zum+einkehrenden+Apostel/@50.8603992,11.0904561,750m/data=!3m2!1e3!4b1!8m2!3d50.8603992!4d11.093031?entry=ttu';
+  it.each([
+    [APOSTEL, true],
+    ['https://www.google.de/maps/@50.86,11.09,17z', true],
+    ['https://maps.google.com/maps?q=50.86,11.09', true],
+    ['https://maps.app.goo.gl/AbC123xyz', true],
+    ['https://goo.gl/maps/AbC123', true],
+    ['50.8604, 11.0930', true],
+    ['http://www.google.com/maps/@50.86,11.09,17z', false],
+    ['https://evil.example/maps/@50.86,11.09', false],
+    ['https://www.google.com.evil.example/maps/@50.86,11.09', false],
+    ['https://www.google.com@evil.example/maps/', false],
+    ['https://user:pw@www.google.com/maps/', false],
+    ['https://www.google.com:8443/maps/', false],
+    ['https://www.google.com/search?q=maps', false],
+    ['https://www.google.com/url?q=https://evil.example', false],
+    ['https://maps.app.goo.gl/AbC/../../x', false],
+    ['javascript:alert(1)', false],
+    ['data:text/html,<script>alert(1)</script>', false],
+    ['https://www.google.com/maps/\u0000', false],
+    ['https://www.google.com/maps/ x', false],
+    [`https://www.google.com/maps/${'a'.repeat(2000)}`, false],
+    ['', false],
+  ])('%s → %s', (link, erlaubt) => expect(istErlaubterKartenlink(link)).toBe(erlaubt));
+
+  const orte = {
+    finde: async () => ({ slug: 'elleben', name: 'Elleben', landkreis: 'IK', koordinate: null }),
+    liste: async () => [],
+  } as never;
+  const mit = (z: object) => ({
+    ortSlug: 'elleben',
+    zeilen: [{ datum: '2027-09-17', titel: 'Frühschoppen', ...z }],
+  });
+  const fehlermeldungen = (r: { ok: boolean; error?: unknown }) =>
+    r.ok ? [] : (r.error as { meldung: string }[]).map((f) => f.meldung);
+
+  it('nur Koordinaten und Name werden übernommen, nie der Link', async () => {
+    const r = await pruefeVorschlag(mit({ karte: APOSTEL }), orte);
+    expect(r.ok).toBe(true);
+    const t = r.ok ? r.value.termine[0] : null;
+    expect(t?.platz).toEqual({ lat: 50.860399, lon: 11.093031 }); // auf ~10 cm gerundet
+    expect(t?.veranstaltungsort).toBe('Gaststätte Zum einkehrenden Apostel');
+    expect(JSON.stringify(r)).not.toContain('google');
+    expect(t?.platzUebernehmen).toBe(false);
+  });
+  it('Kurzlink wird über den sicheren Auflöser gelesen', async () => {
+    const aufloesen = vi.fn(async () => APOSTEL);
+    const r = await pruefeVorschlag(
+      mit({ karte: 'https://maps.app.goo.gl/Abc', veranstaltungsort: 'Saal' }),
+      orte,
+      { karten: { aufloesen } },
+    );
+    expect(aufloesen).toHaveBeenCalledWith('https://maps.app.goo.gl/Abc');
+    expect(r.ok && r.value.termine[0]?.veranstaltungsort).toBe('Saal');
+    const nichts = await pruefeVorschlag(mit({ karte: 'https://maps.app.goo.gl/Abc' }), orte, {
+      karten: { aufloesen: async () => null },
+    });
+    expect(fehlermeldungen(nichts)[0]).toContain('nicht erkannt');
+  });
+  it.each([
+    ['https://evil.example/maps/@50.86,11.09', 'nur einen Link aus Google Maps'],
+    ['https://www.google.com/maps/@52.52,13.40,17z', 'nicht in Thüringen'],
+    ['50.86, 11.09', '„Wo genau?“ ausfüllen'],
+  ])('abgelehnt: %s', async (karte, meldung) => {
+    expect(fehlermeldungen(await pruefeVorschlag(mit({ karte }), orte))[0]).toContain(meldung);
+  });
+  it('öffentlich gesendete Punkte werden ignoriert, die Redaktion prüft gespeicherte', async () => {
+    const oeffentlich = await pruefeVorschlag(
+      mit({ platz: { lat: 50.9, lon: 11 }, platzUebernehmen: true, veranstaltungsort: 'Kirche' }),
+      orte,
+    );
+    expect(oeffentlich.ok && oeffentlich.value.termine[0]?.platz).toBeNull();
+    const redaktion = await pruefeVorschlag(
+      mit({ platz: { lat: 50.9, lon: 11 }, platzUebernehmen: true, veranstaltungsort: 'Kirche' }),
+      orte,
+      { redaktion: true },
+    );
+    expect(redaktion.ok && redaktion.value.termine[0]).toMatchObject({
+      platz: { lat: 50.9, lon: 11 },
+      platzUebernehmen: true,
+    });
+    const falsch = await pruefeVorschlag(mit({ platz: { lat: 1, lon: 2 } }), orte, {
+      redaktion: true,
+    });
+    expect(fehlermeldungen(falsch)[0]).toContain('Kartenpunkt ungültig');
   });
 });

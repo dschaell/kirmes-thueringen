@@ -11,7 +11,9 @@ const BASIS = `SELECT v.id, o.slug AS "ortSlug", o.name AS "ortName", v.erstellt
  coalesce((SELECT jsonb_agg(jsonb_build_object('ortSlug', o.slug, 'landkreis', o.landkreis,
  'datum', t.datum::text, 'beginn', to_char(t.beginn, 'HH24:MI'), 'titel', t.titel,
  'veranstaltungsort', t.veranstaltungsort, 'kategorie', t.kategorie, 'band', t.band,
- 'info', t.info, 'muttizettel', t.muttizettel, 'bestaetigt', false, 'speisen', t.speisen)
+ 'info', t.info, 'muttizettel', t.muttizettel, 'bestaetigt', false, 'speisen', t.speisen,
+ 'platz', CASE WHEN t.platz_lat IS NULL THEN NULL
+   ELSE jsonb_build_object('lat', t.platz_lat, 'lon', t.platz_lon) END)
  ORDER BY t.position) FROM vorschlag_termin t WHERE t.vorschlag_id = v.id), '[]') AS termine
  FROM vorschlag v JOIN ort o ON o.id = v.ort_id`;
 const LISTE = BASIS + ` WHERE v.status = 'offen' ORDER BY v.erstellt_am LIMIT 100`;
@@ -23,6 +25,10 @@ const ANLEGEN = `INSERT INTO termin(ort_id, datum, beginn, titel, veranstaltungs
  bestaetigt, quelle, eingetragen_von_admin, band, info, muttizettel)
  SELECT id, $2::date, $3::time, $4, $5, $6, $7, 'Redaktion', $8, $9, $10, $11 FROM ort WHERE slug = $1
  ON CONFLICT (ort_id, datum, titel) DO NOTHING RETURNING id, ort_id`;
+
+const PLATZ = `INSERT INTO festplatz(ort_id, name, lage)
+ VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
+ ON CONFLICT (ort_id, name) DO UPDATE SET lage = EXCLUDED.lage, geaendert_am = now()`;
 
 class TerminKonflikt extends Error {}
 
@@ -64,8 +70,8 @@ export class PgVorschlaege implements VorschlagsRepository {
       for (const [i, t] of v.termine.entries()) {
         await c.query(
           `INSERT INTO vorschlag_termin(vorschlag_id, position, datum, beginn, titel,
-          veranstaltungsort, kategorie, band, info, muttizettel, speisen)
-          VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
+          veranstaltungsort, kategorie, band, info, muttizettel, speisen, platz_lat, platz_lon)
+          VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)`,
           [
             vid,
             i + 1,
@@ -78,6 +84,8 @@ export class PgVorschlaege implements VorschlagsRepository {
             t.info,
             t.muttizettel,
             JSON.stringify(t.speisen),
+            t.platz?.lat ?? null,
+            t.platz?.lon ?? null,
           ],
         );
       }
@@ -141,6 +149,16 @@ export class PgVorschlaege implements VorschlagsRepository {
             'termin_angelegt',
             { id: termin.id, vorschlag: id },
           ]);
+          // Kartenpunkt des Einsenders nur mit Haken der Redaktion als Platz übernehmen (Issue #169)
+          if (t.platz && t.platzUebernehmen && t.veranstaltungsort) {
+            await c.query(PLATZ, [termin.ort_id, t.veranstaltungsort, t.platz.lon, t.platz.lat]);
+            await c.query(AUDIT, [
+              adminId,
+              termin.ort_id,
+              'festplatz_gespeichert',
+              { name: t.veranstaltungsort, ...t.platz, vorschlag: id },
+            ]);
+          }
         }
         // datenaenderung-freigegeben: #71 – Kontaktdaten sofort nach Bearbeitung entfernen.
         await c.query(ABSCHLUSS, [id, 'uebernommen', adminId, null]);
