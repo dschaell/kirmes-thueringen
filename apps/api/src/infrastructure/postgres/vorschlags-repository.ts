@@ -48,7 +48,7 @@ export class PgVorschlaege implements VorschlagsRepository {
       c.release();
     }
   }
-  async lege(v: NeuerVorschlag) {
+  async lege(v: NeuerVorschlag): Promise<string | false> {
     return this.transaktion(async (c) => {
       const ort = await c.query<{ id: string }>('SELECT id FROM ort WHERE slug = $1 FOR UPDATE', [
         v.ortSlug,
@@ -89,7 +89,7 @@ export class PgVorschlaege implements VorschlagsRepository {
           ],
         );
       }
-      return true;
+      return vid;
     });
   }
   async liste(): Promise<Vorschlag[]> {

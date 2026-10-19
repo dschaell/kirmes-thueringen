@@ -55,7 +55,7 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     await db.end();
   });
   it('speichert privat, liest geordnet mit Speisen und findet keine unbekannten IDs', async () => {
-    expect(await repo.lege(eingabe())).toBe(true);
+    expect(await repo.lege(eingabe())).toMatch(/^[0-9a-f-]{36}$/);
     const v = (await repo.liste()).find((v) => v.ortSlug === 'it-vorschlag');
     expect(v).toMatchObject({
       kontaktName: 'KG',
@@ -168,7 +168,7 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     ).toBe(1);
   });
   it('höchstens 50 offene je Ort, auch bei gleichzeitigen Einreichungen', async () => {
-    for (let i = 0; i < 49; i++) expect(await repo.lege(eingabe())).toBe(true);
+    for (let i = 0; i < 49; i++) expect(await repo.lege(eingabe())).toMatch(/^[0-9a-f-]{36}$/);
     expect(
       (
         await Promise.all([repo.lege(eingabe()), repo.lege(eingabe()), repo.lege(eingabe())])
@@ -254,7 +254,7 @@ describe.runIf(url)('Vorschlag mit Kartenpunkt (Issue #169)', () => {
         nachricht: null,
         termine: [termin('A', false), { ...termin('B', false), platz: null }],
       }),
-    ).toBe(true);
+    ).toMatch(/^[0-9a-f-]{36}$/);
     const spalten = await db.query(
       `SELECT column_name, data_type FROM information_schema.columns
         WHERE table_name = 'vorschlag_termin' AND column_name LIKE 'platz%' ORDER BY 1`,
