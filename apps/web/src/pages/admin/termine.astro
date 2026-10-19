@@ -274,7 +274,11 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
           <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
         </p>
 
-        <details class="filter plaetze" open={plaetze.length === 0}>
+        <details
+          class="filter plaetze"
+          id="plaetze"
+          open={plaetze.length === 0 || Astro.url.searchParams.has('plaetze')}
+        >
           <summary>
             <Icon name="route" />
             Plätze in {ort.name} ({plaetze.length}) – für die genaue Route

@@ -1,6 +1,8 @@
 import { LetzterAdmin } from '@kirmes/core';
 import type {
   AdminKonten,
+  EigenerOrt,
+  OrtLoeschen,
   Anlagebedingung,
   EinladungInfo,
   Einladungen,
@@ -159,6 +161,61 @@ export class PgOrtVerwaltung implements OrtVerwaltung {
       [adminId, neu.id, o],
     );
     return { slug: o.slug, name: o.name, landkreis: o.landkreis, koordinate: o.koordinate };
+  }
+
+  async eigene(): Promise<EigenerOrt[]> {
+    const { rows } = await abfrage<EigenerOrt>(
+      this.db,
+      `SELECT o.slug, o.name, o.landkreis,
+              (SELECT count(*)::int FROM termin t WHERE t.ort_id = o.id) AS termine,
+              (SELECT count(*)::int FROM vorschlag v WHERE v.ort_id = o.id) AS vorschlaege
+         FROM ort o WHERE o.herkunft = 'redaktion' ORDER BY o.name, o.slug`,
+      [],
+    );
+    return rows;
+  }
+
+  async loesche(slug: string, adminId: string): Promise<OrtLoeschen> {
+    const c = await this.db.connect();
+    try {
+      await c.query('BEGIN');
+      // Sperrt den Ort, damit nicht gleichzeitig ein Termin angelegt wird (termin hängt per CASCADE dran)
+      const { rows } = await c.query<{
+        id: string;
+        name: string;
+        herkunft: string;
+        belegt: boolean;
+      }>(
+        `SELECT o.id::text, o.name, o.herkunft,
+                EXISTS (SELECT 1 FROM termin t WHERE t.ort_id = o.id)
+                  OR EXISTS (SELECT 1 FROM vorschlag v WHERE v.ort_id = o.id) AS belegt
+           FROM ort o WHERE o.slug = $1 FOR UPDATE`,
+        [slug],
+      );
+      const o = rows[0];
+      const ergebnis: OrtLoeschen = !o
+        ? 'unbekannt'
+        : o.herkunft !== 'redaktion'
+          ? 'ortsverzeichnis'
+          : o.belegt
+            ? 'belegt'
+            : 'geloescht';
+      if (o && ergebnis === 'geloescht') {
+        await c.query('DELETE FROM ort WHERE id = $1::bigint', [o.id]);
+        await c.query(
+          `INSERT INTO aenderungsprotokoll (admin_id, ort_id, aktion, details)
+           VALUES ($1, NULL, 'ort_geloescht', $2)`,
+          [adminId, { slug, name: o.name }],
+        );
+      }
+      await c.query('COMMIT');
+      return ergebnis;
+    } catch (e) {
+      await c.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 }
 

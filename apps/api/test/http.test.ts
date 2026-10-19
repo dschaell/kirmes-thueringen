@@ -258,7 +258,20 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
           setzeVeroeffentlicht: async (id) => id === '5',
           loesche: async (id) => id === '5',
         },
-        { lege: async (o) => ({ ...o }) },
+        {
+          lege: async (o) => ({ ...o }),
+          eigene: async () => [
+            { slug: 'kirche-x', name: 'Kirche X', landkreis: 'GTH', termine: 0, vorschlaege: 0 },
+          ],
+          loesche: async (slug) =>
+            slug === 'kirche-x'
+              ? 'geloescht'
+              : slug === 'muehlberg'
+                ? 'ortsverzeichnis'
+                : slug === 'belegt'
+                  ? 'belegt'
+                  : 'unbekannt',
+        },
         async (slug) => (slug === 'muehlberg' ? 'GTH' : null),
         terminVerwaltung,
         {
@@ -1150,6 +1163,22 @@ describe('Mitglieder und Einladungen', () => {
     const r = await rufe('GET', '/api/v1/admin/sicherungen', alsAdmin);
     expect(r.statusCode).toBe(200);
     expect(r.json()).toEqual({ status: null, dateien: [] });
+  });
+
+  it('Orte löschen nur als Admin, mit klaren Gründen (Issue #159)', async () => {
+    await setup();
+    expect((await rufe('GET', '/api/v1/admin/orte/eigene', alsRedaktion)).json()).toHaveLength(1);
+    expect((await rufe('DELETE', '/api/v1/admin/orte/kirche-x', alsRedaktion)).statusCode).toBe(
+      403,
+    );
+    expect((await rufe('DELETE', '/api/v1/admin/orte/kirche-x', alsAdmin)).statusCode).toBe(204);
+    expect((await rufe('DELETE', '/api/v1/admin/orte/gibtsnicht', alsAdmin)).statusCode).toBe(404);
+    const osm = await rufe('DELETE', '/api/v1/admin/orte/muehlberg', alsAdmin);
+    expect(osm.statusCode).toBe(409);
+    expect(osm.json().title).toContain('Ortsverzeichnis');
+    expect((await rufe('DELETE', '/api/v1/admin/orte/belegt', alsAdmin)).json().title).toContain(
+      'Termine oder Vorschläge',
+    );
   });
 
   it('Admin verwaltet Mitglieder – der letzte Admin bleibt', async () => {

@@ -190,6 +190,13 @@ const plaetze = t
               </label>
             </>
           </div>
+          <p class="klein leise">
+            Kirche, Festzelt & Co. auf der Karte festlegen:{' '}
+            <a href={`/admin/termine?ort=${t.ort.slug}&plaetze=1#plaetze`}>
+              Plätze in {t.ort.name}
+            </a>{' '}
+            – Termine mit gleichem „Wo genau?“ führen dann genau dorthin.
+          </p>
           <label>
             Art
             <select name="kategorie">

@@ -12,24 +12,51 @@ let fehler: string[] = [];
 let neuerSlug: string | null = null;
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
-  const k = feld(f, 'koordinate') ? koordinateAusText(feld(f, 'koordinate')) : null;
-  if (feld(f, 'koordinate') && !k) {
-    fehler = [
-      'Koordinate nicht erkannt – bitte „50.87, 10.82“ oder einen Google-Maps-Link einfügen.',
-    ];
+  if (feld(f, 'aktion') === 'loeschen') {
+    // Versehentlich angelegten Ort entfernen (Issue #159) – die API prüft Herkunft, Termine, Rolle
+    const name = feld(f, 'name');
+    if (!f.has('sicher')) fehler = [`Bitte bestätigen, dass „${name}“ gelöscht werden soll.`];
+    else {
+      const r = await adminApi(
+        Astro.cookies,
+        'DELETE',
+        `orte/${encodeURIComponent(feld(f, 'slug'))}`,
+      );
+      if (r.status === 204) meldung = `Ort „${name}“ gelöscht.`;
+      else fehler = r.fehler;
+    }
   } else {
-    const r = await adminApi<{ slug: string; name: string }>(Astro.cookies, 'POST', 'orte', {
-      name: feld(f, 'name'),
-      landkreis: feld(f, 'landkreis'),
-      lat: k?.lat ?? null,
-      lon: k?.lon ?? null,
-    });
-    if (r.daten) {
-      neuerSlug = r.daten.slug;
-      meldung = `Ort „${r.daten.name}“ angelegt.`;
-    } else fehler = r.fehler;
+    const k = feld(f, 'koordinate') ? koordinateAusText(feld(f, 'koordinate')) : null;
+    if (feld(f, 'koordinate') && !k) {
+      fehler = [
+        'Koordinate nicht erkannt – bitte „50.87, 10.82“ oder einen Google-Maps-Link einfügen.',
+      ];
+    } else {
+      const r = await adminApi<{ slug: string; name: string }>(Astro.cookies, 'POST', 'orte', {
+        name: feld(f, 'name'),
+        landkreis: feld(f, 'landkreis'),
+        lat: k?.lat ?? null,
+        lon: k?.lon ?? null,
+      });
+      if (r.daten) {
+        neuerSlug = r.daten.slug;
+        meldung = `Ort „${r.daten.name}“ angelegt.`;
+      } else fehler = r.fehler;
+    }
   }
 }
+const eigene =
+  (
+    await adminApi<
+      {
+        slug: string;
+        name: string;
+        landkreis: LandkreisKuerzel;
+        termine: number;
+        vorschlaege: number;
+      }[]
+    >(Astro.cookies, 'GET', 'orte/eigene')
+  ).daten ?? [];
 
 const suche = Astro.url.searchParams.get('suche')?.trim().toLowerCase() ?? '';
 const treffer = suche
@@ -87,7 +114,57 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
     )
   }
 
+  {
+    eigene.length > 0 && (
+      <>
+        <h2>Selbst angelegte Orte</h2>
+        <p class="leise klein">
+          Aus Versehen angelegt? Löschen geht, solange keine Termine oder Vorschläge daran hängen.
+          Orte aus dem Ortsverzeichnis bleiben immer erhalten.
+        </p>
+        <table class="admin-tabelle">
+          <tbody>
+            {eigene.map((o) => (
+              <tr>
+                <td>
+                  <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
+                  <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+                </td>
+                <td class="klein">
+                  {o.termine} Termine{o.vorschlaege > 0 && ` · ${o.vorschlaege} Vorschläge`}
+                </td>
+                <td>
+                  {o.termine + o.vorschlaege === 0 ? (
+                    <form method="post" class="loeschen-form">
+                      <CsrfFeld />
+                      <input type="hidden" name="aktion" value="loeschen" />
+                      <input type="hidden" name="slug" value={o.slug} />
+                      <input type="hidden" name="name" value={o.name} />
+                      <label class="klein">
+                        <input type="checkbox" name="sicher" required /> sicher
+                      </label>
+                      <button class="knopf zweit" type="submit">
+                        Löschen
+                      </button>
+                    </form>
+                  ) : (
+                    <span class="leise klein">erst Termine löschen</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    )
+  }
+
   <h2>Neuen Ort anlegen</h2>
+  <p class="kasten klein">
+    <strong>Kirche, Festzelt oder Sportplatz?</strong> Das ist kein neuer Ort, sondern ein{' '}
+    <strong>Platz</strong> im Ort: unter „Termine“ den Ort wählen und bei „Plätze in …“ den Platz mit
+    Google-Maps-Link eintragen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
+  </p>
   <form class="melden" method="post">
     <CsrfFeld />
     <div class="zwei">
@@ -109,3 +186,11 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
     <div><button class="knopf" type="submit">Ort anlegen</button></div>
   </form>
 </AdminLayout>
+<style>
+  .loeschen-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+</style>
