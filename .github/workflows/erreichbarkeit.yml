@@ -1,4 +1,4 @@
-# Erreichbarkeit der Live-Website (Issue #45): alle 10 Minuten Startseite, Terminliste (braucht API und
+# Erreichbarkeit der Live-Website (Issue #45): alle 15 Minuten Startseite, Terminliste (braucht API und
 # Datenbank) und Kalender-Abo. Erst wenn eine Prüfung auch nach einer Minute noch scheitert, gilt die
 # Seite als ausgefallen: Issue mit Label „ausfall“ anlegen bzw. ergänzen – GitHub schickt dazu eine
 # Mail. Ist alles wieder erreichbar, wird das Issue kommentiert und geschlossen.
@@ -6,7 +6,8 @@ name: Erreichbarkeit
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Ungerade Minuten: GitHub verzögert Zeitpläne zur vollen Stunde/Viertelstunde am stärksten (#173)
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
 permissions:
