@@ -83,7 +83,13 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       </span>
                     )}
                     <div class="wo">
-                      {ortLinks ? <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> : t.ort.name}
+                      {ortLinks ? (
+                        <a class="ortname" href={`/orte/${t.ort.slug}`}>
+                          {t.ort.name}
+                        </a>
+                      ) : (
+                        <span class="ortname">{t.ort.name}</span>
+                      )}
                       {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
                     </div>
                     {t.band && (
