@@ -15,17 +15,17 @@ const ersteinrichtung = (await einrichtungsStatus()).offen;
     <h1>Redaktion</h1>
     <p class="unterzeile">Nur für die Redaktion des Kirmeskalenders.</p>
   </section>
-  {
-    ersteinrichtung && (
-      <p class="kasten">
-        Es gibt noch keinen Admin. <a href="/admin/einrichten">Jetzt einrichten</a>
-      </p>
-    )
-  }
+  {ersteinrichtung && (
+    <p class="kasten">
+      Es gibt noch keinen Admin. <a href="/admin/einrichten">Jetzt einrichten</a>
+    </p>
+  )}
   <CsrfFeld />
   <input type="hidden" id="nach-anmeldung" value={weiter} />
   <section class="passkey-anmeldung" id="passkey-bereich">
-    <button class="knopf" type="button" id="passkey-anmelden">Mit Passkey anmelden</button>
+    <button class="knopf" type="button" id="passkey-anmelden">
+      Mit Passkey anmelden
+    </button>
     <p class="leise klein" id="passkey-status" role="status" aria-live="polite"></p>
   </section>
   <p class="leise">

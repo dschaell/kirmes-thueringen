@@ -62,47 +62,41 @@ const geladen = Date.now();
   </section>
 
   <div class="kasten">
-    <p><strong>So geht's:</strong></p>
+    <p>
+      <strong>So geht's:</strong>
+    </p>
     <ol>
       <li>Du schickst uns hier eine kurze Nachricht.</li>
       <li>Passt es, bekommst du von uns einen persönlichen Einladungslink.</li>
       <li>
-        Über den Link legst du einen <strong>Passkey</strong> an (Face ID, Touch ID oder PIN deines Geräts)
-        – ohne Passwort. Gespeichert wird nur der Name, den du dort wählst.
+        Über den Link legst du einen <strong>Passkey</strong> an (Face ID, Touch ID oder PIN deines
+        Geräts) – ohne Passwort. Gespeichert wird nur der Name, den du dort wählst.
       </li>
     </ol>
   </div>
 
   <div id="rueckmeldung" class="rueckmeldung">
-    {
-      ergebnis?.status === 'gesendet' && (
-        <p class="meldung erfolg" role="status">
-          <Icon name="haken" />
-          Danke! Deine Nachricht ist angekommen. Wir melden uns per E-Mail.
-        </p>
-      )
-    }
-    {
-      ergebnis?.status === 'fehler' && (
-        <p class="meldung" role="alert">
-          Bitte die markierten Angaben prüfen.
-        </p>
-      )
-    }
-    {
-      ergebnis?.status === 'abgelaufen' && (
-        <p class="meldung" role="alert">
-          Das Formular war zu lange geöffnet. Bitte noch einmal auf „Senden“ klicken.
-        </p>
-      )
-    }
-    {
-      (ergebnis?.status === 'zu-viele' || ergebnis?.status === 'nicht-moeglich') && (
-        <p class="meldung" role="alert">
-          Das Senden klappt gerade nicht. Bitte später noch einmal versuchen.
-        </p>
-      )
-    }
+    {ergebnis?.status === 'gesendet' && (
+      <p class="meldung erfolg" role="status">
+        <Icon name="haken" />
+        Danke! Deine Nachricht ist angekommen. Wir melden uns per E-Mail.
+      </p>
+    )}
+    {ergebnis?.status === 'fehler' && (
+      <p class="meldung" role="alert">
+        Bitte die markierten Angaben prüfen.
+      </p>
+    )}
+    {ergebnis?.status === 'abgelaufen' && (
+      <p class="meldung" role="alert">
+        Das Formular war zu lange geöffnet. Bitte noch einmal auf „Senden“ klicken.
+      </p>
+    )}
+    {(ergebnis?.status === 'zu-viele' || ergebnis?.status === 'nicht-moeglich') && (
+      <p class="meldung" role="alert">
+        Das Senden klappt gerade nicht. Bitte später noch einmal versuchen.
+      </p>
+    )}
   </div>
 
   <form class="melden" method="post" action={`${PFAD}#rueckmeldung`}>
@@ -138,10 +132,13 @@ const geladen = Date.now();
       <textarea name="info" rows="4" maxlength="2000" set:text={werte.info ?? ''} />
     </label>
     <p class="leise klein">
-      Deine Nachricht geht per E-Mail an die Redaktion und wird nicht gespeichert. Mehr dazu im <a
-        href="/datenschutz">Datenschutz</a
-      >.
+      Deine Nachricht geht per E-Mail an die Redaktion und wird nicht gespeichert. Mehr dazu im{' '}
+      <a href="/datenschutz">Datenschutz</a>.
     </p>
-    <div><button class="knopf" type="submit">Senden</button></div>
+    <div>
+      <button class="knopf" type="submit">
+        Senden
+      </button>
+    </div>
   </form>
 </Base>

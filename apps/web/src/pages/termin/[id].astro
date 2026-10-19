@@ -66,112 +66,108 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <h1>{t.titel}</h1>
 
     <dl class="fakten">
-      <dt><Icon name="uhr" /><span class="sr-only">Beginn</span></dt>
+      <dt>
+        <Icon name="uhr" />
+        <span class="sr-only">Beginn</span>
+      </dt>
       <dd>{t.beginn ? `${t.beginn} Uhr` : 'Uhrzeit noch offen'}</dd>
-      <dt><Icon name="ort" /><span class="sr-only">Ort</span></dt>
+      <dt>
+        <Icon name="ort" />
+        <span class="sr-only">Ort</span>
+      </dt>
       <dd>
         {t.veranstaltungsort && <>{t.veranstaltungsort}, </>}
         <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
       </dd>
-      {
-        t.band && (
-          <>
-            <dt>
-              <Icon name="musik" />
-              <span class="sr-only">Musik</span>
-            </dt>
-            <dd>{t.band}</dd>
-          </>
-        )
-      }
-      {
-        t.pfarrer && (
-          <>
-            <dt>
-              <Icon name="kirche" />
-              <span class="sr-only">Pfarrer/in</span>
-            </dt>
-            <dd>Pfarrer/in: {t.pfarrer}</dd>
-          </>
-        )
-      }
-      <dt><Icon name="zelt" /><span class="sr-only">Art</span></dt>
+      {t.band && (
+        <>
+          <dt>
+            <Icon name="musik" />
+            <span class="sr-only">Musik</span>
+          </dt>
+          <dd>{t.band}</dd>
+        </>
+      )}
+      {t.pfarrer && (
+        <>
+          <dt>
+            <Icon name="kirche" />
+            <span class="sr-only">Pfarrer/in</span>
+          </dt>
+          <dd>Pfarrer/in: {t.pfarrer}</dd>
+        </>
+      )}
+      <dt>
+        <Icon name="zelt" />
+        <span class="sr-only">Art</span>
+      </dt>
       <dd>
         {artName(t.kategorie)}
-        {
-          t.bestaetigt ? (
-            <span class="bestaetigt">
-              <Icon name="haken" groesse={14} />
-              vom Veranstalter bestätigt
-            </span>
-          ) : (
-            <span class="leise klein">
-              {' '}
-              · aus einer öffentlichen Ankündigung, noch nicht vom Veranstalter bestätigt
-            </span>
-          )
-        }
+        {t.bestaetigt ? (
+          <span class="bestaetigt">
+            <Icon name="haken" groesse={14} />
+            vom Veranstalter bestätigt
+          </span>
+        ) : (
+          <span class="leise klein">
+            {' '}
+            · aus einer öffentlichen Ankündigung, noch nicht vom Veranstalter bestätigt
+          </span>
+        )}
       </dd>
     </dl>
-    {
-      t.info && (
-        <p class="hinweise">
-          <Icon name="info" />
-          <span>{t.info}</span>
+    {t.info && (
+      <p class="hinweise">
+        <Icon name="info" />
+        <span>{t.info}</span>
+      </p>
+    )}
+
+    {t.speisen && t.speisen.length > 0 && (
+      <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
+        <h2 id="mittagstisch-kopf">Essen & Getränke</h2>
+        <ul>
+          {t.speisen.map((s) => (
+            <li>
+              <span>{s.name}</span>
+              {s.preisCent != null && <span class="preis">{preisText(s.preisCent)}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {t.muttizettel && (
+      <div class="kasten muttizettel-hinweis">
+        <p>
+          <strong>Muttizettel nötig.</strong> Unter 16 – und mit 16 oder 17 nach Mitternacht – nur
+          mit Eltern oder einer erziehungsbeauftragten Person.
         </p>
-      )
-    }
-
-    {
-      t.speisen && t.speisen.length > 0 && (
-        <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
-          <h2 id="mittagstisch-kopf">Essen & Getränke</h2>
-          <ul>
-            {t.speisen.map((s) => (
-              <li>
-                <span>{s.name}</span>
-                {s.preisCent != null && <span class="preis">{preisText(s.preisCent)}</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
-
-    {
-      t.muttizettel && (
-        <div class="kasten muttizettel-hinweis">
-          <p>
-            <strong>Muttizettel nötig.</strong> Unter 16 – und mit 16 oder 17 nach Mitternacht – nur
-            mit Eltern oder einer erziehungsbeauftragten Person.
-          </p>
-          <a class="knopf zweit" href={`/termin/${t.id}/muttizettel`}>
-            <Icon name="dokument" />
-            Vorlage herunterladen
-          </a>
-        </div>
-      )
-    }
+        <a class="knopf zweit" href={`/termin/${t.id}/muttizettel`}>
+          <Icon name="dokument" />
+          Vorlage herunterladen
+        </a>
+      </div>
+    )}
 
     <h2 class="sr-only">Anfahrt und Teilen</h2>
     <div class="knopfreihe">
-      {
-        route && (
-          <>
-            <a class="knopf" href={route.google} target="_blank" rel="noopener">
-              <Icon name="route" />
-              Route mit Google Maps
-            </a>
-            <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
-              <Icon name="route" />
-              Apple Karten
-            </a>
-          </>
-        )
-      }
-      <a class="knopf zweit" href={`/termin/${t.id}.ics`}
-        ><Icon name="kalender" />In Kalender eintragen</a
-      >
+      {route && (
+        <>
+          <a class="knopf" href={route.google} target="_blank" rel="noopener">
+            <Icon name="route" />
+            Route mit Google Maps
+          </a>
+          <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
+            <Icon name="route" />
+            Apple Karten
+          </a>
+        </>
+      )}
+      <a class="knopf zweit" href={`/termin/${t.id}.ics`}>
+        <Icon name="kalender" />
+        In Kalender eintragen
+      </a>
       <a
         class="knopf zweit"
         id="teilen"
@@ -179,40 +175,37 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         data-url={url}
         href={`https://wa.me/?text=${encodeURIComponent(`${teilenText}\n${url}`)}`}
         target="_blank"
-        rel="noopener"><Icon name="teilen" />Teilen</a
+        rel="noopener"
       >
+        <Icon name="teilen" />
+        Teilen
+      </a>
     </div>
     <p class="genau">
-      {
-        !route
-          ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
-          : route.art === 'genau'
-            ? 'Die Route führt genau zum Veranstaltungsort.'
-            : t.kategorie === 'staendchen'
-              ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
-              : 'Die Route führt in den Ort.'
-      }
+      {!route
+        ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
+        : route.art === 'genau'
+          ? 'Die Route führt genau zum Veranstaltungsort.'
+          : t.kategorie === 'staendchen'
+            ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
+            : 'Die Route führt in den Ort.'}
     </p>
-    {
-      (t.festplatz ?? t.ort.koordinate) && (
-        <GoogleKarte
-          lat={(t.festplatz ?? t.ort.koordinate)!.lat}
-          lon={(t.festplatz ?? t.ort.koordinate)!.lon}
-          titel={`Karte: ${t.veranstaltungsort ?? t.ort.name}`}
-          genau={Boolean(t.festplatz)}
-        />
-      )
-    }
+    {(t.festplatz ?? t.ort.koordinate) && (
+      <GoogleKarte
+        lat={(t.festplatz ?? t.ort.koordinate)!.lat}
+        lon={(t.festplatz ?? t.ort.koordinate)!.lon}
+        titel={`Karte: ${t.veranstaltungsort ?? t.ort.name}`}
+        genau={Boolean(t.festplatz)}
+      />
+    )}
   </article>
 
-  {
-    rundherum.length > 0 && (
-      <section>
-        <h2>Mehr von der Kirmes in {t.ort.name}</h2>
-        <TerminListe termine={rundherum} ortLinks={false} monate={false} hinweis={false} />
-      </section>
-    )
-  }
+  {rundherum.length > 0 && (
+    <section>
+      <h2>Mehr von der Kirmes in {t.ort.name}</h2>
+      <TerminListe termine={rundherum} ortLinks={false} monate={false} hinweis={false} />
+    </section>
+  )}
 
   <p class="kasten abstand">
     Stimmt etwas nicht? <a href={`/termin/${t.id}/korrektur`}>Korrektur melden</a>

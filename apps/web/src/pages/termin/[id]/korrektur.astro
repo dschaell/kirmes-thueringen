@@ -78,76 +78,76 @@ const gesendet = Astro.url.searchParams.has('gesendet');
   noindex
 >
   <section class="einstieg">
-    <p class="brotkrumen"><a href={pfad}>← Zurück zum Termin</a></p>
+    <p class="brotkrumen">
+      <a href={pfad}>← Zurück zum Termin</a>
+    </p>
     <h1>Stimmt etwas nicht?</h1>
     <p class="unterzeile">
       <strong>{t.titel}</strong> · {t.ort.name} · {datumLangJahr(t.datum)}
       {t.beginn && ` · ${t.beginn} Uhr`}
     </p>
   </section>
-  {
-    gesendet ? (
-      <>
-        <p class="meldung erfolg" role="status">
-          <Icon name="haken" />
-          Danke! Die Redaktion prüft deinen Hinweis und korrigiert den Termin.
+  {gesendet ? (
+    <>
+      <p class="meldung erfolg" role="status">
+        <Icon name="haken" />
+        Danke! Die Redaktion prüft deinen Hinweis und korrigiert den Termin.
+      </p>
+      <p>
+        <a class="knopf zweit" href={pfad}>
+          Zurück zum Termin
+        </a>
+      </p>
+    </>
+  ) : (
+    <form class="melden" method="post">
+      {fehler.length > 0 && (
+        <p class="meldung" role="alert">
+          {fehler.join(' ')}
         </p>
-        <p>
-          <a class="knopf zweit" href={pfad}>
-            Zurück zum Termin
-          </a>
-        </p>
-      </>
-    ) : (
-      <form class="melden" method="post">
-        {fehler.length > 0 && (
-          <p class="meldung" role="alert">
-            {fehler.join(' ')}
-          </p>
-        )}
-        <input type="hidden" name={CSRF_FELD} value={csrf} />
-        <input type="hidden" name="geladen" value={geladen} />
-        <label class="falle" aria-hidden="true">
-          Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
-        </label>
-        <label>
-          Was stimmt nicht? *
-          <textarea
-            name="text"
-            required
-            maxlength="2000"
-            rows="5"
-            placeholder="z. B. Beginn ist erst 20 Uhr, die Band heißt …"
-            set:text={werte.text}
-          />
-        </label>
-        <fieldset class="kontakt">
-          <legend>Für Rückfragen (freiwillig)</legend>
-          <div class="zwei">
-            <label>
-              Name / Kirmesgesellschaft
-              <input name="kontaktName" maxlength="120" value={werte.kontaktName} />
-            </label>
-            <label>
-              E-Mail
-              <input
-                name="kontaktEmail"
-                type="email"
-                maxlength="200"
-                autocomplete="email"
-                value={werte.kontaktEmail}
-              />
-            </label>
-          </div>
-        </fieldset>
-        <p class="klein leise">
-          Kontaktdaten dienen nur Rückfragen und werden gelöscht, sobald der Hinweis erledigt ist.
-          Mehr im <a href="/datenschutz">Datenschutz</a>.
-        </p>
-        <button class="knopf">Hinweis senden</button>
-      </form>
-    )
-  }
+      )}
+      <input type="hidden" name={CSRF_FELD} value={csrf} />
+      <input type="hidden" name="geladen" value={geladen} />
+      <label class="falle" aria-hidden="true">
+        Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+      </label>
+      <label>
+        Was stimmt nicht? *
+        <textarea
+          name="text"
+          required
+          maxlength="2000"
+          rows="5"
+          placeholder="z. B. Beginn ist erst 20 Uhr, die Band heißt …"
+          set:text={werte.text}
+        />
+      </label>
+      <fieldset class="kontakt">
+        <legend>Für Rückfragen (freiwillig)</legend>
+        <div class="zwei">
+          <label>
+            Name / Kirmesgesellschaft
+            <input name="kontaktName" maxlength="120" value={werte.kontaktName} />
+          </label>
+          <label>
+            E-Mail
+            <input
+              name="kontaktEmail"
+              type="email"
+              maxlength="200"
+              autocomplete="email"
+              value={werte.kontaktEmail}
+            />
+          </label>
+        </div>
+      </fieldset>
+      <p class="klein leise">
+        Kontaktdaten dienen nur Rückfragen und werden gelöscht, sobald der Hinweis erledigt ist.
+        Mehr im <a href="/datenschutz">Datenschutz</a>.
+      </p>
+      <button class="knopf">Hinweis senden</button>
+    </form>
+  )}
 </Base>
 <style>
   .kontakt {

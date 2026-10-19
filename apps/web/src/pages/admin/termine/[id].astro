@@ -126,223 +126,217 @@ const hinterlegt =
 ---
 
 <AdminLayout titel={t ? 'Termin bearbeiten' : 'Termin nicht gefunden'} fehler={fehler}>
-  {
-    t && (
-      <>
-        <p>
-          <strong>{t.ort.name}</strong> ·{' '}
-          <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a>
-        </p>
-        <Herkunft herkunft={herkunft?.daten?.[id]} />
-        {fehler.length > 0 && (
-          <div class="kasten">
-            <p>
-              Deine Eingaben stehen weiter im Formular. Bei einem Konflikt bitte zuerst vergleichen:
-            </p>
-            <details>
-              <summary>Aktuell gespeicherten Stand anzeigen</summary>
-              <dl>
-                <dt>Veranstaltung</dt>
-                <dd>{t.titel}</dd>
-                <dt>Datum / Uhrzeit</dt>
-                <dd>
-                  {datumLangJahr(t.datum)} {t.beginn && `· ${t.beginn} Uhr`}
-                </dd>
-                <dt>{musikFeld(t.kategorie)}</dt>
-                <dd>{t.band ?? '–'}</dd>
-                {t.pfarrer && (
-                  <>
-                    <dt>Pfarrer/in</dt>
-                    <dd>{t.pfarrer}</dd>
-                  </>
-                )}
-                <dt>Hinweise</dt>
-                <dd>{t.info ?? '–'}</dd>
-                <dt>Wo genau?</dt>
-                <dd>{t.veranstaltungsort ?? '–'}</dd>
-                <dt>Art</dt>
-                <dd>{artName(t.kategorie)}</dd>
-                <dt>Vom Veranstalter bestätigt</dt>
-                <dd>{t.bestaetigt ? 'Ja' : 'Nein'}</dd>
-                <dt>Muttizettel erforderlich</dt>
-                <dd>{t.muttizettel ? 'Ja' : 'Nein'}</dd>
-                <dt>Essen & Getränke</dt>
-                <dd>
-                  {t.speisen?.length ? t.speisen.map(speiseZeile).join('; ') : 'Keine Angaben'}
-                </dd>
-              </dl>
-            </details>
-            <p>
-              <a href={Astro.url.pathname}>Aktuellen Stand neu öffnen</a> ·{' '}
-              <a href={`/admin/termine?ort=${encodeURIComponent(t.ort.slug)}`}>
-                Alle Termine des Ortes
-              </a>
-            </p>
-          </div>
-        )}
-
-        <form class="melden" method="post" data-ungespeichert data-terminentwurf>
-          <CsrfFeld />
-          <input type="hidden" name="version" value={version} />
-          <div class="zwei">
-            <>
-              <label>
-                Datum
-                <input type="date" name="datum" required value={werte.datum} />
-              </label>
-              <label>
-                Uhrzeit
-                <input type="time" name="beginn" value={werte.beginn} />
-              </label>
-            </>
-          </div>
-          <label>
-            Veranstaltung
-            <input
-              name="titel"
-              required
-              maxlength="200"
-              list="titel-bearbeiten"
-              value={werte.titel}
-            />
-          </label>
-          <div class="zwei">
-            <>
-              <label>
-                {musikFeld(werte.kategorie)}
-                <input name="band" maxlength="120" list="bands-bearbeiten" value={werte.band} />
-              </label>
-              {(werte.kategorie === 'tradition' || werte.pfarrer) && (
-                <label>
-                  Pfarrer/in (optional)
-                  <input name="pfarrer" maxlength="120" value={werte.pfarrer} />
-                </label>
+  {t && (
+    <>
+      <p>
+        <strong>{t.ort.name}</strong> ·{' '}
+        <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a>
+      </p>
+      <Herkunft herkunft={herkunft?.daten?.[id]} />
+      {fehler.length > 0 && (
+        <div class="kasten">
+          <p>
+            Deine Eingaben stehen weiter im Formular. Bei einem Konflikt bitte zuerst vergleichen:
+          </p>
+          <details>
+            <summary>Aktuell gespeicherten Stand anzeigen</summary>
+            <dl>
+              <dt>Veranstaltung</dt>
+              <dd>{t.titel}</dd>
+              <dt>Datum / Uhrzeit</dt>
+              <dd>
+                {datumLangJahr(t.datum)} {t.beginn && `· ${t.beginn} Uhr`}
+              </dd>
+              <dt>{musikFeld(t.kategorie)}</dt>
+              <dd>{t.band ?? '–'}</dd>
+              {t.pfarrer && (
+                <>
+                  <dt>Pfarrer/in</dt>
+                  <dd>{t.pfarrer}</dd>
+                </>
               )}
-              <label>
-                Wo genau?
-                <input
-                  name="veranstaltungsort"
-                  maxlength="120"
-                  list="plaetze-bearbeiten"
-                  value={werte.veranstaltungsort}
-                />
-              </label>
-            </>
-          </div>
-          <label>
-            Google-Maps-Link zu „Wo genau?“ (optional)
-            <input
-              name="standort"
-              data-kartenlink-name="veranstaltungsort"
-              maxlength="2000"
-              inputmode="url"
-              placeholder="Link aus Google Maps „Teilen“ oder „50.87, 10.82“"
-              value={standort}
-            />
-          </label>
-          {hinterlegt && (
-            <p class="klein leise">
-              „{werte.veranstaltungsort}“ ist auf der Karte hinterlegt – die Route führt genau
-              dorthin. Ein neuer Link ersetzt die Position.
-            </p>
-          )}
-          <p class="klein leise">
-            Der Link gilt für alle Termine in {t.ort.name} mit gleichem „Wo genau?“. Alle Plätze
-            verwalten:{' '}
-            <a href={`/admin/termine?ort=${t.ort.slug}&plaetze=1#plaetze`}>
-              Plätze in {t.ort.name}
+              <dt>Hinweise</dt>
+              <dd>{t.info ?? '–'}</dd>
+              <dt>Wo genau?</dt>
+              <dd>{t.veranstaltungsort ?? '–'}</dd>
+              <dt>Art</dt>
+              <dd>{artName(t.kategorie)}</dd>
+              <dt>Vom Veranstalter bestätigt</dt>
+              <dd>{t.bestaetigt ? 'Ja' : 'Nein'}</dd>
+              <dt>Muttizettel erforderlich</dt>
+              <dd>{t.muttizettel ? 'Ja' : 'Nein'}</dd>
+              <dt>Essen & Getränke</dt>
+              <dd>{t.speisen?.length ? t.speisen.map(speiseZeile).join('; ') : 'Keine Angaben'}</dd>
+            </dl>
+          </details>
+          <p>
+            <a href={Astro.url.pathname}>Aktuellen Stand neu öffnen</a> ·{' '}
+            <a href={`/admin/termine?ort=${encodeURIComponent(t.ort.slug)}`}>
+              Alle Termine des Ortes
             </a>
           </p>
-          <label>
-            Art
-            <select name="kategorie">
-              {Object.entries(KATEGORIEN).map(([k, info]) => (
-                <option value={k} selected={werte.kategorie === k}>
-                  {info.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Hinweise (öffentlich)
-            <textarea name="info" maxlength="500" rows="3" set:text={werte.info} />
-          </label>
-          <label>
-            <input type="checkbox" name="muttizettel" checked={werte.muttizettel} /> Unter 18 nur
-            mit Muttizettel
-          </label>
-          <label>
-            <input type="checkbox" name="bestaetigt" checked={werte.bestaetigt} /> Vom Veranstalter
-            bestätigt
-          </label>
-          <fieldset class="mittagstisch">
-            <>
-              <legend>Essen & Getränke (freiwillig)</legend>
+        </div>
+      )}
+
+      <form class="melden" method="post" data-ungespeichert data-terminentwurf>
+        <CsrfFeld />
+        <input type="hidden" name="version" value={version} />
+        <div class="zwei">
+          <>
+            <label>
+              Datum
+              <input type="date" name="datum" required value={werte.datum} />
+            </label>
+            <label>
+              Uhrzeit
+              <input type="time" name="beginn" value={werte.beginn} />
+            </label>
+          </>
+        </div>
+        <label>
+          Veranstaltung
+          <input
+            name="titel"
+            required
+            maxlength="200"
+            list="titel-bearbeiten"
+            value={werte.titel}
+          />
+        </label>
+        <div class="zwei">
+          <>
+            <label>
+              {musikFeld(werte.kategorie)}
+              <input name="band" maxlength="120" list="bands-bearbeiten" value={werte.band} />
+            </label>
+            {(werte.kategorie === 'tradition' || werte.pfarrer) && (
               <label>
-                <input type="checkbox" name="essen" checked={essen} /> Essen & Getränke anbieten
+                Pfarrer/in (optional)
+                <input name="pfarrer" maxlength="120" value={werte.pfarrer} />
               </label>
-            </>
-            <div class="speisen-felder">
-              <p class="klein leise">
-                Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren oder den Haken
-                entfernen.
-              </p>
-              {Array.from({ length: gerichte }, (_, i) => (
-                <div class="zwei">
-                  <label>
-                    Essen/Getränk {i + 1}
-                    <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
-                  </label>
-                  <label>
-                    Preis (€)
-                    <input
-                      name="preis"
-                      inputmode="decimal"
-                      maxlength="20"
-                      value={speisen[i]?.preis ?? ''}
-                    />
-                  </label>
-                </div>
-              ))}
-              {gerichte < 20 && (
-                <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
-                  + Weiterer Eintrag
-                </button>
-              )}
-            </div>
-          </fieldset>
-          <div class="knopfreihe">
-            <>
-              <button class="knopf" name="aktion" value="speichern">
-                Alle Änderungen speichern
+            )}
+            <label>
+              Wo genau?
+              <input
+                name="veranstaltungsort"
+                maxlength="120"
+                list="plaetze-bearbeiten"
+                value={werte.veranstaltungsort}
+              />
+            </label>
+          </>
+        </div>
+        <label>
+          Google-Maps-Link zu „Wo genau?“ (optional)
+          <input
+            name="standort"
+            data-kartenlink-name="veranstaltungsort"
+            maxlength="2000"
+            inputmode="url"
+            placeholder="Link aus Google Maps „Teilen“ oder „50.87, 10.82“"
+            value={standort}
+          />
+        </label>
+        {hinterlegt && (
+          <p class="klein leise">
+            „{werte.veranstaltungsort}“ ist auf der Karte hinterlegt – die Route führt genau
+            dorthin. Ein neuer Link ersetzt die Position.
+          </p>
+        )}
+        <p class="klein leise">
+          Der Link gilt für alle Termine in {t.ort.name} mit gleichem „Wo genau?“. Alle Plätze
+          verwalten:{' '}
+          <a href={`/admin/termine?ort=${t.ort.slug}&plaetze=1#plaetze`}>Plätze in {t.ort.name}</a>
+        </p>
+        <label>
+          Art
+          <select name="kategorie">
+            {Object.entries(KATEGORIEN).map(([k, info]) => (
+              <option value={k} selected={werte.kategorie === k}>
+                {info.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Hinweise (öffentlich)
+          <textarea name="info" maxlength="500" rows="3" set:text={werte.info} />
+        </label>
+        <label>
+          <input type="checkbox" name="muttizettel" checked={werte.muttizettel} /> Unter 18 nur mit
+          Muttizettel
+        </label>
+        <label>
+          <input type="checkbox" name="bestaetigt" checked={werte.bestaetigt} /> Vom Veranstalter
+          bestätigt
+        </label>
+        <fieldset class="mittagstisch">
+          <>
+            <legend>Essen & Getränke (freiwillig)</legend>
+            <label>
+              <input type="checkbox" name="essen" checked={essen} /> Essen & Getränke anbieten
+            </label>
+          </>
+          <div class="speisen-felder">
+            <p class="klein leise">
+              Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren oder den Haken
+              entfernen.
+            </p>
+            {Array.from({ length: gerichte }, (_, i) => (
+              <div class="zwei">
+                <label>
+                  Essen/Getränk {i + 1}
+                  <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
+                </label>
+                <label>
+                  Preis (€)
+                  <input
+                    name="preis"
+                    inputmode="decimal"
+                    maxlength="20"
+                    value={speisen[i]?.preis ?? ''}
+                  />
+                </label>
+              </div>
+            ))}
+            {gerichte < 20 && (
+              <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
+                + Weiterer Eintrag
               </button>
-              <a href={listenLink}>Abbrechen</a>
-            </>
+            )}
           </div>
-        </form>
-        <datalist id="bands-bearbeiten">
-          {(v.daten?.bands ?? []).map((b) => (
-            <option value={b} />
-          ))}
-        </datalist>
-        <datalist id="titel-bearbeiten">
-          {(v.daten?.titel ?? []).map((t) => (
-            <option value={t} />
-          ))}
-        </datalist>
-        <datalist id="plaetze-bearbeiten">
-          {[
-            ...new Set([
-              ...(plaetze?.daten?.festplaetze ?? []).map((p) => p.name),
-              ...(plaetze?.daten?.veranstaltungsorte ?? []),
-            ]),
-          ].map((p) => (
-            <option value={p} />
-          ))}
-        </datalist>
-      </>
-    )
-  }
+        </fieldset>
+        <div class="knopfreihe">
+          <>
+            <button class="knopf" name="aktion" value="speichern">
+              Alle Änderungen speichern
+            </button>
+            <a href={listenLink}>Abbrechen</a>
+          </>
+        </div>
+      </form>
+      <datalist id="bands-bearbeiten">
+        {(v.daten?.bands ?? []).map((b) => (
+          <option value={b} />
+        ))}
+      </datalist>
+      <datalist id="titel-bearbeiten">
+        {(v.daten?.titel ?? []).map((t) => (
+          <option value={t} />
+        ))}
+      </datalist>
+      <datalist id="plaetze-bearbeiten">
+        {[
+          ...new Set([
+            ...(plaetze?.daten?.festplaetze ?? []).map((p) => p.name),
+            ...(plaetze?.daten?.veranstaltungsorte ?? []),
+          ]),
+        ].map((p) => (
+          <option value={p} />
+        ))}
+      </datalist>
+    </>
+  )}
 </AdminLayout>
 <style>
   .mittagstisch {

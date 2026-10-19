@@ -44,102 +44,101 @@ const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
 ---
 
 <AdminLayout titel="Bearbeitungslinks" meldung={meldung} fehler={fehler}>
-  {
-    neuerLink && (
-      <div class="kasten">
-        <p>
-          <strong>Diesen Link jetzt kopieren und an die Kirmesgesellschaft schicken</strong> (z. B.
-          per Instagram-Nachricht). Er wird nur einmal angezeigt.
-        </p>
-        <p class="geheim">{neuerLink}</p>
-        <p class="leise klein">
-          Damit können sie Termine und Festplatz ihres Ortes selbst pflegen.
-        </p>
-      </div>
-    )
-  }
+  {neuerLink && (
+    <div class="kasten">
+      <p>
+        <strong>Diesen Link jetzt kopieren und an die Kirmesgesellschaft schicken</strong> (z. B.
+        per Instagram-Nachricht). Er wird nur einmal angezeigt.
+      </p>
+      <p class="geheim">{neuerLink}</p>
+      <p class="leise klein">Damit können sie Termine und Festplatz ihres Ortes selbst pflegen.</p>
+    </div>
+  )}
 
   <h2>Neuen Link erstellen</h2>
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="erstellen" />
     <div class="zwei">
-      <label
-        >Ort (Adresse der Ortsseite)<input
+      <label>
+        Ort (Adresse der Ortsseite)
+        <input
           name="ortSlug"
           required
           value={vorbelegt}
           placeholder="z. B. muehlberg"
           pattern="[a-z0-9\-]+"
-        /></label
-      >
-      <label
-        >Für wen?<input
+        />
+      </label>
+      <label>
+        Für wen?
+        <input
           name="bezeichnung"
           required
           maxlength="200"
           placeholder="Kirmesgesellschaft Mühlberg"
-        /></label
-      >
+        />
+      </label>
     </div>
     <p class="leise klein">
-      Die Adresse steht in der Ortsseite: kirmeskalender…/orte/<strong>muehlberg</strong>. Unter <a
-        href="/admin/orte">Orte</a
-      > kannst du sie suchen.
+      Die Adresse steht in der Ortsseite: kirmeskalender…/orte/<strong>muehlberg</strong>. Unter{' '}
+      <a href="/admin/orte">Orte</a> kannst du sie suchen.
     </p>
-    <div><button class="knopf" type="submit">Link erstellen</button></div>
+    <div>
+      <button class="knopf" type="submit">
+        Link erstellen
+      </button>
+    </div>
   </form>
 
   <h2>Alle Links</h2>
-  {
-    links.length === 0 ? (
-      <p class="leer">Noch keine Links erstellt.</p>
-    ) : (
-      <table class="admin-tabelle">
-        <thead>
+  {links.length === 0 ? (
+    <p class="leer">Noch keine Links erstellt.</p>
+  ) : (
+    <table class="admin-tabelle">
+      <thead>
+        <tr>
+          <th>Ort</th>
+          <th>Für</th>
+          <th>Erstellt</th>
+          <th>Zuletzt genutzt</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        {links.map((l) => (
           <tr>
-            <th>Ort</th>
-            <th>Für</th>
-            <th>Erstellt</th>
-            <th>Zuletzt genutzt</th>
-            <th />
+            <td>
+              <span class="tabellen-label">Ort</span>
+              <a href={`/orte/${l.ortSlug}`}>{l.ortName}</a>
+            </td>
+            <td>
+              <span class="tabellen-label">Für</span>
+              {l.bezeichnung}
+            </td>
+            <td class="klein">
+              <span class="tabellen-label">Erstellt</span>
+              {l.erstelltAm}
+            </td>
+            <td class="klein">
+              <span class="tabellen-label">Zuletzt genutzt</span>
+              {l.zuletztGenutzt ?? 'noch nie'}
+            </td>
+            <td>
+              {l.gesperrtAm ? (
+                <span class="leise klein">gesperrt seit {l.gesperrtAm}</span>
+              ) : (
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="sperren" />
+                  <input type="hidden" name="id" value={l.id} />
+                  <button class="knopf zweit">Sperren</button>
+                </form>
+              )}
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {links.map((l) => (
-            <tr>
-              <td>
-                <span class="tabellen-label">Ort</span>
-                <a href={`/orte/${l.ortSlug}`}>{l.ortName}</a>
-              </td>
-              <td>
-                <span class="tabellen-label">Für</span>
-                {l.bezeichnung}
-              </td>
-              <td class="klein">
-                <span class="tabellen-label">Erstellt</span>
-                {l.erstelltAm}
-              </td>
-              <td class="klein">
-                <span class="tabellen-label">Zuletzt genutzt</span>
-                {l.zuletztGenutzt ?? 'noch nie'}
-              </td>
-              <td>
-                {l.gesperrtAm ? (
-                  <span class="leise klein">gesperrt seit {l.gesperrtAm}</span>
-                ) : (
-                  <form method="post">
-                    <CsrfFeld />
-                    <input type="hidden" name="aktion" value="sperren" />
-                    <input type="hidden" name="id" value={l.id} />
-                    <button class="knopf zweit">Sperren</button>
-                  </form>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )
-  }
+        ))}
+      </tbody>
+    </table>
+  )}
 </AdminLayout>

@@ -25,20 +25,16 @@ const gName =
 ---
 
 <p class="klein leise">
-  {
-    h
-      ? `${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`
-      : 'Erstellerangabe derzeit nicht verfügbar.'
-  }
+  {h
+    ? `${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`
+    : 'Erstellerangabe derzeit nicht verfügbar.'}
   {datum && ` · ${datum}`}
   {h?.weg === 'vorschlag' && ' · aus öffentlichem Vorschlag übernommen'}
   {h?.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
 </p>
-{
-  g && (
-    <p class="klein leise">
-      Zuletzt bearbeitet von: {gName} · {zeit(g.am)}
-      {g.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
-    </p>
-  )
-}
+{g && (
+  <p class="klein leise">
+    Zuletzt bearbeitet von: {gName} · {zeit(g.am)}
+    {g.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
+  </p>
+)}

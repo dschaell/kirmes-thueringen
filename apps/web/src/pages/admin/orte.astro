@@ -68,14 +68,12 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
 ---
 
 <AdminLayout titel="Orte & Plätze" meldung={meldung} fehler={fehler}>
-  {
-    neuerSlug && (
-      <p class="kasten">
-        Ortsseite: <a href={`/orte/${neuerSlug}`}>/orte/{neuerSlug}</a> ·{' '}
-        <a href={`/admin/termine?ort=${neuerSlug}`}>Termin für diesen Ort eintragen</a>
-      </p>
-    )
-  }
+  {neuerSlug && (
+    <p class="kasten">
+      Ortsseite: <a href={`/orte/${neuerSlug}`}>/orte/{neuerSlug}</a> ·{' '}
+      <a href={`/admin/termine?ort=${neuerSlug}`}>Termin für diesen Ort eintragen</a>
+    </p>
+  )}
   <p class="lesetext leise">
     Das Ortsverzeichnis enthält bereits über 3.000 Thüringer Orte und Ortsteile aus OpenStreetMap.
     Bitte zuerst suchen – nur fehlende Orte neu anlegen.
@@ -84,106 +82,111 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   <h2>Ort suchen</h2>
   <form class="suchzeile" method="get">
     <input type="search" name="suche" value={suche} placeholder="Ortsname" aria-label="Ortsname" />
-    <button class="knopf zweit" type="submit">Suchen</button>
+    <button class="knopf zweit" type="submit">
+      Suchen
+    </button>
   </form>
-  {
-    suche && (
+  {suche && (
+    <table class="admin-tabelle">
+      <tbody>
+        {treffer.length === 0 && (
+          <tr>
+            <td>Kein Ort gefunden – unten neu anlegen.</td>
+          </tr>
+        )}
+        {treffer.map((o) => (
+          <tr>
+            <td>
+              <a href={`/orte/${o.slug}`}>{o.name}</a>{' '}
+              <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+            </td>
+            <td class="klein">{o.anzahlKommend} Termine</td>
+            <td>
+              <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
+                Termine & Plätze
+              </a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  {eigene.length > 0 && (
+    <>
+      <h2>Selbst angelegte Orte</h2>
+      <p class="leise klein">
+        Aus Versehen angelegt? Löschen geht, solange keine Termine oder Vorschläge daran hängen.
+        Orte aus dem Ortsverzeichnis bleiben immer erhalten.
+      </p>
       <table class="admin-tabelle">
         <tbody>
-          {treffer.length === 0 && (
-            <tr>
-              <td>Kein Ort gefunden – unten neu anlegen.</td>
-            </tr>
-          )}
-          {treffer.map((o) => (
+          {eigene.map((o) => (
             <tr>
               <td>
-                <a href={`/orte/${o.slug}`}>{o.name}</a>{' '}
+                <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
                 <span class="leise klein">({kreisKurz(o.landkreis)})</span>
               </td>
-              <td class="klein">{o.anzahlKommend} Termine</td>
+              <td class="klein">
+                {o.termine} Termine{o.vorschlaege > 0 && ` · ${o.vorschlaege} Vorschläge`}
+              </td>
               <td>
-                <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
-                  Termine & Plätze
-                </a>
+                {o.termine + o.vorschlaege === 0 ? (
+                  <form method="post" class="loeschen-form">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="loeschen" />
+                    <input type="hidden" name="slug" value={o.slug} />
+                    <input type="hidden" name="name" value={o.name} />
+                    <label class="klein">
+                      <input type="checkbox" name="sicher" required /> sicher
+                    </label>
+                    <button class="knopf zweit" type="submit">
+                      Löschen
+                    </button>
+                  </form>
+                ) : (
+                  <span class="leise klein">erst Termine löschen</span>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-    )
-  }
-
-  {
-    eigene.length > 0 && (
-      <>
-        <h2>Selbst angelegte Orte</h2>
-        <p class="leise klein">
-          Aus Versehen angelegt? Löschen geht, solange keine Termine oder Vorschläge daran hängen.
-          Orte aus dem Ortsverzeichnis bleiben immer erhalten.
-        </p>
-        <table class="admin-tabelle">
-          <tbody>
-            {eigene.map((o) => (
-              <tr>
-                <td>
-                  <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
-                  <span class="leise klein">({kreisKurz(o.landkreis)})</span>
-                </td>
-                <td class="klein">
-                  {o.termine} Termine{o.vorschlaege > 0 && ` · ${o.vorschlaege} Vorschläge`}
-                </td>
-                <td>
-                  {o.termine + o.vorschlaege === 0 ? (
-                    <form method="post" class="loeschen-form">
-                      <CsrfFeld />
-                      <input type="hidden" name="aktion" value="loeschen" />
-                      <input type="hidden" name="slug" value={o.slug} />
-                      <input type="hidden" name="name" value={o.name} />
-                      <label class="klein">
-                        <input type="checkbox" name="sicher" required /> sicher
-                      </label>
-                      <button class="knopf zweit" type="submit">
-                        Löschen
-                      </button>
-                    </form>
-                  ) : (
-                    <span class="leise klein">erst Termine löschen</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </>
-    )
-  }
+    </>
+  )}
 
   <h2>Neuen Ort anlegen</h2>
   <p class="kasten klein">
     <strong>Kirche, Festzelt oder Sportplatz?</strong> Das ist kein neuer Ort, sondern ein{' '}
-    <strong>Platz</strong> im Ort: unter „Termine“ den Ort wählen und bei „Plätze in …“ den Platz mit
-    Google-Maps-Link eintragen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
+    <strong>Platz</strong> im Ort: unter „Termine“ den Ort wählen und bei „Plätze in …“ den Platz
+    mit Google-Maps-Link eintragen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
   </p>
   <form class="melden" method="post">
     <CsrfFeld />
     <div class="zwei">
-      <label>Name<input name="name" required maxlength="120" /></label>
-      <label
-        >Landkreis
+      <label>
+        Name
+        <input name="name" required maxlength="120" />
+      </label>
+      <label>
+        Landkreis
         <select name="landkreis" required>
           <option value="">bitte wählen</option>
-          {kreise.map((k) => <option value={k}>{kreisKurz(k)}</option>)}
+          {kreise.map((k) => (
+            <option value={k}>{kreisKurz(k)}</option>
+          ))}
         </select>
       </label>
     </div>
-    <label
-      >Lage (optional)<input
-        name="koordinate"
-        placeholder="Google-Maps-Link oder „50.87, 10.82“"
-      /></label
-    >
-    <div><button class="knopf" type="submit">Ort anlegen</button></div>
+    <label>
+      Lage (optional)
+      <input name="koordinate" placeholder="Google-Maps-Link oder „50.87, 10.82“" />
+    </label>
+    <div>
+      <button class="knopf" type="submit">
+        Ort anlegen
+      </button>
+    </div>
   </form>
 </AdminLayout>
 <style>

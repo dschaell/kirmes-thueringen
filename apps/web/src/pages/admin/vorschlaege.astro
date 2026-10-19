@@ -41,114 +41,108 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
 <AdminLayout
   titel="Vorschläge prüfen"
   fehler={fehler}
-  meldung={Astro.url.searchParams.has('gespeichert')
-    ? 'Gespeichert. Die Termine sind jetzt öffentlich sichtbar.'
-    : Astro.url.searchParams.has('abgelehnt')
-      ? 'Vorschlag abgelehnt. Es wurde nichts veröffentlicht.'
-      : Astro.url.searchParams.has('erledigt')
-        ? 'Hinweis erledigt. Die Kontaktdaten wurden gelöscht.'
-        : null}
+  meldung={
+    Astro.url.searchParams.has('gespeichert')
+      ? 'Gespeichert. Die Termine sind jetzt öffentlich sichtbar.'
+      : Astro.url.searchParams.has('abgelehnt')
+        ? 'Vorschlag abgelehnt. Es wurde nichts veröffentlicht.'
+        : Astro.url.searchParams.has('erledigt')
+          ? 'Hinweis erledigt. Die Kontaktdaten wurden gelöscht.'
+          : null
+  }
 >
   <p>
     Hier stehen Meldungen, die noch nicht öffentlich sichtbar sind. Bitte Inhalt und Datum vor der
     Übernahme prüfen.
   </p>
-  {
-    weitere > 0 && (
-      <p class="kasten">
-        Hier stehen die {gezeigt} ältesten Vorschläge. {weitere} weitere warten – sie erscheinen,
-        sobald diese geprüft sind.
+  {weitere > 0 && (
+    <p class="kasten">
+      Hier stehen die {gezeigt} ältesten Vorschläge. {weitere} weitere warten – sie erscheinen,
+      sobald diese geprüft sind.
+    </p>
+  )}
+  {(r.daten ?? []).length === 0 && !r.fehler.length && (
+    <p class="leer">Alle Vorschläge sind geprüft.</p>
+  )}
+  {(r.daten ?? []).map((v) => (
+    <article class="vorschlag">
+      <h2>
+        {v.ortName} · {v.termine.length} Veranstaltungen
+      </h2>
+      <p class="klein leise">
+        Eingegangen:{' '}
+        {new Date(v.erstelltAm).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
       </p>
-    )
-  }
-  {
-    (r.daten ?? []).length === 0 && !r.fehler.length && (
-      <p class="leer">Alle Vorschläge sind geprüft.</p>
-    )
-  }
-  {
-    (r.daten ?? []).map((v) => (
-      <article class="vorschlag">
-        <h2>
-          {v.ortName} · {v.termine.length} Veranstaltungen
-        </h2>
-        <p class="klein leise">
-          Eingegangen:{' '}
-          {new Date(v.erstelltAm).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
+      <ul>
+        {v.termine.map((t) => (
+          <li>
+            {datumKurz(t.datum)}
+            {t.beginn && ` · ${t.beginn} Uhr`} · {t.titel}
+          </li>
+        ))}
+      </ul>
+      {v.nachricht && <p>{v.nachricht}</p>}
+      {(v.kontaktName || v.kontaktEmail) && (
+        <p class="klein">
+          Rückfragen: {v.kontaktName}{' '}
+          {v.kontaktEmail && <a href={`mailto:${v.kontaktEmail}`}>{v.kontaktEmail}</a>}
         </p>
-        <ul>
-          {v.termine.map((t) => (
-            <li>
-              {datumKurz(t.datum)}
-              {t.beginn && ` · ${t.beginn} Uhr`} · {t.titel}
-            </li>
-          ))}
-        </ul>
-        {v.nachricht && <p>{v.nachricht}</p>}
-        {(v.kontaktName || v.kontaktEmail) && (
-          <p class="klein">
-            Rückfragen: {v.kontaktName}{' '}
-            {v.kontaktEmail && <a href={`mailto:${v.kontaktEmail}`}>{v.kontaktEmail}</a>}
-          </p>
-        )}
-        <a class="knopf" href={`/admin/kirmes-eintragen?vorschlag=${v.id}`}>
-          Prüfen und bearbeiten
-        </a>
-        <details>
-          <>
-            <summary>Vorschlag ablehnen</summary>
-            <form method="post" class="melden">
-              <>
-                <CsrfFeld />
-                <input type="hidden" name="id" value={v.id} />
-                <label>
-                  Grund (freiwillig)
-                  <textarea name="grund" maxlength="500" rows="2" />
-                </label>
-                <p>Es werden keine Termine veröffentlicht. Kontaktdaten werden gelöscht.</p>
-                <button class="knopf zweit">Jetzt ablehnen</button>
-              </>
-            </form>
-          </>
-        </details>
-      </article>
-    ))
-  }
+      )}
+      <a class="knopf" href={`/admin/kirmes-eintragen?vorschlag=${v.id}`}>
+        Prüfen und bearbeiten
+      </a>
+      <details>
+        <>
+          <summary>Vorschlag ablehnen</summary>
+          <form method="post" class="melden">
+            <>
+              <CsrfFeld />
+              <input type="hidden" name="id" value={v.id} />
+              <label>
+                Grund (freiwillig)
+                <textarea name="grund" maxlength="500" rows="2" />
+              </label>
+              <p>Es werden keine Termine veröffentlicht. Kontaktdaten werden gelöscht.</p>
+              <button class="knopf zweit">Jetzt ablehnen</button>
+            </>
+          </form>
+        </>
+      </details>
+    </article>
+  ))}
   <section id="korrekturen" aria-labelledby="h-korrekturen" class="korrekturen">
     <h2 id="h-korrekturen">Korrekturhinweise ({korrekturen.daten?.length ?? 0})</h2>
-    {
-      (korrekturen.daten ?? []).length === 0 ? (
-        <p class="leer">Keine offenen Hinweise zu veröffentlichten Terminen.</p>
-      ) : (
-        (korrekturen.daten ?? []).map((k) => (
-          <article class="vorschlag">
-            <p class="klein leise">
-              {k.termin.ortName} · {datumKurz(k.termin.datum)}
-              {k.termin.beginn && ` · ${k.termin.beginn} Uhr`} · eingegangen{' '}
-              {datumKurz(k.erstelltAm.slice(0, 10))}
+    {(korrekturen.daten ?? []).length === 0 ? (
+      <p class="leer">Keine offenen Hinweise zu veröffentlichten Terminen.</p>
+    ) : (
+      (korrekturen.daten ?? []).map((k) => (
+        <article class="vorschlag">
+          <p class="klein leise">
+            {k.termin.ortName} · {datumKurz(k.termin.datum)}
+            {k.termin.beginn && ` · ${k.termin.beginn} Uhr`} · eingegangen{' '}
+            {datumKurz(k.erstelltAm.slice(0, 10))}
+          </p>
+          <h3>{k.termin.titel}</h3>
+          <p class="nachricht">{k.text}</p>
+          {(k.kontaktName || k.kontaktEmail) && (
+            <p class="klein">
+              Rückfragen: {k.kontaktName}{' '}
+              {k.kontaktEmail && <a href={`mailto:${k.kontaktEmail}`}>{k.kontaktEmail}</a>}
             </p>
-            <h3>{k.termin.titel}</h3>
-            <p class="nachricht">{k.text}</p>
-            {(k.kontaktName || k.kontaktEmail) && (
-              <p class="klein">
-                Rückfragen: {k.kontaktName}{' '}
-                {k.kontaktEmail && <a href={`mailto:${k.kontaktEmail}`}>{k.kontaktEmail}</a>}
-              </p>
-            )}
-            <form method="post" class="knopfreihe">
-              <CsrfFeld />
-              <input type="hidden" name="id" value={k.id} />
-              <a class="knopf" href={`/admin/termine/${k.termin.id}`}>
-                Termin bearbeiten
-              </a>
-              <button class="knopf zweit" name="aktion" value="korrektur-erledigt">
-                Erledigt
-              </button>
-            </form>
-          </article>
-        ))
-      )
-    }
+          )}
+          <form method="post" class="knopfreihe">
+            <CsrfFeld />
+            <input type="hidden" name="id" value={k.id} />
+            <a class="knopf" href={`/admin/termine/${k.termin.id}`}>
+              Termin bearbeiten
+            </a>
+            <button class="knopf zweit" name="aktion" value="korrektur-erledigt">
+              Erledigt
+            </button>
+          </form>
+        </article>
+      ))
+    )}
   </section>
 </AdminLayout>
 <style>

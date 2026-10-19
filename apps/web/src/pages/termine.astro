@@ -133,9 +133,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
 <Base
-  title={ueberschrift === 'Kirmes-Termine'
-    ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
-    : `${ueberschrift} – Kirmeskalender Thüringen`}
+  title={
+    ueberschrift === 'Kirmes-Termine'
+      ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
+      : `${ueberschrift} – Kirmeskalender Thüringen`
+  }
   description={`Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`}
 >
   <section class="einstieg">
@@ -150,114 +152,114 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
           placeholder="Ort oder Band"
           aria-label="Ort, Band oder Veranstaltung"
         />
-        <button class="knopf" type="submit"><Icon name="suche" />Suchen</button>
+        <button class="knopf" type="submit">
+          <Icon name="suche" />
+          Suchen
+        </button>
       </div>
       <details class="filter" open={aktiveFilter > 0}>
         <summary>
-          <Icon name="filter" />Filter {
-            aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>
-          }
+          <Icon name="filter" />
+          Filter {aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>}
         </summary>
         <div class="filterfelder">
           <div class="zwei">
             <select name="kreis" aria-label="Landkreis">
               <option value="">Alle Landkreise</option>
-              {
-                kreisListe.map((k) => (
-                  <option value={k} selected={k === kreis}>
-                    {kreisKurz(k)}
-                  </option>
-                ))
-              }
+              {kreisListe.map((k) => (
+                <option value={k} selected={k === kreis}>
+                  {kreisKurz(k)}
+                </option>
+              ))}
             </select>
             <select name="zeit" aria-label="Zeitraum">
-              <option value="kommend" selected={zeit === 'kommend'}>Ab heute</option>
-              <option value="wochenende" selected={zeit === 'wochenende'}>Dieses Wochenende</option>
-              <option value="jahr" selected={zeit === 'jahr'}>Ganzes Jahr {jahr}</option>
-              <option value="vergangen" selected={zeit === 'vergangen'}>Vergangene Termine</option>
-              <option value="alle" selected={zeit === 'alle'}>Ein Jahr zurück und voraus</option>
+              <option value="kommend" selected={zeit === 'kommend'}>
+                Ab heute
+              </option>
+              <option value="wochenende" selected={zeit === 'wochenende'}>
+                Dieses Wochenende
+              </option>
+              <option value="jahr" selected={zeit === 'jahr'}>
+                Ganzes Jahr {jahr}
+              </option>
+              <option value="vergangen" selected={zeit === 'vergangen'}>
+                Vergangene Termine
+              </option>
+              <option value="alle" selected={zeit === 'alle'}>
+                Ein Jahr zurück und voraus
+              </option>
             </select>
           </div>
           <fieldset>
             <legend>Art der Veranstaltung</legend>
             <div class="marken">
-              {
-                Object.entries(KATEGORIEN).map(([k, v]) => (
-                  <label>
-                    <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
-                    {v.label}
-                  </label>
-                ))
-              }
+              {Object.entries(KATEGORIEN).map(([k, v]) => (
+                <label>
+                  <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
+                  {v.label}
+                </label>
+              ))}
             </div>
           </fieldset>
           <label class="klein">
-            <input type="checkbox" name="best" value="1" checked={nurBest} /> Nur vom Veranstalter bestätigte
-            Termine
+            <input type="checkbox" name="best" value="1" checked={nurBest} /> Nur vom Veranstalter
+            bestätigte Termine
           </label>
-          {
-            aktiveFilter > 0 && (
-              <a class="klein" href="/termine">
-                Alle Filter zurücksetzen
-              </a>
-            )
-          }
-          <button class="knopf" type="submit" data-ohne-js>Filter anwenden</button>
+          {aktiveFilter > 0 && (
+            <a class="klein" href="/termine">
+              Alle Filter zurücksetzen
+            </a>
+          )}
+          <button class="knopf" type="submit" data-ohne-js>
+            Filter anwenden
+          </button>
         </div>
       </details>
     </form>
   </section>
 
-  {
-    fehler && (
-      <p class="meldung" role="alert">
-        {fehler}
-      </p>
-    )
-  }
-  {
-    chips.length > 0 && (
-      <ul class="chips" aria-label="Aktive Filter">
-        {chips.map((c) => (
-          <li>
-            <a href={c.href} aria-label={`Filter entfernen: ${c.text}`}>
-              {c.text} <span aria-hidden="true">✕</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    )
-  }
+  {fehler && (
+    <p class="meldung" role="alert">
+      {fehler}
+    </p>
+  )}
+  {chips.length > 0 && (
+    <ul class="chips" aria-label="Aktive Filter">
+      {chips.map((c) => (
+        <li>
+          <a href={c.href} aria-label={`Filter entfernen: ${c.text}`}>
+            {c.text} <span aria-hidden="true">✕</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
   <p class="leise" aria-live="polite" id="trefferzahl">
     {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
   </p>
   <h2 class="sr-only">Gefundene Termine</h2>
   <TerminListe termine={ergebnis.termine} leer={false} />
-  {
-    !fehler && ergebnis.gesamt === 0 && (
-      <KeineTreffer orte={ortTreffer} breiter={breiter} naechste={naechste} />
-    )
-  }
+  {!fehler && ergebnis.gesamt === 0 && (
+    <KeineTreffer orte={ortTreffer} breiter={breiter} naechste={naechste} />
+  )}
 
-  {
-    seiten > 1 && (
-      <nav class="seiten" aria-label="Seiten">
-        {aktuell > 1 && (
-          <a class="knopf zweit" href={seitenLink(aktuell - 1)}>
-            Zurück
-          </a>
-        )}
-        <span class="leise">
-          Seite {aktuell} von {seiten}
-        </span>
-        {aktuell < seiten && (
-          <a class="knopf zweit" href={seitenLink(aktuell + 1)}>
-            Weiter
-          </a>
-        )}
-      </nav>
-    )
-  }
+  {seiten > 1 && (
+    <nav class="seiten" aria-label="Seiten">
+      {aktuell > 1 && (
+        <a class="knopf zweit" href={seitenLink(aktuell - 1)}>
+          Zurück
+        </a>
+      )}
+      <span class="leise">
+        Seite {aktuell} von {seiten}
+      </span>
+      {aktuell < seiten && (
+        <a class="knopf zweit" href={seitenLink(aktuell + 1)}>
+          Weiter
+        </a>
+      )}
+    </nav>
+  )}
 </Base>
 <script>
   // Filter sofort anwenden (Issue #111) – ohne JS bleibt „Filter anwenden“.

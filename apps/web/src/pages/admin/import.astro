@@ -98,11 +98,13 @@ const kaputt = zeilen.filter((z) => z.status === 'fehler').length;
 <AdminLayout titel="Termine importieren" fehler={fehler}>
   <p>
     Tabelle aus Excel, Google Sheets oder Numbers kopieren und hier einfügen – oder eine CSV-Datei
-    wählen. Erste Zeile: Spaltennamen (<strong>Ort, Datum, Titel</strong> sind Pflicht; dazu Beginn, Art,
-    Band, Wo, Hinweise, Muttizettel, Bestätigt, Landkreis). Erst kommt eine Vorschau, gespeichert wird
-    danach. Vorhandene Termine werden nie geändert.
+    wählen. Erste Zeile: Spaltennamen (<strong>Ort, Datum, Titel</strong> sind Pflicht; dazu Beginn,
+    Art, Band, Wo, Hinweise, Muttizettel, Bestätigt, Landkreis). Erst kommt eine Vorschau,
+    gespeichert wird danach. Vorhandene Termine werden nie geändert.
   </p>
-  <p><a href="/admin/import-vorlage.csv">Vorlage herunterladen (CSV)</a></p>
+  <p>
+    <a href="/admin/import-vorlage.csv">Vorlage herunterladen (CSV)</a>
+  </p>
   <form class="melden" method="post" enctype="multipart/form-data">
     <CsrfFeld />
     <label>
@@ -121,75 +123,73 @@ Alkersleben	16.10.2026	20:00	Kirmestanz"
       <input name="datei" type="file" accept=".csv,.txt,text/csv,text/plain" />
     </label>
     <div class="knopfreihe">
-      <button class="knopf zweit" name="aktion" value="pruefen">Prüfen (Vorschau)</button>
-      {
-        geprueft && neu > 0 && (
-          <button class="knopf" name="aktion" value="uebernehmen">
-            {anzahl(neu, 'Termin', 'Termine')} übernehmen
-          </button>
-        )
-      }
+      <button class="knopf zweit" name="aktion" value="pruefen">
+        Prüfen (Vorschau)
+      </button>
+      {geprueft && neu > 0 && (
+        <button class="knopf" name="aktion" value="uebernehmen">
+          {anzahl(neu, 'Termin', 'Termine')} übernehmen
+        </button>
+      )}
     </div>
   </form>
 
-  {
-    geprueft && (
-      <section aria-labelledby="h-vorschau">
-        <h2 id="h-vorschau">Vorschau</h2>
-        <p role="status">
-          <strong>{neu} neu</strong> · {doppelt} schon vorhanden · {kaputt} mit Fehlern
-        </p>
-        <div class="tabelle-rahmen">
-          <table class="admin-tabelle">
-            <thead>
-              <tr>
-                <th>Zeile</th>
-                <th>Status</th>
-                <th>Ort</th>
-                <th>Datum</th>
-                <th>Veranstaltung</th>
+  {geprueft && (
+    <section aria-labelledby="h-vorschau">
+      <h2 id="h-vorschau">Vorschau</h2>
+      <p role="status">
+        <strong>{neu} neu</strong> · {doppelt} schon vorhanden · {kaputt} mit Fehlern
+      </p>
+      <div class="tabelle-rahmen">
+        <table class="admin-tabelle">
+          <thead>
+            <tr>
+              <th>Zeile</th>
+              <th>Status</th>
+              <th>Ort</th>
+              <th>Datum</th>
+              <th>Veranstaltung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {zeilen.map((z) => (
+              <tr class={`status-${z.status}`}>
+                <td>{z.zeile}</td>
+                <td>
+                  {z.status === 'neu'
+                    ? '✔ neu'
+                    : z.status === 'doppelt'
+                      ? '↺ vorhanden'
+                      : '✖ Fehler'}
+                  {z.meldung && <div class="klein">{z.meldung}</div>}
+                </td>
+                <td>{z.ortName ?? '–'}</td>
+                <td>
+                  {z.termin
+                    ? `${datumKurz(z.termin.datum)}${z.termin.beginn ? ` · ${z.termin.beginn}` : ''}`
+                    : '–'}
+                </td>
+                <td>
+                  {z.termin ? (
+                    <>
+                      {z.termin.titel}
+                      <div class="klein leise">
+                        {KATEGORIEN[z.termin.kategorie as keyof typeof KATEGORIEN]?.label}
+                        {z.termin.band && ` · ${z.termin.band}`}
+                        {z.termin.bestaetigt && ' · bestätigt'}
+                      </div>
+                    </>
+                  ) : (
+                    '–'
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {zeilen.map((z) => (
-                <tr class={`status-${z.status}`}>
-                  <td>{z.zeile}</td>
-                  <td>
-                    {z.status === 'neu'
-                      ? '✔ neu'
-                      : z.status === 'doppelt'
-                        ? '↺ vorhanden'
-                        : '✖ Fehler'}
-                    {z.meldung && <div class="klein">{z.meldung}</div>}
-                  </td>
-                  <td>{z.ortName ?? '–'}</td>
-                  <td>
-                    {z.termin
-                      ? `${datumKurz(z.termin.datum)}${z.termin.beginn ? ` · ${z.termin.beginn}` : ''}`
-                      : '–'}
-                  </td>
-                  <td>
-                    {z.termin ? (
-                      <>
-                        {z.termin.titel}
-                        <div class="klein leise">
-                          {KATEGORIEN[z.termin.kategorie as keyof typeof KATEGORIEN]?.label}
-                          {z.termin.band && ` · ${z.termin.band}`}
-                          {z.termin.bestaetigt && ' · bestätigt'}
-                        </div>
-                      </>
-                    ) : (
-                      '–'
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    )
-  }
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
 </AdminLayout>
 <style>
   .knopfreihe {

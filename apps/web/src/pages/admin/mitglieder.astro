@@ -104,53 +104,51 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   fehler={[...fehler, ...mitglieder.fehler]}
 >
   <p>Du kannst weitere Personen in die Redaktion einladen und bestehende Zugänge verwalten.</p>
-  {
-    neuerLink && (
-      <div class="kasten">
-        <p>
-          <strong>Diesen Link jetzt kopieren und der Person schicken.</strong> Er wird nur einmal
-          angezeigt.
-        </p>
-        <label class="einladungslink">
-          Einladungslink ({ROLLEN[neueRolle]})
-          <input id="einladungslink" type="text" readonly value={neuerLink} />
-        </label>
-        <div class="knopfreihe">
-          <button class="knopf" type="button" id="link-kopieren" hidden>
-            Link kopieren
-          </button>
-          <button
-            class="knopf zweit"
-            type="button"
-            id="link-teilen"
-            data-text={einladungstext}
-            hidden
-          >
-            Teilen …
-          </button>
-          <a
-            class="knopf zweit"
-            href={`mailto:?subject=${encodeURIComponent('Einladung zum Kirmeskalender Thüringen')}&body=${encodeURIComponent(einladungstext)}`}
-          >
-            Per E-Mail
-          </a>
-          <a
-            class="knopf zweit"
-            href={`https://wa.me/?text=${encodeURIComponent(einladungstext)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Per WhatsApp
-          </a>
-        </div>
-        <p id="teilen-status" role="status" class="klein leise" />
-        <p class="leise klein">
-          Wer den Link öffnet, wählt einen Namen und legt einen Passkey an. Danach ist der Link
-          verbraucht.
-        </p>
+  {neuerLink && (
+    <div class="kasten">
+      <p>
+        <strong>Diesen Link jetzt kopieren und der Person schicken.</strong> Er wird nur einmal
+        angezeigt.
+      </p>
+      <label class="einladungslink">
+        Einladungslink ({ROLLEN[neueRolle]})
+        <input id="einladungslink" type="text" readonly value={neuerLink} />
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf" type="button" id="link-kopieren" hidden>
+          Link kopieren
+        </button>
+        <button
+          class="knopf zweit"
+          type="button"
+          id="link-teilen"
+          data-text={einladungstext}
+          hidden
+        >
+          Teilen …
+        </button>
+        <a
+          class="knopf zweit"
+          href={`mailto:?subject=${encodeURIComponent('Einladung zum Kirmeskalender Thüringen')}&body=${encodeURIComponent(einladungstext)}`}
+        >
+          Per E-Mail
+        </a>
+        <a
+          class="knopf zweit"
+          href={`https://wa.me/?text=${encodeURIComponent(einladungstext)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Per WhatsApp
+        </a>
       </div>
-    )
-  }
+      <p id="teilen-status" role="status" class="klein leise" />
+      <p class="leise klein">
+        Wer den Link öffnet, wählt einen Namen und legt einen Passkey an. Danach ist der Link
+        verbraucht.
+      </p>
+    </div>
+  )}
 
   <h2 id="einladen">Person zur Redaktion einladen</h2>
   <p>
@@ -160,15 +158,13 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="einladen" />
-    <label
-      >Für wen? (freiwillig)<input
-        name="bezeichnung"
-        maxlength="120"
-        placeholder="z. B. Kirmesverein Alkersleben"
-      /><span class="klein leise"
-        >Interne Bezeichnung, damit du mehrere offene Einladungen unterscheiden kannst.</span
-      ></label
-    >
+    <label>
+      Für wen? (freiwillig)
+      <input name="bezeichnung" maxlength="120" placeholder="z. B. Kirmesverein Alkersleben" />
+      <span class="klein leise">
+        Interne Bezeichnung, damit du mehrere offene Einladungen unterscheiden kannst.
+      </span>
+    </label>
     <label>
       Rolle
       <select name="rolle">
@@ -190,64 +186,66 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
           data-ortssuche
         />
       </span>
-      <span class="klein leise"
-        >Nur bei Kirmesgesellschaft: sie sieht und bearbeitet nur diesen Ort.</span
-      >
+      <span class="klein leise">
+        Nur bei Kirmesgesellschaft: sie sieht und bearbeitet nur diesen Ort.
+      </span>
     </label>
-    <div><button class="knopf" type="submit">Einladungslink erstellen</button></div>
+    <div>
+      <button class="knopf" type="submit">
+        Einladungslink erstellen
+      </button>
+    </div>
   </form>
 
-  {
-    (einladungen.daten?.length ?? 0) > 0 && (
-      <>
-        <h2>Offene Einladungen</h2>
-        <table class="admin-tabelle">
-          <thead>
+  {(einladungen.daten?.length ?? 0) > 0 && (
+    <>
+      <h2>Offene Einladungen</h2>
+      <table class="admin-tabelle">
+        <thead>
+          <tr>
+            <th>Für</th>
+            <th>Rolle</th>
+            <th>Erstellt</th>
+            <th>Gültig bis</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {einladungen.daten?.map((e) => (
             <tr>
-              <th>Für</th>
-              <th>Rolle</th>
-              <th>Erstellt</th>
-              <th>Gültig bis</th>
-              <th />
+              <td>
+                <span class="tabellen-label">Für</span>
+                {e.bezeichnung ?? 'Ohne Bezeichnung'}
+              </td>
+              <td>
+                <span class="tabellen-label">Rolle</span>
+                {ROLLEN[e.rolle]}
+                {e.ortName && ` (${e.ortName})`}
+              </td>
+              <td>
+                <span class="tabellen-label">Erstellt</span>
+                {datum(e.erstelltAm)}
+              </td>
+              <td>
+                <span class="tabellen-label">Gültig bis</span>
+                {datum(e.laeuftAb)}
+              </td>
+              <td>
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="widerrufen" />
+                  <input type="hidden" name="id" value={e.id} />
+                  <button class="knopf zweit" type="submit">
+                    Widerrufen
+                  </button>
+                </form>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {einladungen.daten?.map((e) => (
-              <tr>
-                <td>
-                  <span class="tabellen-label">Für</span>
-                  {e.bezeichnung ?? 'Ohne Bezeichnung'}
-                </td>
-                <td>
-                  <span class="tabellen-label">Rolle</span>
-                  {ROLLEN[e.rolle]}
-                  {e.ortName && ` (${e.ortName})`}
-                </td>
-                <td>
-                  <span class="tabellen-label">Erstellt</span>
-                  {datum(e.erstelltAm)}
-                </td>
-                <td>
-                  <span class="tabellen-label">Gültig bis</span>
-                  {datum(e.laeuftAb)}
-                </td>
-                <td>
-                  <form method="post">
-                    <CsrfFeld />
-                    <input type="hidden" name="aktion" value="widerrufen" />
-                    <input type="hidden" name="id" value={e.id} />
-                    <button class="knopf zweit" type="submit">
-                      Widerrufen
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </>
-    )
-  }
+          ))}
+        </tbody>
+      </table>
+    </>
+  )}
 
   <h2>Mitglieder</h2>
   <table class="admin-tabelle">
@@ -261,69 +259,67 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
       </tr>
     </thead>
     <tbody>
-      {
-        (mitglieder.daten ?? []).map((m) => (
-          <tr>
-            <td>
-              <span class="tabellen-label">Name</span>
-              {m.name}
-              {m.id === ich && <span class="leise"> (du)</span>}
-            </td>
-            <td>
-              <span class="tabellen-label">Rolle</span>
-              {m.rolle === 'kirmesgesellschaft' ? (
-                <span>Kirmesgesellschaft {m.ortName}</span>
-              ) : (
-                <form method="post" class="inline">
-                  <CsrfFeld />
-                  <input type="hidden" name="aktion" value="rolle" />
-                  <input type="hidden" name="id" value={m.id} />
-                  <select name="rolle" aria-label={`Rolle von ${m.name}`}>
-                    <option value="redaktion" selected={m.rolle === 'redaktion'}>
-                      Redaktion
-                    </option>
-                    <option value="admin" selected={m.rolle === 'admin'}>
-                      Admin
-                    </option>
-                  </select>
-                  <button class="knopf zweit" type="submit">
-                    Ändern
-                  </button>
-                </form>
-              )}
-            </td>
-            <td>
-              <span class="tabellen-label">Passkeys</span>
-              {m.passkeys}
-            </td>
-            <td>
-              <span class="tabellen-label">Zuletzt angemeldet</span>
-              {datum(m.letzterLogin)}
-            </td>
-            <td>
-              <details class="sicherheitsfrage">
-                <summary>Mitglied entfernen …</summary>
-                <p>
-                  <strong>{m.name}</strong> wirklich entfernen? Alle Passkeys und Sitzungen dieses
-                  Mitglieds werden gelöscht. Das lässt sich hier nicht rückgängig machen.
-                </p>
-                <form method="post">
-                  <CsrfFeld />
-                  <label>
-                    <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
-                    entfernen.
-                  </label>
-                  <input type="hidden" name="aktion" value="entfernen" />
-                  <input type="hidden" name="id" value={m.id} />
-                  <button class="knopf gefahr" type="submit">
-                    Jetzt endgültig entfernen
-                  </button>
-                </form>
-              </details>
-            </td>
-          </tr>
-        ))
-      }
+      {(mitglieder.daten ?? []).map((m) => (
+        <tr>
+          <td>
+            <span class="tabellen-label">Name</span>
+            {m.name}
+            {m.id === ich && <span class="leise"> (du)</span>}
+          </td>
+          <td>
+            <span class="tabellen-label">Rolle</span>
+            {m.rolle === 'kirmesgesellschaft' ? (
+              <span>Kirmesgesellschaft {m.ortName}</span>
+            ) : (
+              <form method="post" class="inline">
+                <CsrfFeld />
+                <input type="hidden" name="aktion" value="rolle" />
+                <input type="hidden" name="id" value={m.id} />
+                <select name="rolle" aria-label={`Rolle von ${m.name}`}>
+                  <option value="redaktion" selected={m.rolle === 'redaktion'}>
+                    Redaktion
+                  </option>
+                  <option value="admin" selected={m.rolle === 'admin'}>
+                    Admin
+                  </option>
+                </select>
+                <button class="knopf zweit" type="submit">
+                  Ändern
+                </button>
+              </form>
+            )}
+          </td>
+          <td>
+            <span class="tabellen-label">Passkeys</span>
+            {m.passkeys}
+          </td>
+          <td>
+            <span class="tabellen-label">Zuletzt angemeldet</span>
+            {datum(m.letzterLogin)}
+          </td>
+          <td>
+            <details class="sicherheitsfrage">
+              <summary>Mitglied entfernen …</summary>
+              <p>
+                <strong>{m.name}</strong> wirklich entfernen? Alle Passkeys und Sitzungen dieses
+                Mitglieds werden gelöscht. Das lässt sich hier nicht rückgängig machen.
+              </p>
+              <form method="post">
+                <CsrfFeld />
+                <label>
+                  <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
+                  entfernen.
+                </label>
+                <input type="hidden" name="aktion" value="entfernen" />
+                <input type="hidden" name="id" value={m.id} />
+                <button class="knopf gefahr" type="submit">
+                  Jetzt endgültig entfernen
+                </button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      ))}
     </tbody>
   </table>
   <p class="leise klein">

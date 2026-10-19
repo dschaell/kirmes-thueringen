@@ -35,48 +35,44 @@ if (status.offen && istToken(link)) {
     <h1>Admin-Zugang einrichten</h1>
     <p class="unterzeile">Einmalig: legt den ersten Zugang für die Redaktion an – mit Passkey.</p>
   </section>
-  {
-    fehler && (
-      <p class="meldung" role="alert">
-        {fehler}
+  {fehler && (
+    <p class="meldung" role="alert">
+      {fehler}
+    </p>
+  )}
+  {!status.offen ? (
+    <p class="kasten">
+      Der Admin-Zugang ist bereits eingerichtet. <a href="/admin/anmelden">Zur Anmeldung</a>
+    </p>
+  ) : !status.moeglich ? (
+    <p class="kasten">
+      Für die Einrichtung müssen E-Mail-Versand und Website-Adresse eingerichtet sein (siehe
+      Betriebshandbuch).
+    </p>
+  ) : linkGueltig && link ? (
+    <>
+      <p>
+        Wähle einen Namen und lege einen <strong>Passkey</strong> an – dein Gerät fragt nach Face
+        ID, Touch ID oder PIN. Ein Passwort gibt es nicht.
       </p>
-    )
-  }
-  {
-    !status.offen ? (
-      <p class="kasten">
-        Der Admin-Zugang ist bereits eingerichtet. <a href="/admin/anmelden">Zur Anmeldung</a>
+      <PasskeyRegistrierung art="einrichtung" token={link} knopf="Passkey anlegen" />
+    </>
+  ) : verschickt ? (
+    <p class="kasten" role="status">
+      Der Einrichtungslink ist an das Redaktionspostfach unterwegs. Er ist 30 Minuten gültig.
+    </p>
+  ) : (
+    <form class="melden" method="post">
+      <CsrfFeld />
+      <p>
+        Wir schicken einen Einrichtungslink an das <strong>Redaktionspostfach</strong> des
+        Kalenders. Nur wer dieses Postfach liest, kann den Zugang anlegen.
       </p>
-    ) : !status.moeglich ? (
-      <p class="kasten">
-        Für die Einrichtung müssen E-Mail-Versand und Website-Adresse eingerichtet sein (siehe
-        Betriebshandbuch).
-      </p>
-    ) : linkGueltig && link ? (
-      <>
-        <p>
-          Wähle einen Namen und lege einen <strong>Passkey</strong> an – dein Gerät fragt nach Face
-          ID, Touch ID oder PIN. Ein Passwort gibt es nicht.
-        </p>
-        <PasskeyRegistrierung art="einrichtung" token={link} knopf="Passkey anlegen" />
-      </>
-    ) : verschickt ? (
-      <p class="kasten" role="status">
-        Der Einrichtungslink ist an das Redaktionspostfach unterwegs. Er ist 30 Minuten gültig.
-      </p>
-    ) : (
-      <form class="melden" method="post">
-        <CsrfFeld />
-        <p>
-          Wir schicken einen Einrichtungslink an das <strong>Redaktionspostfach</strong> des
-          Kalenders. Nur wer dieses Postfach liest, kann den Zugang anlegen.
-        </p>
-        <div>
-          <button class="knopf" type="submit">
-            Einrichtungslink senden
-          </button>
-        </div>
-      </form>
-    )
-  }
+      <div>
+        <button class="knopf" type="submit">
+          Einrichtungslink senden
+        </button>
+      </div>
+    </form>
+  )}
 </Base>

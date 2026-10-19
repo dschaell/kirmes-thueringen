@@ -51,28 +51,26 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <section class="einstieg">
     <h1>Kirmes in deiner Nähe</h1>
     <p class="unterzeile">
-      {
-        orte.length === 0
-          ? `${zeitText}: keine Termine eingetragen.`
-          : `${orte.length} ${orte.length === 1 ? 'Ort' : 'Orte'} – ${zeitSatz}. Punkt antippen für die Termine.`
-      }
+      {orte.length === 0
+        ? `${zeitText}: keine Termine eingetragen.`
+        : `${orte.length} ${orte.length === 1 ? 'Ort' : 'Orte'} – ${zeitSatz}. Punkt antippen für die Termine.`}
     </p>
   </section>
 
   <div class="kartenleiste">
     <nav class="zeitwahl" aria-label="Zeitraum">
-      {
-        ZEITEN.map(([k, text]) => (
-          <a
-            href={k === 'alle' ? '/karte' : `/karte?zeit=${k}`}
-            aria-current={zeit === k ? 'page' : undefined}
-          >
-            {text}
-          </a>
-        ))
-      }
+      {ZEITEN.map(([k, text]) => (
+        <a
+          href={k === 'alle' ? '/karte' : `/karte?zeit=${k}`}
+          aria-current={zeit === k ? 'page' : undefined}
+        >
+          {text}
+        </a>
+      ))}
     </nav>
-    <button class="knopf zweit" type="button" id="standort">In meiner Nähe</button>
+    <button class="knopf zweit" type="button" id="standort">
+      In meiner Nähe
+    </button>
   </div>
   <p class="klein leise" id="standort-hinweis" role="status"></p>
 
@@ -83,32 +81,30 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
   <section aria-labelledby="h-liste">
     <h2 id="h-liste">Orte {zeitSatz}</h2>
-    {
-      orte.length === 0 ? (
-        <p class="leer">
-          {zeit !== 'alle' && (
-            <>
-              <a href="/karte">Alle kommenden Termine zeigen</a> ·{' '}
-            </>
-          )}
-          <a href="/termin-melden">Kirmes melden</a>
-        </p>
-      ) : (
-        <ul class="ortliste" id="ortliste">
-          {orte.map((o) => (
-            <li data-lat={o.koordinate!.lat} data-lon={o.koordinate!.lon}>
-              <a href={`/orte/${o.slug}`}>{o.name}</a>
-              <span class="kz">{kreisKurz(o.landkreis)}</span>
-              <span class="leise klein">
-                {' · '}
-                {o.n} {o.n === 1 ? 'Termin' : 'Termine'}
-              </span>
-              <span class="entfernung klein" />
-            </li>
-          ))}
-        </ul>
-      )
-    }
+    {orte.length === 0 ? (
+      <p class="leer">
+        {zeit !== 'alle' && (
+          <>
+            <a href="/karte">Alle kommenden Termine zeigen</a> ·{' '}
+          </>
+        )}
+        <a href="/termin-melden">Kirmes melden</a>
+      </p>
+    ) : (
+      <ul class="ortliste" id="ortliste">
+        {orte.map((o) => (
+          <li data-lat={o.koordinate!.lat} data-lon={o.koordinate!.lon}>
+            <a href={`/orte/${o.slug}`}>{o.name}</a>
+            <span class="kz">{kreisKurz(o.landkreis)}</span>
+            <span class="leise klein">
+              {' · '}
+              {o.n} {o.n === 1 ? 'Termin' : 'Termine'}
+            </span>
+            <span class="entfernung klein" />
+          </li>
+        ))}
+      </ul>
+    )}
   </section>
 </Base>
 
