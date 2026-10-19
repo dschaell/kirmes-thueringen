@@ -463,6 +463,23 @@ const eigeneDauer = Number(s.tage) > 4;
                 </details>
               ),
           )}
+          {redaktion && (s.doppelt?.length ?? 0) > 0 && (
+            <section class="kasten doppelt" role="alert" aria-labelledby="doppelt-titel">
+              <h3 id="doppelt-titel">Gibt es das schon?</h3>
+              <ul>
+                {s.doppelt?.map((d) => (
+                  <li>{d}</li>
+                ))}
+              </ul>
+              <p class="klein">
+                Vielleicht hat jemand aus der Redaktion die Kirmes schon eingetragen. Bitte kurz
+                prüfen.
+              </p>
+              <label>
+                <input type="checkbox" name="doppeltOk" /> Geprüft – trotzdem zusätzlich anlegen
+              </label>
+            </section>
+          )}
           {redaktion ? (
             <label>
               <input type="checkbox" name="bestaetigt" checked={s.bestaetigt} /> Vom Veranstalter
@@ -700,6 +717,16 @@ const eigeneDauer = Number(s.tage) > 4;
   .kartenpunkt {
     display: grid;
     gap: 6px;
+  }
+  /* Mögliche Doppelungen (Issue #178) */
+  .doppelt {
+    border-color: var(--gold);
+    display: grid;
+    gap: 8px;
+  }
+  .doppelt h3,
+  .doppelt ul {
+    margin: 0;
   }
 </style>
 <script>

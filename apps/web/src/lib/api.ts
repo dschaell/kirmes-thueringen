@@ -112,11 +112,13 @@ export const sucheTermine = async (s: TerminSuche): Promise<TerminSeite> =>
 /** Alle Treffer seitenweise (für iCal, Ortsseiten) – die API liefert max. 200 je Seite. */
 export async function alleTermine(s: Omit<TerminSuche, 'limit' | 'offset'>): Promise<TerminDto[]> {
   const alle: TerminDto[] = [];
-  for (let offset = 0; ; offset += 200) {
+  // Höchstens 50 Seiten; fehlt „gesamt“ in der Antwort, nicht weiterblättern (keine Endlosschleife)
+  for (let offset = 0; offset < 50 * 200; offset += 200) {
     const seite = await sucheTermine({ ...s, limit: 200, offset });
     alle.push(...seite.termine);
-    if (alle.length >= seite.gesamt || !seite.termine.length) return alle;
+    if (!(alle.length < seite.gesamt) || !seite.termine.length) return alle;
   }
+  return alle;
 }
 
 export const findeTermin = (id: string): Promise<TerminDto | null> =>

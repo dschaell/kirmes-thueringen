@@ -5,6 +5,7 @@ import {
   doppelterTitel,
   gueltigeTage,
   leseProgramm,
+  moeglicheDoppelungen,
   mitEssen,
   sortiereProgramm,
   vorlage,
@@ -594,7 +595,7 @@ describe('Kartenlink beim Anlegen in der Redaktion (Issue #177)', () => {
       Response.json({ name: 'Kirche St. Peter' }, { status: 201 }),
     );
     expect(s).toBeInstanceOf(Response);
-    expect(aufrufe[0]).toMatchObject({
+    expect(aufrufe.find((a) => a.url.includes('/festplaetze'))).toMatchObject({
       url: expect.stringContaining('/orte/muehlberg/festplaetze'),
       body: { name: '', nameNoetig: true },
     });
@@ -611,5 +612,96 @@ describe('Kartenlink beim Anlegen in der Redaktion (Issue #177)', () => {
       '„Kirmesgottesdienst“: Standort nicht erkannt',
     ]);
     expect(aufrufe.some((a) => a.url.includes('termine/wochenende'))).toBe(false);
+  });
+});
+
+describe('Doppelte Termine vermeiden (Issue #178)', () => {
+  it('gleicher Tag: gleicher Titel oder Beginn höchstens eine Stunde auseinander', () => {
+    const vorhanden = [
+      { datum: '2027-09-18', beginn: '20:00', titel: 'Kirmestanz' },
+      { datum: '2027-09-19', beginn: null, titel: 'Frühschoppen' },
+    ];
+    expect(
+      moeglicheDoppelungen(
+        [
+          { datum: '2027-09-18', beginn: '21:00', titel: 'Kirmesdisco' },
+          { datum: '2027-09-18', beginn: '15:00', titel: 'Kinderkirmes' },
+          { datum: '2027-09-19', beginn: '10:00', titel: 'frühschoppen ' },
+          { datum: '2027-09-20', beginn: '20:00', titel: 'Kirmestanz' },
+        ],
+        vorhanden as never,
+      ),
+    ).toEqual([
+      '„Kirmesdisco“: am Sa., 18.09. gibt es schon „Kirmestanz“ um 20:00 Uhr.',
+      '„frühschoppen “: am So., 19.09. gibt es schon „Frühschoppen“.',
+    ]);
+  });
+
+  const speichern = async (haken: boolean) => {
+    const aufrufe: string[] = [];
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const u = String(url);
+      aufrufe.push(u);
+      if (u.includes('/api/v1/termine?'))
+        return Response.json({
+          gesamt: 1,
+          termine: [{ datum: '2027-09-17', beginn: '20:30', titel: 'Kirmestanz' }],
+        });
+      return Response.json({ termine: [{ id: 'neu' }] }, { status: 201 });
+    });
+    const zeile = {
+      ...vorlage('2027-09-17', '1')[0]!,
+      titel: 'Kirmesdisco',
+      beginn: '20:00',
+      aktiv: true,
+    };
+    const form = new FormData();
+    form.set(
+      'stand',
+      JSON.stringify({
+        schritt: 3,
+        ortSlug: 'muehlberg',
+        ab: '2027-09-17',
+        tage: '1',
+        zeilen: [zeile],
+        kontaktName: '',
+        kontaktEmail: '',
+        nachricht: '',
+        bestaetigt: true,
+        geladen: 0,
+        vorschlag: '',
+        fehler: [],
+      }),
+    );
+    if (haken) form.set('doppeltOk', 'on');
+    try {
+      const s = await assistent(
+        {
+          request: new Request('http://example.org/admin/kirmes-eintragen', {
+            method: 'POST',
+            body: form,
+          }),
+          url: new URL('http://example.org/admin/kirmes-eintragen'),
+          response: { status: 200, headers: new Headers() },
+          cookies: { get: () => ({ value: 'token' }) } as never,
+          redirect: () => new Response(null, { status: 303 }),
+          clientAddress: '127.0.0.1',
+        },
+        true,
+      );
+      return { s, aufrufe };
+    } finally {
+      fetch.mockRestore();
+    }
+  };
+  it('erst Warnung, nach Haken speichern', async () => {
+    const erst = await speichern(false);
+    expect((erst.s as { doppelt: string[] }).doppelt).toEqual([
+      '„Kirmesdisco“: am Fr., 17.09. gibt es schon „Kirmestanz“ um 20:30 Uhr.',
+    ]);
+    expect(erst.aufrufe.some((u) => u.includes('termine/wochenende'))).toBe(false);
+    const dann = await speichern(true);
+    expect(dann.s).toBeInstanceOf(Response);
+    expect(dann.aufrufe.some((u) => u.includes('termine/wochenende'))).toBe(true);
   });
 });
