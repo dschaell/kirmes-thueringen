@@ -23,6 +23,21 @@ const FRUEHERE_KATEGORIEN: Record<string, Kategorie> = {
   fruehschoppen: 'tradition',
 };
 
+/**
+ * Findet in der Kirche statt (Issue #157): Gottesdienst, Andacht, Messe, Kirchgang – oder als Ort ist
+ * eine Kirche angegeben. Die Route führt dann nie zum Festplatz. Gleiche Regel im SQL der API.
+ */
+export function istKirchlich(t: {
+  kategorie: string;
+  titel: string;
+  veranstaltungsort?: string | null;
+}): boolean {
+  return (
+    (t.kategorie === 'tradition' && /gottesdienst|andacht|messe\b|kirchgang/i.test(t.titel)) ||
+    /kirche/i.test(t.veranstaltungsort ?? '')
+  );
+}
+
 /** Neue Art aus neuer oder früherer Bezeichnung; null, wenn unbekannt. */
 export function kategorieAus(k: string): Kategorie | null {
   const s = k.trim().toLowerCase();

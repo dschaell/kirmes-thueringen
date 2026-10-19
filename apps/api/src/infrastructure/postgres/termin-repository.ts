@@ -27,11 +27,19 @@ SELECT t.id, t.version::text AS version,
        ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon`;
 const SQL_TERMIN_JOINS = `
   JOIN ort o ON o.id = t.ort_id
-  -- Festplatz: passender Veranstaltungsort, sonst Standard-Festplatz ('') des Ortes
+  -- Festplatz: passender Veranstaltungsort, sonst Standard-Festplatz ('') des Ortes.
+  -- Issue #157: Ständchen ziehen durch den ganzen Ort (nur ein ausdrücklich genannter Platz); kirchliche Termine
+  -- (wie istKirchlich im Core) nie zum Festplatz, sondern zu einem Platz „Kirche…“.
   LEFT JOIN LATERAL (
     SELECT fp.lage FROM festplatz fp
-     WHERE fp.ort_id = t.ort_id AND (fp.name = t.veranstaltungsort OR fp.name = '')
-     ORDER BY (fp.name = t.veranstaltungsort) DESC NULLS LAST
+     CROSS JOIN LATERAL (SELECT
+       (t.kategorie = 'tradition' AND t.titel ~* '(gottesdienst|andacht|messe\\M|kirchgang)')
+       OR coalesce(t.veranstaltungsort, '') ~* 'kirche' AS kirchlich) k
+     WHERE fp.ort_id = t.ort_id
+       AND (fp.name = t.veranstaltungsort
+            OR (t.kategorie <> 'staendchen'
+                AND CASE WHEN k.kirchlich THEN fp.name ~* '^kirche' ELSE fp.name = '' END))
+     ORDER BY (fp.name = t.veranstaltungsort) DESC NULLS LAST, fp.name
      LIMIT 1
   ) f ON true`;
 

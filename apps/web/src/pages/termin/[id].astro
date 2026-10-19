@@ -154,9 +154,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </div>
     <p class="genau">
       {
-        route.exakt
-          ? 'Die Route führt genau zum Veranstaltungsort.'
-          : 'Die Route führt zur Adresse im Ort – der genaue Platz ist noch nicht eingetragen.'
+        t.kategorie === 'staendchen' && !t.veranstaltungsort
+          ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
+          : route.exakt
+            ? 'Die Route führt genau zum Veranstaltungsort.'
+            : 'Die Route führt zur Adresse im Ort – der genaue Platz ist noch nicht eingetragen.'
       }
     </p>
     {

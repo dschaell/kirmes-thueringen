@@ -1,5 +1,5 @@
 /** Darstellungs-Helfer des Frontends (keine Fachlogik – die liegt im Core bzw. hinter der API). */
-import { LANDKREISE, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
+import { LANDKREISE, istKirchlich, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
 import type { TerminDto } from './api';
 
 export { LANDKREISE };
@@ -117,11 +117,18 @@ export function relativerTag(iso: string, h = heute()): string | null {
 /**
  * Routen-Links: Mit hinterlegtem Festplatz exakt, sonst über die Adresse
  * („Festzelt, Mühlberg, Thüringen“) – das finden beide Kartendienste zuverlässig.
+ * Ständchen führen in den Ort; Gottesdienste ohne Ortsangabe zur Kirche (Issue #157).
  */
-export function routenLinks(t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'>) {
+export function routenLinks(
+  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'> &
+    Partial<Pick<TerminDto, 'kategorie' | 'titel'>>,
+) {
+  const wo =
+    t.veranstaltungsort ??
+    (istKirchlich({ kategorie: t.kategorie ?? '', titel: t.titel ?? '' }) ? 'Kirche' : null);
   const ziel = t.festplatz
     ? `${t.festplatz.lat},${t.festplatz.lon}`
-    : [t.veranstaltungsort, t.ort.name, 'Thüringen'].filter(Boolean).join(', ');
+    : [wo, t.ort.name, 'Thüringen'].filter(Boolean).join(', ');
   const z = encodeURIComponent(ziel);
   return {
     google: `https://www.google.com/maps/dir/?api=1&destination=${z}`,
