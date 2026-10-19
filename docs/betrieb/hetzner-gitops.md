@@ -94,10 +94,15 @@ Erst in eine neue Datenbank zurückspielen, prüfen, dann umstellen – nie übe
 
 ## Erreichbarkeit
 
-Der Workflow `Erreichbarkeit` prüft alle 10 Minuten Startseite, `/termine` und `/kalender.ics`.
+Der Workflow `Erreichbarkeit` prüft alle 15 Minuten Startseite, `/termine` und `/kalender.ics`.
 Scheitert eine Prüfung auch nach einer Minute, legt er ein Issue mit Label `ausfall` an (GitHub
 schickt eine Mail) und kommentiert es bei weiteren Ausfällen; ist die Seite wieder da, schließt er
 es. Inhaltliche Fehler findet die tägliche `Website-Prüfung`.
+
+**Wichtig:** GitHub startet Zeitpläne bei Last verspätet oder gar nicht (beobachtet: Stunden). Der
+Workflow ist deshalb nur Rückfallebene. Für einen verlässlichen Alarm einen externen Monitor
+einrichten, z. B. UptimeRobot oder Better Stack (kostenlos, alle 5 Minuten, Mail bei Ausfall):
+HTTP-Monitor auf `https://kirmeskalender-thueringen.de/termine`, Schlüsselwort „Kirmes-Termine“.
 
 ## Fehlersuche
 
