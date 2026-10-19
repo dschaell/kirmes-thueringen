@@ -26,12 +26,16 @@ const { art, token, knopf } = Astro.props;
       autocomplete="nickname"
       placeholder="z. B. Ryan oder KG Mühlberg"
     />
-    <span class="leise klein" id="registrierung-name-hinweis"
-      >Nur innerhalb der Redaktion sichtbar, auch bei von dir angelegten Terminen. Ein Vorname oder
-      Spitzname reicht.</span
-    >
+    <span class="leise klein" id="registrierung-name-hinweis">
+      Nur innerhalb der Redaktion sichtbar, auch bei von dir angelegten Terminen. Ein Vorname oder
+      Spitzname reicht.
+    </span>
   </label>
-  <div><button class="knopf" type="submit">{knopf}</button></div>
+  <div>
+    <button class="knopf" type="submit">
+      {knopf}
+    </button>
+  </div>
   <p class="leise klein" id="registrierung-status" role="status" aria-live="polite"></p>
 </form>
 <noscript>

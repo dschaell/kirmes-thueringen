@@ -16,7 +16,9 @@ import { KATEGORIEN } from '../../lib/anzeige';
 >
   <section class="einstieg">
     <h1 id="titel">Eure Kirmes verwalten</h1>
-    <p class="unterzeile" id="untertitel">Einen Moment, der Link wird geprüft …</p>
+    <p class="unterzeile" id="untertitel">
+      Einen Moment, der Link wird geprüft …
+    </p>
   </section>
 
   <p class="meldung" id="meldung" role="status" hidden></p>
@@ -30,57 +32,72 @@ import { KATEGORIEN } from '../../lib/anzeige';
         Termine, die wir aus Ankündigungen übernommen haben, könnt ihr mit einem Klick bestätigen.
       </p>
       <ul class="eintraege" id="terminliste"></ul>
-      <p class="leer" id="keine-termine" hidden>Noch keine Termine eingetragen.</p>
+      <p class="leer" id="keine-termine" hidden>
+        Noch keine Termine eingetragen.
+      </p>
 
       <h3 id="formular-titel">Termin hinzufügen</h3>
       <form class="melden" id="terminformular" method="post" data-ungespeichert>
         <div class="zwei">
-          <label>Datum *<input name="datum" type="date" required /></label>
-          <label>Beginn<input name="beginn" type="time" /></label>
+          <label>
+            Datum *<input name="datum" type="date" required />
+          </label>
+          <label>
+            Beginn
+            <input name="beginn" type="time" />
+          </label>
         </div>
-        <label
-          >Veranstaltung *<input
-            name="titel"
-            required
-            maxlength="200"
-            placeholder="z. B. Kirmestanz"
-          /></label
-        >
+        <label>
+          Veranstaltung *
+          <input name="titel" required maxlength="200" placeholder="z. B. Kirmestanz" />
+        </label>
         <div class="zwei">
-          <label
-            >Wo genau?<input
+          <label>
+            Wo genau?
+            <input
               name="veranstaltungsort"
               maxlength="120"
               list="orte-liste"
               placeholder="z. B. Festzelt, Kulturhaus"
-            /></label
-          >
-          <label
-            >Art
+            />
+          </label>
+          <label>
+            Art
             <select name="kategorie">
               <option value="">automatisch erkennen</option>
-              {Object.entries(KATEGORIEN).map(([k, v]) => <option value={k}>{v.label}</option>)}
+              {Object.entries(KATEGORIEN).map(([k, v]) => (
+                <option value={k}>{v.label}</option>
+              ))}
             </select>
           </label>
         </div>
         <div class="zwei">
-          <label>Band / DJ<input name="band" maxlength="120" placeholder="z. B. Belconda" /></label>
-          <label
-            >Hinweise<textarea
+          <label>
+            Band / DJ
+            <input name="band" maxlength="120" placeholder="z. B. Belconda" />
+          </label>
+          <label>
+            Hinweise
+            <textarea
               name="info"
               maxlength="500"
               rows="2"
-              placeholder="z. B. Eintritt 8 €, Einlass ab 16"></textarea></label
-          >
+              placeholder="z. B. Eintritt 8 €, Einlass ab 16"
+            ></textarea>
+          </label>
         </div>
-        <label class="klein"
-          ><input type="checkbox" name="muttizettel" value="ja" /> Unter 18 nur mit Muttizettel – wir
-          bieten am Termin eine Vorlage zum Drucken an</label
-        >
+        <label class="klein">
+          <input type="checkbox" name="muttizettel" value="ja" /> Unter 18 nur mit Muttizettel – wir
+          bieten am Termin eine Vorlage zum Drucken an
+        </label>
         <datalist id="orte-liste"></datalist>
         <div class="knopfreihe">
-          <button class="knopf" type="submit" id="termin-speichern">Termin speichern</button>
-          <button class="knopf zweit" type="button" id="termin-abbrechen" hidden>Abbrechen</button>
+          <button class="knopf" type="submit" id="termin-speichern">
+            Termin speichern
+          </button>
+          <button class="knopf zweit" type="button" id="termin-abbrechen" hidden>
+            Abbrechen
+          </button>
         </div>
       </form>
     </section>
@@ -95,7 +112,9 @@ import { KATEGORIEN } from '../../lib/anzeige';
       <ul class="eintraege" id="plaetze"></ul>
 
       <div id="editor" hidden>
-        <h3>Pin setzen für: <span id="aktuell"></span></h3>
+        <h3>
+          Pin setzen für: <span id="aktuell"></span>
+        </h3>
         <form class="suchzeile" id="adresssuche">
           <input
             type="search"
@@ -103,29 +122,38 @@ import { KATEGORIEN } from '../../lib/anzeige';
             placeholder="Adresse suchen, z. B. Hauptstraße 1"
             aria-label="Adresse suchen"
           />
-          <button class="knopf zweit" type="submit"><Icon name="suche" />Suchen</button>
+          <button class="knopf zweit" type="submit">
+            <Icon name="suche" />
+            Suchen
+          </button>
         </form>
         <div
           class="karte"
           id="karte"
           role="application"
           aria-label="Karte – klicken, um den Pin zu setzen"
-        >
-        </div>
+        ></div>
         <div class="knopfreihe">
-          <button class="knopf zweit" type="button" id="standort"
-            ><Icon name="standort" />Meinen Standort verwenden</button
-          >
+          <button class="knopf zweit" type="button" id="standort">
+            <Icon name="standort" />
+            Meinen Standort verwenden
+          </button>
           <input
             id="einfuegen"
             placeholder="Google-Maps-Link oder „50.87, 10.82“ einfügen"
             aria-label="Koordinaten oder Kartenlink einfügen"
           />
         </div>
-        <p class="leise klein" id="koordinate">Noch kein Pin gesetzt.</p>
+        <p class="leise klein" id="koordinate">
+          Noch kein Pin gesetzt.
+        </p>
         <div class="knopfreihe">
-          <button class="knopf" type="button" id="speichern" disabled>Festplatz speichern</button>
-          <button class="knopf zweit" type="button" id="entfernen" hidden>Eintrag entfernen</button>
+          <button class="knopf" type="button" id="speichern" disabled>
+            Festplatz speichern
+          </button>
+          <button class="knopf zweit" type="button" id="entfernen" hidden>
+            Eintrag entfernen
+          </button>
         </div>
       </div>
     </section>

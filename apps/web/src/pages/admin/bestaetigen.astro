@@ -52,35 +52,33 @@ if (Astro.request.method === 'POST' && termine.length) {
   titel={termine.length ? 'Alle Termine dieser Kirmes bestätigen?' : 'Nichts zu bestätigen'}
   fehler={fehler}
 >
-  {
-    termine.length ? (
-      <form class="melden" method="post">
-        <CsrfFeld />
-        <ul>
-          {termine.map((t) => (
-            <li>
-              <input type="hidden" name={`version-${t.id}`} value={t.version ?? ''} />
-              <strong>{t.titel}</strong> · {t.ort.name} · {datumLangJahr(t.datum)}
-              {t.beginn && ` · ${t.beginn} Uhr`}
-            </li>
-          ))}
-        </ul>
-        <p>Bitte nur bestätigen, wenn der Veranstalter die Angaben bestätigt hat.</p>
-        <label>
-          <input type="checkbox" required name="rueckfrage" value="ja" />
-          Ja, alle {termine.length} Termine sind vom Veranstalter bestätigt.
-        </label>
-        <div class="knopfreihe">
-          <button class="knopf">Jetzt {termine.length} Termine bestätigen</button>
-          <a href={listenLink}>Abbrechen</a>
-        </div>
-      </form>
-    ) : (
-      <p>
-        Alle diese Termine sind schon bestätigt. <a href={listenLink}>Zurück zur Liste</a>
-      </p>
-    )
-  }
+  {termine.length ? (
+    <form class="melden" method="post">
+      <CsrfFeld />
+      <ul>
+        {termine.map((t) => (
+          <li>
+            <input type="hidden" name={`version-${t.id}`} value={t.version ?? ''} />
+            <strong>{t.titel}</strong> · {t.ort.name} · {datumLangJahr(t.datum)}
+            {t.beginn && ` · ${t.beginn} Uhr`}
+          </li>
+        ))}
+      </ul>
+      <p>Bitte nur bestätigen, wenn der Veranstalter die Angaben bestätigt hat.</p>
+      <label>
+        <input type="checkbox" required name="rueckfrage" value="ja" />
+        Ja, alle {termine.length} Termine sind vom Veranstalter bestätigt.
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf">Jetzt {termine.length} Termine bestätigen</button>
+        <a href={listenLink}>Abbrechen</a>
+      </div>
+    </form>
+  ) : (
+    <p>
+      Alle diese Termine sind schon bestätigt. <a href={listenLink}>Zurück zur Liste</a>
+    </p>
+  )}
 </AdminLayout>
 <style>
   .knopfreihe {

@@ -50,46 +50,46 @@ if (Astro.request.method === 'POST' && gueltig) {
 ---
 
 <AdminLayout
-  titel={!gueltig
-    ? 'Termin nicht gefunden'
-    : loeschen
-      ? 'Termin wirklich löschen?'
-      : 'Termin bestätigen?'}
+  titel={
+    !gueltig
+      ? 'Termin nicht gefunden'
+      : loeschen
+        ? 'Termin wirklich löschen?'
+        : 'Termin bestätigen?'
+  }
   fehler={fehler}
 >
-  {
-    gueltig && (
-      <form class="melden" method="post">
-        <CsrfFeld />
-        <input type="hidden" name="version" value={version} />
-        <p>
-          <strong>{t.titel}</strong>
-        </p>
-        <p>
-          <br />
-          {t.ort.name} · {datumLangJahr(t.datum)}
-          {t.beginn && ` · ${t.beginn} Uhr`}
-        </p>
-        <p>
-          {loeschen
-            ? 'Der Termin samt Essen & Getränken wird aus dem Kalender entfernt.'
-            : 'Bitte nur bestätigen, wenn die Angaben vom Veranstalter bestätigt wurden.'}
-        </p>
-        <label>
-          <input type="checkbox" required name="rueckfrage" value="ja" />
-          {loeschen ? 'Ja, diesen Termin löschen.' : 'Ja, vom Veranstalter bestätigt.'}
-        </label>
-        <div class="knopfreihe">
-          <>
-            <button class:list={['knopf', { gefahr: loeschen }]}>
-              {loeschen ? 'Jetzt löschen' : 'Jetzt bestätigen'}
-            </button>
-            <a href={listenLink}>Abbrechen</a>
-          </>
-        </div>
-      </form>
-    )
-  }
+  {gueltig && (
+    <form class="melden" method="post">
+      <CsrfFeld />
+      <input type="hidden" name="version" value={version} />
+      <p>
+        <strong>{t.titel}</strong>
+      </p>
+      <p>
+        <br />
+        {t.ort.name} · {datumLangJahr(t.datum)}
+        {t.beginn && ` · ${t.beginn} Uhr`}
+      </p>
+      <p>
+        {loeschen
+          ? 'Der Termin samt Essen & Getränken wird aus dem Kalender entfernt.'
+          : 'Bitte nur bestätigen, wenn die Angaben vom Veranstalter bestätigt wurden.'}
+      </p>
+      <label>
+        <input type="checkbox" required name="rueckfrage" value="ja" />
+        {loeschen ? 'Ja, diesen Termin löschen.' : 'Ja, vom Veranstalter bestätigt.'}
+      </label>
+      <div class="knopfreihe">
+        <>
+          <button class:list={['knopf', { gefahr: loeschen }]}>
+            {loeschen ? 'Jetzt löschen' : 'Jetzt bestätigen'}
+          </button>
+          <a href={listenLink}>Abbrechen</a>
+        </>
+      </div>
+    </form>
+  )}
 </AdminLayout>
 <style>
   .knopfreihe {

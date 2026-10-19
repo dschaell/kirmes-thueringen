@@ -69,7 +69,10 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         aria-label="Ort, Band oder Veranstaltung"
         placeholder="Ort oder Band"
       />
-      <button class="knopf" type="submit"><Icon name="suche" />Suchen</button>
+      <button class="knopf" type="submit">
+        <Icon name="suche" />
+        Suchen
+      </button>
     </form>
   </section>
 
@@ -77,38 +80,32 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <div>
       <h2>Dieses Wochenende</h2>
       <TerminListe termine={amWochenende.termine} monate={false} leer={false} />
-      {
-        amWochenende.termine.length === 0 && (
-          <KeineTreffer
-            text="An diesem Wochenende ist keine Kirmes eingetragen."
-            naechste={spaeter}
-          />
-        )
-      }
-      {
-        danach.termine.length > 0 && (
-          <>
-            <h2>Die zwei Wochen danach</h2>
-            <TerminListe termine={danach.termine} monate={false} hinweis={false} />
-            <a class="mehr" href={`/termine?von=${plusTage(we.bis, 1)}`}>
-              Alle weiteren Termine <Icon name="pfeil" />
-            </a>
-          </>
-        )
-      }
+      {amWochenende.termine.length === 0 && (
+        <KeineTreffer
+          text="An diesem Wochenende ist keine Kirmes eingetragen."
+          naechste={spaeter}
+        />
+      )}
+      {danach.termine.length > 0 && (
+        <>
+          <h2>Die zwei Wochen danach</h2>
+          <TerminListe termine={danach.termine} monate={false} hinweis={false} />
+          <a class="mehr" href={`/termine?von=${plusTage(we.bis, 1)}`}>
+            Alle weiteren Termine <Icon name="pfeil" />
+          </a>
+        </>
+      )}
     </div>
 
     <aside class="seitenleiste">
       <h2>Nach Landkreis</h2>
       <ul class="kreisliste">
-        {
-          kreise.map((x) => (
-            <li>
-              <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
-              {x.n > 0 && <span class="n">{x.n}</span>}
-            </li>
-          ))
-        }
+        {kreise.map((x) => (
+          <li>
+            <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
+            {x.n > 0 && <span class="n">{x.n}</span>}
+          </li>
+        ))}
       </ul>
 
       <h2>Immer aktuell im eigenen Kalender</h2>
@@ -116,7 +113,10 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         Alle kommenden Termine als Kalender-Abo für Handy, Outlook oder Google Kalender – neue
         Termine erscheinen automatisch.
       </p>
-      <a class="knopf zweit" href="/kalender-abonnieren"><Icon name="abo" />Kalender abonnieren</a>
+      <a class="knopf zweit" href="/kalender-abonnieren">
+        <Icon name="abo" />
+        Kalender abonnieren
+      </a>
 
       <div class="kasten abstand">
         <h2>Ihr seid Kirmesgesellschaft?</h2>
@@ -124,7 +124,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           Schickt uns eure Termine – oder bestätigt, dass sie stimmen. Auf Wunsch tragt ihr euren
           Festplatz selbst auf der Karte ein, damit Gäste direkt hinfinden.
         </p>
-        <a class="mehr" href="/termin-melden">Termin melden <Icon name="pfeil" /></a>
+        <a class="mehr" href="/termin-melden">
+          Termin melden <Icon name="pfeil" />
+        </a>
       </div>
 
       <div class="kasten abstand">

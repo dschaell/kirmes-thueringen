@@ -27,45 +27,37 @@ const ortName = (wert: string) => wert.replace(/\s*\(.*$/, '');
 
 <div class="keine-treffer">
   <p class="leer">{text}</p>
-  {
-    orte.length > 0 && (
-      <ul class="auswege">
-        {orte.map((o) => (
-          <li>
-            <a href={`/orte/${o.slug}`}>Ortsseite {o.wert}</a>
-            {' · '}
-            <a href={`/termin-melden?ort=${encodeURIComponent(o.slug)}`}>
-              Kirmes in {ortName(o.wert)} melden
-            </a>
-          </li>
-        ))}
-      </ul>
-    )
-  }
+  {orte.length > 0 && (
+    <ul class="auswege">
+      {orte.map((o) => (
+        <li>
+          <a href={`/orte/${o.slug}`}>Ortsseite {o.wert}</a>
+          {' · '}
+          <a href={`/termin-melden?ort=${encodeURIComponent(o.slug)}`}>
+            Kirmes in {ortName(o.wert)} melden
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
   <p class="auswege-knoepfe">
-    {
-      breiter && (
-        <a class="knopf zweit" href={breiter.href}>
-          {breiter.text}
-        </a>
-      )
-    }
-    {
-      orte.length === 0 && (
-        <a class="knopf zweit" href="/termin-melden">
-          Kirmes melden
-        </a>
-      )
-    }
+    {breiter && (
+      <a class="knopf zweit" href={breiter.href}>
+        {breiter.text}
+      </a>
+    )}
+    {orte.length === 0 && (
+      <a class="knopf zweit" href="/termin-melden">
+        Kirmes melden
+      </a>
+    )}
   </p>
-  {
-    naechste.length > 0 && (
-      <>
-        <h2>Die nächsten Termine in Thüringen</h2>
-        <TerminListe termine={naechste} monate={false} hinweis={false} />
-      </>
-    )
-  }
+  {naechste.length > 0 && (
+    <>
+      <h2>Die nächsten Termine in Thüringen</h2>
+      <TerminListe termine={naechste} monate={false} hinweis={false} />
+    </>
+  )}
 </div>
 <style>
   .auswege {

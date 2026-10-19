@@ -58,62 +58,55 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   ]}
 >
   <p class="brotkrumen">
-    <a href="/orte">Orte</a> › <a href={`/kreise/${kreisSlug(ort.landkreis)}`}
-      >{kreisName(ort.landkreis)}</a
-    >
+    <a href="/orte">Orte</a> ›{' '}
+    <a href={`/kreise/${kreisSlug(ort.landkreis)}`}>{kreisName(ort.landkreis)}</a>
   </p>
   <section class="einstieg">
     <h1>Kirmes in {ort.name}</h1>
     <p class="unterzeile">
-      {
-        naechster ? (
-          <>
-            Nächster Termin:{' '}
-            <strong>
-              {naechster.datum.slice(0, 4) === jahr
-                ? datumLang(naechster.datum)
-                : datumLangJahr(naechster.datum)}
-            </strong>{' '}
-            – {naechster.titel}
-          </>
-        ) : letzte ? (
-          <>
-            {`Letzte Kirmes: ${
-              letzte.von === letzte.bis
-                ? datumLangJahr(letzte.von)
-                : `${datumKurz(letzte.von)} – ${datumLangJahr(letzte.bis)}`
-            }. Voraussichtlich wieder im ${voraussichtlich(letzte.von)} – der Termin ist noch nicht eingetragen.`}
-          </>
-        ) : (
-          `Für die nächsten zwölf Monate ist in ${ort.name} noch nichts eingetragen.`
-        )
-      }
+      {naechster ? (
+        <>
+          Nächster Termin:{' '}
+          <strong>
+            {naechster.datum.slice(0, 4) === jahr
+              ? datumLang(naechster.datum)
+              : datumLangJahr(naechster.datum)}
+          </strong>{' '}
+          – {naechster.titel}
+        </>
+      ) : letzte ? (
+        <>
+          {`Letzte Kirmes: ${
+            letzte.von === letzte.bis
+              ? datumLangJahr(letzte.von)
+              : `${datumKurz(letzte.von)} – ${datumLangJahr(letzte.bis)}`
+          }. Voraussichtlich wieder im ${voraussichtlich(letzte.von)} – der Termin ist noch nicht eingetragen.`}
+        </>
+      ) : (
+        `Für die nächsten zwölf Monate ist in ${ort.name} noch nichts eingetragen.`
+      )}
     </p>
-    {
-      !naechster && letzte && (
-        <div class="knopfreihe">
-          <a class="knopf" href={`/termin-melden?ort=${ort.slug}`}>
-            Termin {voraussichtlich(letzte.von).slice(-4)} melden
-          </a>
-        </div>
-      )
-    }
-    {
-      naechster && route && (
-        <div class="knopfreihe">
-          <a
-            class="knopf zweit"
-            href={route.google}
-            data-apple={route.apple}
-            target="_blank"
-            rel="noopener"
-          >
-            <Icon name="route" />
-            Anfahrt
-          </a>
-        </div>
-      )
-    }
+    {!naechster && letzte && (
+      <div class="knopfreihe">
+        <a class="knopf" href={`/termin-melden?ort=${ort.slug}`}>
+          Termin {voraussichtlich(letzte.von).slice(-4)} melden
+        </a>
+      </div>
+    )}
+    {naechster && route && (
+      <div class="knopfreihe">
+        <a
+          class="knopf zweit"
+          href={route.google}
+          data-apple={route.apple}
+          target="_blank"
+          rel="noopener"
+        >
+          <Icon name="route" />
+          Anfahrt
+        </a>
+      </div>
+    )}
     <p class="klein">
       <a href={`/kalender-abonnieren?ort=${ort.slug}`}>
         Termine von {ort.name} im eigenen Kalender abonnieren
@@ -121,22 +114,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </p>
   </section>
 
-  {
-    kommend.length > 0 && (
-      <>
-        <h2>Kommende Termine</h2>
-        <TerminListe termine={kommend} ortLinks={false} />
-      </>
-    )
-  }
-  {
-    vergangen.length > 0 && (
-      <>
-        <h2>{naechster ? 'Bereits vorbei' : 'Letzte Kirmes'}</h2>
-        <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
-      </>
-    )
-  }
+  {kommend.length > 0 && (
+    <>
+      <h2>Kommende Termine</h2>
+      <TerminListe termine={kommend} ortLinks={false} />
+    </>
+  )}
+  {vergangen.length > 0 && (
+    <>
+      <h2>{naechster ? 'Bereits vorbei' : 'Letzte Kirmes'}</h2>
+      <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
+    </>
+  )}
 
   <div class="kasten abstand">
     <h2>Kirmesgesellschaft {ort.name}?</h2>
@@ -145,26 +134,24 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       mit dem ihr euren Festplatz auf der Karte eintragt – dann führt „Route“ eure Gäste direkt
       dorthin.
     </p>
-    <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}
-      >Termin melden oder Link anfordern <Icon name="pfeil" /></a
-    >
+    <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}>
+      Termin melden oder Link anfordern <Icon name="pfeil" />
+    </a>
   </div>
 
-  {
-    nachbarn.length > 0 && (
-      <>
-        <h2>Weitere Kirmesorte {imKreis(ort.landkreis)}</h2>
-        <ul class="ortliste">
-          {nachbarn.map((o) => (
-            <li>
-              <a href={`/orte/${o.slug}`}>{o.name}</a>
-              <span class="kz">{anzahl(o.anzahlKommend, 'Termin', 'Termine')}</span>
-            </li>
-          ))}
-        </ul>
-      </>
-    )
-  }
+  {nachbarn.length > 0 && (
+    <>
+      <h2>Weitere Kirmesorte {imKreis(ort.landkreis)}</h2>
+      <ul class="ortliste">
+        {nachbarn.map((o) => (
+          <li>
+            <a href={`/orte/${o.slug}`}>{o.name}</a>
+            <span class="kz">{anzahl(o.anzahlKommend, 'Termin', 'Termine')}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
 </Base>
 
 <script>

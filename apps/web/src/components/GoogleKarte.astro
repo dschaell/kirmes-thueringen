@@ -18,13 +18,14 @@ const quelle = `https://maps.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6
 <figure class="google-karte" data-quelle={quelle} data-titel={titel}>
   <div class="google-karte-hinweis">
     <p>
-      <strong>Karte von Google Maps</strong> – beim Laden werden Daten (u. a. deine IP-Adresse) an Google
-      übertragen und Google kann Cookies setzen. Mehr im <a href="/datenschutz#google-maps"
-        >Datenschutz</a
-      >.
+      <strong>Karte von Google Maps</strong> – beim Laden werden Daten (u. a. deine IP-Adresse) an
+      Google übertragen und Google kann Cookies setzen. Mehr im{' '}
+      <a href="/datenschutz#google-maps">Datenschutz</a>.
     </p>
     <div class="knopfreihe">
-      <button class="knopf zweit" type="button" data-laden>Karte laden</button>
+      <button class="knopf zweit" type="button" data-laden>
+        Karte laden
+      </button>
     </div>
     <label class="klein">
       <input type="checkbox" data-immer /> Google-Karten künftig immer laden (nur in diesem Browser)

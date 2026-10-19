@@ -33,95 +33,89 @@ for (const t of termine) {
 const unbestaetigt = termine.some((t) => !t.bestaetigt);
 ---
 
-{
-  leer && termine.length === 0 && (
-    <p class="leer">Für diesen Zeitraum sind keine Termine eingetragen.</p>
-  )
-}
-{
-  hinweis && unbestaetigt && (
-    <p class="hinweis-liste">
-      Termine ohne{' '}
-      <span class="bestaetigt">
-        <Icon name="haken" groesse={14} />
-        bestätigt
-      </span>{' '}
-      stammen aus öffentlichen Ankündigungen und sind noch nicht vom Veranstalter bestätigt.
-    </p>
-  )
-}
-{
-  gruppen.map((g) => (
-    <>
-      {g.monat && gruppen.length > 1 && <h2 class="monat">{g.monat}</h2>}
-      {g.tage.map((tag) => (
-        <section class="tag" aria-labelledby={`tag-${tag.datum}`}>
-          <h3 class="tag-kopf" id={`tag-${tag.datum}`}>
-            <span>
-              {wochentag(tag.datum)}, {tagMonat(tag.datum)}
-            </span>
-            {relativerTag(tag.datum) && <span class="relativ">{relativerTag(tag.datum)}</span>}
-          </h3>
-          <ul class="eintraege">
-            {tag.termine.map((t) => {
-              const route = routenLinks(t);
-              return (
-                <li class="eintrag">
-                  <span class:list={['zeit', { offen: !t.beginn }]}>{t.beginn ?? 'ganztags'}</span>
-                  <div>
-                    <a class="titel" href={`/termin/${t.id}`}>
-                      {t.titel}
-                    </a>
-                    {t.kategorie !== 'party' && (
-                      <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
-                    )}
-                    {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
-                    {t.bestaetigt && (
-                      <span class="bestaetigt" title="Vom Veranstalter bestätigt">
-                        <Icon name="haken" groesse={14} />
-                        bestätigt
-                      </span>
-                    )}
-                    <div class="wo">
-                      {ortLinks ? (
-                        <a class="ortname" href={`/orte/${t.ort.slug}`}>
-                          {t.ort.name}
-                        </a>
-                      ) : (
-                        <span class="ortname">{t.ort.name}</span>
-                      )}
-                      {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
-                    </div>
-                    {t.band && (
-                      <div class="band">
-                        <Icon name="musik" groesse={14} />
-                        <span class="sr-only">Musik: </span>
-                        {t.band}
-                      </div>
-                    )}
-                  </div>
-                  {route && (
-                    <a
-                      class="route"
-                      href={route.google}
-                      data-apple={route.apple}
-                      rel="noopener"
-                      target="_blank"
-                      aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
-                    >
-                      <Icon name="route" groesse={16} />
-                      Route
-                    </a>
+{leer && termine.length === 0 && (
+  <p class="leer">Für diesen Zeitraum sind keine Termine eingetragen.</p>
+)}
+{hinweis && unbestaetigt && (
+  <p class="hinweis-liste">
+    Termine ohne{' '}
+    <span class="bestaetigt">
+      <Icon name="haken" groesse={14} />
+      bestätigt
+    </span>{' '}
+    stammen aus öffentlichen Ankündigungen und sind noch nicht vom Veranstalter bestätigt.
+  </p>
+)}
+{gruppen.map((g) => (
+  <>
+    {g.monat && gruppen.length > 1 && <h2 class="monat">{g.monat}</h2>}
+    {g.tage.map((tag) => (
+      <section class="tag" aria-labelledby={`tag-${tag.datum}`}>
+        <h3 class="tag-kopf" id={`tag-${tag.datum}`}>
+          <span>
+            {wochentag(tag.datum)}, {tagMonat(tag.datum)}
+          </span>
+          {relativerTag(tag.datum) && <span class="relativ">{relativerTag(tag.datum)}</span>}
+        </h3>
+        <ul class="eintraege">
+          {tag.termine.map((t) => {
+            const route = routenLinks(t);
+            return (
+              <li class="eintrag">
+                <span class:list={['zeit', { offen: !t.beginn }]}>{t.beginn ?? 'ganztags'}</span>
+                <div>
+                  <a class="titel" href={`/termin/${t.id}`}>
+                    {t.titel}
+                  </a>
+                  {t.kategorie !== 'party' && (
+                    <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
-    </>
-  ))
-}
+                  {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
+                  {t.bestaetigt && (
+                    <span class="bestaetigt" title="Vom Veranstalter bestätigt">
+                      <Icon name="haken" groesse={14} />
+                      bestätigt
+                    </span>
+                  )}
+                  <div class="wo">
+                    {ortLinks ? (
+                      <a class="ortname" href={`/orte/${t.ort.slug}`}>
+                        {t.ort.name}
+                      </a>
+                    ) : (
+                      <span class="ortname">{t.ort.name}</span>
+                    )}
+                    {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
+                  </div>
+                  {t.band && (
+                    <div class="band">
+                      <Icon name="musik" groesse={14} />
+                      <span class="sr-only">Musik: </span>
+                      {t.band}
+                    </div>
+                  )}
+                </div>
+                {route && (
+                  <a
+                    class="route"
+                    href={route.google}
+                    data-apple={route.apple}
+                    rel="noopener"
+                    target="_blank"
+                    aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
+                  >
+                    <Icon name="route" groesse={16} />
+                    Route
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ))}
+  </>
+))}
 
 <script>
   // Auf iPhone, iPad und Mac Apple Karten öffnen, sonst Google Maps.

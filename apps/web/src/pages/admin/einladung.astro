@@ -17,21 +17,19 @@ const rolle = 'rolle' in p && p.rolle === 'admin' ? 'Admin' : 'Redaktion';
     <h1>Willkommen in der Redaktion</h1>
     <p class="unterzeile">Du wurdest eingeladen, beim Kirmeskalender Thüringen mitzumachen.</p>
   </section>
-  {
-    'fehler' in p || !token ? (
-      <p class="meldung" role="alert">
-        {'fehler' in p ? p.fehler : ''} Bitte die einladende Person um einen neuen Link bitten.
+  {'fehler' in p || !token ? (
+    <p class="meldung" role="alert">
+      {'fehler' in p ? p.fehler : ''} Bitte die einladende Person um einen neuen Link bitten.
+    </p>
+  ) : (
+    <>
+      <p>
+        Rolle: <strong>{rolle}</strong>. Wähle einen Namen und lege einen <strong>Passkey</strong>{' '}
+        an – dein Gerät fragt nach Face ID, Touch ID oder PIN. Dein Anzeigename ist nur in der
+        Redaktion sichtbar. Gespeichert werden außerdem Rolle, öffentlicher Passkey-Schlüssel und
+        Anmeldezeitpunkte. Eine E-Mail-Adresse oder ein Passwort ist nicht nötig.
       </p>
-    ) : (
-      <>
-        <p>
-          Rolle: <strong>{rolle}</strong>. Wähle einen Namen und lege einen <strong>Passkey</strong>{' '}
-          an – dein Gerät fragt nach Face ID, Touch ID oder PIN. Dein Anzeigename ist nur in der
-          Redaktion sichtbar. Gespeichert werden außerdem Rolle, öffentlicher Passkey-Schlüssel und
-          Anmeldezeitpunkte. Eine E-Mail-Adresse oder ein Passwort ist nicht nötig.
-        </p>
-        <PasskeyRegistrierung art="einladung" token={token} knopf="Einladung annehmen" />
-      </>
-    )
-  }
+      <PasskeyRegistrierung art="einladung" token={token} knopf="Einladung annehmen" />
+    </>
+  )}
 </Base>

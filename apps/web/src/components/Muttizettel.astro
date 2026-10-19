@@ -20,13 +20,11 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
     <Icon name="drucken" />
     Drucken oder als PDF sichern
   </button>
-  {
-    termin && (
-      <a class="knopf zweit" href={`/termin/${termin.id}`}>
-        Zurück zum Termin
-      </a>
-    )
-  }
+  {termin && (
+    <a class="knopf zweit" href={`/termin/${termin.id}`}>
+      Zurück zum Termin
+    </a>
+  )}
 </div>
 <p class="leise klein nicht-drucken">
   Ihr könnt die Felder hier ausfüllen und dann drucken – oder leer drucken und von Hand ausfüllen.
@@ -61,22 +59,46 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
 
   <h2>Personensorgeberechtigte Person (Mutter, Vater oder Vormund)</h2>
   <div class="mz-raster">
-    <label>Name, Vorname<input autocomplete="off" /></label>
-    <label>Telefon (während der Veranstaltung erreichbar)<input autocomplete="off" /></label>
-    <label class="breit">Anschrift<input autocomplete="off" /></label>
+    <label>
+      Name, Vorname
+      <input autocomplete="off" />
+    </label>
+    <label>
+      Telefon (während der Veranstaltung erreichbar)
+      <input autocomplete="off" />
+    </label>
+    <label class="breit">
+      Anschrift
+      <input autocomplete="off" />
+    </label>
   </div>
 
   <h2>Minderjährige Person</h2>
   <div class="mz-raster">
-    <label>Name, Vorname<input autocomplete="off" /></label>
-    <label>Geburtsdatum<input autocomplete="off" /></label>
+    <label>
+      Name, Vorname
+      <input autocomplete="off" />
+    </label>
+    <label>
+      Geburtsdatum
+      <input autocomplete="off" />
+    </label>
   </div>
 
   <h2>Erziehungsbeauftragte Person (mindestens 18 Jahre)</h2>
   <div class="mz-raster">
-    <label class="breit">Name, Vorname<input autocomplete="off" /></label>
-    <label>Geburtsdatum<input autocomplete="off" /></label>
-    <label>Telefon<input autocomplete="off" /></label>
+    <label class="breit">
+      Name, Vorname
+      <input autocomplete="off" />
+    </label>
+    <label>
+      Geburtsdatum
+      <input autocomplete="off" />
+    </label>
+    <label>
+      Telefon
+      <input autocomplete="off" />
+    </label>
   </div>
 
   <h2>Erklärung</h2>
@@ -85,9 +107,11 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
     volljährige Person. Sie kennt mein Kind, genießt mein Vertrauen und kann ihm Grenzen setzen. Sie
     achtet insbesondere auf die Einhaltung des Jugendschutzgesetzes (u. a. kein Alkohol und Tabak,
     wo nicht erlaubt), bleibt während der gesamten Zeit vor Ort und verlässt die Veranstaltung
-    gemeinsam mit meinem Kind – spätestens um <span class="mz-luecke"
-      ><input aria-label="Uhrzeit" autocomplete="off" /></span
-    > Uhr.
+    gemeinsam mit meinem Kind – spätestens um{' '}
+    <span class="mz-luecke">
+      <input aria-label="Uhrzeit" autocomplete="off" />
+    </span>{' '}
+    Uhr.
   </p>
 
   <div class="mz-unterschriften">
@@ -102,11 +126,11 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
   </div>
 
   <aside class="mz-hinweise">
-    <strong>Bitte mitbringen:</strong> Ausweise der Jugendlichen und der erziehungsbeauftragten Person.
-    Manche Veranstalter verlangen zusätzlich eine Kopie des Ausweises der Eltern – fragt im Zweifel bei
-    der Kirmesgesellschaft nach. Unter 16 Jahren ist eine Tanzveranstaltung nur mit Eltern oder erziehungsbeauftragter
-    Person erlaubt; ab 16 ohne Begleitung bis 24 Uhr. Muster ohne Gewähr – über den Einlass entscheidet
-    der Veranstalter.
+    <strong>Bitte mitbringen:</strong> Ausweise der Jugendlichen und der erziehungsbeauftragten
+    Person. Manche Veranstalter verlangen zusätzlich eine Kopie des Ausweises der Eltern – fragt im
+    Zweifel bei der Kirmesgesellschaft nach. Unter 16 Jahren ist eine Tanzveranstaltung nur mit
+    Eltern oder erziehungsbeauftragter Person erlaubt; ab 16 ohne Begleitung bis 24 Uhr. Muster ohne
+    Gewähr – über den Einlass entscheidet der Veranstalter.
   </aside>
 </article>
 

@@ -59,66 +59,64 @@ const vorschlag = /iPhone/.test(ua)
   <p class="lesetext">
     Mit einem Passkey meldest du dich per Face ID, Touch ID, Windows Hello oder Sicherheitsschlüssel
     an – ohne Passwort. Der Passkey funktioniert nur auf dieser Website und lässt sich nicht
-    abfischen. Lege am besten auf einem <strong>zweiten Gerät</strong> einen weiteren Passkey an – falls
-    eins verloren geht. Der letzte Passkey lässt sich nicht löschen.
+    abfischen. Lege am besten auf einem <strong>zweiten Gerät</strong> einen weiteren Passkey an –
+    falls eins verloren geht. Der letzte Passkey lässt sich nicht löschen.
   </p>
 
-  {
-    !aktiv ? (
-      <p class="meldung">
-        Passkeys sind auf diesem Server nicht eingeschaltet (WEBSITE_URL fehlt in der API).
-      </p>
-    ) : (
-      <>
-        <h2>Neuen Passkey hinzufügen</h2>
-        <form class="melden" id="passkey-neu">
-          <CsrfFeld />
-          <label>
-            Name des Geräts
-            <input name="name" maxlength="60" value={vorschlag} required />
-          </label>
-          <div class="knopfreihe">
-            <button class="knopf" type="submit">
-              Passkey hinzufügen
-            </button>
-          </div>
-          <p class="leise klein" id="passkey-status" role="status" aria-live="polite" />
-        </form>
+  {!aktiv ? (
+    <p class="meldung">
+      Passkeys sind auf diesem Server nicht eingeschaltet (WEBSITE_URL fehlt in der API).
+    </p>
+  ) : (
+    <>
+      <h2>Neuen Passkey hinzufügen</h2>
+      <form class="melden" id="passkey-neu">
+        <CsrfFeld />
+        <label>
+          Name des Geräts
+          <input name="name" maxlength="60" value={vorschlag} required />
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf" type="submit">
+            Passkey hinzufügen
+          </button>
+        </div>
+        <p class="leise klein" id="passkey-status" role="status" aria-live="polite" />
+      </form>
 
-        <h2>Eingerichtete Passkeys</h2>
-        {passkeys.length === 0 ? (
-          <p class="leer">Noch keine Passkeys.</p>
-        ) : (
-          <table class="admin-tabelle">
-            <tbody>
-              {passkeys.map((p) => (
-                <tr>
-                  <td>
-                    <strong>{p.name}</strong>
-                  </td>
-                  <td class="klein">eingerichtet am {datum(p.erstelltAm)}</td>
-                  <td class="klein">
-                    {p.zuletztGenutzt
-                      ? `zuletzt genutzt am ${datum(p.zuletztGenutzt)}`
-                      : 'noch nie genutzt'}
-                  </td>
-                  <td>
-                    <form method="post">
-                      <CsrfFeld />
-                      <input type="hidden" name="id" value={p.id} />
-                      <button class="knopf zweit" name="aktion" value="loeschen">
-                        Löschen
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </>
-    )
-  }
+      <h2>Eingerichtete Passkeys</h2>
+      {passkeys.length === 0 ? (
+        <p class="leer">Noch keine Passkeys.</p>
+      ) : (
+        <table class="admin-tabelle">
+          <tbody>
+            {passkeys.map((p) => (
+              <tr>
+                <td>
+                  <strong>{p.name}</strong>
+                </td>
+                <td class="klein">eingerichtet am {datum(p.erstelltAm)}</td>
+                <td class="klein">
+                  {p.zuletztGenutzt
+                    ? `zuletzt genutzt am ${datum(p.zuletztGenutzt)}`
+                    : 'noch nie genutzt'}
+                </td>
+                <td>
+                  <form method="post">
+                    <CsrfFeld />
+                    <input type="hidden" name="id" value={p.id} />
+                    <button class="knopf zweit" name="aktion" value="loeschen">
+                      Löschen
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  )}
 </AdminLayout>
 
 <script>

@@ -52,54 +52,48 @@ const mehr = kg
   <section class="einstieg admin-kopf">
     <p class="brotkrumen">
       Redaktion · {Astro.locals.name} (
-      {
-        Astro.locals.rolle === 'admin'
-          ? 'Admin'
-          : kg
-            ? `Kirmesgesellschaft ${Astro.locals.ortName}`
-            : 'Redaktion'
-      }
+      {Astro.locals.rolle === 'admin'
+        ? 'Admin'
+        : kg
+          ? `Kirmesgesellschaft ${Astro.locals.ortName}`
+          : 'Redaktion'}
       )
     </p>
     <h1>{titel}</h1>
     <nav class="admin-nav" aria-label="Redaktion">
-      {
-        nav.map(([href, label]) => (
-          <a href={href} aria-current={pfad === href ? 'page' : undefined}>
-            {label}
-          </a>
-        ))
-      }
+      {nav.map(([href, label]) => (
+        <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+          {label}
+        </a>
+      ))}
       <details class="mehr-nav">
-        <summary>Mehr</summary><div>
-          {
-            mehr.map(([href, label]) => (
-              <a href={href} aria-current={pfad === href ? 'page' : undefined}>
-                {label}
-              </a>
-            ))
-          }
+        <summary>Mehr</summary>
+        <div>
+          {mehr.map(([href, label]) => (
+            <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+              {label}
+            </a>
+          ))}
           <form method="post" action="/admin/abmelden">
-            <CsrfFeld /><button class="knopf zweit" type="submit">Abmelden</button>
+            <CsrfFeld />
+            <button class="knopf zweit" type="submit">
+              Abmelden
+            </button>
           </form>
         </div>
       </details>
     </nav>
   </section>
-  {
-    meldung && (
-      <p class="meldung gut" role="status">
-        {meldung}
-      </p>
-    )
-  }
-  {
-    fehler.length > 0 && (
-      <p class="meldung" role="alert">
-        {fehler.join(' ')}
-      </p>
-    )
-  }
+  {meldung && (
+    <p class="meldung gut" role="status">
+      {meldung}
+    </p>
+  )}
+  {fehler.length > 0 && (
+    <p class="meldung" role="alert">
+      {fehler.join(' ')}
+    </p>
+  )}
   <slot />
 </Base>
 

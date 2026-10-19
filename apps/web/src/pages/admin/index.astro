@@ -55,200 +55,185 @@ const meldung = listenMeldung(p, ortName);
 
 <AdminLayout titel="Termine" fehler={seite.fehler} meldung={meldung}>
   <div class="hauptaktionen">
-    <a class="knopf" href="/admin/kirmes-eintragen"><Icon name="kalender" />Kirmes eintragen</a>
-    {
-      darf(Astro.locals, 'import') && (
-        <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
-      )
-    }
-    {
-      (v.daten?.anzahl ?? 0) > 0 && (
-        <a href="/admin/vorschlaege">
-          {anzahl(v.daten?.anzahl ?? 0, 'Vorschlag wartet', 'Vorschläge warten')} auf Prüfung
-        </a>
-      )
-    }
+    <a class="knopf" href="/admin/kirmes-eintragen">
+      <Icon name="kalender" />
+      Kirmes eintragen
+    </a>
+    {darf(Astro.locals, 'import') && (
+      <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
+    )}
+    {(v.daten?.anzahl ?? 0) > 0 && (
+      <a href="/admin/vorschlaege">
+        {anzahl(v.daten?.anzahl ?? 0, 'Vorschlag wartet', 'Vorschläge warten')} auf Prüfung
+      </a>
+    )}
   </div>
-  {
-    sicherungsStand && (
-      <p
-        class:list={['sicherungsstand', { meldung: sicherungsStand.warnung }]}
-        role={sicherungsStand.warnung ? 'alert' : undefined}
-      >
-        {sicherungsStand.text}
-      </p>
-    )
-  }
+  {sicherungsStand && (
+    <p
+      class:list={['sicherungsstand', { meldung: sicherungsStand.warnung }]}
+      role={sicherungsStand.warnung ? 'alert' : undefined}
+    >
+      {sicherungsStand.text}
+    </p>
+  )}
   <section aria-labelledby="terminliste" class="terminliste">
     <h2 id="terminliste">Alle angelegten Termine</h2>
     <form class="melden listensuche" id="terminsuche" method="get" action="/admin#terminliste">
-      <label
-        >Ort, Veranstaltung oder Band<input
+      <label>
+        Ort, Veranstaltung oder Band
+        <input
           name="q"
           type="search"
           maxlength="100"
           value={q}
           placeholder="z. B. Alkersleben oder Kirmestanz"
-        /></label
-      >
+        />
+      </label>
       <div class="zwei">
-        <label
-          >Zeitraum<select name="zeitraum"
-            >{
-              [
-                ['kommend', 'Kommende Termine'],
-                ['vergangen', 'Vergangene Termine'],
-                ['alle', 'Alle Termine'],
-              ].map(([wert, text]) => (
-                <option value={wert} selected={zeitraum === wert}>
-                  {text}
-                </option>
-              ))
-            }</select
-          ></label
-        >
-        <label
-          >Genaues Datum (freiwillig)<input type="date" name="datum" value={datum} /><span
-            class="klein leise">Ein Datum durchsucht den gesamten Bestand.</span
-          ></label
-        >
+        <label>
+          Zeitraum
+          <select name="zeitraum">
+            {[
+              ['kommend', 'Kommende Termine'],
+              ['vergangen', 'Vergangene Termine'],
+              ['alle', 'Alle Termine'],
+            ].map(([wert, text]) => (
+              <option value={wert} selected={zeitraum === wert}>
+                {text}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Genaues Datum (freiwillig)
+          <input type="date" name="datum" value={datum} />
+          <span class="klein leise">Ein Datum durchsucht den gesamten Bestand.</span>
+        </label>
       </div>
       {ort && <input type="hidden" name="ort" value={ort} />}
       {von && <input type="hidden" name="von" value={von} />}
       <div class="knopfreihe">
-        <button class="knopf zweit">Suchen</button><a href="/admin">Suche zurücksetzen</a>
+        <button class="knopf zweit">Suchen</button>
+        <a href="/admin">Suche zurücksetzen</a>
       </div>
     </form>
-    {
-      fehlt && (
-        <p class="kasten">
-          „{fehlt.titel}“ ({datumLangJahr(fehlt.datum)}) passt nicht zum aktuellen Filter.{' '}
-          <a
-            href={`/admin?zeitraum=alle&datum=${fehlt.datum}&markiert=${fehlt.id}#termin-${fehlt.id}`}
-          >
-            Termin anzeigen
-          </a>
-        </p>
-      )
-    }
-    {
-      (ort || von) && (
-        <p class="klein">
-          {ortName ?? 'Ein Ort'}
-          {von && ` ab ${datumLangJahr(von)}`} ·{' '}
-          <a href={`/admin?zeitraum=${zeitraum}`}>Filter entfernen</a>
-        </p>
-      )
-    }
+    {fehlt && (
+      <p class="kasten">
+        „{fehlt.titel}“ ({datumLangJahr(fehlt.datum)}) passt nicht zum aktuellen Filter.{' '}
+        <a
+          href={`/admin?zeitraum=alle&datum=${fehlt.datum}&markiert=${fehlt.id}#termin-${fehlt.id}`}
+        >
+          Termin anzeigen
+        </a>
+      </p>
+    )}
+    {(ort || von) && (
+      <p class="klein">
+        {ortName ?? 'Ein Ort'}
+        {von && ` ab ${datumLangJahr(von)}`} ·{' '}
+        <a href={`/admin?zeitraum=${zeitraum}`}>Filter entfernen</a>
+      </p>
+    )}
     <p class="klein leise">
-      {anzahl(daten.gesamt, 'Termin', 'Termine', '0 Termine')}{
-        daten.termine.length > 0 && ` · ${offset + 1}–${offset + daten.termine.length}`
-      }
+      {anzahl(daten.gesamt, 'Termin', 'Termine', '0 Termine')}
+      {daten.termine.length > 0 && ` · ${offset + 1}–${offset + daten.termine.length}`}
     </p>
-    {
-      daten.termine.length === 0 && !seite.fehler.length && (
-        <p class="leer">
-          Hier wurden keine Termine gefunden.{' '}
-          <a href="/admin?zeitraum=alle">Alle Termine anzeigen</a>.
-        </p>
-      )
-    }
-    {
-      gruppen.map((g) => {
-        const offen = g.termine.filter((t) => !t.bestaetigt);
-        const name = g.termine[0]?.ort.name ?? g.ort;
-        return (
-          <details class="kirmesgruppe" open>
-            <summary>
-              <span class="gruppenname">{name}</span>
-              <span class="klein leise">
-                {g.von === g.bis
-                  ? datumLangJahr(g.von)
-                  : `${datumKurz(g.von)} – ${datumLangJahr(g.bis)}`}{' '}
-                · {anzahl(g.termine.length, 'Termin', 'Termine')}
-                {offen.length > 0 && ` · ${offen.length} unbestätigt`}
-              </span>
-            </summary>
-            <p class="gruppenaktion klein">
-              <a href={`/admin/kirmes-eintragen?vorjahr=${g.ort}&von=${g.von}&bis=${g.bis}`}>
-                Für {Number(g.von.slice(0, 4)) + 1} übernehmen
+    {daten.termine.length === 0 && !seite.fehler.length && (
+      <p class="leer">
+        Hier wurden keine Termine gefunden. <a href="/admin?zeitraum=alle">Alle Termine anzeigen</a>
+        .
+      </p>
+    )}
+    {gruppen.map((g) => {
+      const offen = g.termine.filter((t) => !t.bestaetigt);
+      const name = g.termine[0]?.ort.name ?? g.ort;
+      return (
+        <details class="kirmesgruppe" open>
+          <summary>
+            <span class="gruppenname">{name}</span>
+            <span class="klein leise">
+              {g.von === g.bis
+                ? datumLangJahr(g.von)
+                : `${datumKurz(g.von)} – ${datumLangJahr(g.bis)}`}{' '}
+              · {anzahl(g.termine.length, 'Termin', 'Termine')}
+              {offen.length > 0 && ` · ${offen.length} unbestätigt`}
+            </span>
+          </summary>
+          <p class="gruppenaktion klein">
+            <a href={`/admin/kirmes-eintragen?vorjahr=${g.ort}&von=${g.von}&bis=${g.bis}`}>
+              Für {Number(g.von.slice(0, 4)) + 1} übernehmen
+            </a>
+          </p>
+          {offen.length > 1 && (
+            <p class="gruppenaktion">
+              <a
+                class="knopf zweit"
+                href={`/admin/bestaetigen?${offen.map((t) => `id=${t.id}`).join('&')}&zurueck=${zurueck}`}
+              >
+                Alle {offen.length} bestätigen
               </a>
             </p>
-            {offen.length > 1 && (
-              <p class="gruppenaktion">
-                <a
-                  class="knopf zweit"
-                  href={`/admin/bestaetigen?${offen.map((t) => `id=${t.id}`).join('&')}&zurueck=${zurueck}`}
-                >
-                  Alle {offen.length} bestätigen
-                </a>
-              </p>
-            )}
-            <ul class="terminkarten">
-              {g.termine.map((t) => (
-                <li id={`termin-${t.id}`} class:list={{ markiert: markiert.has(t.id) }}>
-                  <div>
-                    <p class="klein leise">
-                      {datumLangJahr(t.datum)}
-                      {t.beginn && ` · ${t.beginn} Uhr`}
-                    </p>
-                    <h3>{t.titel}</h3>
-                    <p>
-                      {artName(t.kategorie)}
-                      {t.band && ` · ${t.band}`}
-                      {t.muttizettel && ' · Muttizettel'}
-                    </p>
-                    <p class="klein leise">
-                      {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
-                    </p>
-                    <Herkunft herkunft={herkunft?.daten?.[t.id]} />
-                  </div>
-                  <div class="terminaktionen">
-                    <a
-                      class="knopf zweit"
-                      href={`/admin/termine/${t.id}?zurueck=${zurueck}`}
-                      aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
-                    >
-                      <Icon name="stift" />
-                      Bearbeiten
-                    </a>
-                    {!t.bestaetigt && (
-                      <a
-                        class="klein"
-                        href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}
-                      >
-                        Bestätigen
-                      </a>
-                    )}
+          )}
+          <ul class="terminkarten">
+            {g.termine.map((t) => (
+              <li id={`termin-${t.id}`} class:list={{ markiert: markiert.has(t.id) }}>
+                <div>
+                  <p class="klein leise">
+                    {datumLangJahr(t.datum)}
+                    {t.beginn && ` · ${t.beginn} Uhr`}
+                  </p>
+                  <h3>{t.titel}</h3>
+                  <p>
+                    {artName(t.kategorie)}
+                    {t.band && ` · ${t.band}`}
+                    {t.muttizettel && ' · Muttizettel'}
+                  </p>
+                  <p class="klein leise">
+                    {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
+                  </p>
+                  <Herkunft herkunft={herkunft?.daten?.[t.id]} />
+                </div>
+                <div class="terminaktionen">
+                  <a
+                    class="knopf zweit"
+                    href={`/admin/termine/${t.id}?zurueck=${zurueck}`}
+                    aria-label={`Termin bearbeiten: ${t.titel} in ${t.ort.name}`}
+                  >
+                    <Icon name="stift" />
+                    Bearbeiten
+                  </a>
+                  {!t.bestaetigt && (
                     <a
                       class="klein"
-                      href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
+                      href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}
                     >
-                      Löschen
+                      Bestätigen
                     </a>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </details>
-        );
-      })
-    }
+                  )}
+                  <a
+                    class="klein"
+                    href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
+                  >
+                    Löschen
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      );
+    })}
     <nav class="seiten" aria-label="Ergebnisseiten">
-      {
-        offset > 0 && (
-          <a class="knopf zweit" href={seitenLink(Math.max(0, offset - 25))}>
-            Zurück
-          </a>
-        )
-      }
-      {
-        offset + 25 < daten.gesamt && (
-          <a class="knopf zweit" href={seitenLink(offset + 25)}>
-            Weitere Termine
-          </a>
-        )
-      }
+      {offset > 0 && (
+        <a class="knopf zweit" href={seitenLink(Math.max(0, offset - 25))}>
+          Zurück
+        </a>
+      )}
+      {offset + 25 < daten.gesamt && (
+        <a class="knopf zweit" href={seitenLink(offset + 25)}>
+          Weitere Termine
+        </a>
+      )}
     </nav>
   </section>
 </AdminLayout>

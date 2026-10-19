@@ -61,100 +61,106 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
 
 <AdminLayout titel="Mitteilungen" meldung={meldung} fehler={fehler}>
   <p class="lesetext leise">
-    Besucher sehen die <strong>neueste veröffentlichte</strong> Mitteilung einmal als Hinweis. Wer sie
-    schließt, sieht sie nicht wieder – erst die nächste neue Mitteilung.
+    Besucher sehen die <strong>neueste veröffentlichte</strong> Mitteilung einmal als Hinweis. Wer
+    sie schließt, sieht sie nicht wieder – erst die nächste neue Mitteilung.
   </p>
 
   <h2>Neue Mitteilung</h2>
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="neu" />
-    <label
-      >Titel<input
+    <label>
+      Titel
+      <input
         name="titel"
         required
         maxlength="120"
         placeholder="z. B. Die Kirmessaison 2027 startet"
-      /></label
-    >
-    <label>Text<textarea name="text" required maxlength="2000" rows="5"></textarea></label>
-    <label
-      >Link (optional)<input
+      />
+    </label>
+    <label>
+      Text<textarea name="text" required maxlength="2000" rows="5"></textarea>
+    </label>
+    <label>
+      Link (optional)
+      <input
         name="link"
         maxlength="500"
         placeholder="/termine oder https://…"
         pattern="(https://|/).*"
-      /></label
-    >
-    <label class="klein"
-      ><input type="checkbox" name="sofort" value="ja" checked /> Sofort veröffentlichen</label
-    >
-    <div><button class="knopf" type="submit">Speichern</button></div>
+      />
+    </label>
+    <label class="klein">
+      <input type="checkbox" name="sofort" value="ja" checked /> Sofort veröffentlichen
+    </label>
+    <div>
+      <button class="knopf" type="submit">
+        Speichern
+      </button>
+    </div>
   </form>
 
   <h2>Alle Mitteilungen</h2>
-  {
-    liste.length === 0 ? (
-      <p class="leer">Noch keine Mitteilungen.</p>
-    ) : (
-      <table class="admin-tabelle">
-        <thead>
+  {liste.length === 0 ? (
+    <p class="leer">Noch keine Mitteilungen.</p>
+  ) : (
+    <table class="admin-tabelle">
+      <thead>
+        <tr>
+          <th>Titel</th>
+          <th>Status</th>
+          <th>Erstellt</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        {liste.map((m) => (
           <tr>
-            <th>Titel</th>
-            <th>Status</th>
-            <th>Erstellt</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {liste.map((m) => (
-            <tr>
-              <td>
-                <span class="tabellen-label">Titel</span>
-                <strong>{m.titel}</strong>
-                <div class="leise klein">
-                  {m.text.slice(0, 140)}
-                  {m.text.length > 140 ? '…' : ''}
-                </div>
-              </td>
-              <td>
-                <span class="tabellen-label">Status</span>
-                {m.id === aktuellId ? (
-                  <span class="bestaetigt">wird angezeigt</span>
-                ) : m.veroeffentlichtAm ? (
-                  'veröffentlicht (ältere)'
-                ) : (
-                  'Entwurf'
-                )}
-              </td>
-              <td class="klein">
-                <span class="tabellen-label">Erstellt</span>
-                {zeit(m.erstelltAm)}
-              </td>
-              <td>
-                <div class="klein-knoepfe">
-                  <form method="post">
-                    <CsrfFeld />
-                    <input type="hidden" name="id" value={m.id} />
-                    {m.veroeffentlichtAm ? (
-                      <button class="knopf zweit" name="aktion" value="zurueckziehen">
-                        Zurückziehen
-                      </button>
-                    ) : (
-                      <button class="knopf" name="aktion" value="veroeffentlichen">
-                        Veröffentlichen
-                      </button>
-                    )}
-                    <button class="knopf zweit" name="aktion" value="loeschen">
-                      Löschen
+            <td>
+              <span class="tabellen-label">Titel</span>
+              <strong>{m.titel}</strong>
+              <div class="leise klein">
+                {m.text.slice(0, 140)}
+                {m.text.length > 140 ? '…' : ''}
+              </div>
+            </td>
+            <td>
+              <span class="tabellen-label">Status</span>
+              {m.id === aktuellId ? (
+                <span class="bestaetigt">wird angezeigt</span>
+              ) : m.veroeffentlichtAm ? (
+                'veröffentlicht (ältere)'
+              ) : (
+                'Entwurf'
+              )}
+            </td>
+            <td class="klein">
+              <span class="tabellen-label">Erstellt</span>
+              {zeit(m.erstelltAm)}
+            </td>
+            <td>
+              <div class="klein-knoepfe">
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="id" value={m.id} />
+                  {m.veroeffentlichtAm ? (
+                    <button class="knopf zweit" name="aktion" value="zurueckziehen">
+                      Zurückziehen
                     </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )
-  }
+                  ) : (
+                    <button class="knopf" name="aktion" value="veroeffentlichen">
+                      Veröffentlichen
+                    </button>
+                  )}
+                  <button class="knopf zweit" name="aktion" value="loeschen">
+                    Löschen
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
 </AdminLayout>

@@ -25,13 +25,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
     </p>
   </section>
   <nav class="kreisraster" aria-label="Landkreise">
-    {
-      kreise.map((x) => (
-        <a href={`/kreise/${kreisSlug(x.k)}`}>
-          <strong>{kreisKurz(x.k)}</strong>
-          <span>{anzahl(x.n, 'Termin', 'Termine', 'derzeit keine')}</span>
-        </a>
-      ))
-    }
+    {kreise.map((x) => (
+      <a href={`/kreise/${kreisSlug(x.k)}`}>
+        <strong>{kreisKurz(x.k)}</strong>
+        <span>{anzahl(x.n, 'Termin', 'Termine', 'derzeit keine')}</span>
+      </a>
+    ))}
   </nav>
 </Base>

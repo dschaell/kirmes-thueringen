@@ -214,496 +214,490 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
 ---
 
 <AdminLayout titel={ort ? `Termine in ${ort.name}` : 'Termine'} meldung={meldung} fehler={fehler}>
-  {
-    !ort && (
-      <>
-        <h2>Für welchen Ort?</h2>
-        <form class="suchzeile" method="get">
-          <input
-            type="search"
-            name="suche"
-            value={suche}
-            placeholder="Ortsname, z. B. Mühlberg"
-            aria-label="Ortsname"
-            autofocus
-          />
-          <button class="knopf" type="submit">
-            <Icon name="suche" />
-            Suchen
-          </button>
-        </form>
-        {suche && (
+  {!ort && (
+    <>
+      <h2>Für welchen Ort?</h2>
+      <form class="suchzeile" method="get">
+        <input
+          type="search"
+          name="suche"
+          value={suche}
+          placeholder="Ortsname, z. B. Mühlberg"
+          aria-label="Ortsname"
+          autofocus
+        />
+        <button class="knopf" type="submit">
+          <Icon name="suche" />
+          Suchen
+        </button>
+      </form>
+      {suche && (
+        <table class="admin-tabelle">
+          <tbody>
+            {treffer.length === 0 && (
+              <tr>
+                <td>
+                  Kein Ort gefunden. <a href="/admin/orte">Ort anlegen</a>
+                </td>
+              </tr>
+            )}
+            {treffer.map((o) => (
+              <tr>
+                <td>
+                  <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
+                  <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+                </td>
+                <td class="klein">{o.anzahlKommend} kommende Termine</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  )}
+
+  {ortSlug && !ort && (
+    <p class="meldung">
+      Ort „{ortSlug}“ nicht gefunden. <a href="/admin/termine">Neu suchen</a>
+    </p>
+  )}
+
+  {ort && (
+    <>
+      {!darf(Astro.locals, 'links') ? (
+        <p class="brotkrumen">
+          <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
+        </p>
+      ) : (
+        <p class="brotkrumen">
+          <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
+          <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
+          <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
+        </p>
+      )}
+
+      <details
+        class="filter plaetze"
+        id="plaetze"
+        open={plaetze.length === 0 || Astro.url.searchParams.has('plaetze')}
+      >
+        <summary>
+          <Icon name="route" />
+          Plätze in {ort.name} ({plaetze.length}) – für die genaue Route
+        </summary>
+        <p class="leise klein">
+          Einmal pro Ort anlegen, z. B. „Kirche“, „Festzelt“, „Kulturhaus“. Termine, deren „Wo
+          genau?“ gleich heißt, führen dann per „Route“ genau dorthin. Ein Platz ohne Namen gilt für
+          alle übrigen Termine des Ortes.
+        </p>
+        {plaetze.length > 0 && (
           <table class="admin-tabelle">
             <tbody>
-              {treffer.length === 0 && (
+              {plaetze.map((pl) => (
                 <tr>
                   <td>
-                    Kein Ort gefunden. <a href="/admin/orte">Ort anlegen</a>
+                    <strong>{pl.name || 'Hauptfestplatz'}</strong>
                   </td>
-                </tr>
-              )}
-              {treffer.map((o) => (
-                <tr>
+                  <td class="klein">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${pl.koordinate.lat},${pl.koordinate.lon}`}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      In Google Maps prüfen
+                    </a>
+                  </td>
                   <td>
-                    <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
-                    <span class="leise klein">({kreisKurz(o.landkreis)})</span>
+                    <form method="post">
+                      <CsrfFeld />
+                      <input type="hidden" name="aktion" value="platz-loeschen" />
+                      <input type="hidden" name="platzname" value={pl.name} />
+                      <button class="knopf zweit" type="submit">
+                        Löschen
+                      </button>
+                    </form>
                   </td>
-                  <td class="klein">{o.anzahlKommend} kommende Termine</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </>
-    )
-  }
-
-  {
-    ortSlug && !ort && (
-      <p class="meldung">
-        Ort „{ortSlug}“ nicht gefunden. <a href="/admin/termine">Neu suchen</a>
-      </p>
-    )
-  }
-
-  {
-    ort && (
-      <>
-        {!darf(Astro.locals, 'links') ? (
-          <p class="brotkrumen">
-            <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
-          </p>
-        ) : (
-          <p class="brotkrumen">
-            <a href="/admin/termine">Anderen Ort wählen</a> ·{' '}
-            <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a> ·{' '}
-            <a href={`/admin/links?ort=${ort.slug}`}>Link für die Kirmesgesellschaft</a>
-          </p>
-        )}
-
-        <details
-          class="filter plaetze"
-          id="plaetze"
-          open={plaetze.length === 0 || Astro.url.searchParams.has('plaetze')}
-        >
-          <summary>
-            <Icon name="route" />
-            Plätze in {ort.name} ({plaetze.length}) – für die genaue Route
-          </summary>
-          <p class="leise klein">
-            Einmal pro Ort anlegen, z. B. „Kirche“, „Festzelt“, „Kulturhaus“. Termine, deren „Wo
-            genau?“ gleich heißt, führen dann per „Route“ genau dorthin. Ein Platz ohne Namen gilt
-            für alle übrigen Termine des Ortes.
-          </p>
-          {plaetze.length > 0 && (
-            <table class="admin-tabelle">
-              <tbody>
-                {plaetze.map((pl) => (
-                  <tr>
-                    <td>
-                      <strong>{pl.name || 'Hauptfestplatz'}</strong>
-                    </td>
-                    <td class="klein">
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${pl.koordinate.lat},${pl.koordinate.lon}`}
-                        target="_blank"
-                        rel="noopener"
-                      >
-                        In Google Maps prüfen
-                      </a>
-                    </td>
-                    <td>
-                      <form method="post">
-                        <CsrfFeld />
-                        <input type="hidden" name="aktion" value="platz-loeschen" />
-                        <input type="hidden" name="platzname" value={pl.name} />
-                        <button class="knopf zweit" type="submit">
-                          Löschen
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <form class="melden" method="post" data-ungespeichert>
-            <CsrfFeld />
-            <input type="hidden" name="aktion" value="platz" />
-            <div class="zwei">
-              <label>
-                Name des Platzes (optional)
-                <input
-                  name="platzname"
-                  maxlength="120"
-                  list="vo-liste"
-                  placeholder="leer = Name aus dem Link, sonst Hauptfestplatz"
-                />
-              </label>
-              <label>
-                Standort aus Google Maps *
-                <input
-                  name="standort"
-                  data-kartenlink-name="platzname"
-                  required
-                  maxlength="2000"
-                  placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
-                />
-              </label>
-            </div>
-            <p class="leise klein">
-              So geht's:{' '}
-              <a href={googleSuche} target="_blank" rel="noopener">
-                {ort.name} in Google Maps öffnen
-              </a>
-              , lange auf die Stelle tippen (Pin setzen), „Teilen“ → „Link kopieren“, hier einfügen.
-            </p>
-            <div>
-              <button class="knopf zweit" type="submit">
-                Platz speichern
-              </button>
-            </div>
-          </form>
-        </details>
-
-        {
-          <nav class="umschalter" aria-label="Art der Eingabe">
-            <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!alleModus && 'page'}>
-              Einzelner Termin
-            </a>
-            <a href={`/admin/kirmes-eintragen?ort=${ort.slug}`}>Ganzes Kirmeswochenende</a>
-            {termine.length > 0 && (
-              <a
-                href={`/admin/termine?ort=${ort.slug}&modus=alle`}
-                aria-current={alleModus && 'page'}
-              >
-                Alle Termine bearbeiten
-              </a>
-            )}
-          </nav>
-        }
-
-        {alleModus && (
-          <section aria-labelledby="alle-kopf">
-            <h2 id="alle-kopf">Alle Termine in {ort.name} bearbeiten</h2>
-            {termine.length === 0 ? (
-              <p class="leer">Noch keine Termine.</p>
-            ) : (
-              <form
-                class="melden wochenende"
-                method="post"
-                id="alle"
-                data-ungespeichert
-                data-terminentwurf
-              >
-                <CsrfFeld />
-                <input type="hidden" name="aktion" value="sammel" />
-                <p class="leise klein">
-                  Jedes Feld lässt sich direkt ändern. „Löschen“ anhaken, um einen Termin zu
-                  entfernen. Gespeichert wird alles zusammen – oder bei einem Fehler gar nichts.
-                </p>
-                <ol class="we-zeilen">
-                  {termine.map((t, i) => (
-                    <li class="we-zeile">
-                      <input type="hidden" name="s-id" value={t.id} />
-                      <input type="hidden" name="s-version" value={t.version} />
-                      <Herkunft herkunft={herkunft[t.id]} />
-                      <div class="we-zeit">
-                        <label>
-                          Datum
-                          <input name="s-datum" type="date" required value={t.datum} />
-                        </label>
-                        <label>
-                          Beginn
-                          <input name="s-beginn" type="time" value={t.beginn ?? ''} />
-                        </label>
-                        <span class="we-tag leise klein" aria-hidden="true">
-                          {wochentag(t.datum)}, {tagMonat(t.datum)}
-                        </span>
-                      </div>
-                      <div class="zwei">
-                        <label>
-                          Veranstaltung
-                          <input
-                            name="s-titel"
-                            required
-                            maxlength="200"
-                            list="titel-liste"
-                            value={t.titel}
-                          />
-                        </label>
-                        <label>
-                          Art
-                          <select name="s-kat">
-                            {Object.entries(KATEGORIEN).map(([k, v]) => (
-                              <option value={k} selected={t.kategorie === k}>
-                                {v.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div class="zwei">
-                        <label>
-                          Band / DJ
-                          <input
-                            name="s-band"
-                            maxlength="120"
-                            list="band-liste"
-                            value={t.band ?? ''}
-                          />
-                        </label>
-                        <label>
-                          Wo genau?
-                          <input
-                            name="s-vo"
-                            maxlength="120"
-                            list="vo-liste"
-                            value={t.veranstaltungsort ?? ''}
-                          />
-                        </label>
-                      </div>
-                      <label>
-                        Hinweise (öffentlich)
-                        <textarea name="s-info" maxlength="500" rows="2" set:text={t.info ?? ''} />
-                      </label>
-                      <div class="haekchen">
-                        <label class="klein">
-                          <input
-                            type="checkbox"
-                            name="s-mutti"
-                            value={String(i)}
-                            checked={t.muttizettel}
-                          />{' '}
-                          Muttizettel
-                        </label>
-                        <label class="klein">
-                          <input
-                            type="checkbox"
-                            name="s-best"
-                            value={String(i)}
-                            checked={t.bestaetigt}
-                          />{' '}
-                          Vom Veranstalter bestätigt
-                        </label>
-                        <a class="klein" href={`/admin/termine/${t.id}`}>
-                          Essen & Getränke
-                        </a>
-                        <label class="klein loeschen">
-                          <input
-                            type="checkbox"
-                            checked={sammelEingaben.get(t.id)?.loeschen}
-                            name="s-loeschen"
-                            value={String(i)}
-                          />{' '}
-                          Löschen
-                        </label>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <div class="knopfreihe">
-                  <button class="knopf" type="submit">
-                    Alle Änderungen speichern
-                  </button>
-                  <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
-                    Abbrechen
-                  </a>
-                </div>
-              </form>
-            )}
-          </section>
-        )}
-
-        {!alleModus && <h2>Neuer Termin</h2>}
-        {!alleModus && (
-          <details class="filter" open>
-            <summary>
-              <Icon name="suche" />
-              Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
-            </summary>
-            <div class="filterfelder">
-              <textarea
-                id="assistent"
-                rows="5"
-                placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
-              />
-              <p class="leise klein" id="assistent-info">
-                Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der
-                Recherche notieren.
-              </p>
-            </div>
-          </details>
-        )}
-
-        {!alleModus && (
-          <form class="melden" method="post" id="terminformular">
-            <CsrfFeld />
-            <input type="hidden" name="aktion" value="speichern" />
-            <div class="zwei">
-              <label>
-                Datum *<input name="datum" type="date" required value={einzelWerte?.datum ?? ''} />
-              </label>
-              <label>
-                Beginn
-                <input name="beginn" type="time" value={einzelWerte?.beginn ?? ''} />
-              </label>
-            </div>
+        <form class="melden" method="post" data-ungespeichert>
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="platz" />
+          <div class="zwei">
             <label>
-              Veranstaltung *
+              Name des Platzes (optional)
               <input
-                name="titel"
-                required
-                maxlength="200"
-                list="titel-liste"
-                value={einzelWerte?.titel ?? ''}
+                name="platzname"
+                maxlength="120"
+                list="vo-liste"
+                placeholder="leer = Name aus dem Link, sonst Hauptfestplatz"
               />
             </label>
-            <div class="zwei">
-              <label>
-                Wo genau?
-                <input
-                  name="veranstaltungsort"
-                  maxlength="120"
-                  list="vo-liste"
-                  value={einzelWerte?.veranstaltungsort ?? ''}
-                />
-              </label>
-              <label>
-                Art
-                <select name="kategorie">
-                  <option value="">automatisch erkennen</option>
-                  {Object.entries(KATEGORIEN).map(([k, v]) => (
-                    <option value={k} selected={einzelWerte?.kategorie === k}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div class="zwei">
-              <label>
-                Band / DJ
-                <input
-                  name="band"
-                  maxlength="120"
-                  list="band-liste"
-                  value={einzelWerte?.band ?? ''}
-                />
-              </label>
-              <label>
-                Hinweise (öffentlich)
-                <textarea
-                  name="info"
-                  maxlength="500"
-                  rows="2"
-                  placeholder="z. B. Eintritt 8 €, Einlass ab 18"
-                  set:text={einzelWerte?.info ?? ''}
-                />
-              </label>
-            </div>
-            <datalist id="vo-liste">
-              {veranstaltungsorte.map((v) => (
-                <option value={v!} />
-              ))}
-            </datalist>
-            <label class="klein">
+            <label>
+              Standort aus Google Maps *
               <input
-                type="checkbox"
-                name="bestaetigt"
-                value="ja"
-                checked={einzelWerte?.bestaetigt ?? false}
-              />{' '}
-              Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+                name="standort"
+                data-kartenlink-name="platzname"
+                required
+                maxlength="2000"
+                placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+              />
             </label>
-            <label class="klein">
+          </div>
+          <p class="leise klein">
+            So geht's:{' '}
+            <a href={googleSuche} target="_blank" rel="noopener">
+              {ort.name} in Google Maps öffnen
+            </a>
+            , lange auf die Stelle tippen (Pin setzen), „Teilen“ → „Link kopieren“, hier einfügen.
+          </p>
+          <div>
+            <button class="knopf zweit" type="submit">
+              Platz speichern
+            </button>
+          </div>
+        </form>
+      </details>
+
+      {
+        <nav class="umschalter" aria-label="Art der Eingabe">
+          <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!alleModus && 'page'}>
+            Einzelner Termin
+          </a>
+          <a href={`/admin/kirmes-eintragen?ort=${ort.slug}`}>Ganzes Kirmeswochenende</a>
+          {termine.length > 0 && (
+            <a
+              href={`/admin/termine?ort=${ort.slug}&modus=alle`}
+              aria-current={alleModus && 'page'}
+            >
+              Alle Termine bearbeiten
+            </a>
+          )}
+        </nav>
+      }
+
+      {alleModus && (
+        <section aria-labelledby="alle-kopf">
+          <h2 id="alle-kopf">Alle Termine in {ort.name} bearbeiten</h2>
+          {termine.length === 0 ? (
+            <p class="leer">Noch keine Termine.</p>
+          ) : (
+            <form
+              class="melden wochenende"
+              method="post"
+              id="alle"
+              data-ungespeichert
+              data-terminentwurf
+            >
+              <CsrfFeld />
+              <input type="hidden" name="aktion" value="sammel" />
+              <p class="leise klein">
+                Jedes Feld lässt sich direkt ändern. „Löschen“ anhaken, um einen Termin zu
+                entfernen. Gespeichert wird alles zusammen – oder bei einem Fehler gar nichts.
+              </p>
+              <ol class="we-zeilen">
+                {termine.map((t, i) => (
+                  <li class="we-zeile">
+                    <input type="hidden" name="s-id" value={t.id} />
+                    <input type="hidden" name="s-version" value={t.version} />
+                    <Herkunft herkunft={herkunft[t.id]} />
+                    <div class="we-zeit">
+                      <label>
+                        Datum
+                        <input name="s-datum" type="date" required value={t.datum} />
+                      </label>
+                      <label>
+                        Beginn
+                        <input name="s-beginn" type="time" value={t.beginn ?? ''} />
+                      </label>
+                      <span class="we-tag leise klein" aria-hidden="true">
+                        {wochentag(t.datum)}, {tagMonat(t.datum)}
+                      </span>
+                    </div>
+                    <div class="zwei">
+                      <label>
+                        Veranstaltung
+                        <input
+                          name="s-titel"
+                          required
+                          maxlength="200"
+                          list="titel-liste"
+                          value={t.titel}
+                        />
+                      </label>
+                      <label>
+                        Art
+                        <select name="s-kat">
+                          {Object.entries(KATEGORIEN).map(([k, v]) => (
+                            <option value={k} selected={t.kategorie === k}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div class="zwei">
+                      <label>
+                        Band / DJ
+                        <input
+                          name="s-band"
+                          maxlength="120"
+                          list="band-liste"
+                          value={t.band ?? ''}
+                        />
+                      </label>
+                      <label>
+                        Wo genau?
+                        <input
+                          name="s-vo"
+                          maxlength="120"
+                          list="vo-liste"
+                          value={t.veranstaltungsort ?? ''}
+                        />
+                      </label>
+                    </div>
+                    <label>
+                      Hinweise (öffentlich)
+                      <textarea name="s-info" maxlength="500" rows="2" set:text={t.info ?? ''} />
+                    </label>
+                    <div class="haekchen">
+                      <label class="klein">
+                        <input
+                          type="checkbox"
+                          name="s-mutti"
+                          value={String(i)}
+                          checked={t.muttizettel}
+                        />{' '}
+                        Muttizettel
+                      </label>
+                      <label class="klein">
+                        <input
+                          type="checkbox"
+                          name="s-best"
+                          value={String(i)}
+                          checked={t.bestaetigt}
+                        />{' '}
+                        Vom Veranstalter bestätigt
+                      </label>
+                      <a class="klein" href={`/admin/termine/${t.id}`}>
+                        Essen & Getränke
+                      </a>
+                      <label class="klein loeschen">
+                        <input
+                          type="checkbox"
+                          checked={sammelEingaben.get(t.id)?.loeschen}
+                          name="s-loeschen"
+                          value={String(i)}
+                        />{' '}
+                        Löschen
+                      </label>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div class="knopfreihe">
+                <button class="knopf" type="submit">
+                  Alle Änderungen speichern
+                </button>
+                <a class="knopf zweit" href={`/admin/termine?ort=${ort.slug}`}>
+                  Abbrechen
+                </a>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+
+      {!alleModus && <h2>Neuer Termin</h2>}
+      {!alleModus && (
+        <details class="filter" open>
+          <summary>
+            <Icon name="suche" />
+            Recherche-Assistent: Text aus Instagram, Facebook oder Amtsblatt einfügen
+          </summary>
+          <div class="filterfelder">
+            <textarea
+              id="assistent"
+              rows="5"
+              placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
+            />
+            <p class="leise klein" id="assistent-info">
+              Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der
+              Recherche notieren.
+            </p>
+          </div>
+        </details>
+      )}
+
+      {!alleModus && (
+        <form class="melden" method="post" id="terminformular">
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="speichern" />
+          <div class="zwei">
+            <label>
+              Datum *<input name="datum" type="date" required value={einzelWerte?.datum ?? ''} />
+            </label>
+            <label>
+              Beginn
+              <input name="beginn" type="time" value={einzelWerte?.beginn ?? ''} />
+            </label>
+          </div>
+          <label>
+            Veranstaltung *
+            <input
+              name="titel"
+              required
+              maxlength="200"
+              list="titel-liste"
+              value={einzelWerte?.titel ?? ''}
+            />
+          </label>
+          <div class="zwei">
+            <label>
+              Wo genau?
               <input
-                type="checkbox"
-                name="muttizettel"
-                value="ja"
-                checked={einzelWerte?.muttizettel ?? false}
-              />{' '}
-              Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
+                name="veranstaltungsort"
+                maxlength="120"
+                list="vo-liste"
+                value={einzelWerte?.veranstaltungsort ?? ''}
+              />
             </label>
-            <div class="knopfreihe">
-              <button class="knopf" type="submit">
-                Speichern
-              </button>
-            </div>
-          </form>
-        )}
-        {alleModus && (
+            <label>
+              Art
+              <select name="kategorie">
+                <option value="">automatisch erkennen</option>
+                {Object.entries(KATEGORIEN).map(([k, v]) => (
+                  <option value={k} selected={einzelWerte?.kategorie === k}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div class="zwei">
+            <label>
+              Band / DJ
+              <input
+                name="band"
+                maxlength="120"
+                list="band-liste"
+                value={einzelWerte?.band ?? ''}
+              />
+            </label>
+            <label>
+              Hinweise (öffentlich)
+              <textarea
+                name="info"
+                maxlength="500"
+                rows="2"
+                placeholder="z. B. Eintritt 8 €, Einlass ab 18"
+                set:text={einzelWerte?.info ?? ''}
+              />
+            </label>
+          </div>
           <datalist id="vo-liste">
             {veranstaltungsorte.map((v) => (
               <option value={v!} />
             ))}
           </datalist>
-        )}
-
-        <datalist id="band-liste">
-          {bands.map((b) => (
-            <option value={b!} />
+          <label class="klein">
+            <input
+              type="checkbox"
+              name="bestaetigt"
+              value="ja"
+              checked={einzelWerte?.bestaetigt ?? false}
+            />{' '}
+            Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+          </label>
+          <label class="klein">
+            <input
+              type="checkbox"
+              name="muttizettel"
+              value="ja"
+              checked={einzelWerte?.muttizettel ?? false}
+            />{' '}
+            Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
+          </label>
+          <div class="knopfreihe">
+            <button class="knopf" type="submit">
+              Speichern
+            </button>
+          </div>
+        </form>
+      )}
+      {alleModus && (
+        <datalist id="vo-liste">
+          {veranstaltungsorte.map((v) => (
+            <option value={v!} />
           ))}
         </datalist>
-        <datalist id="titel-liste">
-          {titelVorschlaege.map((t) => (
-            <option value={t} />
-          ))}
-        </datalist>
+      )}
 
-        <h2>Termine in {ort.name}</h2>
-        {termine.length === 0 ? (
-          <p class="leer">Noch keine Termine.</p>
-        ) : (
-          <table class="admin-tabelle">
-            <tbody>
-              {termine.map((t) => (
-                <tr>
-                  <td class="klein">
-                    {datumLangJahr(t.datum)}
-                    {t.beginn && <>, {t.beginn}</>}
-                  </td>
-                  <td>
-                    <strong>{t.titel}</strong>
-                    <Herkunft herkunft={herkunft[t.id]} />
-                    {(t.veranstaltungsort || t.band) && (
-                      <div class="leise klein">
-                        {[t.veranstaltungsort, t.band && `Musik: ${t.band}`]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </div>
-                    )}
-                  </td>
-                  <td class="klein">
-                    {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
-                  </td>
-                  <td>
-                    <div class="klein-knoepfe">
-                      <a class="knopf zweit" href={`/admin/termine/${t.id}`}>
-                        Ändern
-                      </a>
-                      <form method="post">
-                        <CsrfFeld />
-                        <input type="hidden" name="id" value={t.id} />
-                        {!t.bestaetigt && (
-                          <button class="knopf zweit" name="aktion" value="bestaetigen">
-                            Bestätigen
-                          </button>
-                        )}
-                        <button class="knopf zweit" name="aktion" value="loeschen">
-                          Löschen
-                        </button>
-                      </form>
+      <datalist id="band-liste">
+        {bands.map((b) => (
+          <option value={b!} />
+        ))}
+      </datalist>
+      <datalist id="titel-liste">
+        {titelVorschlaege.map((t) => (
+          <option value={t} />
+        ))}
+      </datalist>
+
+      <h2>Termine in {ort.name}</h2>
+      {termine.length === 0 ? (
+        <p class="leer">Noch keine Termine.</p>
+      ) : (
+        <table class="admin-tabelle">
+          <tbody>
+            {termine.map((t) => (
+              <tr>
+                <td class="klein">
+                  {datumLangJahr(t.datum)}
+                  {t.beginn && <>, {t.beginn}</>}
+                </td>
+                <td>
+                  <strong>{t.titel}</strong>
+                  <Herkunft herkunft={herkunft[t.id]} />
+                  {(t.veranstaltungsort || t.band) && (
+                    <div class="leise klein">
+                      {[t.veranstaltungsort, t.band && `Musik: ${t.band}`]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </>
-    )
-  }
+                  )}
+                </td>
+                <td class="klein">
+                  {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
+                </td>
+                <td>
+                  <div class="klein-knoepfe">
+                    <a class="knopf zweit" href={`/admin/termine/${t.id}`}>
+                      Ändern
+                    </a>
+                    <form method="post">
+                      <CsrfFeld />
+                      <input type="hidden" name="id" value={t.id} />
+                      {!t.bestaetigt && (
+                        <button class="knopf zweit" name="aktion" value="bestaetigen">
+                          Bestätigen
+                        </button>
+                      )}
+                      <button class="knopf zweit" name="aktion" value="loeschen">
+                        Löschen
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  )}
 </AdminLayout>
 
 <script>

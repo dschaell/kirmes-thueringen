@@ -34,13 +34,9 @@ Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=60
 >
   <section class="einstieg">
     <h1>Orte von A bis Z</h1>
-    {
-      orte.length > 0 && (
-        <p class="unterzeile">
-          {anzahl(orte.length, 'Ort', 'Orte')} mit kommenden Kirmes-Terminen.
-        </p>
-      )
-    }
+    {orte.length > 0 && (
+      <p class="unterzeile">{anzahl(orte.length, 'Ort', 'Orte')} mit kommenden Kirmes-Terminen.</p>
+    )}
   </section>
   <form class="ortsuche-form" method="get" action="/orte" role="search">
     <label>
@@ -59,52 +55,48 @@ Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=60
     </label>
     <button class="knopf">Ort öffnen</button>
   </form>
-  {
-    q && (
-      <section aria-labelledby="h-treffer">
-        <h2 id="h-treffer">Orte zu „{q}“</h2>
-        {treffer.length === 0 ? (
-          <p class="leer">Kein Thüringer Ort gefunden. Bitte die Schreibweise prüfen.</p>
-        ) : (
-          <ul class="ortliste">
-            {treffer.map((t) => (
-              <li>
-                <a href={`/orte/${t.slug}`}>{t.wert}</a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    )
-  }
-  {!q && orte.length > 0 && <h2 class="unterkopf">Orte mit kommenden Terminen</h2>}
-  {
-    orte.length === 0 && (
-      <p class="leer">
-        Noch sind keine Termine eingetragen. <a href="/termin-melden">Kennt ihr eine Kirmes?</a>
-      </p>
-    )
-  }
-  <nav class="abc" aria-label="Anfangsbuchstabe">
-    {[...gruppen.keys()].map((b) => <a href={`#${b}`}>{b}</a>)}
-  </nav>
-  {
-    [...gruppen].map(([b, liste]) => (
-      <section>
-        <h2 class="buchstabe" id={b}>
-          {b}
-        </h2>
+  {q && (
+    <section aria-labelledby="h-treffer">
+      <h2 id="h-treffer">Orte zu „{q}“</h2>
+      {treffer.length === 0 ? (
+        <p class="leer">Kein Thüringer Ort gefunden. Bitte die Schreibweise prüfen.</p>
+      ) : (
         <ul class="ortliste">
-          {liste.map((o) => (
+          {treffer.map((t) => (
             <li>
-              <a href={`/orte/${o.slug}`}>{o.name}</a>
-              <span class="kz">{o.anzahlKommend}</span>
+              <a href={`/orte/${t.slug}`}>{t.wert}</a>
             </li>
           ))}
         </ul>
-      </section>
-    ))
-  }
+      )}
+    </section>
+  )}
+  {!q && orte.length > 0 && <h2 class="unterkopf">Orte mit kommenden Terminen</h2>}
+  {orte.length === 0 && (
+    <p class="leer">
+      Noch sind keine Termine eingetragen. <a href="/termin-melden">Kennt ihr eine Kirmes?</a>
+    </p>
+  )}
+  <nav class="abc" aria-label="Anfangsbuchstabe">
+    {[...gruppen.keys()].map((b) => (
+      <a href={`#${b}`}>{b}</a>
+    ))}
+  </nav>
+  {[...gruppen].map(([b, liste]) => (
+    <section>
+      <h2 class="buchstabe" id={b}>
+        {b}
+      </h2>
+      <ul class="ortliste">
+        {liste.map((o) => (
+          <li>
+            <a href={`/orte/${o.slug}`}>{o.name}</a>
+            <span class="kz">{o.anzahlKommend}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
 </Base>
 <script>
   import '../../scripts/ortssuche';
