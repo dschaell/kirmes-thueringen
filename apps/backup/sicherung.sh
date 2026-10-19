@@ -61,6 +61,12 @@ sichere() {
   fi
 }
 
+# Umstieg vom alten Dienst: heutige Sicherung schon da, aber noch kein Status → übernehmen
+heutige="kirmes-$(date +%F).dump"
+if [ ! -f "$ZIEL/status.json" ] && [ -f "$ZIEL/$heutige" ]; then
+  status ok "$heutige" aus "vom vorherigen Sicherungsdienst übernommen"
+fi
+
 while true; do
   if [ "$(date +%F)" != "$(cat "$ZIEL/.letzte" 2>/dev/null)" ]; then
     sichere || true
