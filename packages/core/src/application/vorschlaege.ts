@@ -7,9 +7,22 @@ import type { OrtRepository } from './ports.js';
 import type { Drosselung, Postausgang } from './meldungen.js';
 import { erkenneKategorie } from './recherche.js';
 import { validiereAlle, type TerminFormular } from './termine-verwalten.js';
+import { validiereFestplatz, type Koordinate } from '../domain/festplatz.js';
+import {
+  istErlaubterKartenlink,
+  istKartenKurzlink,
+  koordinateAusText,
+  nameAusKartenlink,
+} from '../domain/redaktion.js';
+import type { Kartenlinks } from './festplaetze.js';
 
 export interface VorschlagsZeile extends TerminFormular {
   speisen?: { name: string; preis: string }[];
+  /** Öffentlich: Google-Maps-Link oder Koordinaten zum Ort – wird nie gespeichert (Issue #169) */
+  karte?: string;
+  /** Redaktion: gespeicherter Kartenpunkt des Vorschlags und ob er als Platz übernommen wird */
+  platz?: Koordinate | null;
+  platzUebernehmen?: boolean;
 }
 export interface VorschlagEingabe {
   ortSlug: string;
@@ -22,6 +35,9 @@ export interface VorschlagEingabe {
 }
 export interface VorschlagsTermin extends NeuerTermin {
   speisen: readonly Speise[];
+  /** Kartenpunkt des Einsenders (nur Zahlen) – Platz entsteht erst beim Übernehmen mit Haken */
+  platz: Koordinate | null;
+  platzUebernehmen?: boolean;
 }
 export interface NeuerVorschlag {
   ortSlug: string;
@@ -58,7 +74,50 @@ const fehler = (feld: string, meldung: string): Validierungsfehler => ({
   meldung,
 });
 
-export async function pruefeVorschlag(e: VorschlagEingabe, orte: OrtRepository) {
+/**
+ * Kartenpunkt einer Zeile (Issue #169). Öffentlich: Link gegen die Allowlist prüfen, Kurzlink sicher
+ * auflösen, nur Koordinaten + Namen behalten. Redaktion: gespeicherten Punkt erneut prüfen.
+ * Ohne Namen („Wo genau?“ oder aus dem Link) kein Kartenpunkt – schützt den Hauptfestplatz.
+ */
+async function kartenpunkt(
+  z: VorschlagsZeile,
+  nr: number,
+  karten: Kartenlinks | undefined,
+  redaktion: boolean,
+): Promise<{ platz: Koordinate; wo: string } | Validierungsfehler | null> {
+  const feld = `zeile${nr}.karte`;
+  const fehlerHier = (meldung: string): Validierungsfehler => ({ feld, code: 'KARTE', meldung });
+  if (redaktion) {
+    if (!z.platz) return null;
+    const p = validiereFestplatz({ name: '', lat: z.platz.lat, lon: z.platz.lon });
+    return p.ok
+      ? { platz: p.value.koordinate, wo: text(z.veranstaltungsort) }
+      : fehlerHier(`Veranstaltung ${nr}: Kartenpunkt ungültig.`);
+  }
+  const roh = text(z.karte);
+  if (!roh) return null;
+  if (!istErlaubterKartenlink(roh))
+    return fehlerHier(
+      `Veranstaltung ${nr}: Bitte nur einen Link aus Google Maps („Teilen → Link kopieren“) oder Koordinaten angeben.`,
+    );
+  const aufgeloest = istKartenKurzlink(roh) ? ((await karten?.aufloesen(roh)) ?? '') : roh;
+  const k = koordinateAusText(aufgeloest);
+  if (!k) return fehlerHier(`Veranstaltung ${nr}: Kartenpunkt im Link nicht erkannt.`);
+  const p = validiereFestplatz({ name: '', lat: k.lat, lon: k.lon });
+  if (!p.ok) return fehlerHier(`Veranstaltung ${nr}: Der Kartenpunkt liegt nicht in Thüringen.`);
+  const wo = text(z.veranstaltungsort) || nameAusKartenlink(aufgeloest) || '';
+  if (!wo)
+    return fehlerHier(
+      `Veranstaltung ${nr}: Für den Kartenpunkt bitte „Wo genau?“ ausfüllen (z. B. Kirche).`,
+    );
+  return { platz: p.value.koordinate, wo };
+}
+
+export async function pruefeVorschlag(
+  e: VorschlagEingabe,
+  orte: OrtRepository,
+  opt: { karten?: Kartenlinks; redaktion?: boolean } = {},
+) {
   const f: Validierungsfehler[] = [];
   const kontaktName = text(e.kontaktName) || null;
   const kontaktEmail = text(e.kontaktEmail) || null;
@@ -76,8 +135,16 @@ export async function pruefeVorschlag(e: VorschlagEingabe, orte: OrtRepository) 
     f.push(fehler('nachricht', 'Nachricht: höchstens 2000 Zeichen.'));
   const ort = await orte.finde(e.ortSlug);
   if (!ort) return err([fehler('ortSlug', 'Bitte einen Ort aus dem Ortsverzeichnis wählen.')]);
+  const punkte: ({ platz: Koordinate; wo: string } | null)[] = [];
+  for (const [i, z] of (e.zeilen.length <= 20 ? e.zeilen : []).entries()) {
+    const p = await kartenpunkt(z, i + 1, opt.karten, opt.redaktion === true);
+    if (p && 'feld' in p) f.push(p);
+    punkte.push(p && 'platz' in p ? p : null);
+  }
   const speisen: Speise[][] = [];
+  let index = 0;
   const v = validiereAlle(e.zeilen, (z) => {
+    const punkt = punkte[index++] ?? null;
     const s = validiereSpeisen(
       (z.speisen ?? []).map((s) => ({ name: text(s.name), preis: text(s.preis) })),
     );
@@ -93,7 +160,7 @@ export async function pruefeVorschlag(e: VorschlagEingabe, orte: OrtRepository) 
       beginn: z.beginn || null,
       band: text(z.band),
       info: text(z.info),
-      veranstaltungsort: text(z.veranstaltungsort),
+      veranstaltungsort: punkt?.wo || text(z.veranstaltungsort),
       // Gewählte Art gilt, sonst aus dem Titel erkennen (Issue #93)
       kategorie:
         z.kategorie && (KATEGORIEN as readonly string[]).includes(z.kategorie)
@@ -109,7 +176,13 @@ export async function pruefeVorschlag(e: VorschlagEingabe, orte: OrtRepository) 
     kontaktName,
     kontaktEmail,
     nachricht,
-    termine: v.value.termine.map((t, i) => ({ ...t, speisen: speisen[i] ?? [] })),
+    termine: v.value.termine.map((t, i) => ({
+      ...t,
+      speisen: speisen[i] ?? [],
+      platz: punkte[i]?.platz ?? null,
+      platzUebernehmen:
+        opt.redaktion === true && !!punkte[i] && e.zeilen[i]?.platzUebernehmen === true,
+    })),
   } satisfies NeuerVorschlag);
 }
 
@@ -122,13 +195,15 @@ export class Vorschlaege {
     private readonly jeAbsender: Drosselung,
     private readonly gesamt: Drosselung,
     private readonly website: string,
+    /** Löst Kurzlinks sicher auf (nur Google-Hosts) – Issue #169 */
+    private readonly karten?: Kartenlinks,
   ) {}
   async melde(e: VorschlagEingabe, herkunft: string) {
     if (text(e.falle) || !Number.isFinite(e.dauerMs) || (e.dauerMs ?? 0) < 3000)
       return ok({ angenommen: true });
     if (!this.jeAbsender.erlaube(herkunft) || !this.gesamt.erlaube('gesamt'))
       return err('ZU_VIELE' as const);
-    const v = await pruefeVorschlag(e, this.orte);
+    const v = await pruefeVorschlag(e, this.orte, { karten: this.karten });
     if (!v.ok) return v;
     if (!(await this.repo.lege(v.value))) return err('ORT_VOLL' as const);
     // Der gespeicherte Vorschlag bleibt bei einer Mailstörung erreichbar. Kein zweites Eintragen erzwingen.
@@ -162,7 +237,7 @@ export class Vorschlaege {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
     if (!UUID.test(id) || !(await this.repo.finde(id))) return err('NICHT_GEFUNDEN' as const);
-    const v = await pruefeVorschlag(e, this.orte);
+    const v = await pruefeVorschlag(e, this.orte, { redaktion: true });
     if (!v.ok) return v;
     const r = await this.repo.uebernehme(
       id,

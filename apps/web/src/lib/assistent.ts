@@ -105,6 +105,9 @@ export function leseProgramm(
                 info: feld(f, `info-${i}`),
                 muttizettel: f.has(`mutti-${i}`),
                 essen: f.has(`essen-${i}`),
+                // Kartenlink (öffentlich) bzw. Haken „als Platz übernehmen“ (Redaktion) – Issue #169
+                karte: feld(f, `karte-${i}`).slice(0, 2000),
+                platzUebernehmen: f.has(`platz-${i}`),
                 speisen: Array.from(
                   { length: Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1)) },
                   (_, j) => ({
@@ -146,6 +149,11 @@ function leseStand(s: string): AssistentStand | null {
           (z.essen === undefined || typeof z.essen === 'boolean') &&
           (z.gerichte === undefined ||
             (Number.isInteger(z.gerichte) && z.gerichte >= 3 && z.gerichte <= 20)) &&
+          (z.karte === undefined || (typeof z.karte === 'string' && z.karte.length <= 2000)) &&
+          (z.platz === undefined ||
+            z.platz === null ||
+            (typeof z.platz.lat === 'number' && typeof z.platz.lon === 'number')) &&
+          (z.platzUebernehmen === undefined || typeof z.platzUebernehmen === 'boolean') &&
           (z.speisen === undefined ||
             (Array.isArray(z.speisen) &&
               z.speisen.length <= 20 &&
@@ -405,6 +413,14 @@ export async function assistent(
         info: z.info || null,
         muttizettel: z.muttizettel ?? false,
         speisen: mitEssen(z) ? (z.speisen ?? []) : [],
+        // Öffentlich nur der Link (Server prüft, speichert nur Koordinaten); Redaktion den Punkt
+        ...(redaktion
+          ? s.vorschlag
+            ? { platz: z.platz ?? null, platzUebernehmen: z.platzUebernehmen === true }
+            : {}
+          : z.karte
+            ? { karte: z.karte }
+            : {}),
       }));
     if (redaktion) {
       const r = s.vorschlag

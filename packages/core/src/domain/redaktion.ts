@@ -130,6 +130,34 @@ export function nameAusKartenlink(text: string): string | null {
   return name && !/^[-\d.,\s°NSEOW'"]+$/i.test(name) ? name : null;
 }
 
+const KARTEN_HOSTS = new Set([
+  'google.com',
+  'www.google.com',
+  'google.de',
+  'www.google.de',
+  'maps.google.com',
+  'maps.google.de',
+]);
+/**
+ * Öffentlich eingereichter Kartenlink (Issue #169): nur Google Maps oder reine Koordinaten.
+ * https, Google-Host mit Pfad /maps (bzw. maps.app.goo.gl, goo.gl/maps), keine Zugangsdaten,
+ * kein Port, keine Steuer- oder Leerzeichen, max. 2000 Zeichen. Alles andere wird abgelehnt.
+ */
+export function istErlaubterKartenlink(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length > 2000) return false;
+  if (/^-?\d+[.,]\d+\s*[,;\s]\s*-?\d+[.,]\d+$/.test(t)) return true;
+  if (/[\p{Cc}\s]/u.test(t)) return false;
+  // Host nur aus Buchstaben, Ziffern, Punkt, Bindestrich – damit sind Zugangsdaten (@) und Ports (:) aus
+  const m = /^https:\/\/([a-z0-9.-]+)(\/[^?#]*)?([?#].*)?$/i.exec(t);
+  if (!m) return false;
+  const host = (m[1] ?? '').toLowerCase();
+  const pfad = m[2] ?? '';
+  if (host === 'maps.app.goo.gl') return /^\/[A-Za-z0-9_-]+$/.test(pfad);
+  if (host === 'goo.gl') return /^\/maps\/[A-Za-z0-9_-]+$/.test(pfad);
+  return KARTEN_HOSTS.has(host) && (pfad === '/maps' || pfad.startsWith('/maps/'));
+}
+
 /** Kurzlink aus „Teilen → Link kopieren“ in Google Maps (muss aufgelöst werden, enthält keine Koordinaten). */
 export const istKartenKurzlink = (text: string) =>
   /^\s*https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\/[A-Za-z0-9_-]+\S*\s*$/.test(text);

@@ -149,6 +149,7 @@ const app = await baueApp({
           new SpeicherDrosselung(5, 3_600_000),
           new SpeicherDrosselung(100, 3_600_000),
           k.websiteUrl,
+          new GoogleKartenlinks(),
         )
       : undefined,
   sucheTermine: new SucheTermine(termine, uhr),
