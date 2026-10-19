@@ -63,56 +63,57 @@ import { UNTERSTUETZEN_URL } from '../lib/anzeige';
     </p>
 
     <h2 id="ueber-diesen-kalender">Über diesen Kalender</h2>
-    <p>
-      Der Kirmeskalender Thüringen sammelt die Termine der Kirmesgesellschaften an einem Ort – damit
-      niemand mehr fünf Facebook-Gruppen und drei Aushänge braucht, um zu wissen, wo am Wochenende
-      Kirmes ist.
+    <p class="vorspann">
+      Alle Kirmessen in Thüringen an einem Ort. Kein Durchklicken mehr durch Insta-Storys,
+      WhatsApp-Gruppen und Plakate an der Bushaltestelle – hier siehst du sofort, wo am Wochenende
+      gefeiert wird: mit Uhrzeit, Band, Muttizettel-Info und Route.
     </p>
 
-    <h3>Dieser Kalender lebt von euch</h3>
+    <h3>Lebt von euch</h3>
     <p>
-      Hinter dem Kalender steht kein großer Verlag und keine Agentur, sondern eure{' '}
-      <strong>tatkräftige Unterstützung</strong>. Jeder Termin hier ist da, weil jemand ihn
-      eingetragen hat: Kirmesgesellschaften, Kirmesburschen und -mädchen, Vereine – und Gäste, die
-      eine Ankündigung gesehen und weitergegeben haben. Je mehr mitmachen, desto vollständiger wird
+      Kein Verlag, keine Agentur – nur{' '}<strong>ihr</strong>. Jede Kirmes hier steht drin, weil
+      jemand sie eingetragen hat: Kirmesburschen und -mädchen, Kirmesgesellschaften, Vereine und
+      Leute, die eine Story oder ein Plakat gesehen haben. Je mehr mitmachen, desto kompletter wird
       der Kalender für alle. Danke an alle, die schon dabei sind!
     </p>
 
-    <h3>So helft ihr mit</h3>
+    <h3>So bist du dabei</h3>
     <ul class="mithelfen">
       <li>
-        <a href="/termin-melden"><strong>Termin melden</strong></a> – eure Kirmes in drei Schritten, ohne
-        Anmeldung. Gerne gleich das ganze Programm mit Band, Ort und Essen & Getränken.
+        <a href="/termin-melden"><strong>Kirmes eintragen</strong></a>
+        <span>In drei Schritten, ohne Anmeldung – am besten gleich das ganze Programm.</span>
       </li>
       <li>
-        <strong>Korrektur melden</strong> – stimmt etwas nicht? Auf jeder Terminseite gibt es den Link
-        „Korrektur melden“.
+        <strong>Teilen statt suchen</strong>
+        <span>
+          Auf jeder Terminseite „Teilen“ – ab in die Insta-Story, den WhatsApp-Status oder die
+          Gruppe.
+        </span>
       </li>
       <li>
-        <a href="/termin-melden?festplatz=1#festplatz"><strong>Festplatz eintragen</strong></a> – mit
-        einem persönlichen Link setzt ihr den Pin selbst, dann führt „Route“ eure Gäste direkt zum Zelt
-        oder Saal.
+        <a href="/kalender-abonnieren"><strong>Aufs Handy abonnieren</strong></a>
+        <span>Ganz Thüringen, dein Landkreis oder dein Ort – neue Termine kommen von selbst.</span>
       </li>
       <li>
-        <a href="/redaktion-mitmachen"><strong>In der Redaktion mitmachen</strong></a> – Termine prüfen,
-        Ankündigungen aus eurer Gegend eintragen, Kirmesgesellschaften ansprechen.
+        <strong>Fehler gesehen?</strong>
+        <span>Auf jeder Terminseite „Korrektur melden“ – dauert zehn Sekunden.</span>
       </li>
       <li>
-        <strong>Weitersagen</strong> – teilt Termine per WhatsApp oder in eurer Gruppe und erzählt anderen
-        Kirmesgesellschaften vom Kalender. Jede neue Kirmes macht ihn für alle wertvoller.
+        <a href="/termin-melden?festplatz=1#festplatz"><strong>Festplatz pinnen</strong></a>
+        <span>Damit „Route“ direkt zum Zelt oder Saal führt.</span>
       </li>
       <li>
-        <a href="/kalender-abonnieren"><strong>Kalender abonnieren</strong></a> – ganz Thüringen, euer
-        Landkreis oder euer Ort, neue Termine kommen automatisch.
+        <a href="/redaktion-mitmachen"><strong>Redaktion</strong></a>
+        <span>Lust, den Kalender für deine Gegend mit aktuell zu halten? Melde dich.</span>
       </li>
     </ul>
 
     <h3>Wie wir arbeiten</h3>
     <p>
-      Neue Termine prüft die Redaktion, bevor sie erscheinen. Was der Veranstalter selbst bestätigt
-      hat, trägt ein Häkchen „bestätigt“; alles andere stammt aus öffentlichen Ankündigungen – im
-      Zweifel lieber beim Veranstalter nachfragen. Der Kalender ist kostenlos, ohne Werbung und ohne
-      Tracking. Betrieben wird er von Ryan Dustin Schällert aus Elleben im Ilm-Kreis.
+      Neue Termine schaut sich die Redaktion an, bevor sie online gehen. Das Häkchen „bestätigt“
+      heißt: kommt direkt vom Veranstalter. Alles andere stammt aus öffentlichen Ankündigungen – im
+      Zweifel kurz nachfragen. Kostenlos, ohne Werbung, ohne Tracking. Gemacht von Ryan Dustin
+      Schällert aus Elleben im Ilm-Kreis.
     </p>
 
     <h3>Unterstützen</h3>
@@ -132,10 +133,28 @@ import { UNTERSTUETZEN_URL } from '../lib/anzeige';
   </article>
 </Base>
 <style>
+  .vorspann {
+    font-size: 1.12rem;
+  }
+  /* Kacheln statt Liste – am Handy untereinander, breit nebeneinander (Issue #185) */
   .mithelfen {
-    padding-left: 1.2em;
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 24px;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
   .mithelfen li {
-    margin: 0 0 10px;
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    background: var(--flaeche);
+  }
+  .mithelfen span {
+    color: var(--grau);
+    font-size: 0.95rem;
   }
 </style>
