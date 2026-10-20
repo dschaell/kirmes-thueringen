@@ -4,9 +4,10 @@ import type { TerminDto } from './api';
 
 export { LANDKREISE };
 
-/** Anzeige der Arten – so, wie Kirmesleute sie nennen (Issues #64, #135, #147, #154). */
+/** Anzeige der Arten – so, wie Kirmesleute sie nennen (Issues #64, #135, #147, #154, #223). */
 export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
-  party: { label: 'Kirmestanz/Kirmesdisco', kurz: 'Kirmestanz/Disco' },
+  tanz: { label: 'Kirmestanz', kurz: 'Kirmestanz' },
+  party: { label: 'Party/Disco', kurz: 'Party/Disco' },
   familie: { label: 'Kindertanz', kurz: 'Kindertanz' },
   tradition: { label: 'Gottesdienst', kurz: 'Gottesdienst' },
   fruehschoppen: { label: 'Frühschoppen', kurz: 'Frühschoppen' },
@@ -170,6 +171,7 @@ export function routenLinks(
 /** schema.org Event für Google-Rich-Results */
 /** Übliche Dauer je Art in Stunden – für Kalender-Abo und Suchmaschinen (Ende fehlt meist). */
 export const DAUER_STUNDEN: Record<string, number> = {
+  tanz: 5,
   party: 5,
   familie: 3,
   tradition: 2,

@@ -21,7 +21,7 @@ describe('Tabellen-Import (Issue #105)', () => {
       zeilen.map((z) => [z.status, z.ortSlug, z.termin?.kategorie, z.termin?.bestaetigt]),
     ).toEqual([
       ['neu', 'alkersleben', 'tradition', true],
-      ['neu', 'alkersleben', 'party', true],
+      ['neu', 'alkersleben', 'tanz', true],
     ]);
     expect(zeilen[1]?.termin).toMatchObject({
       datum: '2026-10-16',

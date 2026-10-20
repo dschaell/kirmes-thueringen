@@ -732,6 +732,10 @@ legend {
   color: #6b3fa0;
   border-color: #d5c6e8;
 }
+.kat.kat-tanz {
+  color: #a3195b;
+  border-color: #e9bfd2;
+}
 .kat.kat-staendchen {
   color: #8a5a00;
   border-color: #e6cf9a;
@@ -751,6 +755,10 @@ legend {
   .kat.kat-party {
     color: #c3a6ea;
     border-color: #45365a;
+  }
+  .kat.kat-tanz {
+    color: #f08cbc;
+    border-color: #5a2a40;
   }
   .kat.kat-fruehschoppen {
     color: #f0a679;

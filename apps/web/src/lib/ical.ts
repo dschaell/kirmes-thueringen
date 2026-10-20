@@ -49,6 +49,7 @@ const ZEITZONE = [
 
 /** Übliche Dauer je Art, damit Termine im Kalender nicht als 0-Minuten-Einträge erscheinen */
 const DAUER: Record<string, string> = {
+  tanz: 'PT5H',
   party: 'PT5H',
   familie: 'PT3H',
   tradition: 'PT2H',
