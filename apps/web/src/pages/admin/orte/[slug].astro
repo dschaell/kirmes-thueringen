@@ -1,0 +1,363 @@
+---
+/**
+ * Ort & Plätze bearbeiten (Issue #216): alle Plätze eines Ortes auf einen Blick – mit Terminanzahl
+ * und Kartenpunkt –, umbenennen (Termine ziehen mit), Kartenpunkt setzen oder löschen. Ortsmitte
+ * sowie Name/Landkreis selbst angelegter Orte nur für die Redaktion. Kirmesgesellschaften sehen nur
+ * ihren eigenen Ort (Middleware und API prüfen das).
+ */
+import AdminLayout from '../../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
+import Icon from '../../../components/Icon.astro';
+import { darf, nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
+import { adminApi, feld } from '../../../lib/admin';
+import { LANDKREISE, kreisKurz, kreisName } from '../../../lib/anzeige';
+
+type Koordinate = { lat: number; lon: number };
+type Uebersicht = {
+  ort: { slug: string; name: string; landkreis: LandkreisKuerzel; koordinate: Koordinate | null };
+  plaetze: { name: string; termine: number; koordinate: Koordinate | null }[];
+  eigenerOrt: boolean;
+};
+
+const slug = Astro.params.slug ?? '';
+const pfad = `orte/${encodeURIComponent(slug)}`;
+const redaktion = darf(Astro.locals, 'orte.bearbeiten');
+const platzName = (name: string) => name || 'Hauptfestplatz';
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const aktion = feld(f, 'aktion');
+  const name = feld(f, 'platzname');
+  const r =
+    aktion === 'umbenennen'
+      ? await adminApi(Astro.cookies, 'POST', `${pfad}/festplaetze/umbenennen`, {
+          alt: name,
+          neu: feld(f, 'neu'),
+        })
+      : aktion === 'kartenpunkt'
+        ? await adminApi(Astro.cookies, 'POST', `${pfad}/festplaetze`, {
+            name,
+            standort: feld(f, 'standort'),
+            nameNoetig: feld(f, 'neuerPlatz') === '1',
+          })
+        : aktion === 'kartenpunkt-loeschen'
+          ? await adminApi(
+              Astro.cookies,
+              'DELETE',
+              `${pfad}/festplaetze?name=${encodeURIComponent(name)}`,
+            )
+          : aktion === 'mitte'
+            ? await adminApi(Astro.cookies, 'PUT', `${pfad}/mitte`, {
+                standort: feld(f, 'standort'),
+              })
+            : aktion === 'ort'
+              ? await adminApi(Astro.cookies, 'PUT', pfad, {
+                  name: feld(f, 'name'),
+                  landkreis: feld(f, 'landkreis'),
+                })
+              : null;
+  if (r && r.status < 300) {
+    meldung =
+      aktion === 'umbenennen'
+        ? `„${platzName(name)}“ heißt jetzt „${feld(f, 'neu').trim()}“ – bei allen Terminen.`
+        : aktion === 'kartenpunkt'
+          ? `Kartenpunkt gespeichert – die Route führt jetzt genau dorthin.`
+          : aktion === 'kartenpunkt-loeschen'
+            ? `Kartenpunkt von „${platzName(name)}“ gelöscht – die Termine bleiben.`
+            : aktion === 'mitte'
+              ? 'Ortsmitte gespeichert.'
+              : 'Ort gespeichert.';
+  } else if (r) fehler = r.fehler;
+}
+
+const u = await adminApi<Uebersicht>(Astro.cookies, 'GET', `${pfad}/festplaetze`);
+if (!u.daten) return Astro.redirect('/admin/orte', 303);
+const { ort, plaetze, eigenerOrt } = u.daten;
+const ohnePunkt = plaetze.filter((p) => !p.koordinate && p.termine > 0).length;
+const karte = (k: Koordinate) =>
+  `https://www.google.com/maps/search/?api=1&query=${k.lat},${k.lon}`;
+const googleSuche = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ort.name}, Thüringen`)}`;
+const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
+  kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
+);
+---
+
+<AdminLayout
+  titel={redaktion ? `${ort.name}: Ort & Plätze` : `Plätze in ${ort.name}`}
+  meldung={meldung}
+  fehler={fehler}
+>
+  <p class="klein">
+    {!nurEigenerOrt(Astro.locals) && (
+      <>
+        <a href="/admin/orte">Alle Orte</a> ·{' '}
+      </>
+    )}
+    <a href={`/admin/termine?ort=${ort.slug}`}>Termine in {ort.name}</a> ·{' '}
+    <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
+  </p>
+
+  <h2>Plätze in {ort.name}</h2>
+  <p class="leise">
+    Hier steht jeder Platz, der bei einem Termin in {ort.name} unter „Wo genau?“ eingetragen ist.
+    Hat ein Platz einen <strong>Kartenpunkt</strong>, führt die Route der Besucher genau dorthin;
+    sonst gibt es für diese Termine keine Route.
+  </p>
+  {ohnePunkt > 0 && (
+    <p class="meldung" role="status">
+      {ohnePunkt === 1 ? '1 Platz hat' : `${ohnePunkt} Plätze haben`} noch keinen Kartenpunkt.
+    </p>
+  )}
+
+  {plaetze.length === 0 ? (
+    <p>Noch keine Plätze – unten den ersten anlegen.</p>
+  ) : (
+    <table class="admin-tabelle platzliste">
+      <tbody>
+        {plaetze.map((p) => (
+          <tr>
+            <td>
+              <strong>{platzName(p.name)}</strong>
+              {!p.name && <span class="leise klein"> (gilt für Termine ohne „Wo genau?“)</span>}
+              <div class="klein">
+                {p.termine === 1 ? '1 Termin' : `${p.termine} Termine`} ·{' '}
+                {p.koordinate ? (
+                  <>
+                    <Icon name="haken" groesse={14} /> Kartenpunkt{' '}
+                    <a href={karte(p.koordinate)} target="_blank" rel="noopener">
+                      in Google Maps prüfen
+                    </a>
+                  </>
+                ) : (
+                  <span class="warnung">kein Kartenpunkt – keine Route</span>
+                )}
+              </div>
+              <details class="bearbeiten">
+                <summary class="knopf zweit">
+                  <Icon name="stift" groesse={14} /> Bearbeiten
+                </summary>
+                {p.name && (
+                  <form method="post" class="melden">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="umbenennen" />
+                    <input type="hidden" name="platzname" value={p.name} />
+                    <label>
+                      Neuer Name
+                      <input name="neu" required maxlength="120" value={p.name} />
+                    </label>
+                    <p class="leise klein">
+                      Ändert den Namen bei{' '}
+                      {p.termine === 1 ? 'dem Termin' : `allen ${p.termine} Terminen`}
+                      {p.koordinate && ' und behält den Kartenpunkt'}. Tipp: so nennen, wie der
+                      Platz in Google Maps heißt.
+                    </p>
+                    <div>
+                      <button class="knopf" type="submit">
+                        Umbenennen
+                      </button>
+                    </div>
+                  </form>
+                )}
+                <form method="post" class="melden">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="kartenpunkt" />
+                  <input type="hidden" name="platzname" value={p.name} />
+                  <label>
+                    {p.koordinate ? 'Kartenpunkt ändern' : 'Kartenpunkt setzen'}: Link aus Google
+                    Maps
+                    <input
+                      name="standort"
+                      required
+                      maxlength="2000"
+                      placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+                    />
+                  </label>
+                  <p class="leise klein">
+                    In Google Maps den Platz suchen oder antippen, „Teilen → Link kopieren“ und hier
+                    einfügen.{' '}
+                    <a href={googleSuche} target="_blank" rel="noopener">
+                      {ort.name} in Google Maps öffnen
+                    </a>
+                  </p>
+                  <div>
+                    <button class="knopf" type="submit">
+                      Kartenpunkt speichern
+                    </button>
+                  </div>
+                </form>
+                {p.koordinate && (
+                  <form method="post" class="nur-punkt">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="kartenpunkt-loeschen" />
+                    <input type="hidden" name="platzname" value={p.name} />
+                    <button class="knopf zweit" type="submit">
+                      Nur den Kartenpunkt löschen
+                    </button>
+                    <span class="leise klein"> Die Termine bleiben, nur die Route fällt weg.</span>
+                  </form>
+                )}
+              </details>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  <details class="filter">
+    <summary>
+      <Icon name="standort" /> Neuen Platz mit Kartenpunkt anlegen
+    </summary>
+    <form method="post" class="melden" data-ungespeichert>
+      <CsrfFeld />
+      <input type="hidden" name="aktion" value="kartenpunkt" />
+      <input type="hidden" name="neuerPlatz" value="1" />
+      <div class="zwei">
+        <label>
+          Name des Platzes
+          <input name="platzname" maxlength="120" placeholder="leer = Name aus dem Link" />
+        </label>
+        <label>
+          Link aus Google Maps *
+          <input
+            name="standort"
+            data-kartenlink-name="platzname"
+            required
+            maxlength="2000"
+            placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+          />
+        </label>
+      </div>
+      <p class="leise klein">
+        Am besten so benennen, wie der Platz in Google Maps heißt (z. B. „St. Marien“). Termine,
+        deren „Wo genau?“ genauso heißt, bekommen dann die Route.
+      </p>
+      <div>
+        <button class="knopf" type="submit">
+          Platz anlegen
+        </button>
+      </div>
+    </form>
+  </details>
+
+  {redaktion && (
+    <>
+      <h2>Ort {ort.name}</h2>
+      <p class="leise">
+        <strong>Ortsmitte:</strong> Dorthin führt die Route bei Terminen ohne „Wo genau?“ und bei
+        Ständchen.{' '}
+        {ort.koordinate ? (
+          <a href={karte(ort.koordinate)} target="_blank" rel="noopener">
+            Aktuelle Ortsmitte in Google Maps prüfen
+          </a>
+        ) : (
+          <span class="warnung">
+            Noch keine Ortsmitte – die Route sucht nur nach dem Ortsnamen.
+          </span>
+        )}
+      </p>
+      <form method="post" class="melden">
+        <CsrfFeld />
+        <input type="hidden" name="aktion" value="mitte" />
+        <label>
+          Ortsmitte ändern: Link aus Google Maps
+          <input
+            name="standort"
+            required
+            maxlength="2000"
+            placeholder="z. B. Kirche oder Dorfplatz antippen → Teilen → Link kopieren"
+          />
+        </label>
+        <div>
+          <button class="knopf" type="submit">
+            Ortsmitte speichern
+          </button>
+        </div>
+      </form>
+      {eigenerOrt ? (
+        <form method="post" class="melden">
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="ort" />
+          <div class="zwei">
+            <label>
+              Name des Ortes
+              <input name="name" required maxlength="120" value={ort.name} />
+            </label>
+            <label>
+              Landkreis
+              <select name="landkreis" required>
+                {kreise.map((k) => (
+                  <option value={k} selected={k === ort.landkreis}>
+                    {kreisName(k)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p class="leise klein">
+            Diesen Ort hat die Redaktion angelegt – Name und Landkreis lassen sich korrigieren. Die
+            Adresse der Ortsseite bleibt gleich.
+          </p>
+          <div>
+            <button class="knopf" type="submit">
+              Ort speichern
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p class="leise klein">
+          Name und Landkreis ({kreisName(ort.landkreis)}) stammen aus dem Ortsverzeichnis
+          (OpenStreetMap) und bleiben fest.
+        </p>
+      )}
+    </>
+  )}
+</AdminLayout>
+
+<style>
+  .platzliste td {
+    padding-block: 0.8rem;
+  }
+  .bearbeiten {
+    margin-top: 0.5rem;
+  }
+  .bearbeiten > summary {
+    list-style: none;
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+    cursor: pointer;
+  }
+  .bearbeiten > summary::-webkit-details-marker {
+    display: none;
+  }
+  .bearbeiten[open] {
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 0.75rem 1rem 1rem;
+    background: var(--flaeche);
+  }
+  .bearbeiten[open] > summary {
+    margin-bottom: 0.5rem;
+  }
+  /* Formulare in Tabellenzellen sind global „inline“ (kleine Löschen-Knöpfe) – hier ganze Blöcke */
+  .platzliste .bearbeiten > form {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+  }
+  .platzliste .bearbeiten > form.nur-punkt {
+    justify-items: start;
+  }
+  .platzliste .bearbeiten > form + form {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--linie);
+  }
+  .warnung {
+    color: var(--rot);
+    font-weight: 600;
+  }
+</style>

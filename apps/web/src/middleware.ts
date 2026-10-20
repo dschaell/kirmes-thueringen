@@ -113,6 +113,7 @@ const redaktion = defineMiddleware(async (ctx, next) => {
         pfad === '/admin/kirmes-eintragen' ||
         pfad === '/admin/termine' ||
         pfad.startsWith('/admin/termine/') ||
+        pfad === `/admin/orte/${eigen}` ||
         pfad.startsWith('/admin/passkeys') ||
         pfad === '/admin/abmelden';
       if (!erlaubt) return ctx.redirect('/admin', 303);

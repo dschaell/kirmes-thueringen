@@ -28,6 +28,24 @@ export function orteRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Konte
   );
   // Versehentlich angelegte Orte entfernen – nur Admins, nur ohne Termine (Issue #159)
   r.get('/api/v1/admin/orte/eigene', async () => d.redaktion.eigeneOrte());
+  // Name/Landkreis selbst angelegter Orte korrigieren (Issue #216). Recht 'orte.bearbeiten' =
+  // Redaktion und Admin; Kirmesgesellschaften sperrt schon der Filter (nicht in KG_ROUTEN).
+  r.put<{ Params: { slug: string }; Body: { name: string; landkreis: string } }>(
+    '/api/v1/admin/orte/:slug',
+    {
+      schema: {
+        params: objekt(['slug'], { slug: TEXT(120) }),
+        body: objekt(['name', 'landkreis'], { name: TEXT(120), landkreis: TEXT(10) }),
+      },
+    },
+    async (req, reply) => {
+      const e = await d.redaktion.aendereOrt(req.params.slug, req.body, admin(req));
+      if (e.ok) return reply.status(204).send();
+      return e.error[0]?.code === 'ORT_UNBEKANNT'
+        ? nichtGefunden(reply)
+        : ungueltig(reply, e.error);
+    },
+  );
   r.delete<{ Params: { slug: string } }>(
     '/api/v1/admin/orte/:slug',
     { schema: { params: objekt(['slug'], { slug: TEXT(120) }) } },

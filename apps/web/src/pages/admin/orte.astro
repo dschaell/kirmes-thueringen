@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import Icon from '../../components/Icon.astro';
 import { koordinateAusText } from '@kirmes/core';
 import { adminApi, feld } from '../../lib/admin';
 import { listeOrte } from '../../lib/api';
@@ -102,8 +103,11 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
             </td>
             <td class="klein">{o.anzahlKommend} Termine</td>
             <td>
+              <a class="knopf zweit" href={`/admin/orte/${o.slug}`}>
+                <Icon name="stift" groesse={14} /> Bearbeiten
+              </a>{' '}
               <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
-                Termine & Plätze
+                Termine
               </a>
             </td>
           </tr>
@@ -124,7 +128,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
           {eigene.map((o) => (
             <tr>
               <td>
-                <a href={`/admin/termine?ort=${o.slug}`}>{o.name}</a>{' '}
+                <a href={`/admin/orte/${o.slug}`}>{o.name}</a>{' '}
                 <span class="leise klein">({kreisKurz(o.landkreis)})</span>
               </td>
               <td class="klein">
@@ -158,8 +162,8 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   <h2>Neuen Ort anlegen</h2>
   <p class="kasten klein">
     <strong>Kirche, Festzelt oder Sportplatz?</strong> Das ist kein neuer Ort, sondern ein{' '}
-    <strong>Platz</strong> im Ort: unter „Termine“ den Ort wählen und bei „Plätze in …“ den Platz
-    mit Google-Maps-Link eintragen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
+    <strong>Platz</strong> im Ort: oben den Ort suchen, „Bearbeiten“ wählen und dort den Platz mit
+    Google-Maps-Link anlegen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
   </p>
   <form class="melden" method="post">
     <CsrfFeld />

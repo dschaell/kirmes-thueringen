@@ -14,6 +14,8 @@ export type Aktion =
   | 'vorschlaege'
   | 'korrekturen'
   | 'orte.anlegen'
+  /** Ortsmitte, Name/Landkreis selbst angelegter Orte (Issue #216) */
+  | 'orte.bearbeiten'
   | 'orte.loeschen'
   | 'mitteilungen'
   | 'links'
@@ -32,6 +34,7 @@ export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
   vorschlaege: ALLE,
   korrekturen: ALLE,
   'orte.anlegen': MODERATION,
+  'orte.bearbeiten': MODERATION,
   mitteilungen: MODERATION,
   links: MODERATION,
   import: MODERATION,

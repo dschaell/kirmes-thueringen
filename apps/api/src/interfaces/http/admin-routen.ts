@@ -51,6 +51,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     'GET /api/v1/admin/orte/:slug/festplaetze',
     'POST /api/v1/admin/orte/:slug/festplaetze',
     'DELETE /api/v1/admin/orte/:slug/festplaetze',
+    'POST /api/v1/admin/orte/:slug/festplaetze/umbenennen',
   ]);
 
   await app.register(async (r) => {

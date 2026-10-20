@@ -28,7 +28,7 @@ const nav = kg
   ? [
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
-      [`/admin/termine?ort=${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
+      [`/admin/orte/${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
     ]
   : [
       ['/admin', 'Termine'],

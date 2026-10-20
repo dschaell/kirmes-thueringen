@@ -147,6 +147,126 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     expect(await repo.loesche('it-admin-ort', 'IT-Kirche', durch)).toBe(true);
   });
 
+  it('Plätze umbenennen, Übersicht, Ortsmitte (#216)', async () => {
+    const repo = new PgFestplatzRepository(pool);
+    const durch = {
+      linkId: null,
+      adminId,
+      ortSlug: 'it-admin-ort',
+      landkreis: 'GTH',
+      bezeichnung: 'Redaktion',
+    };
+    const ort = (await pool.query<{ id: string }>("SELECT id FROM ort WHERE slug = 'it-admin-ort'"))
+      .rows[0]!.id;
+    await pool.query(
+      `INSERT INTO termin (ort_id, datum, titel, kategorie, veranstaltungsort)
+       VALUES ($1, '2026-11-20', 'IT-Platz-A', 'party', 'IT Kirche'),
+              ($1, '2026-11-21', 'IT-Platz-B', 'tradition', 'IT Kirche'),
+              ($1, '2026-11-22', 'IT-Platz-C', 'party', 'IT Saal'),
+              ($1, '2026-11-23', 'IT-Platz-D', 'party', NULL)`,
+      [ort],
+    );
+    try {
+      await repo.speichere(
+        'it-admin-ort',
+        { name: 'IT Kirche', koordinate: { lat: 50.9, lon: 10.7 } },
+        durch,
+      );
+      await repo.speichere(
+        'it-admin-ort',
+        { name: 'IT Festzelt', koordinate: { lat: 50.91, lon: 10.71 } },
+        durch,
+      );
+      const u = await repo.uebersicht('it-admin-ort');
+      expect(u?.plaetze).toEqual([
+        { name: 'IT Festzelt', termine: 0, koordinate: { lat: 50.91, lon: 10.71 } },
+        { name: 'IT Kirche', termine: 2, koordinate: { lat: 50.9, lon: 10.7 } },
+        { name: 'IT Saal', termine: 1, koordinate: null },
+      ]);
+      expect(u?.eigenerOrt).toBe(false);
+
+      // beide mit Kartenpunkt → abgelehnt, nichts geändert
+      expect(await repo.benenneUm('it-admin-ort', 'IT Kirche', 'IT Festzelt', durch)).toBe(
+        'konflikt',
+      );
+      expect(await repo.benenneUm('it-admin-ort', 'IT Gibtsnicht', 'X', durch)).toBe('unbekannt');
+      expect(await repo.benenneUm('it-gibtsnicht', 'IT Kirche', 'X', durch)).toBe('unbekannt');
+
+      // Termine + Kartenpunkt ziehen mit, Version steigt
+      expect(await repo.benenneUm('it-admin-ort', 'IT Kirche', 'IT St. Marien', durch)).toBe(
+        'umbenannt',
+      );
+      // nur Termine (ohne Kartenpunkt) in einen vorhandenen Platz zusammenführen
+      expect(await repo.benenneUm('it-admin-ort', 'IT Saal', 'IT Festzelt', durch)).toBe(
+        'umbenannt',
+      );
+      const t = await pool.query<{
+        titel: string;
+        veranstaltungsort: string | null;
+        version: string;
+      }>(
+        "SELECT titel, veranstaltungsort, version::text FROM termin WHERE titel LIKE 'IT-Platz-%' ORDER BY titel",
+      );
+      expect(t.rows).toEqual([
+        { titel: 'IT-Platz-A', veranstaltungsort: 'IT St. Marien', version: '2' },
+        { titel: 'IT-Platz-B', veranstaltungsort: 'IT St. Marien', version: '2' },
+        { titel: 'IT-Platz-C', veranstaltungsort: 'IT Festzelt', version: '2' },
+        { titel: 'IT-Platz-D', veranstaltungsort: null, version: '1' },
+      ]);
+      expect(
+        (await repo.uebersicht('it-admin-ort'))?.plaetze.map((p) => [
+          p.name,
+          p.termine,
+          !!p.koordinate,
+        ]),
+      ).toEqual([
+        ['IT Festzelt', 1, true],
+        ['IT St. Marien', 2, true],
+      ]);
+      const prot = await pool.query(
+        "SELECT details->>'neu' AS neu FROM aenderungsprotokoll WHERE aktion = 'platz_umbenannt' AND ort_id = $1 ORDER BY id",
+        [ort],
+      );
+      expect(prot.rows.map((r) => r.neu)).toEqual(['IT St. Marien', 'IT Festzelt']);
+
+      // Ortsmitte
+      expect(await repo.setzeOrtsmitte('it-admin-ort', { lat: 50.95, lon: 10.75 }, durch)).toBe(
+        true,
+      );
+      expect((await repo.uebersicht('it-admin-ort'))?.ort.koordinate).toEqual({
+        lat: 50.95,
+        lon: 10.75,
+      });
+      expect(await repo.setzeOrtsmitte('it-gibtsnicht', { lat: 50.95, lon: 10.75 }, durch)).toBe(
+        false,
+      );
+    } finally {
+      await pool.query("DELETE FROM termin WHERE titel LIKE 'IT-Platz-%'");
+      await pool.query('DELETE FROM festplatz WHERE ort_id = $1', [ort]);
+    }
+  });
+
+  it('Ort ändern: nur selbst angelegte Orte, Slug bleibt (#216)', async () => {
+    const orte = new PgOrtVerwaltung(pool);
+    await orte.lege(
+      { slug: 'it-admin-eigen', name: 'IT Eigen', landkreis: 'GTH', koordinate: null },
+      adminId,
+    );
+    expect(
+      await orte.aendere('it-admin-eigen', { name: 'IT Eigen Neu', landkreis: 'IK' }, adminId),
+    ).toBe('geaendert');
+    const r = await pool.query("SELECT name, landkreis FROM ort WHERE slug = 'it-admin-eigen'");
+    expect(r.rows[0]).toEqual({ name: 'IT Eigen Neu', landkreis: 'IK' });
+    expect(await orte.aendere('it-admin-ort', { name: 'X', landkreis: 'IK' }, adminId)).toBe(
+      'ortsverzeichnis',
+    );
+    expect(await orte.aendere('it-admin-gibtsnicht', { name: 'X', landkreis: 'IK' }, adminId)).toBe(
+      'unbekannt',
+    );
+    const o = await pool.query("SELECT name FROM ort WHERE slug = 'it-admin-ort'");
+    expect(o.rows[0].name).toBe('IT-Adminort');
+  });
+
   it('Vorschläge: Bands und Titel aus allen Terminen, häufigste zuerst (#62)', async () => {
     // eigene Testdaten – die Datenbank kann (wie in der CI) sonst leer sein
     const ort = await pool.query<{ id: string }>("SELECT id FROM ort WHERE slug = 'it-admin-ort'");

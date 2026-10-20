@@ -75,12 +75,19 @@ export interface EigenerOrt {
   vorschlaege: number;
 }
 export type OrtLoeschen = 'geloescht' | 'unbekannt' | 'ortsverzeichnis' | 'belegt';
+export type OrtAendern = 'geaendert' | 'unbekannt' | 'ortsverzeichnis';
 export interface OrtVerwaltung {
   /** null, wenn der Slug schon vergeben ist */
   lege(o: NeuerOrt, adminId: string): Promise<Ort | null>;
   eigene(): Promise<EigenerOrt[]>;
   /** Nur selbst angelegte Orte ohne Termine und Vorschläge; protokolliert. */
   loesche(slug: string, adminId: string): Promise<OrtLoeschen>;
+  /** Name und Landkreis – nur selbst angelegte Orte; die Adresse (Slug) bleibt; protokolliert. */
+  aendere(
+    slug: string,
+    o: { name: string; landkreis: string },
+    adminId: string,
+  ): Promise<OrtAendern>;
 }
 export interface LinkInfo {
   id: string;
@@ -169,6 +176,34 @@ export class Redaktion {
   }
   loescheOrt(slug: string, adminId: string) {
     return this.orte.loesche(slug, adminId);
+  }
+
+  /**
+   * Name/Landkreis eines selbst angelegten Ortes korrigieren (Issue #216). Orte aus dem
+   * Ortsverzeichnis (OpenStreetMap) bleiben, wie sie sind. Die Adresse /orte/<slug> ändert sich nicht.
+   */
+  async aendereOrt(
+    slug: string,
+    e: { name: string; landkreis: string },
+    adminId: string,
+  ): Promise<Result<true, Validierungsfehler[]>> {
+    const v = validiereOrt(e);
+    if (!v.ok) return v;
+    const r = await this.orte.aendere(
+      slug,
+      { name: v.value.name, landkreis: v.value.landkreis },
+      adminId,
+    );
+    if (r === 'geaendert') return ok(true);
+    return err([
+      r === 'ortsverzeichnis'
+        ? {
+            feld: 'name',
+            code: 'ORTSVERZEICHNIS',
+            meldung: 'Orte aus dem Ortsverzeichnis behalten ihren Namen und Landkreis.',
+          }
+        : { feld: 'name', code: 'ORT_UNBEKANNT', meldung: 'Ort nicht gefunden.' },
+    ]);
   }
 
   // Termine für jeden Ort
