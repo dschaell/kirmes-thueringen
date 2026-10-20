@@ -50,27 +50,48 @@ const geladen = Date.now();
 ---
 
 <Base
-  title="In der Redaktion mitmachen – Kirmeskalender Thüringen"
-  description="Kennst du die Kirmes in deiner Gegend? Hilf mit, die Termine im Kirmeskalender Thüringen aktuell zu halten."
+  title="Mitmachen: Kirmesgesellschaften und Redaktion – Kirmeskalender Thüringen"
+  description="Eigener Zugang für eure Kirmesgesellschaft oder Mithilfe in der Redaktion: So bleiben die Kirmestermine in Thüringen vollständig und aktuell."
 >
   <section class="einstieg">
-    <h1>Redaktion – mitmachen</h1>
+    <h1>Mitmachen</h1>
     <p class="unterzeile">
-      Du kennst die Kirmesgesellschaften in deiner Gegend und willst helfen, die Termine aktuell zu
-      halten? Schreib uns kurz.
+      Ihr seid eine Kirmesgesellschaft, oder du kennst die Kirmes in deiner Gegend? Schreibt uns
+      kurz – kostenlos und unverbindlich.
     </p>
   </section>
 
-  <div class="kasten">
+  <div class="kasten abstand">
+    <h2>Für Kirmesgesellschaften</h2>
+    <p>
+      Ihr bekommt einen <strong>eigenen Zugang für euren Ort</strong>: Termine, Programm, Band,
+      Muttizettel-Hinweis und euren Festplatz auf der Karte pflegt ihr selbst – jederzeit, ohne auf
+      uns zu warten. Ihr seht und ändert nur euren eigenen Ort.
+    </p>
+    <p class="leise klein">
+      Nur einzelne Termine? Das geht auch ohne Zugang über{' '}
+      <a href="/termin-melden">Termin melden</a>.
+    </p>
+  </div>
+
+  <div class="kasten abstand">
+    <h2>Für die Redaktion</h2>
+    <p>
+      Du kennst die Kirmesgesellschaften in deiner Gegend und willst helfen, die Termine aktuell zu
+      halten? Dann mach in der Redaktion mit.
+    </p>
+  </div>
+
+  <div class="kasten abstand">
     <p>
       <strong>So geht's:</strong>
     </p>
     <ol>
-      <li>Du schickst uns hier eine kurze Nachricht.</li>
-      <li>Passt es, bekommst du von uns einen persönlichen Einladungslink.</li>
+      <li>Ihr schickt uns hier eine kurze Nachricht.</li>
+      <li>Passt es, bekommt ihr von uns einen persönlichen Einladungslink.</li>
       <li>
-        Über den Link legst du einen <strong>Passkey</strong> an (Face ID, Touch ID oder PIN deines
-        Geräts) – ohne Passwort. Gespeichert wird nur der Name, den du dort wählst.
+        Über den Link legt ihr einen <strong>Passkey</strong> an (Face ID, Touch ID oder PIN des
+        Geräts) – ohne Passwort. Gespeichert wird nur der Name, den ihr dort wählt.
       </li>
     </ol>
   </div>
@@ -124,11 +145,17 @@ const geladen = Date.now();
       {fehlerZu('email') && <span class="feldfehler">{fehlerZu('email')}</span>}
     </label>
     <label>
-      Region oder Ort
-      <input name="ort" maxlength="120" placeholder="z. B. Ilm-Kreis" value={werte.ort} />
+      Euer Ort (Kirmesgesellschaft) oder deine Region
+      <input
+        name="ort"
+        maxlength="120"
+        placeholder="z. B. Holzhausen oder Ilm-Kreis"
+        value={werte.ort}
+      />
     </label>
     <label>
-      Ein paar Worte zu dir (optional)
+      Ein paar Worte zu euch (optional)
+      <span class="leise klein">z. B. Name der Kirmesgesellschaft, wann eure Kirmes ist</span>
       <textarea name="info" rows="4" maxlength="2000" set:text={werte.info ?? ''} />
     </label>
     <p class="leise klein">
