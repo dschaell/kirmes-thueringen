@@ -24,6 +24,8 @@ export interface AssistentStand {
   ortEingabe?: string;
   /** Redaktion: Ort nicht im Verzeichnis – ähnliche Orte bzw. „neu anlegen“ anbieten (#167) */
   ortUnbekannt?: boolean;
+  /** Vom Vorjahr übernommen (erster Tag damals) – Daten sind geschätzt (Issue #218) */
+  vorjahrVon?: string;
   ab: string;
   tage: string;
   zeilen: AssistentZeile[];
@@ -154,6 +156,8 @@ export function leseStand(s: string): AssistentStand | null {
       (v.doppelt !== undefined &&
         (!Array.isArray(v.doppelt) || !v.doppelt.every((x) => typeof x === 'string'))) ||
       (v.ortUnbekannt !== undefined && typeof v.ortUnbekannt !== 'boolean') ||
+      (v.vorjahrVon !== undefined &&
+        (typeof v.vorjahrVon !== 'string' || !parseDatum(v.vorjahrVon).ok)) ||
       typeof v.ab !== 'string' ||
       !gueltigeTage(v.tage) ||
       !Array.isArray(v.zeilen) ||

@@ -4,13 +4,14 @@ interface Props {
   herkunft?: TerminHerkunft;
 }
 const { herkunft: h } = Astro.props;
+// Unbekannte Herkunft (z. B. vor Einführung des Protokolls) wird nicht angezeigt – Issue #218
 const name =
   h?.name ??
   (h?.weg === 'bearbeitungslink'
     ? 'Kirmesgesellschaft'
     : h?.angelegtAm
-      ? 'Nicht mehr zuordenbar'
-      : 'Nicht dokumentiert');
+      ? 'Konto inzwischen gelöscht'
+      : null);
 const zeit = (iso: string) =>
   new Date(iso).toLocaleString('de-DE', {
     dateStyle: 'medium',
@@ -21,17 +22,17 @@ const datum = h?.angelegtAm ? zeit(h.angelegtAm) : null;
 // Zuletzt bearbeitet (Issue #181)
 const g = h?.geaendert;
 const gName =
-  g?.name ?? (g?.weg === 'bearbeitungslink' ? 'Kirmesgesellschaft' : 'Nicht mehr zuordenbar');
+  g?.name ?? (g?.weg === 'bearbeitungslink' ? 'Kirmesgesellschaft' : 'Konto inzwischen gelöscht');
 ---
 
-<p class="klein leise">
-  {h
-    ? `${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`
-    : 'Erstellerangabe derzeit nicht verfügbar.'}
-  {datum && ` · ${datum}`}
-  {h?.weg === 'vorschlag' && ' · aus öffentlichem Vorschlag übernommen'}
-  {h?.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
-</p>
+{h && name && (
+  <p class="klein leise">
+    {`${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`}
+    {datum && ` · ${datum}`}
+    {h.weg === 'vorschlag' && ' · aus öffentlichem Vorschlag übernommen'}
+    {h.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
+  </p>
+)}
 {g && (
   <p class="klein leise">
     Zuletzt bearbeitet von: {gName} · {zeit(g.am)}

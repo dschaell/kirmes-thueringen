@@ -1,7 +1,7 @@
 ---
 /** Schritt 2: Was ist los – aus KirmesAssistent.astro (Issue #199). */
 import type { AssistentStand } from '../../lib/assistent';
-import { KATEGORIEN, datumKurz, heute } from '../../lib/anzeige';
+import { KATEGORIEN, datumKurz, datumLangJahr, heute } from '../../lib/anzeige';
 interface Props {
   s: AssistentStand;
   redaktion: boolean;
@@ -27,10 +27,19 @@ const jahr = heute().slice(0, 4);
     {s.nachricht && <p class="nachricht">{s.nachricht}</p>}
   </section>
 )}
+{s.vorjahrVon && (
+  <p class="kasten klein">
+    <strong>Vom Vorjahr übernommen</strong> (damals ab {datumLangJahr(s.vorjahrVon)}). Die neuen
+    Tage sind geschätzt: gleicher Wochentag in derselben Woche des Monats (z. B. „4. Donnerstag im
+    Oktober“). Bitte mit der Kirmesgesellschaft oder ihrer Ankündigung abgleichen.
+  </p>
+)}
 <p class="leise">
   {s.vorschlag
     ? 'Prüfe den Vorschlag: Haken entfernen, was nicht stattfindet. Titel, Tag, Uhrzeit oder Art korrigieren über „ändern“.'
-    : 'Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.'}
+    : redaktion
+      ? 'Haken entfernen, was nicht stattfindet. Tag oder Uhrzeit weichen ab? Auf „ändern“ tippen.'
+      : 'Hake an, was bei euch stattfindet. Tag oder Uhrzeit weichen ab? Tippe auf „ändern“.'}
 </p>
 <ul class="programm-kompakt">
   {s.zeilen.map((z, i) => (

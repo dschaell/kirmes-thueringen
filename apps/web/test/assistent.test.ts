@@ -705,3 +705,29 @@ describe('Doppelte Termine vermeiden (Issue #178)', () => {
     expect(dann.aufrufe.some((u) => u.includes('termine/wochenende'))).toBe(true);
   });
 });
+
+describe('Stand mit Vorjahr-Hinweis (Issue #218)', () => {
+  const basis = {
+    schritt: 2,
+    ortSlug: 'boesleben',
+    ab: '2027-10-28',
+    tage: '4',
+    zeilen: [],
+    kontaktName: '',
+    kontaktEmail: '',
+    nachricht: '',
+    bestaetigt: false,
+    geladen: 1,
+    vorschlag: '',
+    fehler: [],
+  };
+  it('übernimmt ein gültiges Datum, verwirft Unsinn', async () => {
+    const { leseStand } = await import('../src/lib/assistent/programm');
+    expect(leseStand(JSON.stringify({ ...basis, vorjahrVon: '2026-10-22' }))?.vorjahrVon).toBe(
+      '2026-10-22',
+    );
+    expect(leseStand(JSON.stringify(basis))?.vorjahrVon).toBeUndefined();
+    expect(leseStand(JSON.stringify({ ...basis, vorjahrVon: '<b>' }))).toBeNull();
+    expect(leseStand(JSON.stringify({ ...basis, vorjahrVon: 7 }))).toBeNull();
+  });
+});

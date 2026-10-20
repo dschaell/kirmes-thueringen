@@ -3,7 +3,7 @@ import type { Korrektur, Vorschlag } from '@kirmes/core';
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
-import { datumKurz } from '../../lib/anzeige';
+import { anzahl, datumKurz, heute } from '../../lib/anzeige';
 let fehler: string[] = [];
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
@@ -36,6 +36,7 @@ fehler.push(...r.fehler);
 // Die Liste zeigt höchstens 100 (älteste zuerst) – mehr offen? Dann sagen (Issue #94)
 const gezeigt = r.daten?.length ?? 0;
 const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
+const jahr = heute().slice(0, 4);
 ---
 
 <AdminLayout
@@ -67,7 +68,7 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
   {(r.daten ?? []).map((v) => (
     <article class="vorschlag">
       <h2>
-        {v.ortName} · {v.termine.length} Veranstaltungen
+        {v.ortName} · {anzahl(v.termine.length, 'Veranstaltung', 'Veranstaltungen')}
       </h2>
       <p class="klein leise">
         Eingegangen:{' '}
@@ -76,7 +77,7 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
       <ul>
         {v.termine.map((t) => (
           <li>
-            {datumKurz(t.datum)}
+            {datumKurz(t.datum, jahr)}
             {t.beginn && ` · ${t.beginn} Uhr`} · {t.titel}
           </li>
         ))}
@@ -118,7 +119,7 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
       (korrekturen.daten ?? []).map((k) => (
         <article class="vorschlag">
           <p class="klein leise">
-            {k.termin.ortName} · {datumKurz(k.termin.datum)}
+            {k.termin.ortName} · {datumKurz(k.termin.datum, jahr)}
             {k.termin.beginn && ` · ${k.termin.beginn} Uhr`} · eingegangen{' '}
             {datumKurz(k.erstelltAm.slice(0, 10))}
           </p>
@@ -137,9 +138,13 @@ const weitere = Math.max(0, (offen.daten?.anzahl ?? 0) - gezeigt);
               Termin bearbeiten
             </a>
             <button class="knopf zweit" name="aktion" value="korrektur-erledigt">
-              Erledigt
+              Erledigt – Hinweis ausblenden
             </button>
           </form>
+          <p class="klein leise">
+            Erst den Termin bearbeiten (falls nötig), dann den Hinweis ausblenden. „Erledigt“ ändert
+            am Termin selbst nichts.
+          </p>
         </article>
       ))
     )}
