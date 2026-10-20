@@ -120,7 +120,8 @@ describe('artName (robust gegen unbekannte Arten)', () => {
   it('Name, Kurzname, unbekannt → Rohwert', async () => {
     const { artName } = await import('../src/lib/anzeige');
     expect(artName('familie')).toBe('Kindertanz');
-    expect(artName('party', true)).toBe('Kirmestanz/Disco');
+    expect(artName('party', true)).toBe('Party/Disco');
+    expect(artName('tanz', true)).toBe('Kirmestanz');
     expect(artName('gibtsnicht')).toBe('gibtsnicht');
   });
 });
@@ -211,7 +212,7 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
     expect(e.endDate).toBe('2026-10-25T01:00:00+01:00');
     expect(e.location.name).toBe('Festzelt, Elleben');
     expect(e.description).toBe(
-      'Kirmestanz/Kirmesdisco in Elleben am Samstag, 24. Oktober ab 20:00 Uhr mit Belconda.',
+      'Party/Disco in Elleben am Samstag, 24. Oktober ab 20:00 Uhr mit Belconda.',
     );
     expect(e.image).toEqual(['https://k.de/termin/abc/bild.png']);
     const ganztags = eventJsonLd(

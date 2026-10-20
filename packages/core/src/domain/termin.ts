@@ -6,11 +6,12 @@ import type { Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
 /**
- * Klare Arten (Issues #64, #135, #147, #154): Tanz & Party, Familien & Kinder, Gottesdienst
- * (`tradition`, auch Kirmesbaum/Umzug), Frühschoppen, Ständchen und Sonstiges für alles, was nicht
- * passt (z. B. Seniorennachmittag).
+ * Klare Arten (Issues #64, #135, #147, #154, #223): Kirmestanz (`tanz`), Party/Disco (`party`),
+ * Familien & Kinder, Gottesdienst (`tradition`, auch Kirmesbaum/Umzug), Frühschoppen, Ständchen und
+ * Sonstiges für alles, was nicht passt (z. B. Seniorennachmittag).
  */
 export const KATEGORIEN = [
+  'tanz',
   'party',
   'familie',
   'tradition',
@@ -22,8 +23,8 @@ export type Kategorie = (typeof KATEGORIEN)[number];
 
 /** Frühere Bezeichnungen (Importe, alte Links) → neue Art. */
 const FRUEHERE_KATEGORIEN: Record<string, Kategorie> = {
-  kirmes: 'party',
-  tanz: 'party',
+  kirmes: 'tanz',
+  disco: 'party',
   mai: 'party',
   kinder: 'familie',
   brauchtum: 'tradition',

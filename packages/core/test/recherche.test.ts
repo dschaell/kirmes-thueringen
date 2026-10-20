@@ -60,11 +60,11 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Früh-Schoppen', 'fruehschoppen'],
     ['Kirmesausklang', 'tradition'],
     ['Osterfeuer mit Tanz', 'tradition'],
-    ['Kirmestanz mit „Belconda“', 'party'],
-    ['Kirmestanz', 'party'],
+    ['Kirmestanz mit „Belconda“', 'tanz'], // eigene Art seit #223
+    ['Kirmestanz', 'tanz'],
     ['Kirmesparty', 'party'],
     ['Discoparty mit DJ Holler', 'party'],
-    ['Tanz in den Mai mit „Vincent“', 'party'],
+    ['Tanz in den Mai mit „Vincent“', 'tanz'],
     ['Herbstball', 'party'],
   ])('%s → %s', (titel, k) => expect(erkenneKategorie(titel)).toBe(k));
 });
@@ -108,7 +108,7 @@ describe('leseRecherche', () => {
             beginn: '20:00',
             titel: 'Kirmestanz',
             veranstaltungsort: 'Festzelt',
-            kategorie: 'party',
+            kategorie: 'tanz',
             bestaetigt: true,
             quelle: 'instagram.com/p/…',
             band: null,
@@ -190,7 +190,7 @@ describe('Eingefügte Tabellen und eigene Spaltennamen (Issue #105)', () => {
       beginn: '20:00',
       titel: 'Kirmestanz',
       veranstaltungsort: 'Saal',
-      kategorie: 'party',
+      kategorie: 'tanz',
       band: 'Dynamic',
       info: 'Eintritt 5 €',
       muttizettel: true,

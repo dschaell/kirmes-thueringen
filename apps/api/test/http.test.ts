@@ -333,7 +333,7 @@ describe('GET /api/v1/termine', () => {
     expect(res.json()).toMatchObject({ gesamt: 1, termine: [{ titel: 'Kirmestanz' }] });
     expect(repo.filter).toMatchObject({
       landkreise: ['GTH', 'IK'],
-      kategorien: ['familie', 'party'],
+      kategorien: ['familie', 'tanz'],
       suchtext: 'Mühlberg',
       nurBestaetigt: true,
       limit: 5,
