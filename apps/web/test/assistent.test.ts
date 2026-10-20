@@ -8,8 +8,8 @@ import {
   moeglicheDoppelungen,
   mitEssen,
   sortiereProgramm,
-  vorlage,
 } from '../src/lib/assistent';
+import { vorlage } from './beispielprogramm';
 describe('Kirmes-Assistent', () => {
   it('Alkersleben-Vorlage für 4 Tage, mit Kirche und Muttizettel', () => {
     const z = vorlage('2027-09-17', '4');
@@ -38,7 +38,7 @@ describe('Kirmes-Assistent', () => {
       { datum: '2027-09-17', titel: '', aktiv: true },
     ]);
   });
-  it('Zusammenbau erhält Zeilen trotz abgewählter Checkbox und eigene Veranstaltungen', () => {
+  it('liest Titel, Tag und Uhrzeit je Zeile – jede Zeile zählt, Löschen statt Abwählen (#221)', () => {
     const alt = vorlage('2027-09-17', '2');
     const f = new FormData();
     alt.forEach((z, i) => {
@@ -46,12 +46,14 @@ describe('Kirmes-Assistent', () => {
       f.set(`beginn-${i}`, z.beginn ?? '');
       f.set(`titel-${i}`, i === 3 ? 'Eigener Kindertanz' : z.titel);
     });
-    f.set('aktiv-1', 'on');
-    f.set('aktiv-3', 'on');
     const z = leseProgramm(f, alt, false);
-    expect(z.filter((z) => z.aktiv).map((z) => z.titel)).toEqual([
+    expect(z.every((x) => x.aktiv)).toBe(true);
+    expect(z.map((x) => x.titel)).toEqual([
+      'Kirmesgottesdienst',
       'Kirmestanz',
+      'Ständchen',
       'Eigener Kindertanz',
+      'Kirmesparty',
     ]);
     expect(z[0]?.veranstaltungsort).toBe('Kirche');
   });
@@ -110,7 +112,7 @@ it('Formularherkunft wird am externen Host geprüft, unabhängig von interner SS
   expect((fremd as Response).status).toBe(403);
 });
 
-it('ersetzt ein bearbeitetes Programm erst nach ausdrücklicher Bestätigung', async () => {
+it('Schritt 1 ohne Vorlage; neuer Starttag verschiebt das Programm (#221)', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
     Response.json([
       {
@@ -143,15 +145,13 @@ it('ersetzt ein bearbeitetes Programm erst nach ausdrücklicher Bestätigung', a
     vorschlag: '',
     fehler: [],
   };
-  const senden = async (stand: unknown, bestaetigen = false) => {
+  const senden = async (stand: unknown) => {
     const form = new FormData();
     form.set('csrf_token', 'token');
     form.set('stand', JSON.stringify(stand));
     form.set('ort', 'Musterort (IK)');
     form.set('ab', '2027-09-23');
-    form.set('tage', '3');
     form.set('aktion', 'weiter');
-    if (bestaetigen) form.set('programmErsetzen', 'on');
     return assistent(
       {
         request: new Request('http://example.org/termin-melden', { method: 'POST', body: form }),
@@ -165,15 +165,23 @@ it('ersetzt ein bearbeitetes Programm erst nach ausdrücklicher Bestätigung', a
     );
   };
   try {
-    const rueckfrage = await senden(alterStand);
-    expect(rueckfrage).toMatchObject({
-      schritt: 1,
-      zeitraumWechsel: true,
-      zeilen: alterStand.zeilen,
+    // Starttag eine Woche später: eigenes Programm bleibt, wandert mit
+    const neu = (await senden(alterStand)) as typeof alterStand;
+    expect(neu.schritt).toBe(2);
+    expect(neu.zeilen).toHaveLength(1);
+    expect(neu.zeilen[0]).toMatchObject({
+      titel: 'Unser eigener Titel',
+      band: 'Unsere Band',
+      datum: '2027-09-23',
     });
-    const neu = await senden(rueckfrage, true);
-    expect(neu).toMatchObject({ schritt: 2, zeitraumWechsel: false });
-    expect((neu as typeof alterStand).zeilen[0]?.titel).toBe('Kirmesgottesdienst');
+    // ohne Programm: genau eine leere Veranstaltung, keine Vorlage
+    const leer = (await senden({ ...alterStand, zeilen: [] })) as typeof alterStand;
+    expect(leer.zeilen).toEqual([
+      { datum: '2027-09-23', titel: '', beginn: '', aktiv: true, speisen: [] },
+    ]);
+    // ohne gültigen alten Starttag bleibt das Datum, wie es ist
+    const ohne = (await senden({ ...alterStand, ab: '' })) as typeof alterStand;
+    expect(ohne.zeilen[0]?.datum).toBe('2027-09-16');
   } finally {
     fetch.mockRestore();
   }
@@ -271,13 +279,32 @@ describe('Reihenfolge des Programms (Issue #149)', () => {
   });
 
   it('eigene Veranstaltung erst unten, beim Weiter an ihrem Platz', async () => {
+    // neue Zeile am Tag der letzten Veranstaltung (Issue #221)
     const mitNeuer = await schritt2(stand(), 'eigen');
-    expect(mitNeuer.zeilen.at(-1)).toMatchObject({ titel: '', datum: '2027-09-17' });
+    expect(mitNeuer.zeilen.at(-1)).toMatchObject({ titel: '', datum: '2027-09-18' });
     const neu = await schritt2(mitNeuer, 'weiter', (f) => {
       f.set('titel-5', 'Seniorennachmittag');
       f.set('beginn-5', '14:00');
     });
-    expect(folge(neu)[0]).toBe('17 14:00 Seniorennachmittag');
+    expect(folge(neu)[3]).toBe('18 14:00 Seniorennachmittag');
+  });
+
+  it('Löschen entfernt genau die Zeile; ohne Veranstaltung geht es nicht weiter (#221)', async () => {
+    const ohne = await schritt2(stand(), 'loeschen-1', (f) => f.set('titel-0', 'Gottesdienst'));
+    expect(ohne.schritt).toBe(2);
+    expect(folge(ohne)).toEqual([
+      '17 18:00 Gottesdienst',
+      '18 08:00 Ständchen',
+      '18 15:00 Kinderkirmes',
+      '18 20:00 Kirmesparty',
+    ]);
+    const leer = await schritt2(stand([]), 'weiter');
+    expect([leer.schritt, leer.fehler]).toEqual([
+      2,
+      ['Bitte mindestens eine Veranstaltung hinzufügen.'],
+    ]);
+    const ohneTitel = await schritt2(stand(), 'weiter', (f) => f.set('titel-2', ''));
+    expect(ohneTitel.fehler.join(' ')).toContain('Titel und Tag ausfüllen');
   });
 
   it('gleicher Titel am gleichen Tag wird schon in Schritt 2 gemeldet', async () => {
@@ -302,77 +329,7 @@ describe('Reihenfolge des Programms (Issue #149)', () => {
   });
 });
 
-describe('eigene Dauer (Issue #150)', () => {
-  const schritt1 = async (tage: string, tageEigen = '') => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      Response.json([
-        {
-          slug: 'musterort',
-          name: 'Musterort',
-          landkreis: 'IK',
-          koordinate: null,
-          anzahlKommend: 0,
-        },
-      ]),
-    );
-    const form = new FormData();
-    form.set('csrf_token', 'token');
-    form.set(
-      'stand',
-      JSON.stringify({
-        schritt: 1,
-        ortSlug: '',
-        ab: '',
-        tage: '4',
-        zeilen: [],
-        kontaktName: '',
-        kontaktEmail: '',
-        nachricht: '',
-        bestaetigt: false,
-        geladen: Date.now(),
-        vorschlag: '',
-        fehler: [],
-      }),
-    );
-    form.set('ort', 'Musterort');
-    form.set('ab', '2027-09-15');
-    form.set('tage', tage);
-    form.set('tageEigen', tageEigen);
-    form.set('aktion', 'weiter');
-    try {
-      return (await assistent(
-        {
-          request: new Request('http://example.org/termin-melden', { method: 'POST', body: form }),
-          url: new URL('http://example.org/termin-melden'),
-          response: { status: 200, headers: new Headers() },
-          cookies: { get: () => ({ value: 'token' }) } as never,
-          redirect: () => new Response(),
-          clientAddress: '127.0.0.1',
-        },
-        false,
-      )) as { schritt: number; tage: string; fehler: string[]; zeilen: unknown[] };
-    } finally {
-      fetch.mockRestore();
-    }
-  };
-  it('„Andere Dauer“ übernimmt die Zahl, die Vorlage bleibt Do–So', async () => {
-    const s = await schritt1('eigen', '06');
-    expect(s).toMatchObject({ schritt: 2, tage: '6', fehler: [] });
-    expect(s.zeilen).toHaveLength(7);
-    // ohne „eigen“ zählt das Zusatzfeld nicht
-    expect(await schritt1('2', '9')).toMatchObject({ schritt: 2, tage: '2' });
-  });
-  it.each([
-    ['eigen', ''],
-    ['eigen', '15'],
-    ['eigen', '0'],
-    ['eigen', 'x'],
-    ['99', ''],
-  ])('ungültig: %s / %s', async (tage, eigen) => {
-    const s = await schritt1(tage, eigen);
-    expect(s.schritt).toBe(1);
-    expect(s.fehler).toContain('Bitte die Anzahl der Tage wählen (1 bis 14).');
-  });
+describe('Dauer im Stand (Issue #150)', () => {
   it('gueltigeTage', () => {
     expect(['1', '4', '14'].every(gueltigeTage)).toBe(true);
     expect(['0', '15', '', '1.5', 4].some(gueltigeTage)).toBe(false);

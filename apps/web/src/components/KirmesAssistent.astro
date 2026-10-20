@@ -39,7 +39,6 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
 );
 const ortBezeichnung = bezeichner(orte);
 const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
-const eigeneDauer = Number(s.tage) > 4;
 ---
 
 <div class="kirmes-assistent">
@@ -82,6 +81,7 @@ const eigeneDauer = Number(s.tage) > 4;
     {s.schritt === 1 && (
       <Schritt1
         s={s}
+        redaktion={redaktion}
         kgOrt={kgOrt}
         ort={ort}
         unbekannt={unbekannt}
@@ -89,7 +89,6 @@ const eigeneDauer = Number(s.tage) > 4;
         neuerOrtName={neuerOrtName}
         kreise={kreise}
         ortText={ortText}
-        eigeneDauer={eigeneDauer}
       />
     )}
     {s.schritt === 2 && <Schritt2 s={s} redaktion={redaktion} ortName={ortName} />}
@@ -117,17 +116,6 @@ const eigeneDauer = Number(s.tage) > 4;
     max-width: 680px;
   }
   .kirmes-assistent {
-    .zeitraumfelder {
-      grid-template-columns: 1fr;
-    }
-    @media (min-width: 700px) {
-      .zeitraumfelder {
-        grid-template-columns: 0.8fr 1.2fr;
-      }
-      .eigene-dauer {
-        grid-column: 2;
-      }
-    }
     .schritte {
       display: flex;
       list-style: none;
@@ -192,9 +180,6 @@ const eigeneDauer = Number(s.tage) > 4;
     .details-inhalt:not(:has(input[name^='essen-']:checked)) .speisen-felder {
       display: none;
     }
-    .abgewaehlt {
-      opacity: 0.65;
-    }
     /* Schritt 2: eine kompakte Zeile je Veranstaltung (Issue #87) */
     .programm-kompakt {
       list-style: none;
@@ -211,28 +196,26 @@ const eigeneDauer = Number(s.tage) > 4;
     .programmzeile + .programmzeile {
       border-top: 1px solid var(--linie);
     }
-    .programmzeile:has(input[type='checkbox']:checked) {
-      opacity: 1;
-    }
-    .programmzeile:has(input[type='checkbox']:not(:checked)) {
-      opacity: 0.65;
-    }
-    .zeilenwahl {
-      padding-right: 72px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 52px;
-      cursor: pointer;
-    }
-    .zeilenwahl input {
-      width: 24px;
-      height: 24px;
-      flex: none;
-    }
-    .zeilenwahl > span {
+    /* Kopf einer Veranstaltung: Titel + Zeit, rechts „Löschen“ und „ändern“ (Issue #221) */
+    .zeilenkopf {
+      padding-right: 168px;
       display: grid;
+      align-content: center;
       gap: 2px;
+      min-height: 52px;
+    }
+    .zeile-loeschen {
+      position: absolute;
+      top: 10px;
+      right: 80px;
+      min-height: 44px;
+      padding: 0 8px;
+      border: 0;
+      background: none;
+      color: var(--rot);
+      font: inherit;
+      text-decoration: underline;
+      cursor: pointer;
     }
     .programmzeile summary {
       position: absolute;
@@ -306,6 +289,5 @@ const eigeneDauer = Number(s.tage) > 4;
 <script>
   import '../scripts/ortssuche';
   import '../scripts/programmreihenfolge';
-  import '../scripts/eigene-dauer';
   import '../scripts/kartenlink-name';
 </script>

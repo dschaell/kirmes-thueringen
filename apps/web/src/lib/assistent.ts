@@ -9,18 +9,18 @@ import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
 import { ApiNichtErreichbar, alleTermine, listeOrte, sucheTermine } from './api';
 import { tageZwischen, verschiebeProgramm } from './vorjahr';
+import { plusTage } from './anzeige';
 import {
   type AssistentStand,
   TAGE_MAX,
   doppelterTitel,
-  gueltigeTage,
   istKategorie,
   leseProgramm,
   leseStand,
   mitEssen,
   moeglicheDoppelungen,
+  neueZeile,
   sortiereProgramm,
-  vorlage,
 } from './assistent/programm';
 export {
   TAGE_MAX,
@@ -29,8 +29,8 @@ export {
   leseProgramm,
   mitEssen,
   moeglicheDoppelungen,
+  neueZeile,
   sortiereProgramm,
-  vorlage,
 } from './assistent/programm';
 export type { AssistentStand, AssistentZeile } from './assistent/programm';
 
@@ -167,7 +167,7 @@ export async function assistent(
   if (!redaktion) s.vorschlag = '';
   const aktion = feld(f, 'aktion');
   if (s.schritt === 1) {
-    const vorher = `${s.ortSlug}|${s.ab}|${s.tage}`;
+    const abVorher = s.ab;
     // „Meintest du …?“ – Klick auf einen ähnlichen Ort ersetzt die Eingabe (Issue #167)
     const ortText = feld(f, 'ortWahl') || feld(f, 'ort');
     // Eindeutig und tolerant (Groß-/Kleinschreibung, Umlaute) – Issue #89; Kirmesgesellschaft immer
@@ -202,9 +202,6 @@ export async function assistent(
       }
     }
     s.ab = feld(f, 'ab');
-    const auswahl = feld(f, 'tage');
-    // „Andere Dauer …“ (Issue #150): Zahl aus dem Zusatzfeld, führende Nullen weg
-    s.tage = auswahl === 'eigen' ? String(Number(feld(f, 'tageEigen')) || '') : auswahl;
     if (!s.ortSlug && !s.fehler.length)
       s.fehler.push(
         s.ortUnbekannt
@@ -212,39 +209,36 @@ export async function assistent(
           : 'Bitte einen Ort aus den Vorschlägen wählen.',
       );
     if (!parseDatum(s.ab).ok) s.fehler.push('Bitte ein gültiges Datum wählen.');
-    if (!gueltigeTage(s.tage))
-      s.fehler.push(`Bitte die Anzahl der Tage wählen (1 bis ${TAGE_MAX}).`);
     if (!s.fehler.length) {
-      const wechsel = vorher !== `${s.ortSlug}|${s.ab}|${s.tage}` || s.zeitraumWechsel;
-      if (wechsel && s.zeilen.length && !f.has('programmErsetzen')) {
-        s.zeitraumWechsel = true;
-        s.fehler.push(
-          'Der neue Ort oder Zeitraum ersetzt dein bisher bearbeitetes Programm. Bitte unten ausdrücklich bestätigen.',
-        );
-        return s;
-      }
-      if (wechsel || !s.zeilen.length) s.zeilen = vorlage(s.ab, s.tage);
-      s.zeitraumWechsel = false;
+      // Ohne Vorlage (Issue #221): eine leere Veranstaltung zum Ausfüllen. Wird der erste
+      // Kirmestag geändert, wandert das schon eingetragene Programm mit.
+      const versatz = parseDatum(abVorher).ok ? tageZwischen(abVorher, s.ab) : 0;
+      s.zeilen = s.zeilen.length
+        ? s.zeilen.map((z) =>
+            versatz && parseDatum(z.datum).ok ? { ...z, datum: plusTage(z.datum, versatz) } : z,
+          )
+        : [neueZeile(s.ab)];
+      s.zeitraumWechsel = undefined;
       s.schritt = 2;
     }
   } else if (s.schritt === 2) {
-    s.zeilen = sortiereProgramm(leseProgramm(f, s.zeilen, false));
+    const gelesen = leseProgramm(f, s.zeilen, false);
+    // Löschen (Issue #221): Index bezieht sich auf die angezeigte Reihenfolge
+    if (aktion.startsWith('loeschen-')) gelesen.splice(Number(aktion.slice(9)), 1);
+    s.zeilen = sortiereProgramm(gelesen);
     if (aktion === 'zurueck') s.schritt = 1;
+    else if (aktion.startsWith('loeschen-')) return s;
     else if (aktion === 'eigen') {
       if (s.zeilen.length < 20)
-        s.zeilen.push({
-          datum: s.ab || s.zeilen[0]?.datum || '',
-          titel: '',
-          beginn: '',
-          aktiv: true,
-          speisen: [],
-        });
+        s.zeilen.push(neueZeile(s.zeilen.at(-1)?.datum || s.ab));
       else s.fehler.push('Höchstens 20 Veranstaltungen je Kirmes.');
     } else {
       if (!s.zeilen.some((z) => z.aktiv))
-        s.fehler.push('Bitte mindestens eine Veranstaltung wählen.');
+        s.fehler.push('Bitte mindestens eine Veranstaltung hinzufügen.');
       if (s.zeilen.some((z) => z.aktiv && (!z.titel.trim() || !parseDatum(z.datum).ok)))
-        s.fehler.push('Bitte Titel und Datum der gewählten Veranstaltungen ausfüllen.');
+        s.fehler.push(
+          'Bitte bei jeder Veranstaltung Titel und Tag ausfüllen – oder nicht benötigte löschen.',
+        );
       const doppelt = doppelterTitel(s.zeilen);
       if (doppelt) s.fehler.push(doppelt);
       if (!s.fehler.length) s.schritt = 3;

@@ -4,6 +4,7 @@
  * für das Formular egal; ohne JavaScript sortiert der Server beim nächsten Schritt.
  */
 const liste = document.querySelector<HTMLUListElement>('.programm-kompakt');
+const NEU = liste?.dataset.neu ?? 'Neue Veranstaltung';
 const wochentag = new Intl.DateTimeFormat('de-DE', {
   weekday: 'short',
   day: '2-digit',
@@ -21,6 +22,14 @@ function zeitText(zeile: Element) {
   const tag = /^\d{4}-\d{2}-\d{2}$/.test(datum) ? wochentag.format(new Date(datum)) : '';
   return [tag, beginn && `${beginn} Uhr`].filter(Boolean).join(' · ');
 }
+
+// Titel sofort in der Zeile zeigen, nicht erst nach dem nächsten Schritt (Issue #221)
+liste?.addEventListener('input', (e) => {
+  const feld = e.target as HTMLInputElement;
+  if (!/^titel-\d+$/.test(feld.name)) return;
+  const titel = feld.closest('.programmzeile')?.querySelector('.zeilentitel');
+  if (titel) titel.textContent = feld.value.trim() || NEU;
+});
 
 liste?.addEventListener('change', (e) => {
   const feld = e.target as HTMLInputElement;
