@@ -2,7 +2,6 @@
 import type { VorschlagsZeile } from '@kirmes/core';
 import { KATEGORIEN as KATEGORIEN_LISTE, parseDatum, type Kategorie } from '@kirmes/core';
 import { datumKurz } from '../anzeige';
-import { wochenendVorlage } from '../wochenende';
 import { feld } from '../admin';
 import { type TerminDto } from '../api';
 
@@ -41,16 +40,14 @@ export interface AssistentStand {
 export const TAGE_MAX = 14;
 export const gueltigeTage = (t: unknown): t is string =>
   typeof t === 'string' && /^\d{1,2}$/.test(t) && Number(t) >= 1 && Number(t) <= TAGE_MAX;
-export function vorlage(ab: string, tage: string): AssistentZeile[] {
-  if (!parseDatum(ab).ok) return [];
-  if (tage === '1') return [{ datum: ab, titel: '', aktiv: true, beginn: '', speisen: [] }];
-  return (
-    wochenendVorlage(ab)
-      .filter((z) => z.datum < addiereTage(ab, Number(tage)))
-      // Nur der Kern ist vorab angehakt; der Rest wird angeboten (Issue #87)
-      .map(({ kern, ...z }) => ({ ...z, aktiv: kern === true, speisen: [] }))
-  );
-}
+/** Leere Veranstaltung – der Assistent startet ohne Vorlage (Issue #221). */
+export const neueZeile = (datum: string): AssistentZeile => ({
+  datum,
+  titel: '',
+  beginn: '',
+  aktiv: true,
+  speisen: [],
+});
 /**
  * Programm der Reihe nach (Issue #149): Tag, dann Uhrzeit; ohne Uhrzeit ans Ende des Tages.
  * Stabil – gleiche Zeitpunkte behalten ihre Reihenfolge.
@@ -99,12 +96,7 @@ export function moeglicheDoppelungen(
 }
 export const istKategorie = (k: string | null | undefined): k is Kategorie =>
   !!k && (KATEGORIEN_LISTE as readonly string[]).includes(k);
-function addiereTage(ab: string, tage: number) {
-  const d = new Date(`${ab}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + tage);
-  return d.toISOString().slice(0, 10);
-}
-/** Indizierte Namen verhindern Verschiebungen, wenn Checkboxen abgewählt werden. */
+/** Felder je Zeile über den Index (titel-0, datum-0 …); Reihenfolge wie im Formular. */
 export function leseProgramm(
   f: FormData,
   alt: AssistentZeile[],
@@ -135,7 +127,8 @@ export function leseProgramm(
                 ).filter((s) => s.name || s.preis),
               }
             : {
-                aktiv: f.has(`aktiv-${i}`),
+                // Nicht Benötigtes wird gelöscht statt abgewählt (Issue #221)
+                aktiv: true,
                 datum: feld(f, `datum-${i}`),
                 beginn: feld(f, `beginn-${i}`),
                 titel: feld(f, `titel-${i}`),

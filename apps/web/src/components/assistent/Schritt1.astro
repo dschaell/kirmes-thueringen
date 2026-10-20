@@ -4,9 +4,9 @@ import type { AssistentStand } from '../../lib/assistent';
 import type { OrtUebersichtDto } from '../../lib/api';
 import type { OrtTreffer } from '../../lib/ortssuche';
 import type { LandkreisKuerzel } from '@kirmes/core';
-import { TAGE_MAX } from '../../lib/assistent';
 import { kreisKurz } from '../../lib/anzeige';
 interface Props {
+  redaktion: boolean;
   s: AssistentStand;
   kgOrt: boolean;
   ort: OrtUebersichtDto | undefined;
@@ -15,13 +15,12 @@ interface Props {
   neuerOrtName: string;
   kreise: LandkreisKuerzel[];
   ortText: string;
-  eigeneDauer: boolean;
 }
-const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, eigeneDauer } =
+const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, redaktion } =
   Astro.props;
 ---
 
-<h2>Wo und wann feiert ihr?</h2>
+<h2>{redaktion ? 'Wo und wann ist die Kirmes?' : 'Wo und wann feiert ihr?'}</h2>
 {kgOrt ? (
   <p>
     Ort: <strong>{Astro.locals.ortName}</strong>
@@ -82,46 +81,10 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, eige
     </label>
   </section>
 )}
-<div class="zwei zeitraumfelder">
-  <label>
-    Erster Kirmestag
-    <input name="ab" type="date" required value={s.ab} />
-  </label>
-  <label>
-    Wie lange?
-    <select name="tage">
-      {[
-        ['1', 'Nur ein Termin'],
-        ['2', '2 Tage'],
-        ['3', '3 Tage'],
-        ['4', '4 Tage (meist Donnerstag bis Sonntag)'],
-        ['eigen', 'Andere Dauer …'],
-      ].map(([v, t]) => (
-        <option value={v} selected={v === 'eigen' ? eigeneDauer : s.tage === v}>
-          {t}
-        </option>
-      ))}
-    </select>
-  </label>
-  <label class="eigene-dauer" data-eigene-dauer>
-    Anzahl Tage (bei „Andere Dauer“)
-    <input
-      name="tageEigen"
-      type="number"
-      inputmode="numeric"
-      min="1"
-      max={TAGE_MAX}
-      value={eigeneDauer ? s.tage : ''}
-      placeholder="z. B. 6"
-    />
-  </label>
-</div>
-{s.zeitraumWechsel && (
-  <label>
-    <input type="checkbox" name="programmErsetzen" required /> Ja, mein bisheriges Programm durch
-    eine neue Vorlage ersetzen.
-  </label>
-)}
+<label>
+  Erster Kirmestag
+  <input name="ab" type="date" required value={s.ab} />
+</label>
 <button class="knopf" name="aktion" value="weiter">
   Weiter zum Programm
 </button>

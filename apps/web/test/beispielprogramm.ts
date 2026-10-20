@@ -1,7 +1,11 @@
 import type { Kategorie } from '@kirmes/core';
-import { plusTage } from './anzeige';
+import { plusTage } from '../src/lib/anzeige';
+import type { AssistentZeile } from '../src/lib/assistent';
 
-/** Eine Zeile im Formular „Kirmeswochenende anlegen“ (Rohwerte aus dem Formular). */
+/**
+ * Testdaten (Issue #221): das frühere Vorlage-Programm einer typischen Kirmes. Der Assistent startet
+ * inzwischen ohne Vorlage; die Tests brauchen trotzdem ein realistisches Programm.
+ */
 export interface WochenendZeile {
   datum: string;
   beginn: string;
@@ -52,4 +56,13 @@ export function wochenendVorlage(ab: string): WochenendZeile[] {
     zeile(2, '10:00', 'Frühschoppen', 'fruehschoppen', { kern: true }),
     zeile(3, '10:00', 'Kirmesausklang', 'tradition'),
   ];
+}
+
+/** Programm wie früher die Vorlage: n Tage ab `ab`, nur der Kern aktiv. */
+export function vorlage(ab: string, tage: string): AssistentZeile[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ab)) return [];
+  if (tage === '1') return [{ datum: ab, titel: '', aktiv: true, beginn: '', speisen: [] }];
+  return wochenendVorlage(ab)
+    .filter((z) => z.datum < plusTage(ab, Number(tage)))
+    .map(({ kern, ...z }) => ({ ...z, aktiv: kern === true, speisen: [] }));
 }
