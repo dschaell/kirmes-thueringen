@@ -65,11 +65,12 @@ export function erkenneKategorie(titel: string): Kategorie {
   // Ständchen ist eine eigene Art (Issue #135)
   if (/ständchen|staendchen|standchen/.test(t)) return 'staendchen';
   // Passt in keine Art – z. B. Seniorennachmittag (Issue #147)
-  if (/senior|sonstig/.test(t)) return 'sonstiges';
+  // Kirmesbeerdigung, Fußballspiel, Kater-Lunch, Dämmerschoppen ebenfalls (Issue #225)
+  if (/senior|sonstig|beerdigung|fu(ß|ss)ball|kater|dämmer|daemmer/.test(t)) return 'sonstiges';
   // Frühschoppen ist eine eigene Art (Issue #154)
   if (/fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(t)) return 'fruehschoppen';
   if (
-    /gottesdienst|andacht|messe\b|kirchgang|umzug|beerdigung|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster/.test(
+    /gottesdienst|andacht|messe\b|kirchgang|umzug|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster/.test(
       t,
     )
   )
