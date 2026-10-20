@@ -4,7 +4,9 @@ import type {
   Festplatz,
   FestplatzRepository,
   FestplatzUebersicht,
+  Koordinate,
   LandkreisKuerzel,
+  Umbenennung,
 } from '@kirmes/core';
 import { createHash, randomBytes } from 'node:crypto';
 import type pg from 'pg';
@@ -40,8 +42,21 @@ export class PgBearbeitungslinks implements Bearbeitungslinks {
 }
 
 const SQL_ORT = `
-SELECT id, slug, name, landkreis, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon
+SELECT id, slug, name, landkreis, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon,
+       herkunft = 'redaktion' AS eigen
   FROM ort WHERE slug = $1`;
+// Alle Plätze (Issue #216): Festplätze ∪ „Wo genau?“ der Termine, mit Terminanzahl und Kartenpunkt.
+// Der Hauptfestplatz ('') zählt die Termine ohne „Wo genau?“.
+const SQL_PLAETZE = `
+SELECT n.name, coalesce(t.anzahl, 0)::int AS termine,
+       ST_Y(f.lage::geometry) AS lat, ST_X(f.lage::geometry) AS lon
+  FROM (SELECT name FROM festplatz WHERE ort_id = $1
+        UNION
+        SELECT veranstaltungsort FROM termin WHERE ort_id = $1 AND veranstaltungsort <> '') n
+  LEFT JOIN festplatz f ON f.ort_id = $1 AND f.name = n.name
+  LEFT JOIN (SELECT coalesce(veranstaltungsort, '') AS name, count(*) AS anzahl
+               FROM termin WHERE ort_id = $1 GROUP BY 1) t ON t.name = n.name
+ ORDER BY n.name`;
 const SQL_FESTPLAETZE = `
 SELECT name, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon
   FROM festplatz WHERE ort_id = $1 ORDER BY name`;
@@ -73,12 +88,18 @@ export class PgFestplatzRepository implements FestplatzRepository {
         landkreis: LandkreisKuerzel;
         lat: number | null;
         lon: number | null;
+        eigen: boolean;
       }>(this.db, SQL_ORT, [ortSlug])
     ).rows[0];
     if (!ort) return null;
-    const [plaetze, orte] = await Promise.all([
+    const [plaetze, orte, alle] = await Promise.all([
       abfrage<{ name: string; lat: number; lon: number }>(this.db, SQL_FESTPLAETZE, [ort.id]),
       abfrage<{ name: string }>(this.db, SQL_VERANSTALTUNGSORTE, [ort.id]),
+      abfrage<{ name: string; termine: number; lat: number | null; lon: number | null }>(
+        this.db,
+        SQL_PLAETZE,
+        [ort.id],
+      ),
     ]);
     return {
       ort: {
@@ -92,6 +113,12 @@ export class PgFestplatzRepository implements FestplatzRepository {
         koordinate: { lat: p.lat, lon: p.lon },
       })),
       veranstaltungsorte: orte.rows.map((o) => o.name),
+      plaetze: alle.rows.map((p) => ({
+        name: p.name,
+        termine: p.termine,
+        koordinate: p.lat != null && p.lon != null ? { lat: p.lat, lon: p.lon } : null,
+      })),
+      eigenerOrt: ort.eigen,
     };
   }
 
@@ -126,6 +153,69 @@ export class PgFestplatzRepository implements FestplatzRepository {
         ortId,
         'festplatz_geloescht',
         { name },
+        durch.adminId ?? null,
+      ]);
+      return true;
+    });
+  }
+
+  /**
+   * Termine und Festplatz gemeinsam umbenennen (Issue #216). Der Ort wird gesperrt, damit nicht
+   * gleichzeitig jemand denselben Platz anlegt. Termine bekommen eine neue Version (Kalender-Abos).
+   */
+  async benenneUm(
+    ortSlug: string,
+    alt: string,
+    neu: string,
+    durch: Berechtigung,
+  ): Promise<Umbenennung> {
+    return this.inTransaktion(async (c) => {
+      const { rows } = await c.query<{ id: string; alt_platz: boolean; neu_platz: boolean }>(
+        `SELECT o.id::text,
+                EXISTS (SELECT 1 FROM festplatz f WHERE f.ort_id = o.id AND f.name = $2) AS alt_platz,
+                EXISTS (SELECT 1 FROM festplatz f WHERE f.ort_id = o.id AND f.name = $3) AS neu_platz
+           FROM ort o WHERE o.slug = $1 FOR UPDATE`,
+        [ortSlug, alt, neu],
+      );
+      const o = rows[0];
+      if (!o) return 'unbekannt';
+      if (o.alt_platz && o.neu_platz) return 'konflikt';
+      const t = await c.query(
+        `UPDATE termin SET veranstaltungsort = $3, version = version + 1, geaendert_am = now()
+          WHERE ort_id = $1::bigint AND veranstaltungsort = $2`,
+        [o.id, alt, neu],
+      );
+      if (!o.alt_platz && !t.rowCount) return 'unbekannt';
+      if (o.alt_platz)
+        await c.query(
+          `UPDATE festplatz SET name = $3, geaendert_am = now() WHERE ort_id = $1::bigint AND name = $2`,
+          [o.id, alt, neu],
+        );
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        o.id,
+        'platz_umbenannt',
+        { alt, neu, termine: t.rowCount },
+        durch.adminId ?? null,
+      ]);
+      return 'umbenannt';
+    });
+  }
+
+  async setzeOrtsmitte(ortSlug: string, k: Koordinate, durch: Berechtigung): Promise<boolean> {
+    return this.inTransaktion(async (c) => {
+      const r = await c.query<{ id: string }>(
+        `UPDATE ort SET lage = ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography
+          WHERE slug = $1 RETURNING id::text`,
+        [ortSlug, k.lat, k.lon],
+      );
+      const ortId = r.rows[0]?.id;
+      if (!ortId) return false;
+      await c.query(SQL_PROTOKOLL, [
+        durch.linkId,
+        ortId,
+        'ortsmitte_gesetzt',
+        k,
         durch.adminId ?? null,
       ]);
       return true;

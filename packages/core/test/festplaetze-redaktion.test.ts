@@ -11,17 +11,21 @@ function aufbau(aufgeloest: string | null = null) {
   const gespeichert: [string, Festplatz, Berechtigung][] = [];
   const geloescht: [string, string, Berechtigung][] = [];
   const kurzlinks: string[] = [];
+  const mitte: [string, unknown][] = [];
   const fp = new RedaktionsFestplaetze(
     {
       uebersicht: async (s) =>
         s === 'alkersleben' ? ({ ort: {}, festplaetze: [] } as never) : null,
       speichere: async (o, f, b) => void gespeichert.push([o, f, b]),
       loesche: async (o, n, b) => (geloescht.push([o, n, b]), n === 'Kirche'),
+      benenneUm: async (_o, alt, neu) =>
+        alt === 'Kirche' ? (neu === 'Festzelt' ? 'konflikt' : 'umbenannt') : 'unbekannt',
+      setzeOrtsmitte: async (o, k) => (mitte.push([o, k]), true),
     },
     async (s) => (s === 'alkersleben' ? 'IK' : null),
     { aufloesen: async (u) => (kurzlinks.push(u), aufgeloest) },
   );
-  return { fp, gespeichert, geloescht, kurzlinks };
+  return { fp, gespeichert, geloescht, kurzlinks, mitte };
 }
 const codes = (r: { ok: boolean; error?: unknown }) =>
   r.ok ? [] : (r.error as Validierungsfehler[]).map((f) => f.code);
@@ -134,5 +138,43 @@ describe('RedaktionsFestplaetze', () => {
     expect(geloescht[0]?.[1]).toBe('Kirche');
     expect(await fp.loesche('gibtsnicht', 'Kirche', '1')).toBe(false);
     expect(await fp.uebersicht('alkersleben')).not.toBeNull();
+  });
+
+  it('benennt um (Issue #216): Name wird geglättet; Konflikt, unbekannt und Unsinn verständlich', async () => {
+    const { fp } = aufbau();
+    expect(await fp.benenneUm('alkersleben', 'Kirche', '  St.   Gregorius ', '7')).toEqual({
+      ok: true,
+      value: true,
+    });
+    expect(codes(await fp.benenneUm('alkersleben', 'Kirche', 'Festzelt', '7'))).toEqual([
+      'PLATZ_VORHANDEN',
+    ]);
+    expect(codes(await fp.benenneUm('alkersleben', 'Gibtsnicht', 'X', '7'))).toEqual([
+      'PLATZ_UNBEKANNT',
+    ]);
+    expect(codes(await fp.benenneUm('unbekannt', 'Kirche', 'X', '7'))).toEqual(['PLATZ_UNBEKANNT']);
+    expect(codes(await fp.benenneUm('alkersleben', 'Kirche', '  ', '7'))).toEqual(['NAME_LAENGE']);
+    expect(codes(await fp.benenneUm('alkersleben', 'Kirche', 'Kirche', '7'))).toEqual(['GLEICH']);
+  });
+
+  it('setzt die Ortsmitte per Link oder Koordinaten (Issue #216)', async () => {
+    const { fp, mitte } = aufbau();
+    expect(await fp.setzeOrtsmitte('alkersleben', '50.8475, 11.0412', '7')).toEqual({
+      ok: true,
+      value: { lat: 50.8475, lon: 11.0412 },
+    });
+    expect(mitte).toEqual([['alkersleben', { lat: 50.8475, lon: 11.0412 }]]);
+    expect(codes(await fp.setzeOrtsmitte('alkersleben', 'irgendwo', '7'))).toEqual(['STANDORT']);
+    expect(codes(await fp.setzeOrtsmitte('alkersleben', '99.9, 11.0', '7'))).toEqual(['STANDORT']);
+    expect(codes(await fp.setzeOrtsmitte('unbekannt', '50.8, 11.0', '7'))).toEqual([
+      'ORT_UNBEKANNT',
+    ]);
+    expect(
+      codes(await fp.setzeOrtsmitte('alkersleben', 'https://maps.app.goo.gl/Weg', '7')),
+    ).toEqual(['STANDORT']);
+    const kurz = aufbau('https://www.google.com/maps/place/X/data=!3d50.85!4d11.04');
+    expect(
+      (await kurz.fp.setzeOrtsmitte('alkersleben', 'https://maps.app.goo.gl/Abc', '7')).ok,
+    ).toBe(true);
   });
 });

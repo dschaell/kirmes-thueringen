@@ -53,6 +53,31 @@ export function plaetzeRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
           ? reply.status(204).send()
           : nichtGefunden(reply),
     );
+    // Platz umbenennen: Termine und Kartenpunkt ziehen gemeinsam um (Issue #216)
+    r.post<{ Params: { slug: string }; Body: { alt: string; neu: string } }>(
+      '/api/v1/admin/orte/:slug/festplaetze/umbenennen',
+      {
+        schema: { params: SLUG, body: objekt(['alt', 'neu'], { alt: TEXT(120), neu: TEXT(120) }) },
+      },
+      async (req, reply) => {
+        const e = await fp.benenneUm(req.params.slug, req.body.alt, req.body.neu, admin(req));
+        if (!e.ok) return ungueltig(reply, e.error);
+        req.log.info({ akteur: admin(req), ort: req.params.slug }, 'Platz umbenannt');
+        return reply.status(204).send();
+      },
+    );
+    // Ortsmitte (Ziel der Route ohne eigenen Platz) – Recht 'orte.bearbeiten' (Issue #216);
+    // Kirmesgesellschaften sperrt schon der Filter (nicht in KG_ROUTEN)
+    r.put<{ Params: { slug: string }; Body: { standort: string } }>(
+      '/api/v1/admin/orte/:slug/mitte',
+      { schema: { params: SLUG, body: objekt(['standort'], { standort: TEXT(2000) }) } },
+      async (req, reply) => {
+        const e = await fp.setzeOrtsmitte(req.params.slug, req.body.standort, admin(req));
+        if (!e.ok) return ungueltig(reply, e.error);
+        req.log.info({ akteur: admin(req), ort: req.params.slug }, 'Ortsmitte gesetzt');
+        return e.value;
+      },
+    );
   }
 
   r.get('/api/v1/admin/vorschlaege', () =>

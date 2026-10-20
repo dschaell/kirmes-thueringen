@@ -79,11 +79,19 @@ const ortRepo: OrtRepository = {
 const TOKEN = 'A'.repeat(43);
 const festplatzRepo: FestplatzRepository & { gespeichert: unknown[] } = {
   gespeichert: [],
-  uebersicht: async () => ({ ort: termin.ort, festplaetze: [], veranstaltungsorte: ['Reitstall'] }),
+  uebersicht: async () => ({
+    ort: termin.ort,
+    festplaetze: [],
+    veranstaltungsorte: ['Reitstall'],
+    plaetze: [],
+    eigenerOrt: false,
+  }),
   speichere: async (_o, f) => {
     festplatzRepo.gespeichert.push(f);
   },
   loesche: async (_o, name) => name === 'Reitstall',
+  benenneUm: async () => 'unbekannt',
+  setzeOrtsmitte: async () => false,
 };
 const verwalte = new VerwalteFestplaetze(
   {
@@ -281,6 +289,12 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
                 : slug === 'belegt'
                   ? 'belegt'
                   : 'unbekannt',
+          aendere: async (slug) =>
+            slug === 'kirche-x'
+              ? 'geaendert'
+              : slug === 'muehlberg'
+                ? 'ortsverzeichnis'
+                : 'unbekannt',
         },
         async (slug) => (slug === 'muehlberg' ? 'GTH' : null),
         terminVerwaltung,
@@ -1386,9 +1400,19 @@ describe('Plätze und Vorschläge (Redaktion, Issue #62)', () => {
     festplaetzeAktiv = new RedaktionsFestplaetze(
       {
         uebersicht: async (o) =>
-          o === 'muehlberg' ? { ort: termin.ort, festplaetze: [], veranstaltungsorte: [] } : null,
+          o === 'muehlberg'
+            ? {
+                ort: termin.ort,
+                festplaetze: [],
+                veranstaltungsorte: [],
+                plaetze: [],
+                eigenerOrt: false,
+              }
+            : null,
         speichere: async (_o, f) => void gespeichert.push(f.name),
         loesche: async (_o, n) => n === 'Kirche',
+        benenneUm: async (_o, alt) => (alt === 'Kirche' ? 'umbenannt' : 'unbekannt'),
+        setzeOrtsmitte: async () => true,
       },
       async (o) => (o === 'muehlberg' ? 'GTH' : null),
       { aufloesen: async () => null },
@@ -1429,10 +1453,70 @@ describe('Plätze und Vorschläge (Redaktion, Issue #62)', () => {
     expect(
       (await app.inject({ method: 'DELETE', url: `${url}?name=Zelt`, headers: auth })).statusCode,
     ).toBe(404);
+    // ohne Namen = Hauptfestplatz; den gibt es hier nicht
+    expect((await app.inject({ method: 'DELETE', url, headers: auth })).statusCode).toBe(404);
     expect((await app.inject({ url: '/api/v1/admin/vorschlaege', headers: auth })).json()).toEqual({
       bands: ['Belconda'],
       titel: ['Kirmestanz'],
     });
+  });
+
+  it('Plätze umbenennen, Ortsmitte, Ort ändern – mit Rechten (Issue #216)', async () => {
+    festplaetzeAktiv = new RedaktionsFestplaetze(
+      {
+        uebersicht: async () => null,
+        speichere: async () => {},
+        loesche: async () => false,
+        benenneUm: async (_o, alt) => (alt === 'Kirche' ? 'umbenannt' : 'unbekannt'),
+        setzeOrtsmitte: async () => true,
+      },
+      async (o) => (o === 'muehlberg' || o === 'erfurt' ? 'GTH' : null),
+      { aufloesen: async () => null },
+    );
+    await setup();
+    festplaetzeAktiv = undefined;
+    const red = { authorization: `Sitzung ${REDAKTION_SITZUNG}` };
+    const kg = { authorization: `Sitzung ${KG_SITZUNG}` };
+    const um = (ort: string, headers: object, payload: object) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/orte/${ort}/festplaetze/umbenennen`,
+        headers,
+        payload,
+      });
+    expect((await um('muehlberg', red, { alt: 'Kirche', neu: 'St. Marien' })).statusCode).toBe(204);
+    const unbekannt = await um('muehlberg', red, { alt: 'Zelt', neu: 'X' });
+    expect([unbekannt.statusCode, unbekannt.json().fehler[0].code]).toEqual([
+      400,
+      'PLATZ_UNBEKANNT',
+    ]);
+    expect((await um('muehlberg', red, { alt: 'Kirche' })).statusCode).toBe(400);
+    // Kirmesgesellschaft: eigener Ort ja, fremder nein
+    expect((await um('muehlberg', kg, { alt: 'Kirche', neu: 'St. Marien' })).statusCode).toBe(204);
+    expect((await um('erfurt', kg, { alt: 'Kirche', neu: 'X' })).statusCode).toBe(403);
+
+    const mitte = (headers: object, standort: string) =>
+      app.inject({
+        method: 'PUT',
+        url: '/api/v1/admin/orte/muehlberg/mitte',
+        headers,
+        payload: { standort },
+      });
+    const m = await mitte(red, '50.95, 10.70');
+    expect([m.statusCode, m.json()]).toEqual([200, { lat: 50.95, lon: 10.7 }]);
+    expect((await mitte(red, 'irgendwo')).statusCode).toBe(400);
+    expect((await mitte(kg, '50.95, 10.70')).statusCode).toBe(403);
+
+    const ort = (slug: string, headers: object, payload: object) =>
+      app.inject({ method: 'PUT', url: `/api/v1/admin/orte/${slug}`, headers, payload });
+    expect((await ort('kirche-x', red, { name: 'Kirche Y', landkreis: 'GTH' })).statusCode).toBe(
+      204,
+    );
+    const osm = await ort('muehlberg', red, { name: 'X', landkreis: 'GTH' });
+    expect([osm.statusCode, osm.json().fehler[0].code]).toEqual([400, 'ORTSVERZEICHNIS']);
+    expect((await ort('weg', red, { name: 'X', landkreis: 'GTH' })).statusCode).toBe(404);
+    expect((await ort('kirche-x', red, { name: '', landkreis: 'GTH' })).statusCode).toBe(400);
+    expect((await ort('muehlberg', kg, { name: 'X', landkreis: 'GTH' })).statusCode).toBe(403);
   });
 
   it('ohne Konfiguration: keine Plätze-Routen, leere Vorschläge', async () => {

@@ -128,7 +128,11 @@ describe('Redaktion', () => {
     };
     const r = new Redaktion(
       repo,
-      { lege: async (o) => (o.slug === 'vorhanden' ? null : { ...o }) },
+      {
+        lege: async (o) => (o.slug === 'vorhanden' ? null : { ...o }),
+        aendere: async (slug: string) =>
+          slug === 'eigen' ? 'geaendert' : slug === 'osm' ? 'ortsverzeichnis' : 'unbekannt',
+      } as never,
       async (slug) => (slug === 'ulla' ? 'WL' : null),
       termine,
       {
@@ -166,6 +170,23 @@ describe('Redaktion', () => {
     expect((await r.legeOrt({ name: 'Neudorf', landkreis: 'WL' }, '1')).ok).toBe(true);
     const doppelt = await r.legeOrt({ name: 'Vorhanden', landkreis: 'WL' }, '1');
     expect(!doppelt.ok && doppelt.error[0]?.code).toBe('ORT_VORHANDEN');
+  });
+
+  it('ändert Name/Landkreis nur bei selbst angelegten Orten (Issue #216)', async () => {
+    const { r } = aufbau();
+    const code = (x: Awaited<ReturnType<typeof r.aendereOrt>>) => (x.ok ? 'ok' : x.error[0]?.code);
+    expect(code(await r.aendereOrt('eigen', { name: ' Neu  dorf ', landkreis: 'WL' }, '1'))).toBe(
+      'ok',
+    );
+    expect(code(await r.aendereOrt('osm', { name: 'Erfurt', landkreis: 'EF' }, '1'))).toBe(
+      'ORTSVERZEICHNIS',
+    );
+    expect(code(await r.aendereOrt('weg', { name: 'X', landkreis: 'WL' }, '1'))).toBe(
+      'ORT_UNBEKANNT',
+    );
+    expect(code(await r.aendereOrt('eigen', { name: '', landkreis: 'XX' }, '1'))).toBe(
+      'NAME_LAENGE',
+    );
   });
 
   it('validiert Mittagstisch schon vor dem atomaren Anlegen', async () => {

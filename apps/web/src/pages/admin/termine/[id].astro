@@ -245,8 +245,8 @@ const hinterlegt =
         )}
         <p class="klein leise">
           Der Link gilt für alle Termine in {t.ort.name} mit gleichem „Wo genau?“. Alle Plätze
-          verwalten:{' '}
-          <a href={`/admin/termine?ort=${t.ort.slug}&plaetze=1#plaetze`}>Plätze in {t.ort.name}</a>
+          umbenennen oder ändern:{' '}
+          <a href={`/admin/orte/${t.ort.slug}`}>Ort & Plätze in {t.ort.name}</a>
         </p>
         <label>
           Art

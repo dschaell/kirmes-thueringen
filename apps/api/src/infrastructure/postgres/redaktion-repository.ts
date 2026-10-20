@@ -1,6 +1,7 @@
 /** Redaktionsdaten: Mitteilungen, Orte, Bearbeitungslinks (Issue #199: aus admin-repository.ts ausgelagert). */
 import type {
   EigenerOrt,
+  OrtAendern,
   OrtLoeschen,
   LandkreisKuerzel,
   LinkInfo,
@@ -123,6 +124,31 @@ export class PgOrtVerwaltung implements OrtVerwaltung {
       [],
     );
     return rows;
+  }
+
+  /** Name/Landkreis ändern – nur selbst angelegte Orte (Issue #216); Slug bleibt, protokolliert. */
+  async aendere(
+    slug: string,
+    o: { name: string; landkreis: string },
+    adminId: string,
+  ): Promise<OrtAendern> {
+    const { rows } = await abfrage<{ id: string; geaendert: boolean }>(
+      this.db,
+      `WITH alt AS (SELECT id FROM ort WHERE slug = $1),
+            neu AS (UPDATE ort SET name = $2, landkreis = $3
+                     WHERE id = (SELECT id FROM alt) AND herkunft = 'redaktion' RETURNING id)
+       SELECT alt.id::text, EXISTS (SELECT 1 FROM neu) AS geaendert FROM alt`,
+      [slug, o.name, o.landkreis],
+    );
+    const r = rows[0];
+    if (!r) return 'unbekannt';
+    if (!r.geaendert) return 'ortsverzeichnis';
+    await abfrage(
+      this.db,
+      `INSERT INTO aenderungsprotokoll (admin_id, ort_id, aktion, details) VALUES ($1, $2, 'ort_geaendert', $3)`,
+      [adminId, r.id, { slug, ...o }],
+    );
+    return 'geaendert';
   }
 
   async loesche(slug: string, adminId: string): Promise<OrtLoeschen> {

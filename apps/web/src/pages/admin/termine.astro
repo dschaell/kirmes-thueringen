@@ -19,7 +19,6 @@ import AdminLayout from '../../components/admin/AdminLayout.astro';
 import Herkunft from '../../components/admin/TerminHerkunft.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';
-import OrtPlaetze from '../../components/admin/OrtPlaetze.astro';
 import KirmesSammel from '../../components/admin/KirmesSammel.astro';
 import NeuerTermin from '../../components/admin/NeuerTermin.astro';
 import OrtTerminliste from '../../components/admin/OrtTerminliste.astro';
@@ -115,27 +114,8 @@ if (Astro.request.method === 'POST' && ort) {
       ].join(' ');
     } else fehler = rs.fehler;
   }
-  if (aktion === 'platz' || aktion === 'platz-loeschen') {
-    const r =
-      aktion === 'platz'
-        ? await adminApi(Astro.cookies, 'POST', `orte/${ort.slug}/festplaetze`, {
-            name: feld(f, 'platzname'),
-            standort: feld(f, 'standort'),
-          })
-        : await adminApi(
-            Astro.cookies,
-            'DELETE',
-            `orte/${ort.slug}/festplaetze?name=${encodeURIComponent(feld(f, 'platzname'))}`,
-          );
-    if (r.status < 300) {
-      meldung =
-        aktion === 'platz'
-          ? `Platz „${feld(f, 'platzname') || 'Hauptfestplatz'}“ gespeichert – Termine mit diesem Veranstaltungsort führen jetzt genau dorthin.`
-          : 'Platz gelöscht.';
-    } else fehler = r.fehler;
-  }
   const r =
-    aktion === 'platz' || aktion === 'platz-loeschen' || aktion === 'sammel'
+    aktion === 'sammel'
       ? { status: 299, daten: null, fehler: fehler }
       : aktion === 'speichern'
         ? await adminApi<{ hinweise: { meldung: string }[] }>(
@@ -190,19 +170,17 @@ const treffer =
   !ort && suche
     ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
     : [];
-// Plätze des Ortes (Kirche, Festzelt …) mit Standort – Issue #62
-interface Platz {
-  name: string;
-  koordinate: { lat: number; lon: number };
-}
+// Plätze des Ortes – bearbeitet werden sie auf /admin/orte/<ort> (Issue #216)
 const plaetze = ort
   ? ((
-      await adminApi<{ festplaetze: Platz[] }>(Astro.cookies, 'GET', `orte/${ort.slug}/festplaetze`)
-    ).daten?.festplaetze ?? [])
+      await adminApi<{ plaetze: { name: string; termine: number; koordinate: unknown }[] }>(
+        Astro.cookies,
+        'GET',
+        `orte/${ort.slug}/festplaetze`,
+      )
+    ).daten?.plaetze ?? [])
   : [];
-const googleSuche = ort
-  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ort.name}, Thüringen`)}`
-  : '';
+const ohnePunkt = plaetze.filter((p) => !p.koordinate && p.termine > 0).length;
 const veranstaltungsorte = [
   ...new Set([
     ...plaetze.map((p) => p.name).filter(Boolean),
@@ -280,12 +258,16 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
         </p>
       )}
 
-      <OrtPlaetze
-        ort={ort}
-        plaetze={plaetze}
-        offen={plaetze.length === 0 || Astro.url.searchParams.has('plaetze')}
-        googleSuche={googleSuche}
-      />
+      <p class="platzhinweis">
+        <a class="knopf zweit" href={`/admin/orte/${ort.slug}`}>
+          <Icon name="stift" groesse={14} />{' '}
+          {darf(Astro.locals, 'orte.bearbeiten') ? 'Ort & Plätze bearbeiten' : 'Plätze bearbeiten'}
+        </a>{' '}
+        <span class="leise klein">
+          {plaetze.length === 1 ? '1 Platz' : `${plaetze.length} Plätze`}
+          {ohnePunkt > 0 && ` · ${ohnePunkt} ohne Kartenpunkt (keine Route)`}
+        </span>
+      </p>
 
       {
         <nav class="umschalter" aria-label="Art der Eingabe">
