@@ -1,13 +1,14 @@
 ---
 /** Schritt 2: Was ist los – aus KirmesAssistent.astro (Issue #199). */
 import type { AssistentStand } from '../../lib/assistent';
-import { KATEGORIEN, datumKurz } from '../../lib/anzeige';
+import { KATEGORIEN, datumKurz, heute } from '../../lib/anzeige';
 interface Props {
   s: AssistentStand;
   redaktion: boolean;
   ortName: string;
 }
 const { s, redaktion, ortName } = Astro.props;
+const jahr = heute().slice(0, 4);
 ---
 
 <h2>Was ist los in {ortName}?</h2>
@@ -39,7 +40,7 @@ const { s, redaktion, ortName } = Astro.props;
         <span>
           <strong>{z.titel || 'Eigene Veranstaltung'}</strong>
           <span class="klein leise zeitangabe">
-            {[datumKurz(z.datum), z.beginn && `${z.beginn} Uhr`].filter(Boolean).join(' · ')}
+            {[datumKurz(z.datum, jahr), z.beginn && `${z.beginn} Uhr`].filter(Boolean).join(' · ')}
           </span>
         </span>
       </label>
