@@ -86,16 +86,22 @@ const fmtLangJahr = fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 
 const fmtTag = fmt({ day: 'numeric', month: 'long' });
 const fmtWochentag = fmt({ weekday: 'long' });
 const fmtKurz = fmt({ weekday: 'short', day: '2-digit', month: '2-digit' });
+const fmtKurzJahr = fmt({ weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export const monatName = (iso: string) => fmtMonat.format(new Date(iso));
 export const datumLang = (iso: string) => fmtLang.format(new Date(iso));
 export const datumLangJahr = (iso: string) => fmtLangJahr.format(new Date(iso));
 export const tagMonat = (iso: string) => fmtTag.format(new Date(iso));
 export const wochentag = (iso: string) => fmtWochentag.format(new Date(iso));
-/** „Do., 15.10.“ – kompakt für Programmzeilen; ungültige Daten bleiben leer. */
-export const datumKurz = (iso: string) =>
+/**
+ * „Do., 15.10.“ – kompakt für Programmzeilen; ungültige Daten bleiben leer. Mit `aktuellesJahr`
+ * kommt das Jahr dazu, wenn das Datum in einem anderen Jahr liegt: „Do., 21.10.2027“ (Issue #209).
+ */
+export const datumKurz = (iso: string, aktuellesJahr?: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(iso) && !Number.isNaN(Date.parse(iso))
-    ? fmtKurz.format(new Date(iso))
+    ? (aktuellesJahr && !iso.startsWith(aktuellesJahr) ? fmtKurzJahr : fmtKurz).format(
+        new Date(iso),
+      )
     : '';
 
 /** Heute in Thüringer Ortszeit (YYYY-MM-DD) – auch im Browser und auf Servern mit UTC. */

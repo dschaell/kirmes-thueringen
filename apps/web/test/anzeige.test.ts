@@ -106,6 +106,12 @@ describe('datumKurz (Issue #87)', () => {
     expect(datumKurz('')).toBe('');
     expect(datumKurz('2026-13-45')).toBe('');
   });
+
+  it('mit Jahr nur außerhalb des laufenden Jahres (Issue #209)', async () => {
+    const { datumKurz } = await import('../src/lib/anzeige');
+    expect(datumKurz('2027-10-21', '2026')).toBe('Do., 21.10.2027');
+    expect(datumKurz('2026-11-05', '2026')).toBe('Do., 05.11.');
+  });
 });
 
 describe('artName (robust gegen unbekannte Arten)', () => {
