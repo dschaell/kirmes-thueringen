@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { clientIp, erstelleRateLimit, istIntern, ladeGrenzen } from '../rate-limit.mjs';
 
-const anfrage = (url: string, ip: string, xff?: string) => ({
+const anfrage = (url: string, ip: string, xff?: string, accept?: string) => ({
   url,
   socket: { remoteAddress: ip },
-  headers: xff ? { 'x-forwarded-for': xff } : {},
+  headers: { ...(xff ? { 'x-forwarded-for': xff } : {}), ...(accept ? { accept } : {}) },
 });
 function antwort() {
   const r = {
@@ -31,10 +31,25 @@ describe('Rate-Limit am öffentlichen Einstieg', () => {
     expect(begrenze(anfrage('/termine', '1.2.3.4'), res)).toBe(false);
     expect(res.statusCode).toBe(429);
     expect(res.kopf['Retry-After']).toBe('60');
+    expect(res.kopf['Content-Type']).toBe('text/plain; charset=utf-8');
     // andere IP unbeeinträchtigt, nach Ablauf des Fensters wieder frei
     expect(begrenze(anfrage('/termine', '5.6.7.8'), antwort())).toBe(true);
     t = 60_001;
     expect(begrenze(anfrage('/termine', '1.2.3.4'), antwort())).toBe(true);
+  });
+
+  it('Browser bekommen eine gestaltete Seite, die nach der Sperre neu lädt (Issue #210)', () => {
+    const begrenze = erstelleRateLimit({ max: 1, fensterMs: 30_000 }, () => 0);
+    const html = 'text/html,application/xhtml+xml,*/*;q=0.8';
+    begrenze(anfrage('/', '4.4.4.4', undefined, html), antwort());
+    const res = antwort();
+    expect(begrenze(anfrage('/', '4.4.4.4', undefined, html), res)).toBe(false);
+    expect(res.statusCode).toBe(429);
+    expect(res.kopf['Content-Type']).toBe('text/html; charset=utf-8');
+    expect(res.kopf['Cache-Control']).toBe('no-store');
+    expect(res.text).toContain('<meta http-equiv="refresh" content="30">');
+    expect(res.text).toContain('href="/zu-viele-anfragen.css"');
+    expect(res.text).not.toMatch(/<style|<script|style=/);
   });
 
   it('statische Dateien zählen nicht', () => {

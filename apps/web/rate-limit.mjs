@@ -9,6 +9,34 @@ import { isIP } from 'node:net';
 const STATISCH =
   /^\/(_astro|fonts)\/|\.(css|js|mjs|map|png|jpe?g|webp|avif|svg|ico|woff2?|txt|webmanifest)$/i;
 
+const ZU_VIELE_TEXT = 'Zu viele Anfragen – bitte kurz warten und dann neu laden.';
+
+/**
+ * Kleine Seite für Browser (Issue #210): Stil aus eigener Datei (strenge CSP ohne Inline-Style),
+ * lädt nach Ablauf der Sperre per meta refresh selbst neu – ohne Skript.
+ */
+export const zuVieleSeite = (sekunden) => `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="${Number(sekunden)}">
+<meta name="robots" content="noindex">
+<title>Kurz durchatmen – Kirmeskalender Thüringen</title>
+<link rel="stylesheet" href="/zu-viele-anfragen.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<main>
+<img src="/favicon.svg" alt="">
+<h1>Kurz durchatmen</h1>
+<p>Von deinem Anschluss kamen gerade sehr viele Aufrufe auf einmal. Die Seite lädt in ${Number(sekunden)} Sekunden von selbst neu.</p>
+<a href="">Jetzt neu laden</a>
+</main>
+</body>
+</html>
+`;
+
 export function istIntern(ip) {
   if (!ip) return false;
   const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
@@ -59,9 +87,14 @@ export function erstelleRateLimit({ max, fensterMs, aus = false }, jetzt = Date.
       const warten = Math.max(1, Math.ceil((liste[0] + fensterMs - t) / 1000));
       res.statusCode = 429;
       res.setHeader('Retry-After', String(warten));
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-store');
-      res.end('Zu viele Anfragen – bitte kurz warten und dann neu laden.');
+      if (String(req.headers?.accept ?? '').includes('text/html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(zuVieleSeite(warten));
+      } else {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.end(ZU_VIELE_TEXT);
+      }
       return false;
     }
     liste.push(t);
