@@ -1,5 +1,5 @@
 /** iCalendar (RFC 5545) für Kalender-Abo und Einzeltermine. */
-import { speiseZeile } from './anzeige';
+import { eigenerPlatz, speiseZeile } from './anzeige';
 import type { TerminDto } from './api';
 
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
@@ -96,7 +96,7 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
           ]
         : [`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${naechsterTag(t.datum)}`]),
       `SUMMARY:${esc(`${t.titel} – ${t.ort.name}`)}`,
-      `LOCATION:${esc([t.veranstaltungsort, t.ort.name, 'Thüringen'].filter(Boolean).join(', '))}`,
+      `LOCATION:${esc([eigenerPlatz(t), t.ort.name, 'Thüringen'].filter(Boolean).join(', '))}`,
       ...(geo ? [`GEO:${geo.lat};${geo.lon}`] : []),
       `DESCRIPTION:${esc(
         [

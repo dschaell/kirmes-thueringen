@@ -125,6 +125,27 @@ export function relativerTag(iso: string, h = heute()): string | null {
   return null;
 }
 
+type PlatzAngabe = {
+  veranstaltungsort: string | null;
+  kategorie?: string;
+  ort: { name: string };
+};
+
+/**
+ * Eingetragener Platz – außer bei Ständchen ohne eigenen Platz (Issue #213): Die ziehen durch den
+ * ganzen Ort, daher zählen leer, der Ortsname und „… (ganzer Ort)“ nicht als Platz.
+ */
+export function eigenerPlatz(t: PlatzAngabe): string | null {
+  const v = t.veranstaltungsort?.trim() || null;
+  if (!v || t.kategorie !== 'staendchen') return v;
+  const ohneZusatz = v.replace(/\s*\(?ganzer ort\)?$/i, '').trim();
+  return ohneZusatz === '' || ohneZusatz === t.ort.name ? null : v;
+}
+
+/** Platz für die Anzeige: Ständchen ohne eigenen Platz → „ganzer Ort“. */
+export const platzText = (t: PlatzAngabe): string | null =>
+  eigenerPlatz(t) ?? (t.kategorie === 'staendchen' ? 'ganzer Ort' : null);
+
 /**
  * Routen-Links (Issue #179): nur wohin man sich verlassen kann.
  * - hinterlegter Platz → genau dorthin („genau“)
@@ -132,10 +153,11 @@ export function relativerTag(iso: string, h = heute()): string | null {
  * - nur ein Text wie „Sportplatz“ ohne Kartenpunkt → keine Route (Suche wäre beliebig)
  */
 export function routenLinks(
-  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'>,
+  t: Pick<TerminDto, 'festplatz' | 'veranstaltungsort' | 'ort'> & { kategorie?: string },
 ): { google: string; apple: string; art: 'genau' | 'ort' } | null {
-  const k = t.festplatz ?? (t.veranstaltungsort ? null : t.ort.koordinate);
-  if (!k && t.veranstaltungsort) return null;
+  const platz = eigenerPlatz(t);
+  const k = t.festplatz ?? (platz ? null : t.ort.koordinate);
+  if (!k && platz) return null;
   const ziel = k ? `${k.lat},${k.lon}` : `${t.ort.name}, Thüringen`;
   const z = encodeURIComponent(ziel);
   return {

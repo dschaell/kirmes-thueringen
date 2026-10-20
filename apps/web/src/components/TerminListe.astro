@@ -4,7 +4,16 @@
  * „Route“ öffnet Google Maps bzw. auf Apple-Geräten Apple Karten (siehe Skript unten).
  */
 import type { TerminDto } from '../lib/api';
-import { monatName, relativerTag, routenLinks, tagMonat, wochentag, artName } from '../lib/anzeige';
+import {
+  monatName,
+  eigenerPlatz,
+  platzText,
+  relativerTag,
+  routenLinks,
+  tagMonat,
+  wochentag,
+  artName,
+} from '../lib/anzeige';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -85,7 +94,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     ) : (
                       <span class="ortname">{t.ort.name}</span>
                     )}
-                    {t.veranstaltungsort && <> · {t.veranstaltungsort}</>}
+                    {platzText(t) && <> · {platzText(t)}</>}
                   </div>
                   {t.band && (
                     <div class="band">
@@ -102,7 +111,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     data-apple={route.apple}
                     rel="noopener"
                     target="_blank"
-                    aria-label={`Route nach ${t.ort.name}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}`}
+                    aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
                   >
                     <Icon name="route" groesse={16} />
                     Route
