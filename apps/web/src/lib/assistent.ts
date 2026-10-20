@@ -229,8 +229,7 @@ export async function assistent(
     if (aktion === 'zurueck') s.schritt = 1;
     else if (aktion.startsWith('loeschen-')) return s;
     else if (aktion === 'eigen') {
-      if (s.zeilen.length < 20)
-        s.zeilen.push(neueZeile(s.zeilen.at(-1)?.datum || s.ab));
+      if (s.zeilen.length < 20) s.zeilen.push(neueZeile(s.zeilen.at(-1)?.datum || s.ab));
       else s.fehler.push('Höchstens 20 Veranstaltungen je Kirmes.');
     } else {
       if (!s.zeilen.some((z) => z.aktiv))
