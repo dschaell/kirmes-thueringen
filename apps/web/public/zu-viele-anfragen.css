@@ -1,0 +1,56 @@
+/* Gestaltung der Seite „Zu viele Anfragen“ (429, Issue #210) – eigene Datei wegen strenger CSP. */
+:root {
+  color-scheme: light dark;
+  --rot: #a4161a;
+  --papier: #faf6ef;
+  --tinte: #1f1b16;
+  --grau: #675e54;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rot: #e8685c;
+    --papier: #16130f;
+    --tinte: #eee7dc;
+    --grau: #a99f92;
+  }
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--papier) url('/wimpel.svg') repeat-x 0 0 / 72px 22px;
+  color: var(--tinte);
+  font:
+    1.125rem/1.6 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+main {
+  max-width: 28rem;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+img {
+  width: 64px;
+  height: 64px;
+}
+h1 {
+  font-family: Georgia, serif;
+  font-size: 1.6rem;
+  margin: 1rem 0 0.5rem;
+}
+p {
+  color: var(--grau);
+}
+a {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
+  background: var(--rot);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
