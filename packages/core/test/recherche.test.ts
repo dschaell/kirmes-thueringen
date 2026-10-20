@@ -46,7 +46,6 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Kindertanz', 'familie'],
     ['Kinderkirmes', 'familie'],
     ['Familiennachmittag', 'familie'],
-    ['Kirmesbeerdigung', 'tradition'],
     ['Kirmesgottesdienst', 'tradition'],
     ['Ständchen', 'staendchen'], // eigene Art seit #135
     ['Kirmes-Staendchen am Morgen', 'staendchen'],
@@ -55,6 +54,10 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Sonstiges', 'sonstiges'],
     ['Kinder- und Seniorennachmittag', 'familie'],
     ['Kirmesumzug', 'tradition'],
+    ['Kirmesbeerdigung', 'sonstiges'], // Issue #225
+    ['Traditionelles Fußballspiel', 'sonstiges'],
+    ['Kirmes-„Kater“-Lunch', 'sonstiges'],
+    ['Dämmershoppen', 'sonstiges'],
     ['Frühschoppen mit den „Thanas“', 'fruehschoppen'], // eigene Art seit #154
     ['Traditionelles Frühshoppen', 'fruehschoppen'],
     ['Früh-Schoppen', 'fruehschoppen'],
