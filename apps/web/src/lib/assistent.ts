@@ -84,6 +84,7 @@ export async function assistent(
         ...s,
         schritt: 2,
         ortSlug: vorjahr,
+        vorjahrVon: vonV,
         ab,
         tage: String(
           Math.min(TAGE_MAX, Math.max(1, tageZwischen(ab, neu.at(-1)?.datum ?? ab) + 1)),

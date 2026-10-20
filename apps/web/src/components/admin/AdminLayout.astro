@@ -27,12 +27,12 @@ const kg = nurEigenerOrt(Astro.locals);
 const nav = kg
   ? [
       ['/admin', 'Termine'],
-      ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
+      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       [`/admin/orte/${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
     ]
   : [
       ['/admin', 'Termine'],
-      ['/admin/vorschlaege', `Vorschläge (${offen ?? '–'})`],
+      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       ['/admin/orte', 'Orte & Plätze'],
       ...(darf(Astro.locals, 'mitglieder')
         ? [['/admin/mitglieder', 'Redaktion & Einladungen']]

@@ -24,8 +24,7 @@ const { einzelWerte, veranstaltungsorte } = Astro.props;
       placeholder="Text der Ankündigung hier einfügen – Datum, Uhrzeit, Titel und Ort werden vorgeschlagen."
     />
     <p class="leise klein" id="assistent-info">
-      Die Vorschläge landen im Formular – bitte prüfen. Quelle (Link zum Post) in der Recherche
-      notieren.
+      Datum, Uhrzeit, Titel und Ort werden ins Formular übernommen – bitte vor dem Speichern prüfen.
     </p>
   </div>
 </details>
@@ -102,7 +101,8 @@ const { einzelWerte, veranstaltungsorte } = Astro.props;
       value="ja"
       checked={einzelWerte?.bestaetigt ?? false}
     />{' '}
-    Vom Veranstalter bestätigt (z. B. eigener Post der Kirmesgesellschaft)
+    Vom Veranstalter bestätigt (die Kirmesgesellschaft hat die Angaben selbst gemacht oder
+    bestätigt, z. B. eigener Post)
   </label>
   <label class="klein">
     <input

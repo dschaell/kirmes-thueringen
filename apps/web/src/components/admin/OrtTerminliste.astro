@@ -35,18 +35,23 @@ const { ort, termine, herkunft } = Astro.props;
             )}
           </td>
           <td class="klein">
-            {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'recherchiert'}
+            {t.bestaetigt ? <span class="bestaetigt">bestätigt</span> : 'noch nicht bestätigt'}
           </td>
           <td>
             <div class="klein-knoepfe">
               <a class="knopf zweit" href={`/admin/termine/${t.id}`}>
-                Ändern
+                Bearbeiten
               </a>
               <form method="post">
                 <CsrfFeld />
                 <input type="hidden" name="id" value={t.id} />
                 {!t.bestaetigt && (
-                  <button class="knopf zweit" name="aktion" value="bestaetigen">
+                  <button
+                    class="knopf zweit"
+                    name="aktion"
+                    value="bestaetigen"
+                    title="Die Kirmesgesellschaft hat die Angaben selbst gemacht oder bestätigt"
+                  >
                     Bestätigen
                   </button>
                 )}

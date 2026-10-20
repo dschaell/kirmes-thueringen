@@ -2,6 +2,8 @@
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
+import { listeOrte } from '../../lib/api';
+import { bezeichner, findeOrtEindeutig } from '../../lib/ortssuche';
 
 interface Link {
   id: string;
@@ -27,10 +29,17 @@ if (Astro.request.method === 'POST') {
     if (r.status < 300) meldung = 'Link gesperrt – er funktioniert ab sofort nicht mehr.';
     else fehler = r.fehler;
   } else {
-    const r = await adminApi<{ token: string; link: Link }>(Astro.cookies, 'POST', 'links', {
-      ortSlug: feld(f, 'ortSlug'),
-      bezeichnung: feld(f, 'bezeichnung'),
-    });
+    // Ort per Suche statt Adresse abtippen (Issue #218)
+    const ort = findeOrtEindeutig(await listeOrte(), feld(f, 'ort'));
+    const r = ort
+      ? await adminApi<{ token: string; link: Link }>(Astro.cookies, 'POST', 'links', {
+          ortSlug: ort.slug,
+          bezeichnung: feld(f, 'bezeichnung'),
+        })
+      : {
+          daten: null,
+          fehler: ['Ort nicht gefunden – bitte beim Tippen einen Vorschlag aus der Liste wählen.'],
+        };
     if (r.daten) {
       // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
       const basis = process.env.WEBSITE_URL ?? Astro.site?.href ?? 'http://localhost:4321';
@@ -40,7 +49,9 @@ if (Astro.request.method === 'POST') {
   }
 }
 const links = (await adminApi<Link[]>(Astro.cookies, 'GET', 'links')).daten ?? [];
-const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
+const orte = await listeOrte();
+const vorbelegtOrt = orte.find((o) => o.slug === Astro.url.searchParams.get('ort'));
+const vorbelegt = vorbelegtOrt ? bezeichner(orte)(vorbelegtOrt) : '';
 ---
 
 <AdminLayout titel="Bearbeitungslinks" meldung={meldung} fehler={fehler}>
@@ -55,20 +66,37 @@ const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
     </div>
   )}
 
+  <div class="kasten">
+    <p>
+      <strong>Was ist ein Bearbeitungslink?</strong> Ein geheimer Link für eine Kirmesgesellschaft –
+      ganz ohne Konto und Anmeldung. Wer den Link hat, kann Termine und Festplätze dieses einen
+      Ortes pflegen. Praktisch für Gesellschaften, die nur ab und zu etwas eintragen.
+    </p>
+    <p class="leise klein">
+      Wer regelmäßig mitmacht, bekommt besser ein eigenes Konto: unter{' '}
+      <a href="/admin/mitglieder#einladen">Redaktion &amp; Einladungen</a> mit der Rolle
+      „Kirmesgesellschaft“ einladen. Ein Link lässt sich jederzeit sperren.
+    </p>
+  </div>
+
   <h2>Neuen Link erstellen</h2>
   <form class="melden" method="post">
     <CsrfFeld />
     <input type="hidden" name="aktion" value="erstellen" />
     <div class="zwei">
       <label>
-        Ort (Adresse der Ortsseite)
-        <input
-          name="ortSlug"
-          required
-          value={vorbelegt}
-          placeholder="z. B. muehlberg"
-          pattern="[a-z0-9\-]+"
-        />
+        Ort
+        <span class="ortssuche">
+          <input
+            name="ort"
+            required
+            maxlength="200"
+            value={vorbelegt}
+            placeholder="Ort suchen …"
+            autocomplete="off"
+            data-ortssuche
+          />
+        </span>
       </label>
       <label>
         Für wen?
@@ -80,10 +108,6 @@ const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
         />
       </label>
     </div>
-    <p class="leise klein">
-      Die Adresse steht in der Ortsseite: kirmeskalender…/orte/<strong>muehlberg</strong>. Unter{' '}
-      <a href="/admin/orte">Orte</a> kannst du sie suchen.
-    </p>
     <div>
       <button class="knopf" type="submit">
         Link erstellen
@@ -142,3 +166,7 @@ const vorbelegt = Astro.url.searchParams.get('ort') ?? '';
     </table>
   )}
 </AdminLayout>
+
+<script>
+  import '../../scripts/ortssuche';
+</script>
