@@ -8,6 +8,8 @@ import {
   musikFeld,
   ohneSchraegstrich,
   routenLinks,
+  eigenerPlatz,
+  platzText,
   suchZeitraum,
   wochenende,
 } from '../src/lib/anzeige';
@@ -120,6 +122,34 @@ describe('artName (robust gegen unbekannte Arten)', () => {
     expect(artName('familie')).toBe('Kindertanz');
     expect(artName('party', true)).toBe('Kirmestanz/Disco');
     expect(artName('gibtsnicht')).toBe('gibtsnicht');
+  });
+});
+
+describe('Ständchen ziehen durch den ganzen Ort (Issue #213)', () => {
+  const ort = {
+    slug: 'kirchheim',
+    name: 'Kirchheim',
+    landkreis: 'IK',
+    koordinate: { lat: 50.88, lon: 11.0 },
+  } as never;
+  const st = (veranstaltungsort: string | null, kategorie = 'staendchen') => ({
+    festplatz: null,
+    veranstaltungsort,
+    kategorie,
+    ort,
+  });
+  it('leer, Ortsname oder „(ganzer Ort)“ → „ganzer Ort“, Route in den Ort', () => {
+    for (const v of [null, '', 'Kirchheim', 'Kirchheim (ganzer Ort)', 'ganzer Ort']) {
+      expect(eigenerPlatz(st(v))).toBeNull();
+      expect(platzText(st(v))).toBe('ganzer Ort');
+      expect(routenLinks(st(v))?.art).toBe('ort');
+    }
+  });
+  it('echter Platz bleibt; andere Arten unverändert', () => {
+    expect(platzText(st('Kirche'))).toBe('Kirche');
+    expect(routenLinks(st('Kirche'))).toBeNull();
+    expect(platzText(st('Kirchheim', 'party'))).toBe('Kirchheim');
+    expect(platzText(st(null, 'party'))).toBeNull();
   });
 });
 
