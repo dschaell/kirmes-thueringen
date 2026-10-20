@@ -15,6 +15,8 @@ import {
   relativerTag,
   preisText,
   routenLinks,
+  eigenerPlatz,
+  platzText,
   artName,
 } from '../../lib/anzeige';
 
@@ -38,7 +40,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 <Base
   title={`${t.titel} in ${t.ort.name} am ${datum} – Kirmeskalender Thüringen`}
-  description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.veranstaltungsort ? `, ${t.veranstaltungsort}` : ''}${t.band ? `, mit ${t.band}` : ''}. Mit Anfahrt und Kalendereintrag.`}
+  description={`${t.titel} in ${t.ort.name} (${kreisName(t.ort.landkreis)}) am ${datum}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${platzText(t) ? `, ${platzText(t)}` : ''}${t.band ? `, mit ${t.band}` : ''}. Mit Anfahrt und Kalendereintrag.`}
   jsonLd={[
     eventJsonLd(t, Astro.site!),
     brotkrumenJsonLd(
@@ -76,7 +78,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         <span class="sr-only">Ort</span>
       </dt>
       <dd>
-        {t.veranstaltungsort && <>{t.veranstaltungsort}, </>}
+        {platzText(t) && <>{platzText(t)}, </>}
         <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
       </dd>
       {t.band && (
@@ -194,7 +196,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       <GoogleKarte
         lat={(t.festplatz ?? t.ort.koordinate)!.lat}
         lon={(t.festplatz ?? t.ort.koordinate)!.lon}
-        titel={`Karte: ${t.veranstaltungsort ?? t.ort.name}`}
+        titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
         genau={Boolean(t.festplatz)}
       />
     )}
