@@ -97,16 +97,6 @@ const { einzelWerte, veranstaltungsorte } = Astro.props;
   <label class="klein">
     <input
       type="checkbox"
-      name="bestaetigt"
-      value="ja"
-      checked={einzelWerte?.bestaetigt ?? false}
-    />{' '}
-    Vom Veranstalter bestätigt (die Kirmesgesellschaft hat die Angaben selbst gemacht oder
-    bestätigt, z. B. eigener Post)
-  </label>
-  <label class="klein">
-    <input
-      type="checkbox"
       name="muttizettel"
       value="ja"
       checked={einzelWerte?.muttizettel ?? false}

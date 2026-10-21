@@ -1,7 +1,8 @@
 /** Termine – aus admin-routen.ts ausgelagert (Issue #199), Verhalten unverändert. */
 import type { AdminTerminFormular } from '@kirmes/core';
-import { darfOrt } from '@kirmes/core';
+import { darf, darfOrt } from '@kirmes/core';
 import {
+  problem,
   ungueltig,
   nichtGefunden,
   ID,
@@ -16,6 +17,24 @@ import type { Kontext } from './kontext.js';
 
 export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Kontext) {
   const { admin, akteur } = k;
+  /*
+   * „Bestätigt“ setzt nur die Kirmesgesellschaft (Issue #240): Ihre Einträge und Änderungen sind
+   * bestätigt. Redaktion/Admin können es nicht setzen – neu angelegt ist „nicht bestätigt“, beim
+   * Bearbeiten bleibt der bisherige Stand.
+   */
+  type MitStatus = { bestaetigt?: boolean };
+  const vomVeranstalter = (req: Parameters<typeof akteur>[0]) =>
+    darf(akteur(req), 'termine.bestaetigen');
+  const bisher = async (id: string) => (await d.terminFinden?.(id))?.bestaetigt ?? false;
+  const neu = <T extends MitStatus>(req: Parameters<typeof akteur>[0], t: T): T => ({
+    ...t,
+    bestaetigt: vomVeranstalter(req),
+  });
+  const geaendert = async <T extends MitStatus>(
+    req: Parameters<typeof akteur>[0],
+    id: string,
+    t: T,
+  ): Promise<T> => ({ ...t, bestaetigt: vomVeranstalter(req) || (await bisher(id)) });
   // Termine (jeder Ort)
   if (d.terminHerkunft) {
     const herkunft = d.terminHerkunft;
@@ -61,7 +80,7 @@ export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
     '/api/v1/admin/termine',
     { schema: { body: terminSchema } },
     async (req, reply) => {
-      const t = await d.redaktion.legeTermin(req.body, admin(req));
+      const t = await d.redaktion.legeTermin(neu(req, req.body), admin(req));
       return t.ok
         ? reply
             .status(201)
@@ -81,7 +100,11 @@ export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
       },
     },
     async (req, reply) => {
-      const t = await d.redaktion.legeWochenende(req.body.ortSlug, req.body.zeilen, admin(req));
+      const t = await d.redaktion.legeWochenende(
+        req.body.ortSlug,
+        req.body.zeilen.map((z) => neu(req, z)),
+        admin(req),
+      );
       return t.ok
         ? reply
             .status(201)
@@ -115,7 +138,8 @@ export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
       },
     },
     async (req, reply) => {
-      const t = await d.redaktion.bearbeiteKirmes(req.body.ortSlug, req.body.zeilen, admin(req));
+      const zeilen = await Promise.all(req.body.zeilen.map((z) => geaendert(req, z.id, z)));
+      const t = await d.redaktion.bearbeiteKirmes(req.body.ortSlug, zeilen, admin(req));
       if (t.ok) return t.value;
       return t.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, t.error);
     },
@@ -156,7 +180,11 @@ export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
     '/api/v1/admin/termine/:id',
     { schema: { params: ID, body: terminSchema } },
     async (req, reply) => {
-      const t = await d.redaktion.aendereTermin(req.params.id, req.body, admin(req));
+      const t = await d.redaktion.aendereTermin(
+        req.params.id,
+        await geaendert(req, req.params.id, req.body),
+        admin(req),
+      );
       if (t.ok) return t.value;
       return t.error === 'NICHT_GEFUNDEN' ? nichtGefunden(reply) : ungueltig(reply, t.error);
     },
@@ -170,14 +198,16 @@ export function termineRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Ko
       },
     },
     async (req, reply) =>
-      (await d.redaktion.bestaetigeTermin(
-        req.params.id,
-        req.body.ortSlug,
-        admin(req),
-        req.body.version,
-      ))
-        ? reply.status(204).send()
-        : nichtGefunden(reply),
+      !vomVeranstalter(req)
+        ? reply.status(403).send(problem(403, 'Bestätigen kann nur die Kirmesgesellschaft.'))
+        : (await d.redaktion.bestaetigeTermin(
+              req.params.id,
+              req.body.ortSlug,
+              admin(req),
+              req.body.version,
+            ))
+          ? reply.status(204).send()
+          : nichtGefunden(reply),
   );
   r.delete<{ Params: { id: string }; Querystring: { ort: string; version?: string } }>(
     '/api/v1/admin/termine/:id',

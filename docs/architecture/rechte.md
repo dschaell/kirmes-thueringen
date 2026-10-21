@@ -7,6 +7,7 @@ API-Routen, Use Cases und Web-Middleware fragen nur dort nach – keine eigenen 
 | ------------------------------------------------------------------------------------------------------ | :---: | :-------: | :----------------: |
 | Redaktion nutzen                                                                                       |   ✓   |     ✓     |         ✓          |
 | Termine                                                                                                |   ✓   |     ✓     |    eigener Ort     |
+| Termine bestätigen (eigene Einträge automatisch)                                                       |   –   |     –     |    eigener Ort     |
 | Plätze (inkl. umbenennen)                                                                              |   ✓   |     ✓     |    eigener Ort     |
 | Vorschläge                                                                                             |   ✓   |     ✓     |    eigener Ort     |
 | Korrekturen                                                                                            |   ✓   |     ✓     |    eigener Ort     |

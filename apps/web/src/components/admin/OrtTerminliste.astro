@@ -5,12 +5,15 @@ import CsrfFeld from './CsrfFeld.astro';
 import Herkunft from './TerminHerkunft.astro';
 import type { TerminDto } from '../../lib/api';
 import { datumLangJahr } from '../../lib/anzeige';
+import { darf } from '@kirmes/core';
 interface Props {
   ort: { name: string };
   termine: TerminDto[];
   herkunft: Record<string, TerminHerkunft>;
 }
 const { ort, termine, herkunft } = Astro.props;
+// Bestätigen nur die Kirmesgesellschaft selbst (Issue #240)
+const darfBestaetigen = darf(Astro.locals, 'termine.bestaetigen');
 ---
 
 <h2>Termine in {ort.name}</h2>
@@ -45,7 +48,7 @@ const { ort, termine, herkunft } = Astro.props;
               <form method="post">
                 <CsrfFeld />
                 <input type="hidden" name="id" value={t.id} />
-                {!t.bestaetigt && (
+                {darfBestaetigen && !t.bestaetigt && (
                   <button
                     class="knopf zweit"
                     name="aktion"

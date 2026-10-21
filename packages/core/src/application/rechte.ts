@@ -10,6 +10,8 @@ export type Aktion =
   /** irgendein Bereich der Redaktion (angemeldetes Mitglied) */
   | 'redaktion'
   | 'termine'
+  /** „bestätigt“ setzen – nur der Veranstalter selbst (Issue #240) */
+  | 'termine.bestaetigen'
   | 'plaetze'
   | 'vorschlaege'
   | 'korrekturen'
@@ -26,10 +28,12 @@ export type Aktion =
 const ALLE: readonly Rolle[] = ['admin', 'redaktion', 'kirmesgesellschaft'];
 const MODERATION: readonly Rolle[] = ['admin', 'redaktion'];
 const NUR_ADMIN: readonly Rolle[] = ['admin'];
+const NUR_KG: readonly Rolle[] = ['kirmesgesellschaft'];
 
 export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
   redaktion: ALLE,
   termine: ALLE,
+  'termine.bestaetigen': NUR_KG,
   plaetze: ALLE,
   vorschlaege: ALLE,
   korrekturen: ALLE,
@@ -46,6 +50,7 @@ export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
 /** Bereiche, die an einen Ort gebunden sind – die Kirmesgesellschaft nur am eigenen (Issue #180). */
 const ORTSGEBUNDEN: ReadonlySet<Aktion> = new Set([
   'termine',
+  'termine.bestaetigen',
   'plaetze',
   'vorschlaege',
   'korrekturen',

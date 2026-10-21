@@ -122,12 +122,9 @@ describe('Vorschlags-API', () => {
           })
         ).statusCode,
       ).toBe(204);
-    expect(v.uebernehme).toHaveBeenLastCalledWith(
-      'token',
-      'id',
-      expect.objectContaining({ bestaetigt: true }),
-      true,
-    );
+    // „bestätigt“ bestimmt der Use Case aus der Rolle (Issue #240) – kein eigener Parameter mehr
+    expect(v.uebernehme).toHaveBeenLastCalledWith('token', 'id', expect.objectContaining({}));
+    expect(vi.mocked(v.uebernehme).mock.lastCall).toHaveLength(3);
     expect(
       (
         await app.inject({
