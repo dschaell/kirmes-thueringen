@@ -388,6 +388,12 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       ortName: 'IT-Adminort',
       ortSlug: 'it-admin-ort',
     });
+    // Beim Annehmen: Rolle und Ortsname (Issue #242)
+    expect(await einladungen.finde(token)).toEqual({
+      id: e!.id,
+      rolle: 'kirmesgesellschaft',
+      ortName: 'IT-Adminort',
+    });
     // Ort-Schlüssel und wer eingeladen hat (Issue #231)
     expect((await einladungen.offene()).find((x) => x.id === e!.id)).toMatchObject({
       ortName: 'IT-Adminort',

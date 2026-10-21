@@ -16,10 +16,10 @@ const { art, token, knopf } = Astro.props;
 <form class="melden" id="registrierung" data-art={art} data-token={token}>
   <CsrfFeld />
   <label>
-    Dein Name in der Redaktion
+    Dein Name
     <input
       name="name"
-      aria-label="Dein Name in der Redaktion"
+      aria-label="Dein Name"
       aria-describedby="registrierung-name-hinweis"
       required
       maxlength="60"
@@ -27,8 +27,8 @@ const { art, token, knopf } = Astro.props;
       placeholder="z. B. Ryan oder KG Mühlberg"
     />
     <span class="leise klein" id="registrierung-name-hinweis">
-      Nur innerhalb der Redaktion sichtbar, auch bei von dir angelegten Terminen. Ein Vorname oder
-      Spitzname reicht.
+      Nur intern sichtbar (Redaktion und eure Kirmesgesellschaft), auch bei von dir angelegten
+      Terminen. Ein Vorname oder Spitzname reicht.
     </span>
   </label>
   <div>

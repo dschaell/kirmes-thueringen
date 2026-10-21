@@ -1,0 +1,60 @@
+---
+/**
+ * Hinweis für eingebaute Browser von Apps (Issue #242): Dort gehen keine Passkeys. Wir sagen es
+ * VOR dem Versuch – mit Anleitung und „Link kopieren“ zum Einfügen in Safari oder Chrome.
+ */
+import { appName, istInAppBrowser } from '../../lib/inapp';
+
+const ua = Astro.request.headers.get('user-agent');
+const zeigen = istInAppBrowser(ua);
+const app = appName(ua);
+---
+
+{zeigen && (
+  <section class="kasten inapp-hinweis" role="alert">
+    <h2>Bitte im Browser öffnen</h2>
+    <p>
+      Du hast diese Seite in {app} geöffnet. Dort funktioniert die Anmeldung mit Face ID,
+      Fingerabdruck oder PIN leider nicht. So geht's:
+    </p>
+    <ol>
+      <li>
+        Oben rechts auf <strong>„…“</strong> (bzw. <strong>⋮</strong>) tippen.
+      </li>
+      <li>
+        <strong>„In externem Browser öffnen“</strong> bzw. <strong>„In Safari öffnen“</strong>{' '}
+        wählen.
+      </li>
+      <li>Dort weitermachen.</li>
+    </ol>
+    <p class="klein">
+      Klappt das nicht? Link kopieren und in Safari oder Chrome einfügen:{' '}
+      <button class="knopf zweit" type="button" data-link-kopieren>
+        Link kopieren
+      </button>
+      <span class="leise" data-link-status role="status"></span>
+    </p>
+  </section>
+)}
+
+<script>
+  const knopf = document.querySelector<HTMLButtonElement>('[data-link-kopieren]');
+  const status = document.querySelector<HTMLElement>('[data-link-status]');
+  knopf?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      if (status) status.textContent = ' Kopiert – jetzt in Safari oder Chrome einfügen.';
+    } catch {
+      if (status) status.textContent = ` ${location.href}`;
+    }
+  });
+</script>
+
+<style>
+  .inapp-hinweis {
+    border-color: var(--rot);
+  }
+  .inapp-hinweis h2 {
+    margin-top: 0;
+  }
+</style>
