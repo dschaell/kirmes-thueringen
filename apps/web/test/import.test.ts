@@ -9,6 +9,7 @@ import {
 
 const orte = [
   { slug: 'alkersleben', name: 'Alkersleben', landkreis: 'IK' },
+  { slug: 'musterdorf', name: 'Musterdorf', landkreis: 'IK' },
   { slug: 'muehlberg', name: 'Mühlberg', landkreis: 'IK' },
   { slug: 'muehlberg-gth', name: 'Mühlberg', landkreis: 'GTH' },
 ];
@@ -20,13 +21,13 @@ describe('Tabellen-Import (Issue #105)', () => {
     expect(
       zeilen.map((z) => [z.status, z.ortSlug, z.termin?.kategorie, z.termin?.bestaetigt]),
     ).toEqual([
-      ['neu', 'alkersleben', 'tradition', false],
-      ['neu', 'alkersleben', 'tanz', false],
+      ['neu', 'musterdorf', 'tradition', false],
+      ['neu', 'musterdorf', 'tanz', false],
     ]);
     expect(zeilen[1]?.termin).toMatchObject({
       datum: '2026-10-16',
       beginn: '20:00',
-      band: 'Dynamic',
+      band: 'Die Musterband',
       veranstaltungsort: 'Festzelt',
       muttizettel: true,
     });

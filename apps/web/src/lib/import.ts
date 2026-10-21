@@ -148,5 +148,5 @@ export function bloecke(zeilen: ImportZeile[]): { ortSlug: string; termine: Impo
 
 export const VORLAGE =
   'Ort;Landkreis;Datum;Beginn;Titel;Art;Band;Wo;Hinweise;Muttizettel\r\n' +
-  'Alkersleben;IK;16.10.2026;18:00;Kirmesgottesdienst;Gottesdienst;;Kirche;;\r\n' +
-  'Alkersleben;IK;16.10.2026;20:00;Kirmestanz;Kirmestanz;Dynamic;Festzelt;Eintritt 8 €;ja\r\n';
+  'Musterdorf;IK;16.10.2026;18:00;Kirmesgottesdienst;Gottesdienst;;Kirche;;\r\n' +
+  'Musterdorf;IK;16.10.2026;20:00;Kirmestanz;Kirmestanz;Die Musterband;Festzelt;Eintritt 8 €;ja\r\n';
