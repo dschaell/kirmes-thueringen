@@ -222,15 +222,17 @@ export class PgEinladungen implements Einladungen {
     return r ? zuEinladung(r) : null;
   }
 
-  async finde(token: string): Promise<{ id: string; rolle: Rolle } | null> {
+  async finde(token: string): Promise<{ id: string; rolle: Rolle; ortName: string | null } | null> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-    const { rows } = await abfrage<{ id: string; rolle: Rolle }>(
+    const { rows } = await abfrage<{ id: string; rolle: Rolle; ort_name: string | null }>(
       this.db,
-      `SELECT id::text, rolle FROM einladung
-        WHERE token_hash = $1 AND genutzt_am IS NULL AND laeuft_ab > now()`,
+      `SELECT e.id::text, e.rolle, o.name AS ort_name
+         FROM einladung e LEFT JOIN ort o ON o.id = e.ort_id
+        WHERE e.token_hash = $1 AND e.genutzt_am IS NULL AND e.laeuft_ab > now()`,
       [hashToken(token)],
     );
-    return rows[0] ?? null;
+    const r = rows[0];
+    return r ? { id: r.id, rolle: r.rolle, ortName: r.ort_name } : null;
   }
 
   async offene(): Promise<EinladungInfo[]> {

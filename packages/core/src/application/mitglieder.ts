@@ -57,7 +57,8 @@ export interface Einladungen {
     ortSlug?: string | null,
   ): Promise<EinladungInfo | null>;
   /** Offene (unbenutzte, nicht abgelaufene) Einladung zum Token */
-  finde(token: string): Promise<{ id: string; rolle: Rolle } | null>;
+  /** Offene Einladung; bei Kirmesgesellschaften mit Ortsnamen (Anzeige, Issue #242) */
+  finde(token: string): Promise<{ id: string; rolle: Rolle; ortName?: string | null } | null>;
   offene(): Promise<EinladungInfo[]>;
   widerrufe(id: string): Promise<boolean>;
 }
@@ -169,9 +170,13 @@ export class Beitritt {
     private readonly registrierung: Registrierung,
   ) {}
 
-  async pruefe(token: string): Promise<Result<{ rolle: Rolle }, 'UNGUELTIG'>> {
+  async pruefe(
+    token: string,
+  ): Promise<Result<{ rolle: Rolle; ortName?: string | null }, 'UNGUELTIG'>> {
     const e = await this.einladungen.finde(token);
-    return e ? ok({ rolle: e.rolle }) : err('UNGUELTIG');
+    return e
+      ? ok({ rolle: e.rolle, ...(e.ortName ? { ortName: e.ortName } : {}) })
+      : err('UNGUELTIG');
   }
 
   async starte(token: string, name: string) {

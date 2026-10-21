@@ -85,7 +85,9 @@ function aufbau() {
     },
     finde: async (token: string) => {
       const e = [...einl.entries()].find(([t]) => t.startsWith(`${token}-`))?.[1];
-      return e && !e.genutzt ? { id: e.id, rolle: e.rolle } : null;
+      return e && !e.genutzt
+        ? { id: e.id, rolle: e.rolle, ortName: e.ortSlug === 'muehlberg' ? 'Mühlberg' : null }
+        : null;
     },
     offene: async () =>
       [...einl.values()]
@@ -238,6 +240,16 @@ describe('Einladung annehmen (Beitritt)', () => {
     expect(await b.pruefe('T1')).toEqual({ ok: false, error: 'UNGUELTIG' });
     expect(await b.starte('T1', 'Noch wer')).toEqual({ ok: false, error: 'ABGELAUFEN' });
     expect(await b.beende('T1', 'v', {})).toEqual({ ok: false, error: 'ABGELAUFEN' });
+  });
+
+  it('Kirmesgesellschaft sieht beim Annehmen Rolle und Ort (Issue #242)', async () => {
+    const { registrierung, einladungen } = aufbau();
+    const b = new Beitritt(einladungen, registrierung);
+    await einladungen.lege('T2', 'kirmesgesellschaft', '1', 7, 'KG', 'muehlberg');
+    expect(await b.pruefe('T2')).toEqual({
+      ok: true,
+      value: { rolle: 'kirmesgesellschaft', ortName: 'Mühlberg' },
+    });
   });
 });
 

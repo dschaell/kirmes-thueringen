@@ -2,6 +2,7 @@
 /** Einladung in die Redaktion annehmen: Name wählen und Passkey anlegen (Issue #56). */
 import Base from '../../layouts/Base.astro';
 import PasskeyRegistrierung from '../../components/admin/PasskeyRegistrierung.astro';
+import InAppHinweis from '../../components/admin/InAppHinweis.astro';
 import { istToken, pruefeZugang } from '../../lib/zugang';
 
 const token = Astro.url.searchParams.get('t');
@@ -9,14 +10,21 @@ const p = istToken(token)
   ? await pruefeZugang('einladung', token)
   : { fehler: 'Dieser Einladungslink ist ungültig.', status: 404 };
 if ('fehler' in p) Astro.response.status = p.status === 404 ? 404 : 400;
-const rolle = 'rolle' in p && p.rolle === 'admin' ? 'Admin' : 'Redaktion';
+// Rolle samt Ort anzeigen (Issue #242) – bisher wurde jede Kirmesgesellschaft als „Redaktion“ gezeigt
+const kg = 'rolle' in p && p.rolle === 'kirmesgesellschaft';
+const rolle = kg
+  ? `Kirmesgesellschaft ${'ortName' in p && p.ortName ? p.ortName : ''}`.trim()
+  : 'rolle' in p && p.rolle === 'admin'
+    ? 'Admin'
+    : 'Redaktion';
 ---
 
-<Base title="Einladung – Redaktion" description="Einladung in die Redaktion annehmen" noindex>
+<Base title="Einladung – Kirmeskalender Thüringen" description="Einladung annehmen" noindex>
   <section class="einstieg">
-    <h1>Willkommen in der Redaktion</h1>
+    <h1>Willkommen beim Kirmeskalender</h1>
     <p class="unterzeile">Du wurdest eingeladen, beim Kirmeskalender Thüringen mitzumachen.</p>
   </section>
+  <InAppHinweis />
   {'fehler' in p || !token ? (
     <p class="meldung" role="alert">
       {'fehler' in p ? p.fehler : ''} Bitte die einladende Person um einen neuen Link bitten.
@@ -24,10 +32,12 @@ const rolle = 'rolle' in p && p.rolle === 'admin' ? 'Admin' : 'Redaktion';
   ) : (
     <>
       <p>
-        Rolle: <strong>{rolle}</strong>. Wähle einen Namen und lege einen <strong>Passkey</strong>{' '}
-        an – dein Gerät fragt nach Face ID, Touch ID oder PIN. Dein Anzeigename ist nur in der
-        Redaktion sichtbar. Gespeichert werden außerdem Rolle, öffentlicher Passkey-Schlüssel und
-        Anmeldezeitpunkte. Eine E-Mail-Adresse oder ein Passwort ist nicht nötig.
+        Rolle: <strong>{rolle}</strong>
+        {kg && ' – ihr pflegt Termine, Programm und Festplatz eures Ortes'}. Wähle einen Namen und
+        lege einen <strong>Passkey</strong> an – dein Gerät fragt nach Face ID, Fingerabdruck oder
+        PIN. Dein Name ist nur intern sichtbar. Gespeichert werden außerdem Rolle, öffentlicher
+        Passkey-Schlüssel und Anmeldezeitpunkte. Eine E-Mail-Adresse oder ein Passwort ist nicht
+        nötig.
       </p>
       <PasskeyRegistrierung art="einladung" token={token} knopf="Einladung annehmen" />
     </>

@@ -15,7 +15,7 @@ export async function postJson(url: string, body: unknown = {}) {
 export function passkeyFehler(e: unknown): string {
   const name = (e as { name?: string })?.name;
   if (name === 'NotAllowedError' || name === 'AbortError')
-    return 'Abgebrochen oder Zeit abgelaufen.';
+    return 'Abgebrochen oder Zeit abgelaufen. Tipp: Wurde der Link in Instagram, Facebook oder einer anderen App geöffnet? Dann oben rechts „…“ → „Im Browser öffnen“ (Safari oder Chrome) und noch einmal versuchen.';
   if (name === 'InvalidStateError') return 'Dieses Gerät ist bereits als Passkey eingerichtet.';
   if (name === 'SecurityError') return 'Passkeys gehen nur über die richtige Adresse (HTTPS).';
   return 'Das hat nicht geklappt. Bitte noch einmal versuchen.';
