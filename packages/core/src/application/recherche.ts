@@ -66,14 +66,16 @@ export function erkenneKategorie(titel: string): Kategorie {
   if (/ständchen|staendchen|standchen/.test(t)) return 'staendchen';
   // Passt in keine Art – z. B. Seniorennachmittag (Issue #147)
   // Kirmesbeerdigung, Fußballspiel, Kater-Lunch, Dämmerschoppen ebenfalls (Issue #225)
-  if (/senior|sonstig|beerdigung|fu(ß|ss)ball|kater|dämmer|daemmer/.test(t)) return 'sonstiges';
-  // Frühschoppen ist eine eigene Art (Issue #154)
-  if (/fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(t)) return 'fruehschoppen';
+  // Brauchtum ohne Gottesdienst: Kirmesbaum, Baum-/Tannensetzen, Umzug (Issue #238)
   if (
-    /gottesdienst|andacht|messe\b|kirchgang|umzug|kirmesbaum|baumsetzen|baum stellen|kirmesspiele|ausklang|platzkonzert|oster/.test(
+    /senior|sonstig|beerdigung|fu(ß|ss)ball|kater|dämmer|daemmer|kirmesbaum|(baum|tannen)\s*-?\s*setzen|baum stellen|umzug/.test(
       t,
     )
   )
+    return 'sonstiges';
+  // Frühschoppen ist eine eigene Art (Issue #154)
+  if (/fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(t)) return 'fruehschoppen';
+  if (/gottesdienst|andacht|messe\b|kirchgang|kirmesspiele|ausklang|platzkonzert|oster/.test(t))
     return 'tradition';
   // Kirmestanz eigene Art (Issue #223) – Kindertanz ist oben schon „familie“
   if (/tanz/.test(t)) return 'tanz';
