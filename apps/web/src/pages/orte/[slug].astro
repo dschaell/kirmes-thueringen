@@ -130,12 +130,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <div class="kasten abstand">
     <h2>Kirmesgesellschaft {ort.name}?</h2>
     <p>
-      Bestätigt eure Termine oder schickt uns neue. Auf Wunsch bekommt ihr einen persönlichen Link,
-      mit dem ihr euren Festplatz auf der Karte eintragt – dann führt „Route“ eure Gäste direkt
-      dorthin.
+      Schickt uns neue Termine – oder pflegt sie mit einem eigenen Zugang selbst, samt Festplatz auf
+      der Karte, damit „Route“ eure Gäste direkt dorthin führt.
     </p>
     <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}>
-      Termin melden oder Link anfordern <Icon name="pfeil" />
+      Termin melden <Icon name="pfeil" />
+    </a>{' '}
+    <a class="mehr" href="/redaktion-mitmachen">
+      Eigenen Zugang anfragen <Icon name="pfeil" />
     </a>
   </div>
 

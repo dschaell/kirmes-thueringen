@@ -12,7 +12,6 @@ import {
   kreisSlug,
   plusTage,
   wochenende,
-  UNTERSTUETZEN_URL,
 } from '../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
 
@@ -120,30 +119,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
       <div class="kasten abstand">
         <h2>Ihr seid Kirmesgesellschaft?</h2>
-        <p>
-          Schickt uns eure Termine – oder bestätigt, dass sie stimmen. Auf Wunsch tragt ihr euren
-          Festplatz selbst auf der Karte ein, damit Gäste direkt hinfinden.
-        </p>
+        <p>Schickt uns eure Termine – oder bestätigt, dass sie stimmen.</p>
         <a class="mehr" href="/termin-melden">
           Termin melden <Icon name="pfeil" />
         </a>
         <p>
           Lieber selbst pflegen? Mit einem eigenen Zugang für euren Ort haltet ihr Termine, Programm
-          und Festplatz jederzeit aktuell.
+          und Festplatz auf der Karte jederzeit aktuell.
         </p>
         <a class="mehr" href="/redaktion-mitmachen">
           Eigenen Zugang anfragen <Icon name="pfeil" />
-        </a>
-      </div>
-
-      <div class="kasten abstand">
-        <h2>Gefällt dir der Kirmeskalender?</h2>
-        <p>
-          Er ist kostenlos, werbefrei und ohne Tracking. Wer mag, kann die Seite mit einem kleinen
-          Betrag unterstützen – das hilft bei Server und Weiterentwicklung.
-        </p>
-        <a class="knopf zweit" href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
-          Mit PayPal unterstützen
         </a>
       </div>
     </aside>

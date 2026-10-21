@@ -44,7 +44,6 @@ type AssistentContext = Pick<
 export async function assistent(
   ctx: AssistentContext,
   redaktion: boolean,
-  nurStart = false,
 ): Promise<AssistentStand | Response> {
   // Kirmesgesellschaft: fester Ort (Issue #180)
   const kgOrt = redaktion && nurEigenerOrt(ctx.locals) ? (ctx.locals?.ortSlug ?? '') : '';
@@ -136,7 +135,7 @@ export async function assistent(
     };
     return s;
   }
-  if (ctx.request.method !== 'POST' || nurStart) return s;
+  if (ctx.request.method !== 'POST') return s;
   const origin = ctx.request.headers.get('origin');
   if (origin) {
     const host = ctx.request.headers.get('x-forwarded-host') ?? ctx.request.headers.get('host');
@@ -150,7 +149,6 @@ export async function assistent(
   if (Number(ctx.request.headers.get('content-length') ?? 0) > 256_000)
     return new Response('Formular zu groß.', { status: 413 });
   const f = await ctx.request.formData();
-  if (f.get('art') === 'link') return s;
   // Die Admin-Middleware schützt sämtliche Admin-POSTs; öffentlich eigener CSRF-Cookie.
   if (!redaktion && !csrfGueltig(ctx.cookies.get(FORMULAR_COOKIE)?.value, f.get(CSRF_FELD))) {
     ctx.response.status = 403;
