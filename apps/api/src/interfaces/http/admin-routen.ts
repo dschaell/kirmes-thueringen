@@ -59,6 +59,8 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     'DELETE /api/v1/admin/einladungen/:id',
     // Eigene Leute entfernen (Issue #233) – nur gleicher Ort, nicht sich selbst (Use Case)
     'DELETE /api/v1/admin/mitglieder/:id',
+    // Eigenen Namen ändern (Issue #244) – fremde Namen nur Admin (Use Case)
+    'PUT /api/v1/admin/mitglieder/:id/name',
   ]);
 
   await app.register(async (r) => {

@@ -117,6 +117,16 @@ export class PgMitglieder implements MitgliederRepository {
     return this.aendereGeschuetzt(id, rolle);
   }
 
+  /** Anzeigenamen ändern (Issue #244) */
+  async setzeName(id: string, name: string): Promise<boolean> {
+    if (!/^\d{1,18}$/.test(id)) return false;
+    const r = await abfrage(this.db, 'UPDATE admin SET name = $2 WHERE id = $1::bigint', [
+      id,
+      name,
+    ]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
   entferne(id: string): Promise<boolean> {
     return this.aendereGeschuetzt(id, null);
   }

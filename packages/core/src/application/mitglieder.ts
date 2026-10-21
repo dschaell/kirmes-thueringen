@@ -33,6 +33,8 @@ export interface MitgliederRepository {
   setzeRolle(id: string, rolle: Rolle): Promise<boolean>;
   entferne(id: string): Promise<boolean>;
   anzahlAdmins(): Promise<number>;
+  /** Anzeigenamen ändern (Issue #244); false = unbekannt */
+  setzeName(id: string, name: string): Promise<boolean>;
 }
 export interface EinladungInfo {
   bezeichnung?: string;
@@ -296,6 +298,23 @@ export class Mitgliederverwaltung {
     const ort = this.eigenerKgOrt(akteur);
     if (ort) return ok((await this.einladungen.offene()).filter((e) => e.ortSlug === ort));
     return this.nurAdmin(akteur, async () => ok(await this.einladungen.offene()));
+  }
+
+  /**
+   * Namen ändern (Issue #244): jeder seinen eigenen, der Admin jeden. Gleiche Prüfung wie beim
+   * Anlegen – so kann aus „Traditionsverein … e.V.“ wieder „Lisa“ werden.
+   */
+  async benenneUm(
+    akteur: Sitzung,
+    id: string,
+    nameRoh: string,
+  ): Promise<Result<string, VerwaltungsFehler | Validierungsfehler[]>> {
+    if (id !== akteur.adminId && !darf(akteur, 'mitglieder')) return err('NUR_ADMIN' as const);
+    const name = pruefeName(nameRoh);
+    if (!name.ok) return name;
+    return (await this.mitglieder.setzeName(id, name.value))
+      ? ok(name.value)
+      : err('NICHT_GEFUNDEN' as const);
   }
 
   /** Kirmesgesellschaft: nur Einladungen ihres Ortes; fremde gelten als nicht gefunden. */

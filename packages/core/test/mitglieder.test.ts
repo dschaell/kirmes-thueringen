@@ -225,6 +225,25 @@ describe('Registrierung mit unvollständigen Vorgangsdaten', () => {
       error: 'ABGELAUFEN',
     });
   });
+  it('fehlende Namen/Kennung im Vorgang werden leer weitergegeben, nicht „undefined“', async () => {
+    const angelegt: unknown[] = [];
+    const r = new Registrierung(
+      { pruefeRegistrierung: async () => ({ credentialId: 'c' }) } as never,
+      {
+        lege: () => 'v',
+        nimm: () => ({
+          challenge: 'reg',
+          adminId: null,
+          daten: { quelle: 'q', rolle: 'redaktion' },
+        }),
+      },
+      { lege: async (k: unknown) => (angelegt.push(k), '7') } as never,
+      { lege: async () => {} } as never,
+      { neuesToken: () => 'T', neueKennung: () => 'k' },
+    );
+    expect((await r.beende('v', {}, 'q', { art: 'erster-admin' })).ok).toBe(true);
+    expect(angelegt).toEqual([{ name: '', rolle: 'redaktion', kennung: '' }]);
+  });
 });
 
 describe('Einladung annehmen (Beitritt)', () => {
@@ -379,6 +398,11 @@ describe('Mitgliederverwaltung', () => {
           return i >= 0 && liste.splice(i, 1).length === 1;
         },
         anzahlAdmins: async () => liste.filter((x) => x.rolle === 'admin').length,
+        setzeName: async (id, name) => {
+          const m = liste.find((x) => x.id === id);
+          if (m) m.name = name;
+          return !!m;
+        },
       },
       einladungen,
       { neuesToken: () => 'EINLADUNG' },
@@ -456,6 +480,27 @@ describe('Mitgliederverwaltung', () => {
     // ohne Ort im Konto: wie Redaktion – nichts
     const ohneOrt: Sitzung = { adminId: '9', name: 'X', rolle: 'kirmesgesellschaft' };
     expect(await v.liste(ohneOrt)).toEqual({ ok: false, error: 'NUR_ADMIN' });
+  });
+
+  it('Namen ändern: eigener jeder, fremde nur Admin, gleiche Prüfung (Issue #244)', async () => {
+    const { v, liste } = verwaltung();
+    const kevin: Sitzung = {
+      adminId: '3',
+      name: 'Traditionsverein e.V.',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'muehlberg',
+    };
+    expect(await v.benenneUm(kevin, '3', '  Kevin  ')).toEqual({ ok: true, value: 'Kevin' });
+    expect(liste.find((m) => m.id === '3')?.name).toBe('Kevin');
+    expect(await v.benenneUm(kevin, '5', 'Lisa')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    expect(await v.benenneUm(redakteurin, '1', 'X')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    expect(await v.benenneUm(admin, '5', 'Lisa M.')).toEqual({ ok: true, value: 'Lisa M.' });
+    expect(await v.benenneUm(admin, '99', 'Niemand')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    const leer = await v.benenneUm(kevin, '3', '   ');
+    expect(!leer.ok && Array.isArray(leer.error)).toBe(true);
   });
 
   it('Admin lädt ein, ändert Rollen und entfernt – der letzte Admin bleibt', async () => {
