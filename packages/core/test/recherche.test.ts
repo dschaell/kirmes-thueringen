@@ -53,7 +53,10 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Seniorennachmittag', 'sonstiges'], // eigene Art seit #147
     ['Sonstiges', 'sonstiges'],
     ['Kinder- und Seniorennachmittag', 'familie'],
-    ['Kirmesumzug', 'tradition'],
+    ['Kirmesumzug', 'sonstiges'], // Brauchtum ohne Gottesdienst (#238)
+    ['Tannensetzen mit Kanonenschießen', 'sonstiges'],
+    ['Kirmesbaum stellen', 'sonstiges'],
+    ['Baumsetzen', 'sonstiges'],
     ['Kirmesbeerdigung', 'sonstiges'], // Issue #225
     ['Traditionelles Fußballspiel', 'sonstiges'],
     ['Kirmes-„Kater“-Lunch', 'sonstiges'],
