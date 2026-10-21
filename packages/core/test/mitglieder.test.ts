@@ -336,6 +336,15 @@ describe('Mitgliederverwaltung', () => {
         passkeys: 1,
       },
       {
+        id: '5',
+        name: 'Lisa',
+        rolle: 'kirmesgesellschaft',
+        ortSlug: 'muehlberg',
+        erstelltAm: 'e',
+        letzterLogin: null,
+        passkeys: 1,
+      },
+      {
         id: '4',
         name: 'Erfurter',
         rolle: 'kirmesgesellschaft',
@@ -408,7 +417,7 @@ describe('Mitgliederverwaltung', () => {
     expect(await v.lade(kevin, 'admin', 'X')).toEqual({ ok: false, error: 'ROLLE' });
     // nur Leute des eigenen Ortes
     const leute = await v.liste(kevin);
-    expect(leute.ok && leute.value.map((m) => m.name)).toEqual(['Kevin']);
+    expect(leute.ok && leute.value.map((m) => m.name)).toEqual(['Kevin', 'Lisa']);
     // fremde Einladung (vom Admin für Erfurt) weder sichtbar noch widerrufbar
     const fremd = await v.lade(admin, 'kirmesgesellschaft', 'E', 'erfurt');
     const offen = await v.offeneEinladungen(kevin);
@@ -422,9 +431,16 @@ describe('Mitgliederverwaltung', () => {
       ok: false,
       error: 'NICHT_GEFUNDEN',
     });
-    // Rollen und Entfernen bleiben Admin-Sache
+    // Rollen bleiben Admin-Sache
     expect(await v.setzeRolle(kevin, '3', 'admin')).toEqual({ ok: false, error: 'NUR_ADMIN' });
-    expect(await v.entferne(kevin, '4')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    // Entfernen (Issue #233): nur eigene Leute, nicht sich selbst, keine Admins, keine fremden Orte
+    const nichtGefunden = { ok: false, error: 'NICHT_GEFUNDEN' };
+    expect(await v.entferne(kevin, '4')).toEqual(nichtGefunden);
+    expect(await v.entferne(kevin, '1')).toEqual(nichtGefunden);
+    expect(await v.entferne(kevin, '3')).toEqual(nichtGefunden);
+    expect(await v.entferne(kevin, '99')).toEqual(nichtGefunden);
+    expect(await v.entferne(kevin, '5')).toEqual({ ok: true, value: true });
+    expect(await v.entferne(kevin, '5')).toEqual(nichtGefunden);
     // ohne Ort im Konto: wie Redaktion – nichts
     const ohneOrt: Sitzung = { adminId: '9', name: 'X', rolle: 'kirmesgesellschaft' };
     expect(await v.liste(ohneOrt)).toEqual({ ok: false, error: 'NUR_ADMIN' });
@@ -457,7 +473,7 @@ describe('Mitgliederverwaltung', () => {
     expect(await v.setzeRolle(admin, '2', 'admin')).toEqual({ ok: true, value: true });
     // jetzt gibt es zwei Admins – einer darf gehen
     expect(await v.entferne(admin, '1')).toEqual({ ok: true, value: true });
-    expect(liste.map((m) => m.id)).toEqual(['2', '3', '4']);
+    expect(liste.map((m) => m.id)).toEqual(['2', '3', '5', '4']);
     expect(await v.setzeRolle(admin, '9', 'admin')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
     expect(await v.entferne(admin, '9')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
   });

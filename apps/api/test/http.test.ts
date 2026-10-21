@@ -1890,7 +1890,6 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
     await setup();
     for (const [m, u, b] of [
       ['PUT', '/api/v1/admin/mitglieder/1/rolle', { rolle: 'admin' }],
-      ['DELETE', '/api/v1/admin/mitglieder/2'],
       ['GET', '/api/v1/admin/mitteilungen'],
       ['POST', '/api/v1/admin/orte', { name: 'X', landkreis: 'GTH' }],
       ['GET', '/api/v1/admin/orte/eigene'],
@@ -1927,6 +1926,9 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
     expect((await rufe('DELETE', `/api/v1/admin/einladungen/${neu.json().id}`)).statusCode).toBe(
       204,
     );
+    // Entfernen nur eigene Leute (Issue #233): Redaktion/Admin sind „nicht gefunden“
+    expect((await rufe('DELETE', '/api/v1/admin/mitglieder/2')).statusCode).toBe(404);
+    expect((await rufe('DELETE', '/api/v1/admin/mitglieder/1')).statusCode).toBe(404);
   });
 
   it('fremder Ort → 403, eigener Ort → durchgelassen', async () => {

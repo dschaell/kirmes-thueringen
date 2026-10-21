@@ -29,7 +29,19 @@ let fehler: string[] = [];
 let neuerLink: string | null = null;
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
-  if (feld(f, 'aktion') === 'widerrufen') {
+  if (feld(f, 'aktion') === 'entfernen') {
+    // Eigene Leute entfernen (Issue #233) – die API lässt nur denselben Ort zu, nie sich selbst
+    if (feld(f, 'rueckfrage') !== 'ja') fehler = ['Bitte das Entfernen ausdrücklich bestätigen.'];
+    else {
+      const r = await adminApi(
+        Astro.cookies,
+        'DELETE',
+        `mitglieder/${encodeURIComponent(feld(f, 'id'))}`,
+      );
+      if (r.status < 300) meldung = `${feld(f, 'name')} ist nicht mehr dabei.`;
+      else fehler = r.fehler;
+    }
+  } else if (feld(f, 'aktion') === 'widerrufen') {
     const r = await adminApi(
       Astro.cookies,
       'DELETE',
@@ -99,6 +111,7 @@ const text = `Mach mit beim Kirmeskalender Thüringen und pflege mit uns die Kir
         <th>Name</th>
         <th>Dabei seit</th>
         <th>Zuletzt angemeldet</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -117,12 +130,37 @@ const text = `Mach mit beim Kirmeskalender Thüringen und pflege mit uns die Kir
             <span class="tabellen-label">Zuletzt angemeldet</span>
             {tag(m.letzterLogin)}
           </td>
+          <td>
+            {m.id !== ich && (
+              <details class="sicherheitsfrage">
+                <summary>Entfernen …</summary>
+                <p>
+                  <strong>{m.name}</strong> wirklich entfernen? Danach kann {m.name} sich nicht mehr
+                  anmelden und {ortName} nicht mehr bearbeiten.
+                </p>
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="entfernen" />
+                  <input type="hidden" name="id" value={m.id} />
+                  <input type="hidden" name="name" value={m.name} />
+                  <label>
+                    <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
+                    entfernen.
+                  </label>
+                  <button class="knopf gefahr" type="submit">
+                    Jetzt entfernen
+                  </button>
+                </form>
+              </details>
+            )}
+          </td>
         </tr>
       ))}
     </tbody>
   </table>
   <p class="leise klein">
-    Jemand ist nicht mehr dabei? Schreibt der Redaktion – entfernen kann nur sie.
+    Jemand ist nicht mehr dabei? Über „Entfernen …“ nehmt ihr ihn heraus. Euch selbst entfernt die
+    Redaktion.
   </p>
 
   {(einladungen.daten ?? []).length > 0 && (
