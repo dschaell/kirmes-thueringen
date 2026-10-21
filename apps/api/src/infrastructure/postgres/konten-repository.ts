@@ -92,11 +92,12 @@ export class PgMitglieder implements MitgliederRepository {
       letzter_login: string | null;
       passkeys: number;
       ort_name: string | null;
+      ort_slug: string | null;
     }>(
       this.db,
       `SELECT a.id::text, a.name, a.rolle, a.erstellt_am::text, a.letzter_login::text,
               (SELECT count(*)::int FROM admin_passkey p WHERE p.admin_id = a.id) AS passkeys,
-              o.name AS ort_name
+              o.name AS ort_name, o.slug AS ort_slug
          FROM admin a LEFT JOIN ort o ON o.id = a.ort_id ORDER BY a.rolle, lower(a.name), a.id`,
       [],
     );
@@ -108,6 +109,7 @@ export class PgMitglieder implements MitgliederRepository {
       letzterLogin: r.letzter_login,
       passkeys: r.passkeys,
       ortName: r.ort_name,
+      ortSlug: r.ort_slug,
     }));
   }
 
@@ -172,6 +174,8 @@ const zuEinladung = (r: {
   laeuft_ab: string;
   bezeichnung?: string;
   ort_name?: string | null;
+  ort_slug?: string | null;
+  erstellt_von?: string | null;
 }) => ({
   id: r.id,
   rolle: r.rolle,
@@ -179,6 +183,8 @@ const zuEinladung = (r: {
   laeuftAb: r.laeuft_ab,
   ...(r.bezeichnung ? { bezeichnung: r.bezeichnung } : {}),
   ...(r.ort_name ? { ortName: r.ort_name } : {}),
+  ...(r.ort_slug ? { ortSlug: r.ort_slug } : {}),
+  ...(r.erstellt_von !== undefined ? { erstelltVon: r.erstellt_von } : {}),
 });
 
 /** Einladungen in die Redaktion – gespeichert wird nur der SHA-256 des Tokens. */
@@ -201,14 +207,15 @@ export class PgEinladungen implements Einladungen {
       laeuft_ab: string;
       bezeichnung: string;
       ort_name: string | null;
+      ort_slug: string | null;
     }>(
       this.db,
-      `WITH o AS (SELECT id, name FROM ort WHERE slug = $6)
+      `WITH o AS (SELECT id, name, slug FROM ort WHERE slug = $6)
        INSERT INTO einladung (token_hash, rolle, erstellt_von, laeuft_ab, bezeichnung, ort_id)
        SELECT $1, $2, $3::bigint, now() + make_interval(days => $4), $5, (SELECT id FROM o)
         WHERE $6::text IS NULL OR EXISTS (SELECT 1 FROM o)
        RETURNING id::text, rolle, erstellt_am::text, laeuft_ab::text, bezeichnung,
-                 (SELECT name FROM o) AS ort_name`,
+                 (SELECT name FROM o) AS ort_name, (SELECT slug FROM o) AS ort_slug`,
       [hashToken(token), rolle, vonId, tage, bezeichnung, ortSlug],
     );
     const r = rows[0];
@@ -234,11 +241,14 @@ export class PgEinladungen implements Einladungen {
       laeuft_ab: string;
       bezeichnung: string;
       ort_name: string | null;
+      ort_slug: string | null;
+      erstellt_von: string | null;
     }>(
       this.db,
       `SELECT e.id::text, e.rolle, e.erstellt_am::text, e.laeuft_ab::text, e.bezeichnung,
-              o.name AS ort_name
+              o.name AS ort_name, o.slug AS ort_slug, c.name AS erstellt_von
          FROM einladung e LEFT JOIN ort o ON o.id = e.ort_id
+         LEFT JOIN admin c ON c.id = e.erstellt_von
         WHERE e.genutzt_am IS NULL AND e.laeuft_ab > now() ORDER BY e.erstellt_am DESC`,
       [],
     );

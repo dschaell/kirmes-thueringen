@@ -3,21 +3,22 @@
 Einzige Quelle: `packages/core/src/application/rechte.ts` (`darf`, `darfOrt`, `nurEigenerOrt`).
 API-Routen, Use Cases und Web-Middleware fragen nur dort nach – keine eigenen Rollenvergleiche.
 
-| Aktion                                                                 | Admin | Redaktion | Kirmesgesellschaft |
-| ---------------------------------------------------------------------- | :---: | :-------: | :----------------: |
-| Redaktion nutzen                                                       |   ✓   |     ✓     |         ✓          |
-| Termine                                                                |   ✓   |     ✓     |    eigener Ort     |
-| Plätze (inkl. umbenennen)                                              |   ✓   |     ✓     |    eigener Ort     |
-| Vorschläge                                                             |   ✓   |     ✓     |    eigener Ort     |
-| Korrekturen                                                            |   ✓   |     ✓     |    eigener Ort     |
-| Orte anlegen                                                           |   ✓   |     ✓     |         –          |
-| Orte bearbeiten (Ortsmitte; Name/Landkreis nur selbst angelegter Orte) |   ✓   |     ✓     |         –          |
-| Mitteilungen                                                           |   ✓   |     ✓     |         –          |
-| Bearbeitungslinks                                                      |   ✓   |     ✓     |         –          |
-| Import                                                                 |   ✓   |     ✓     |         –          |
-| Orte löschen                                                           |   ✓   |     –     |         –          |
-| Mitglieder                                                             |   ✓   |     –     |         –          |
-| Sicherungen                                                            |   ✓   |     –     |         –          |
+| Aktion                                                                  | Admin | Redaktion | Kirmesgesellschaft |
+| ----------------------------------------------------------------------- | :---: | :-------: | :----------------: |
+| Redaktion nutzen                                                        |   ✓   |     ✓     |         ✓          |
+| Termine                                                                 |   ✓   |     ✓     |    eigener Ort     |
+| Plätze (inkl. umbenennen)                                               |   ✓   |     ✓     |    eigener Ort     |
+| Vorschläge                                                              |   ✓   |     ✓     |    eigener Ort     |
+| Korrekturen                                                             |   ✓   |     ✓     |    eigener Ort     |
+| Orte anlegen                                                            |   ✓   |     ✓     |         –          |
+| Orte bearbeiten (Ortsmitte; Name/Landkreis nur selbst angelegter Orte)  |   ✓   |     ✓     |         –          |
+| Mitteilungen                                                            |   ✓   |     ✓     |         –          |
+| Bearbeitungslinks                                                       |   ✓   |     ✓     |         –          |
+| Import                                                                  |   ✓   |     ✓     |         –          |
+| Orte löschen                                                            |   ✓   |     –     |         –          |
+| Mitglieder                                                              |   ✓   |     –     |         –          |
+| Eigene Leute einladen (Rolle und Ort fest), sehen, Einladung widerrufen |   ✓   |     –     |    eigener Ort     |
+| Sicherungen                                                             |   ✓   |     –     |         –          |
 
 Zusätzlich gilt für die Kirmesgesellschaft **standardmäßig verboten**: Die API lässt nur
 freigegebene Routen zu (`KG_ROUTEN` in `admin-routen.ts`) und prüft dort den Ort aus Body, Query

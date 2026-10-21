@@ -57,7 +57,10 @@ function aufbau() {
     },
   };
   // Einladungen im Speicher
-  const einl = new Map<string, { id: string; rolle: Rolle; genutzt: boolean }>();
+  const einl = new Map<
+    string,
+    { id: string; rolle: Rolle; genutzt: boolean; ortSlug?: string | null }
+  >();
   const einladungen = {
     lege: async (
       token: string,
@@ -68,19 +71,32 @@ function aufbau() {
       ortSlug?: string | null,
     ) => {
       // unbekannter Ort der Kirmesgesellschaft → keine Einladung (wie die Datenbank)
-      if (rolle === 'kirmesgesellschaft' && ortSlug !== 'muehlberg') return null;
+      if (rolle === 'kirmesgesellschaft' && !['muehlberg', 'erfurt'].includes(ortSlug ?? ''))
+        return null;
       const id = String(einl.size + 1);
-      einl.set(token, { id, rolle, genutzt: false });
-      return { id, rolle, erstelltAm: 'heute', laeuftAb: `in ${tage} Tagen` } as EinladungInfo;
+      einl.set(`${token}-${id}`, { id, rolle, genutzt: false, ortSlug });
+      return {
+        id,
+        rolle,
+        ortSlug,
+        erstelltAm: 'heute',
+        laeuftAb: `in ${tage} Tagen`,
+      } as EinladungInfo;
     },
     finde: async (token: string) => {
-      const e = einl.get(token);
+      const e = [...einl.entries()].find(([t]) => t.startsWith(`${token}-`))?.[1];
       return e && !e.genutzt ? { id: e.id, rolle: e.rolle } : null;
     },
     offene: async () =>
       [...einl.values()]
         .filter((e) => !e.genutzt)
-        .map((e) => ({ id: e.id, rolle: e.rolle, erstelltAm: 'heute', laeuftAb: 'bald' })),
+        .map((e) => ({
+          id: e.id,
+          rolle: e.rolle,
+          ortSlug: e.ortSlug,
+          erstelltAm: 'heute',
+          laeuftAb: 'bald',
+        })),
     widerrufe: async (id: string) => {
       for (const [t, e] of einl) if (e.id === id) return einl.delete(t);
       return false;
@@ -310,6 +326,24 @@ describe('Mitgliederverwaltung', () => {
         letzterLogin: null,
         passkeys: 2,
       },
+      {
+        id: '3',
+        name: 'Kevin',
+        rolle: 'kirmesgesellschaft',
+        ortSlug: 'muehlberg',
+        erstelltAm: 'c',
+        letzterLogin: null,
+        passkeys: 1,
+      },
+      {
+        id: '4',
+        name: 'Erfurter',
+        rolle: 'kirmesgesellschaft',
+        ortSlug: 'erfurt',
+        erstelltAm: 'd',
+        letzterLogin: null,
+        passkeys: 1,
+      },
     ];
     const v = new Mitgliederverwaltung(
       {
@@ -359,6 +393,43 @@ describe('Mitgliederverwaltung', () => {
     });
   });
 
+  it('Kirmesgesellschaft lädt nur eigene Leute ein und sieht nur ihren Ort (Issue #231)', async () => {
+    const { v } = verwaltung();
+    const kevin: Sitzung = {
+      adminId: '3',
+      name: 'Kevin',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'muehlberg',
+    };
+    // Ort wird erzwungen – ein mitgesendeter fremder Ort zählt nicht
+    const neu = await v.lade(kevin, 'kirmesgesellschaft', 'Lisa', 'erfurt');
+    expect(neu.ok && neu.value.ortSlug).toBe('muehlberg');
+    expect(await v.lade(kevin, 'redaktion', 'X')).toEqual({ ok: false, error: 'ROLLE' });
+    expect(await v.lade(kevin, 'admin', 'X')).toEqual({ ok: false, error: 'ROLLE' });
+    // nur Leute des eigenen Ortes
+    const leute = await v.liste(kevin);
+    expect(leute.ok && leute.value.map((m) => m.name)).toEqual(['Kevin']);
+    // fremde Einladung (vom Admin für Erfurt) weder sichtbar noch widerrufbar
+    const fremd = await v.lade(admin, 'kirmesgesellschaft', 'E', 'erfurt');
+    const offen = await v.offeneEinladungen(kevin);
+    expect(offen.ok && offen.value.map((e) => e.ortSlug)).toEqual(['muehlberg']);
+    expect(await v.widerrufe(kevin, fremd.ok ? fremd.value.id : '')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    expect(await v.widerrufe(kevin, neu.ok ? neu.value.id : '')).toEqual({ ok: true, value: true });
+    expect(await v.widerrufe(kevin, neu.ok ? neu.value.id : '')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    // Rollen und Entfernen bleiben Admin-Sache
+    expect(await v.setzeRolle(kevin, '3', 'admin')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    expect(await v.entferne(kevin, '4')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    // ohne Ort im Konto: wie Redaktion – nichts
+    const ohneOrt: Sitzung = { adminId: '9', name: 'X', rolle: 'kirmesgesellschaft' };
+    expect(await v.liste(ohneOrt)).toEqual({ ok: false, error: 'NUR_ADMIN' });
+  });
+
   it('Admin lädt ein, ändert Rollen und entfernt – der letzte Admin bleibt', async () => {
     const { v, liste } = verwaltung();
     expect((await v.liste(admin)).ok).toBe(true);
@@ -368,6 +439,7 @@ describe('Mitgliederverwaltung', () => {
       value: {
         id: '1',
         rolle: 'redaktion',
+        ortSlug: null,
         erstelltAm: 'heute',
         laeuftAb: 'in 7 Tagen',
         token: 'EINLADUNG',
@@ -385,7 +457,7 @@ describe('Mitgliederverwaltung', () => {
     expect(await v.setzeRolle(admin, '2', 'admin')).toEqual({ ok: true, value: true });
     // jetzt gibt es zwei Admins – einer darf gehen
     expect(await v.entferne(admin, '1')).toEqual({ ok: true, value: true });
-    expect(liste.map((m) => m.id)).toEqual(['2']);
+    expect(liste.map((m) => m.id)).toEqual(['2', '3', '4']);
     expect(await v.setzeRolle(admin, '9', 'admin')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
     expect(await v.entferne(admin, '9')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
   });

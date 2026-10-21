@@ -23,6 +23,7 @@ export interface Mitglied {
   rolle: Rolle;
   /** Ort der Kirmesgesellschaft (sonst null) */
   ortName?: string | null;
+  ortSlug?: string | null;
   erstelltAm: string;
   letzterLogin: string | null;
   passkeys: number;
@@ -38,6 +39,9 @@ export interface EinladungInfo {
   id: string;
   rolle: Rolle;
   ortName?: string | null;
+  ortSlug?: string | null;
+  /** Name des Mitglieds, das eingeladen hat (null = Konto inzwischen entfernt) */
+  erstelltVon?: string | null;
   erstelltAm: string;
   laeuftAb: string;
 }
@@ -201,7 +205,15 @@ export class Mitgliederverwaltung {
     return darf(akteur, 'mitglieder') ? f() : Promise.resolve(err('NUR_ADMIN' as const));
   }
 
-  liste(akteur: Sitzung) {
+  /** Ort einer Kirmesgesellschaft, die ihre eigenen Leute verwaltet (Issue #231); sonst null. */
+  private eigenerKgOrt(akteur: Sitzung): string | null {
+    return akteur.rolle === 'kirmesgesellschaft' && akteur.ortSlug ? akteur.ortSlug : null;
+  }
+
+  /** Admin: alle. Kirmesgesellschaft: nur die Leute ihres Ortes (nur lesen). */
+  async liste(akteur: Sitzung): Promise<Result<Mitglied[], VerwaltungsFehler>> {
+    const ort = this.eigenerKgOrt(akteur);
+    if (ort) return ok((await this.mitglieder.liste()).filter((m) => m.ortSlug === ort));
     return this.nurAdmin(akteur, async () => ok(await this.mitglieder.liste()));
   }
 
@@ -230,9 +242,19 @@ export class Mitgliederverwaltung {
     });
   }
 
-  /** Neuer Einladungslink – das Token wird nur einmal gezeigt, gespeichert ist nur sein Hash. */
+  /**
+   * Neuer Einladungslink – das Token wird nur einmal gezeigt, gespeichert ist nur sein Hash.
+   * Eine Kirmesgesellschaft lädt nur Leute ihres Vereins ein: Rolle Kirmesgesellschaft, ihr Ort –
+   * der mitgesendete Ort zählt nicht (Issue #231).
+   */
   lade(akteur: Sitzung, rolle: Rolle, bezeichnung = '', ortSlug = '') {
-    return this.nurAdmin(akteur, async () => {
+    const eigen = this.eigenerKgOrt(akteur);
+    if (eigen && rolle !== 'kirmesgesellschaft') return Promise.resolve(err('ROLLE' as const));
+    const erlaubt = (
+      f: () => Promise<Result<EinladungInfo & { token: string }, VerwaltungsFehler>>,
+    ) => (eigen ? f() : this.nurAdmin(akteur, f));
+    if (eigen) ortSlug = eigen;
+    return erlaubt(async () => {
       const name = bezeichnung.trim().replace(/[\p{Cc}\p{Cf}]/gu, '');
       if (name.length > 120) return err('BEZEICHNUNG' as const);
       const ort = rolle === 'kirmesgesellschaft' ? ortSlug.trim() : '';
@@ -251,13 +273,21 @@ export class Mitgliederverwaltung {
     });
   }
 
-  offeneEinladungen(akteur: Sitzung) {
+  /** Admin: alle offenen Einladungen. Kirmesgesellschaft: nur die ihres Ortes. */
+  async offeneEinladungen(akteur: Sitzung): Promise<Result<EinladungInfo[], VerwaltungsFehler>> {
+    const ort = this.eigenerKgOrt(akteur);
+    if (ort) return ok((await this.einladungen.offene()).filter((e) => e.ortSlug === ort));
     return this.nurAdmin(akteur, async () => ok(await this.einladungen.offene()));
   }
 
-  widerrufe(akteur: Sitzung, id: string) {
-    return this.nurAdmin(akteur, async () =>
-      (await this.einladungen.widerrufe(id)) ? ok(true) : err('NICHT_GEFUNDEN' as const),
-    );
+  /** Kirmesgesellschaft: nur Einladungen ihres Ortes; fremde gelten als nicht gefunden. */
+  async widerrufe(akteur: Sitzung, id: string): Promise<Result<true, VerwaltungsFehler>> {
+    const ort = this.eigenerKgOrt(akteur);
+    if (!ort && !darf(akteur, 'mitglieder')) return err('NUR_ADMIN' as const);
+    const erlaubt =
+      !ort || (await this.einladungen.offene()).some((e) => e.id === id && e.ortSlug === ort);
+    return erlaubt && (await this.einladungen.widerrufe(id))
+      ? ok(true)
+      : err('NICHT_GEFUNDEN' as const);
   }
 }

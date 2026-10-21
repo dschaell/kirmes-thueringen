@@ -1,0 +1,171 @@
+---
+/**
+ * Eure Leute (Issue #231): Eine Kirmesgesellschaft lädt weitere Leute ihres Vereins selbst ein –
+ * immer mit Rolle Kirmesgesellschaft und ihrem Ort (legt die API fest). Sie sieht, wer ihren Ort
+ * pflegt, und ihre offenen Einladungen. Rollen ändern und Entfernen bleibt beim Admin.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import EinladungsLink from '../../components/admin/EinladungsLink.astro';
+import { adminApi, feld } from '../../lib/admin';
+
+interface Mitglied {
+  id: string;
+  name: string;
+  erstelltAm: string;
+  letzterLogin: string | null;
+}
+interface Einladung {
+  id: string;
+  bezeichnung?: string;
+  erstelltVon?: string | null;
+  erstelltAm: string;
+  laeuftAb: string;
+}
+
+const ortName = Astro.locals.ortName ?? 'eurem Ort';
+let meldung: string | null = null;
+let fehler: string[] = [];
+let neuerLink: string | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (feld(f, 'aktion') === 'widerrufen') {
+    const r = await adminApi(
+      Astro.cookies,
+      'DELETE',
+      `einladungen/${encodeURIComponent(feld(f, 'id'))}`,
+    );
+    if (r.status < 300) meldung = 'Einladung widerrufen – der Link funktioniert nicht mehr.';
+    else fehler = r.fehler;
+  } else {
+    const r = await adminApi<{ token: string }>(Astro.cookies, 'POST', 'einladungen', {
+      rolle: 'kirmesgesellschaft',
+      bezeichnung: feld(f, 'bezeichnung'),
+    });
+    if (r.daten) {
+      // Basis aus der Konfiguration, nie aus der Anfrage (Schutz vor manipulierten Host-Headern)
+      const basis = process.env.WEBSITE_URL ?? Astro.site?.href ?? 'http://localhost:4321';
+      neuerLink = new URL(`/admin/einladung?t=${r.daten.token}`, basis).href;
+      meldung = 'Einladung erstellt – 7 Tage gültig, nur einmal nutzbar.';
+    } else fehler = r.fehler;
+  }
+}
+const [leute, einladungen] = await Promise.all([
+  adminApi<Mitglied[]>(Astro.cookies, 'GET', 'mitglieder'),
+  adminApi<Einladung[]>(Astro.cookies, 'GET', 'einladungen'),
+]);
+const tag = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' })
+    : '–';
+const ich = Astro.locals.adminId;
+const text = `Mach mit beim Kirmeskalender Thüringen und pflege mit uns die Kirmes in ${ortName}! Öffne den Link, wähle deinen Namen und richte einen Passkey ein (Face ID, Fingerabdruck oder PIN). Der Link gilt 7 Tage und nur einmal.\n\n${neuerLink ?? ''}`;
+---
+
+<AdminLayout
+  titel={`Eure Leute in ${ortName}`}
+  meldung={meldung}
+  fehler={[...fehler, ...leute.fehler]}
+>
+  <p>
+    Ladet weitere Leute aus eurer Kirmesgesellschaft ein. Sie bekommen dieselben Rechte wie ihr:
+    Termine, Plätze und Vorschläge von <strong>{ortName}</strong> – nichts anderes.
+  </p>
+
+  {neuerLink && (
+    <EinladungsLink link={neuerLink} rolle={`Kirmesgesellschaft ${ortName}`} text={text} />
+  )}
+
+  <h2>Jemanden einladen</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <input type="hidden" name="aktion" value="einladen" />
+    <label>
+      Für wen? (freiwillig)
+      <input name="bezeichnung" maxlength="120" placeholder="z. B. Lisa" />
+      <span class="klein leise">Nur für euch, damit ihr offene Einladungen auseinanderhaltet.</span>
+    </label>
+    <div>
+      <button class="knopf" type="submit">
+        Einladungslink erstellen
+      </button>
+    </div>
+  </form>
+
+  <h2>Wer pflegt {ortName}</h2>
+  <table class="admin-tabelle">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Dabei seit</th>
+        <th>Zuletzt angemeldet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {(leute.daten ?? []).map((m) => (
+        <tr>
+          <td>
+            <span class="tabellen-label">Name</span>
+            {m.name}
+            {m.id === ich && <span class="leise"> (du)</span>}
+          </td>
+          <td>
+            <span class="tabellen-label">Dabei seit</span>
+            {tag(m.erstelltAm)}
+          </td>
+          <td>
+            <span class="tabellen-label">Zuletzt angemeldet</span>
+            {tag(m.letzterLogin)}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="leise klein">
+    Jemand ist nicht mehr dabei? Schreibt der Redaktion – entfernen kann nur sie.
+  </p>
+
+  {(einladungen.daten ?? []).length > 0 && (
+    <>
+      <h2>Offene Einladungen</h2>
+      <table class="admin-tabelle">
+        <thead>
+          <tr>
+            <th>Für</th>
+            <th>Erstellt von</th>
+            <th>Gültig bis</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {(einladungen.daten ?? []).map((e) => (
+            <tr>
+              <td>
+                <span class="tabellen-label">Für</span>
+                {e.bezeichnung || '–'}
+              </td>
+              <td>
+                <span class="tabellen-label">Erstellt von</span>
+                {e.erstelltVon ?? 'Redaktion'}
+              </td>
+              <td>
+                <span class="tabellen-label">Gültig bis</span>
+                {tag(e.laeuftAb)}
+              </td>
+              <td>
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="widerrufen" />
+                  <input type="hidden" name="id" value={e.id} />
+                  <button class="knopf zweit" type="submit">
+                    Widerrufen
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )}
+</AdminLayout>
