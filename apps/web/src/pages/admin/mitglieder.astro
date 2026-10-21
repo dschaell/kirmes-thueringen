@@ -43,7 +43,11 @@ if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
   const rolle = feld(f, 'rolle');
-  if (aktion === 'einladen' && istRolle(rolle)) {
+  if (aktion === 'einladen' && !istRolle(rolle)) {
+    // Keine Vorauswahl mehr (Issue #227) – sonst bekäme man aus Versehen volle Redaktionsrechte
+    fehler = ['Bitte eine Rolle wählen.'];
+    Astro.response.status = 400;
+  } else if (aktion === 'einladen' && istRolle(rolle)) {
     // Kirmesgesellschaft: Ort aus dem Verzeichnis (Issue #180)
     const ortSlug =
       rolle === 'kirmesgesellschaft'
@@ -95,6 +99,26 @@ const datum = (iso: string | null) =>
       })
     : '–';
 const ich = Astro.locals.adminId;
+// Gruppen (Issue #227): Admin, Redaktion, je Ort „Kirmesgesellschaft <Ort>“ – älteste zuerst
+const gruppen = new Map<string, { titel: string; offen: boolean; personen: Mitglied[] }>();
+for (const m of [...(mitglieder.daten ?? [])].sort((a, b) =>
+  a.erstelltAm.localeCompare(b.erstelltAm),
+)) {
+  const kg = m.rolle === 'kirmesgesellschaft';
+  const schluessel = kg ? `3 ${m.ortName ?? ''}` : m.rolle === 'admin' ? '1' : '2';
+  const g = gruppen.get(schluessel) ?? {
+    titel: kg ? `Kirmesgesellschaft ${m.ortName ?? '(Ort unbekannt)'}` : ROLLEN[m.rolle],
+    offen: !kg,
+    personen: [],
+  };
+  g.personen.push(m);
+  gruppen.set(schluessel, g);
+}
+const gruppenListe = [...gruppen.entries()]
+  .sort(([a], [b]) => a.localeCompare(b, 'de'))
+  .map(([, g]) => g);
+const tag = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' });
 const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine Einladung als ${ROLLEN[neueRolle]}. Öffne den Link, wähle deinen Anzeigenamen und richte einen Passkey ein. Der Link gilt 7 Tage und kann einmal verwendet werden.\n\n${neuerLink ?? ''}`;
 ---
 
@@ -167,7 +191,10 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
     </label>
     <label>
       Rolle
-      <select name="rolle">
+      <select name="rolle" required>
+        <option value="" selected disabled>
+          Bitte wählen …
+        </option>
         <option value="redaktion">
           Redaktion – alle Orte, Termine, Plätze, Vorschläge und Bearbeitungslinks
         </option>
@@ -250,80 +277,98 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   )}
 
   <h2>Mitglieder</h2>
-  <table class="admin-tabelle">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Rolle</th>
-        <th>Passkeys</th>
-        <th>Zuletzt angemeldet</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {(mitglieder.daten ?? []).map((m) => (
-        <tr>
-          <td>
-            <span class="tabellen-label">Name</span>
-            {m.name}
-            {m.id === ich && <span class="leise"> (du)</span>}
-          </td>
-          <td>
-            <span class="tabellen-label">Rolle</span>
-            {m.rolle === 'kirmesgesellschaft' ? (
-              <span>Kirmesgesellschaft {m.ortName}</span>
-            ) : (
-              <form method="post" class="inline">
-                <CsrfFeld />
-                <input type="hidden" name="aktion" value="rolle" />
-                <input type="hidden" name="id" value={m.id} />
-                <select name="rolle" aria-label={`Rolle von ${m.name}`}>
-                  <option value="redaktion" selected={m.rolle === 'redaktion'}>
-                    Redaktion
-                  </option>
-                  <option value="admin" selected={m.rolle === 'admin'}>
-                    Admin
-                  </option>
-                </select>
-                <button class="knopf zweit" type="submit">
-                  Ändern
-                </button>
-              </form>
-            )}
-          </td>
-          <td>
-            <span class="tabellen-label">Passkeys</span>
-            {m.passkeys}
-          </td>
-          <td>
-            <span class="tabellen-label">Zuletzt angemeldet</span>
-            {datum(m.letzterLogin)}
-          </td>
-          <td>
-            <details class="sicherheitsfrage">
-              <summary>Mitglied entfernen …</summary>
-              <p>
-                <strong>{m.name}</strong> wirklich entfernen? Alle Passkeys und Sitzungen dieses
-                Mitglieds werden gelöscht. Das lässt sich hier nicht rückgängig machen.
-              </p>
-              <form method="post">
-                <CsrfFeld />
-                <label>
-                  <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
-                  entfernen.
-                </label>
-                <input type="hidden" name="aktion" value="entfernen" />
-                <input type="hidden" name="id" value={m.id} />
-                <button class="knopf gefahr" type="submit">
-                  Jetzt endgültig entfernen
-                </button>
-              </form>
-            </details>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
+  <p class="leise klein">
+    Nach Rolle und Ort sortiert. Kirmesgesellschaften aufklappen, um zu sehen, wer den Ort pflegt.
+  </p>
+  {gruppenListe.map((g) => (
+    <details class="mitgliedergruppe" open={g.offen}>
+      <summary>
+        <strong>{g.titel}</strong>{' '}
+        <span class="leise klein">
+          · {g.personen.length === 1 ? '1 Person' : `${g.personen.length} Personen`}
+        </span>
+      </summary>
+      <table class="admin-tabelle">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Beigetreten</th>
+            <th>Zuletzt angemeldet</th>
+            <th>Passkeys</th>
+            <th>Rolle</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {g.personen.map((m) => (
+            <tr>
+              <td>
+                <span class="tabellen-label">Name</span>
+                {m.name}
+                {m.id === ich && <span class="leise"> (du)</span>}
+              </td>
+              <td>
+                <span class="tabellen-label">Beigetreten</span>
+                {tag(m.erstelltAm)}
+              </td>
+              <td>
+                <span class="tabellen-label">Zuletzt angemeldet</span>
+                {datum(m.letzterLogin)}
+              </td>
+              <td>
+                <span class="tabellen-label">Passkeys</span>
+                {m.passkeys}
+              </td>
+              <td>
+                <span class="tabellen-label">Rolle</span>
+                {m.rolle === 'kirmesgesellschaft' ? (
+                  <span class="leise">nur {m.ortName}</span>
+                ) : (
+                  <form method="post" class="inline">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="rolle" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <select name="rolle" aria-label={`Rolle von ${m.name}`}>
+                      <option value="redaktion" selected={m.rolle === 'redaktion'}>
+                        Redaktion
+                      </option>
+                      <option value="admin" selected={m.rolle === 'admin'}>
+                        Admin
+                      </option>
+                    </select>
+                    <button class="knopf zweit" type="submit">
+                      Ändern
+                    </button>
+                  </form>
+                )}
+              </td>
+              <td>
+                <details class="sicherheitsfrage">
+                  <summary>Mitglied entfernen …</summary>
+                  <p>
+                    <strong>{m.name}</strong> wirklich entfernen? Alle Passkeys und Sitzungen dieses
+                    Mitglieds werden gelöscht. Das lässt sich hier nicht rückgängig machen.
+                  </p>
+                  <form method="post">
+                    <CsrfFeld />
+                    <label>
+                      <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, {m.name}{' '}
+                      entfernen.
+                    </label>
+                    <input type="hidden" name="aktion" value="entfernen" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <button class="knopf gefahr" type="submit">
+                      Jetzt endgültig entfernen
+                    </button>
+                  </form>
+                </details>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  ))}
   <p class="leise klein">
     Gespeichert sind nur Name, Rolle, Passkeys (öffentliche Schlüssel) und Zeitpunkte – keine
     E-Mail-Adressen, keine Passwörter. Wer alle Passkeys verloren hat, bekommt einfach eine neue
@@ -369,6 +414,20 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
 </script>
 <style>
   /* Ortsfeld nur bei Rolle Kirmesgesellschaft (Issue #180), auch ohne JavaScript */
+  .mitgliedergruppe {
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    padding: 0.6rem 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--flaeche);
+  }
+  .mitgliedergruppe > summary {
+    cursor: pointer;
+    padding: 0.3rem 0;
+  }
+  .mitgliedergruppe[open] > summary {
+    margin-bottom: 0.5rem;
+  }
   .kg-ort {
     display: none;
   }
