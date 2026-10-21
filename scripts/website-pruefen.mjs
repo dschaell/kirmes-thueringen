@@ -21,7 +21,13 @@ const befunde = [];
 const ok = [];
 const pruefe = (bedingung, text) => (bedingung ? ok : befunde).push(text);
 
-async function hole(pfad, init = {}) {
+/**
+ * Höflich abrufen (Issue #220): Die Website begrenzt auf 120 Seiten pro Minute und IP. Bei 429
+ * wartet die Prüfung die Zeit aus „Retry-After“ (höchstens 65 s) und fragt einmal neu – sonst
+ * meldet sie Fehlalarme, die die eigene Sperre ausgelöst hat.
+ */
+const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+async function hole(pfad, init = {}, nochmal = true) {
   const t0 = Date.now();
   try {
     const r = await fetch(BASIS + pfad, {
@@ -30,6 +36,12 @@ async function hole(pfad, init = {}) {
       headers: { 'User-Agent': 'Kirmeskalender-Pruefung/1.0 (+GitHub Actions)' },
       ...init,
     });
+    if (r.status === 429 && nochmal) {
+      const sekunden = Math.min(65, Number(r.headers.get('retry-after')) || 30);
+      await r.body?.cancel();
+      await warte(sekunden * 1000);
+      return hole(pfad, init, false);
+    }
     const text = (r.headers.get('content-type') ?? '').startsWith('image/') ? '' : await r.text();
     return { r, text, ms: Date.now() - t0 };
   } catch (e) {
