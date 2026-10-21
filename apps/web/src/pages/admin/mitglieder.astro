@@ -67,6 +67,13 @@ if (Astro.request.method === 'POST') {
       neueRolle = r.daten.rolle;
       meldung = `Einladung (${ROLLEN[rolle]}) erstellt – 7 Tage gültig, nur einmal nutzbar.`;
     } else fehler = r.fehler;
+  } else if (aktion === 'name') {
+    // Namen korrigieren (Issue #244) – z. B. Vereinsname → Personenname
+    const r = await adminApi<{ name: string }>(Astro.cookies, 'PUT', `mitglieder/${id(f)}/name`, {
+      name: feld(f, 'name'),
+    });
+    if (r.daten) meldung = `Name geändert: „${r.daten.name}“.`;
+    else fehler = r.fehler;
   } else if (aktion === 'widerrufen') {
     const r = await adminApi(Astro.cookies, 'DELETE', `einladungen/${id(f)}`);
     if (r.status < 300) meldung = 'Einladung widerrufen.';
@@ -265,6 +272,24 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
                 <span class="tabellen-label">Name</span>
                 {m.name}
                 {m.id === ich && <span class="leise"> (du)</span>}
+                <details class="name-aendern">
+                  <summary class="klein">Name ändern</summary>
+                  <form method="post" class="inline">
+                    <CsrfFeld />
+                    <input type="hidden" name="aktion" value="name" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <input
+                      name="name"
+                      required
+                      maxlength="60"
+                      value={m.name}
+                      aria-label={`Neuer Name für ${m.name}`}
+                    />
+                    <button class="knopf zweit" type="submit">
+                      Speichern
+                    </button>
+                  </form>
+                </details>
               </td>
               <td>
                 <span class="tabellen-label">Beigetreten</span>

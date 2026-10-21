@@ -19,7 +19,19 @@ let meldung: string | null = null;
 let fehler: string[] = [];
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
-  if (feld(f, 'aktion') === 'loeschen') {
+  if (feld(f, 'aktion') === 'name') {
+    // Eigenen Namen ändern (Issue #244)
+    const r = await adminApi<{ name: string }>(
+      Astro.cookies,
+      'PUT',
+      `mitglieder/${encodeURIComponent(Astro.locals.adminId ?? '')}/name`,
+      { name: feld(f, 'name') },
+    );
+    if (r.daten) {
+      meldung = `Dein Name ist jetzt „${r.daten.name}“.`;
+      Astro.locals.name = r.daten.name;
+    } else fehler = r.fehler;
+  } else if (feld(f, 'aktion') === 'loeschen') {
     const r = await adminApi(
       Astro.cookies,
       'DELETE',
@@ -55,7 +67,27 @@ const vorschlag = /iPhone/.test(ua)
           : 'Passkey';
 ---
 
-<AdminLayout titel="Passkeys" meldung={meldung} fehler={fehler}>
+<AdminLayout titel="Mein Konto" meldung={meldung} fehler={fehler}>
+  <h2>Dein Name</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <input type="hidden" name="aktion" value="name" />
+    <label>
+      Name
+      <input name="name" required maxlength="60" value={Astro.locals.name ?? ''} />
+      <span class="klein leise">
+        Dein eigener Vor- oder Spitzname (z. B. Lisa) – nicht der Name eures Vereins. Er steht bei
+        den Terminen, die du einträgst, und ist nur intern sichtbar.
+      </span>
+    </label>
+    <div>
+      <button class="knopf" type="submit">
+        Namen speichern
+      </button>
+    </div>
+  </form>
+
+  <h2>Passkeys</h2>
   <p class="lesetext">
     Mit einem Passkey meldest du dich per Face ID, Touch ID, Windows Hello oder Sicherheitsschlüssel
     an – ohne Passwort. Der Passkey funktioniert nur auf dieser Website und lässt sich nicht

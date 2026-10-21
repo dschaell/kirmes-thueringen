@@ -1,6 +1,6 @@
 /** Mitglieder und Einladungen – aus admin-routen.ts ausgelagert (Issue #199), Verhalten unverändert. */
 import type { Rolle } from '@kirmes/core';
-import { ID, objekt, TEXT } from './gemeinsam.js';
+import { ID, objekt, TEXT, ungueltig } from './gemeinsam.js';
 import type { FastifyInstance } from 'fastify';
 import type { AdminAbhaengigkeiten } from './gemeinsam.js';
 import type { Kontext } from './kontext.js';
@@ -28,6 +28,20 @@ export function mitgliederRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k:
         'Rolle geändert',
       );
       return reply.status(204).send();
+    },
+  );
+  // Namen ändern (Issue #244): eigener Name jeder, fremde nur Admin – geprüft im Use Case
+  r.put<{ Params: { id: string }; Body: { name: string } }>(
+    '/api/v1/admin/mitglieder/:id/name',
+    { schema: { params: ID, body: objekt(['name'], { name: TEXT(200) }) } },
+    async (req, reply) => {
+      const m = await v.benenneUm(akteur(req), req.params.id, req.body.name);
+      if (!m.ok)
+        return Array.isArray(m.error)
+          ? ungueltig(reply, m.error)
+          : verwaltungsFehler(reply, m.error);
+      req.log.info({ akteur: admin(req), mitglied: req.params.id }, 'Name geändert');
+      return { name: m.value };
     },
   );
   r.delete<{ Params: { id: string } }>(

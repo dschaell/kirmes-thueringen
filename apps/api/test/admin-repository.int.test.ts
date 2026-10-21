@@ -422,6 +422,10 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       ortName: 'IT-Adminort',
     });
     const m = new PgMitglieder(pool);
+    // Name ändern (Issue #244)
+    expect(await m.setzeName(kontoId!, 'IT KG Lisa')).toBe(true);
+    expect(await m.setzeName('kaputt', 'X')).toBe(false);
+    expect((await m.liste()).find((x) => x.id === kontoId)?.name).toBe('IT KG Lisa');
     expect((await m.liste()).find((x) => x.id === kontoId)).toMatchObject({
       ortName: 'IT-Adminort',
       ortSlug: 'it-admin-ort',

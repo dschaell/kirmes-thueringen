@@ -188,6 +188,11 @@ const mitgliederRepo = () => {
       return mitglieder.length < n;
     },
     anzahlAdmins: async () => mitglieder.filter((x) => x.rolle === 'admin').length,
+    setzeName: async (id: string, name: string) => {
+      const m = mitglieder.find((x) => x.id === id);
+      if (m) m.name = name;
+      return !!m;
+    },
   };
 };
 let einladungen = new Map<string, { info: EinladungInfo; genutzt: boolean }>();
@@ -1952,6 +1957,31 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
     expect((await rufe('DELETE', `/api/v1/admin/einladungen/${neu.json().id}`)).statusCode).toBe(
       204,
     );
+    // Namen (Issue #244): fremd nein, eigener (id 3, nicht in der Liste) → nicht gefunden
+    expect((await rufe('PUT', '/api/v1/admin/mitglieder/1/name', { name: 'X' })).statusCode).toBe(
+      403,
+    );
+    expect(
+      (await rufe('PUT', '/api/v1/admin/mitglieder/3/name', { name: 'Kevin' })).statusCode,
+    ).toBe(404);
+    const admin = { authorization: `Sitzung ${SITZUNG}` };
+    const um = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/mitglieder/2/name',
+      headers: admin,
+      payload: { name: ' Moni K. ' },
+    });
+    expect([um.statusCode, um.json()]).toEqual([200, { name: 'Moni K.' }]);
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: '/api/v1/admin/mitglieder/2/name',
+          headers: admin,
+          payload: { name: '  ' },
+        })
+      ).statusCode,
+    ).toBe(400);
     // Entfernen nur eigene Leute (Issue #233): Redaktion/Admin sind „nicht gefunden“
     expect((await rufe('DELETE', '/api/v1/admin/mitglieder/2')).statusCode).toBe(404);
     expect((await rufe('DELETE', '/api/v1/admin/mitglieder/1')).statusCode).toBe(404);
