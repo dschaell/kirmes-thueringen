@@ -30,6 +30,25 @@ export function mitgliederRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k:
       return reply.status(204).send();
     },
   );
+  // Name der Kirmesgesellschaft (Issue #246): Admin jeder Ort, KG der eigene – Use Case/Filter
+  r.put<{ Params: { slug: string }; Body: { name: string } }>(
+    '/api/v1/admin/orte/:slug/kirmesgesellschaft',
+    {
+      schema: {
+        params: objekt(['slug'], { slug: TEXT(120) }),
+        body: objekt(['name'], { name: TEXT(400) }),
+      },
+    },
+    async (req, reply) => {
+      const m = await v.setzeKgName(akteur(req), req.params.slug, req.body.name);
+      if (!m.ok)
+        return Array.isArray(m.error)
+          ? ungueltig(reply, m.error)
+          : verwaltungsFehler(reply, m.error);
+      req.log.info({ akteur: admin(req), ort: req.params.slug }, 'Name der Kirmesgesellschaft');
+      return { name: m.value };
+    },
+  );
   // Namen ändern (Issue #244): eigener Name jeder, fremde nur Admin – geprüft im Use Case
   r.put<{ Params: { id: string }; Body: { name: string } }>(
     '/api/v1/admin/mitglieder/:id/name',

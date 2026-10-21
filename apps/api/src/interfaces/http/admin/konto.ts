@@ -24,6 +24,7 @@ export async function kontoRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k
     rolle: akteur(req).rolle,
     ortSlug: akteur(req).ortSlug ?? null,
     ortName: akteur(req).ortName ?? null,
+    kgName: akteur(req).kgName ?? null,
     passkeys: !!passkeys,
   }));
 

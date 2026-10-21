@@ -112,6 +112,7 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       rolle: 'redaktion',
       ortSlug: null,
       ortName: null,
+      kgName: null,
     });
     expect(await sitzungen.pruefe(krypto.neuesToken())).toBeNull();
     expect(await sitzungen.pruefe("' OR 1=1 --")).toBeNull();
@@ -393,6 +394,7 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       id: e!.id,
       rolle: 'kirmesgesellschaft',
       ortName: 'IT-Adminort',
+      kgName: null,
     });
     // Ort-Schlüssel und wer eingeladen hat (Issue #231)
     expect((await einladungen.offene()).find((x) => x.id === e!.id)).toMatchObject({
@@ -422,6 +424,11 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       ortName: 'IT-Adminort',
     });
     const m = new PgMitglieder(pool);
+    // Name der Kirmesgesellschaft (Issue #246): in Sitzung, Liste und Einladung
+    expect(await m.setzeKgName('it-admin-ort', 'IT Dorffreunde e.V.')).toBe(true);
+    expect(await m.setzeKgName('it-admin-gibtsnicht', 'X')).toBe(false);
+    expect((await sitzungen.pruefe(st))?.kgName).toBe('IT Dorffreunde e.V.');
+    expect((await m.liste()).find((x) => x.id === kontoId)?.kgName).toBe('IT Dorffreunde e.V.');
     // Name ändern (Issue #244)
     expect(await m.setzeName(kontoId!, 'IT KG Lisa')).toBe(true);
     expect(await m.setzeName('kaputt', 'X')).toBe(false);

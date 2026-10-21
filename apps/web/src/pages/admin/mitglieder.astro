@@ -15,6 +15,8 @@ interface Mitglied {
   name: string;
   rolle: 'admin' | 'redaktion' | 'kirmesgesellschaft';
   ortName?: string | null;
+  ortSlug?: string | null;
+  kgName?: string | null;
   erstelltAm: string;
   letzterLogin: string | null;
   passkeys: number;
@@ -67,6 +69,19 @@ if (Astro.request.method === 'POST') {
       neueRolle = r.daten.rolle;
       meldung = `Einladung (${ROLLEN[rolle]}) erstellt – 7 Tage gültig, nur einmal nutzbar.`;
     } else fehler = r.fehler;
+  } else if (aktion === 'kgname') {
+    // Name der Kirmesgesellschaft (Issue #246) – leer setzt zurück
+    const r = await adminApi<{ name: string | null }>(
+      Astro.cookies,
+      'PUT',
+      `orte/${encodeURIComponent(feld(f, 'ortSlug'))}/kirmesgesellschaft`,
+      { name: feld(f, 'kgName') },
+    );
+    if (r.status < 300)
+      meldung = r.daten?.name
+        ? `Name der Kirmesgesellschaft: „${r.daten.name}“.`
+        : 'Name der Kirmesgesellschaft zurückgesetzt.';
+    else fehler = r.fehler;
   } else if (aktion === 'name') {
     // Namen korrigieren (Issue #244) – z. B. Vereinsname → Personenname
     const r = await adminApi<{ name: string }>(Astro.cookies, 'PUT', `mitglieder/${id(f)}/name`, {
@@ -109,14 +124,25 @@ const datum = (iso: string | null) =>
     : '–';
 const ich = Astro.locals.adminId;
 // Gruppen (Issue #227): Admin, Redaktion, je Ort „Kirmesgesellschaft <Ort>“ – älteste zuerst
-const gruppen = new Map<string, { titel: string; offen: boolean; personen: Mitglied[] }>();
+const gruppen = new Map<
+  string,
+  { titel: string; ort: string | null; offen: boolean; personen: Mitglied[] }
+>();
 for (const m of [...(mitglieder.daten ?? [])].sort((a, b) =>
   a.erstelltAm.localeCompare(b.erstelltAm),
 )) {
   const kg = m.rolle === 'kirmesgesellschaft';
-  const schluessel = kg ? `3 ${m.ortName ?? ''}` : m.rolle === 'admin' ? '1' : '2';
+  const schluessel = kg
+    ? `3 ${m.ortName ?? ''} ${m.ortSlug ?? ''}`
+    : m.rolle === 'admin'
+      ? '1'
+      : '2';
   const g = gruppen.get(schluessel) ?? {
-    titel: kg ? `Kirmesgesellschaft ${m.ortName ?? '(Ort unbekannt)'}` : ROLLEN[m.rolle],
+    // Eigener Vereinsname, sonst „Kirmesgesellschaft <Ort>“ (Issue #246)
+    titel: kg
+      ? (m.kgName ?? `Kirmesgesellschaft ${m.ortName ?? '(Ort unbekannt)'}`)
+      : ROLLEN[m.rolle],
+    ort: kg ? (m.ortSlug ?? null) : null,
     offen: !kg,
     personen: [],
   };
@@ -251,9 +277,34 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
       <summary>
         <strong>{g.titel}</strong>{' '}
         <span class="leise klein">
-          · {g.personen.length === 1 ? '1 Person' : `${g.personen.length} Personen`}
+          {g.ort && g.personen[0]?.kgName && `(${g.personen[0]?.ortName}) `}·{' '}
+          {g.personen.length === 1 ? '1 Person' : `${g.personen.length} Personen`}
         </span>
       </summary>
+      {g.ort && (
+        <form method="post" class="melden kg-name">
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="kgname" />
+          <input type="hidden" name="ortSlug" value={g.ort} />
+          <label>
+            Name der Kirmesgesellschaft
+            <input
+              name="kgName"
+              maxlength="200"
+              value={g.personen[0]?.kgName ?? ''}
+              placeholder={`z. B. Traditionsverein „Dorffreunde“ ${g.personen[0]?.ortName ?? ''} e.V.`}
+            />
+            <span class="klein leise">
+              Leer lassen = „Kirmesgesellschaft {g.personen[0]?.ortName}“.
+            </span>
+          </label>
+          <div>
+            <button class="knopf zweit" type="submit">
+              Name speichern
+            </button>
+          </div>
+        </form>
+      )}
       <table class="admin-tabelle">
         <thead>
           <tr>
