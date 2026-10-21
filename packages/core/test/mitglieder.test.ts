@@ -86,7 +86,12 @@ function aufbau() {
     finde: async (token: string) => {
       const e = [...einl.entries()].find(([t]) => t.startsWith(`${token}-`))?.[1];
       return e && !e.genutzt
-        ? { id: e.id, rolle: e.rolle, ortName: e.ortSlug === 'muehlberg' ? 'Mühlberg' : null }
+        ? {
+            id: e.id,
+            rolle: e.rolle,
+            ortName: e.ortSlug === 'muehlberg' ? 'Mühlberg' : null,
+            kgName: e.ortSlug === 'muehlberg' ? 'Dorffreunde e.V.' : null,
+          }
         : null;
     },
     offene: async () =>
@@ -267,7 +272,7 @@ describe('Einladung annehmen (Beitritt)', () => {
     await einladungen.lege('T2', 'kirmesgesellschaft', '1', 7, 'KG', 'muehlberg');
     expect(await b.pruefe('T2')).toEqual({
       ok: true,
-      value: { rolle: 'kirmesgesellschaft', ortName: 'Mühlberg' },
+      value: { rolle: 'kirmesgesellschaft', ortName: 'Mühlberg', kgName: 'Dorffreunde e.V.' },
     });
   });
 });
@@ -347,6 +352,7 @@ describe('Mitgliederverwaltung', () => {
   const redakteurin: Sitzung = { adminId: '2', name: 'Moni', rolle: 'redaktion' };
   function verwaltung() {
     const { einladungen } = aufbau();
+    const kgNamen = new Map<string, string | null>();
     const liste: Mitglied[] = [
       { id: '1', name: 'Ryan', rolle: 'admin', erstelltAm: 'a', letzterLogin: null, passkeys: 1 },
       {
@@ -403,11 +409,15 @@ describe('Mitgliederverwaltung', () => {
           if (m) m.name = name;
           return !!m;
         },
+        setzeKgName: async (ort, name) => {
+          kgNamen.set(ort, name);
+          return ['muehlberg', 'erfurt'].includes(ort);
+        },
       },
       einladungen,
       { neuesToken: () => 'EINLADUNG' },
     );
-    return { v, liste };
+    return { v, liste, kgNamen };
   }
 
   it('Redaktion darf nichts verwalten', async () => {
@@ -480,6 +490,43 @@ describe('Mitgliederverwaltung', () => {
     // ohne Ort im Konto: wie Redaktion – nichts
     const ohneOrt: Sitzung = { adminId: '9', name: 'X', rolle: 'kirmesgesellschaft' };
     expect(await v.liste(ohneOrt)).toEqual({ ok: false, error: 'NUR_ADMIN' });
+  });
+
+  it('Name der Kirmesgesellschaft: Admin jeder Ort, KG nur eigener (Issue #246)', async () => {
+    const { v, kgNamen } = verwaltung();
+    const kevin: Sitzung = {
+      adminId: '3',
+      name: 'Kevin',
+      rolle: 'kirmesgesellschaft',
+      ortSlug: 'muehlberg',
+    };
+    expect(
+      await v.setzeKgName(kevin, 'muehlberg', '  Traditionsverein  „Dorffreunde“ e.V. '),
+    ).toEqual({
+      ok: true,
+      value: 'Traditionsverein „Dorffreunde“ e.V.',
+    });
+    expect(kgNamen.get('muehlberg')).toBe('Traditionsverein „Dorffreunde“ e.V.');
+    expect(await v.setzeKgName(kevin, 'erfurt', 'X')).toEqual({ ok: false, error: 'NUR_ADMIN' });
+    expect(await v.setzeKgName(redakteurin, 'erfurt', 'X')).toEqual({
+      ok: false,
+      error: 'NUR_ADMIN',
+    });
+    expect(await v.setzeKgName(admin, 'erfurt', 'KG Erfurt e.V.')).toEqual({
+      ok: true,
+      value: 'KG Erfurt e.V.',
+    });
+    // leer = zurück zur Standardanzeige
+    expect(await v.setzeKgName(admin, 'erfurt', '   ')).toEqual({ ok: true, value: null });
+    expect(kgNamen.get('erfurt')).toBeNull();
+    expect(await v.setzeKgName(admin, 'gibtsnicht', 'X')).toEqual({
+      ok: false,
+      error: 'NICHT_GEFUNDEN',
+    });
+    const lang = await v.setzeKgName(admin, 'erfurt', 'x'.repeat(201));
+    expect(!lang.ok && Array.isArray(lang.error)).toBe(true);
+    const steuer = await v.setzeKgName(admin, 'erfurt', 'a\u200bb');
+    expect(!steuer.ok && Array.isArray(steuer.error)).toBe(true);
   });
 
   it('Namen ändern: eigener jeder, fremde nur Admin, gleiche Prüfung (Issue #244)', async () => {

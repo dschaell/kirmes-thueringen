@@ -54,12 +54,15 @@ export async function sendeEinrichtungslink(): Promise<{ ok: true } | { fehler: 
 export async function pruefeZugang(
   art: ZugangsArt,
   token: string,
-): Promise<{ rolle?: string; ortName?: string } | { fehler: string; status: number }> {
+): Promise<
+  { rolle?: string; ortName?: string; kgName?: string } | { fehler: string; status: number }
+> {
   const a = await rufe('GET', `${basis(art)}/${token}`);
   if (a.status === 200)
     return {
       rolle: typeof a.json.rolle === 'string' ? a.json.rolle : undefined,
       ortName: typeof a.json.ortName === 'string' ? a.json.ortName : undefined,
+      kgName: typeof a.json.kgName === 'string' ? a.json.kgName : undefined,
     };
   return { fehler: titel(a, 'Der Link ist ungültig.'), status: a.status };
 }

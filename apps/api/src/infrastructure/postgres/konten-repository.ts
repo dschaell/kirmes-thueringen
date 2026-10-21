@@ -47,16 +47,24 @@ export class PgSitzungen implements Sitzungen {
       rolle: Rolle;
       ort_slug: string | null;
       ort_name: string | null;
+      kg_name: string | null;
     }>(
       this.db,
-      `SELECT a.id::text, a.name, a.rolle, o.slug AS ort_slug, o.name AS ort_name
+      `SELECT a.id::text, a.name, a.rolle, o.slug AS ort_slug, o.name AS ort_name, o.kg_name
          FROM admin_sitzung s JOIN admin a ON a.id = s.admin_id LEFT JOIN ort o ON o.id = a.ort_id
         WHERE s.token_hash = $1 AND s.laeuft_ab > now()`,
       [hashToken(token)],
     );
     const r = rows[0];
     return r
-      ? { adminId: r.id, name: r.name, rolle: r.rolle, ortSlug: r.ort_slug, ortName: r.ort_name }
+      ? {
+          adminId: r.id,
+          name: r.name,
+          rolle: r.rolle,
+          ortSlug: r.ort_slug,
+          ortName: r.ort_name,
+          kgName: r.kg_name,
+        }
       : null;
   }
 
@@ -93,11 +101,12 @@ export class PgMitglieder implements MitgliederRepository {
       passkeys: number;
       ort_name: string | null;
       ort_slug: string | null;
+      kg_name: string | null;
     }>(
       this.db,
       `SELECT a.id::text, a.name, a.rolle, a.erstellt_am::text, a.letzter_login::text,
               (SELECT count(*)::int FROM admin_passkey p WHERE p.admin_id = a.id) AS passkeys,
-              o.name AS ort_name, o.slug AS ort_slug
+              o.name AS ort_name, o.slug AS ort_slug, o.kg_name
          FROM admin a LEFT JOIN ort o ON o.id = a.ort_id ORDER BY a.rolle, lower(a.name), a.id`,
       [],
     );
@@ -110,11 +119,21 @@ export class PgMitglieder implements MitgliederRepository {
       passkeys: r.passkeys,
       ortName: r.ort_name,
       ortSlug: r.ort_slug,
+      kgName: r.kg_name,
     }));
   }
 
   setzeRolle(id: string, rolle: Rolle): Promise<boolean> {
     return this.aendereGeschuetzt(id, rolle);
+  }
+
+  /** Name der Kirmesgesellschaft eines Ortes (Issue #246) */
+  async setzeKgName(ortSlug: string, name: string | null): Promise<boolean> {
+    const r = await abfrage(this.db, 'UPDATE ort SET kg_name = $2 WHERE slug = $1', [
+      ortSlug,
+      name,
+    ]);
+    return (r.rowCount ?? 0) > 0;
   }
 
   /** Anzeigenamen ändern (Issue #244) */
@@ -232,17 +251,24 @@ export class PgEinladungen implements Einladungen {
     return r ? zuEinladung(r) : null;
   }
 
-  async finde(token: string): Promise<{ id: string; rolle: Rolle; ortName: string | null } | null> {
+  async finde(
+    token: string,
+  ): Promise<{ id: string; rolle: Rolle; ortName: string | null; kgName: string | null } | null> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-    const { rows } = await abfrage<{ id: string; rolle: Rolle; ort_name: string | null }>(
+    const { rows } = await abfrage<{
+      id: string;
+      rolle: Rolle;
+      ort_name: string | null;
+      kg_name: string | null;
+    }>(
       this.db,
-      `SELECT e.id::text, e.rolle, o.name AS ort_name
+      `SELECT e.id::text, e.rolle, o.name AS ort_name, o.kg_name
          FROM einladung e LEFT JOIN ort o ON o.id = e.ort_id
         WHERE e.token_hash = $1 AND e.genutzt_am IS NULL AND e.laeuft_ab > now()`,
       [hashToken(token)],
     );
     const r = rows[0];
-    return r ? { id: r.id, rolle: r.rolle, ortName: r.ort_name } : null;
+    return r ? { id: r.id, rolle: r.rolle, ortName: r.ort_name, kgName: r.kg_name } : null;
   }
 
   async offene(): Promise<EinladungInfo[]> {

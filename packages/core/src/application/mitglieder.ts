@@ -24,6 +24,8 @@ export interface Mitglied {
   /** Ort der Kirmesgesellschaft (sonst null) */
   ortName?: string | null;
   ortSlug?: string | null;
+  /** Eigener Name der Kirmesgesellschaft (Issue #246) */
+  kgName?: string | null;
   erstelltAm: string;
   letzterLogin: string | null;
   passkeys: number;
@@ -35,6 +37,8 @@ export interface MitgliederRepository {
   anzahlAdmins(): Promise<number>;
   /** Anzeigenamen ändern (Issue #244); false = unbekannt */
   setzeName(id: string, name: string): Promise<boolean>;
+  /** Name der Kirmesgesellschaft eines Ortes (Issue #246); null = zurücksetzen; false = Ort unbekannt */
+  setzeKgName(ortSlug: string, name: string | null): Promise<boolean>;
 }
 export interface EinladungInfo {
   bezeichnung?: string;
@@ -60,7 +64,9 @@ export interface Einladungen {
   ): Promise<EinladungInfo | null>;
   /** Offene (unbenutzte, nicht abgelaufene) Einladung zum Token */
   /** Offene Einladung; bei Kirmesgesellschaften mit Ortsnamen (Anzeige, Issue #242) */
-  finde(token: string): Promise<{ id: string; rolle: Rolle; ortName?: string | null } | null>;
+  finde(
+    token: string,
+  ): Promise<{ id: string; rolle: Rolle; ortName?: string | null; kgName?: string | null } | null>;
   offene(): Promise<EinladungInfo[]>;
   widerrufe(id: string): Promise<boolean>;
 }
@@ -174,10 +180,16 @@ export class Beitritt {
 
   async pruefe(
     token: string,
-  ): Promise<Result<{ rolle: Rolle; ortName?: string | null }, 'UNGUELTIG'>> {
+  ): Promise<
+    Result<{ rolle: Rolle; ortName?: string | null; kgName?: string | null }, 'UNGUELTIG'>
+  > {
     const e = await this.einladungen.finde(token);
     return e
-      ? ok({ rolle: e.rolle, ...(e.ortName ? { ortName: e.ortName } : {}) })
+      ? ok({
+          rolle: e.rolle,
+          ...(e.ortName ? { ortName: e.ortName } : {}),
+          ...(e.kgName ? { kgName: e.kgName } : {}),
+        })
       : err('UNGUELTIG');
   }
 
@@ -314,6 +326,31 @@ export class Mitgliederverwaltung {
     if (!name.ok) return name;
     return (await this.mitglieder.setzeName(id, name.value))
       ? ok(name.value)
+      : err('NICHT_GEFUNDEN' as const);
+  }
+
+  /**
+   * Name der Kirmesgesellschaft eines Ortes (Issue #246): Admin für jeden Ort, eine
+   * Kirmesgesellschaft für ihren eigenen. Leer = zurück zu „Kirmesgesellschaft <Ort>“.
+   */
+  async setzeKgName(
+    akteur: Sitzung,
+    ortSlug: string,
+    nameRoh: string,
+  ): Promise<Result<string | null, VerwaltungsFehler | Validierungsfehler[]>> {
+    const eigen = this.eigenerKgOrt(akteur);
+    if (eigen ? eigen !== ortSlug : !darf(akteur, 'mitglieder')) return err('NUR_ADMIN' as const);
+    const name = nameRoh.trim().replace(/\s+/g, ' ');
+    if (/[\p{Cc}\p{Cf}]/u.test(name) || name.length > 200)
+      return err([
+        {
+          feld: 'kgName',
+          code: 'KG_NAME',
+          meldung: 'Name der Kirmesgesellschaft: höchstens 200 Zeichen, keine Sonderzeichen.',
+        },
+      ]);
+    return (await this.mitglieder.setzeKgName(ortSlug, name || null))
+      ? ok(name || null)
       : err('NICHT_GEFUNDEN' as const);
   }
 

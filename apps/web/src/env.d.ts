@@ -8,6 +8,8 @@ declare namespace App {
     /** nur Kirmesgesellschaft: ihr Ort (Issue #180) */
     ortSlug?: string | null;
     ortName?: string | null;
+    /** nur Kirmesgesellschaft: eigener Vereinsname, sonst null (Issue #246) */
+    kgName?: string | null;
     /** CSRF-Token für Admin-Formulare */
     csrf?: string;
   }

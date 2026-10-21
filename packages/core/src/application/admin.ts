@@ -39,6 +39,8 @@ export interface Sitzung {
   /** Nur bei Kirmesgesellschaften: ihr Ort */
   ortSlug?: string | null;
   ortName?: string | null;
+  /** Eigener Name der Kirmesgesellschaft (Issue #246), sonst null */
+  kgName?: string | null;
 }
 
 export interface AdminKonten {

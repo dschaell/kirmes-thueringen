@@ -139,7 +139,12 @@ describe.runIf(url)('Redaktionskonten (PostgreSQL)', () => {
     const roh = await pool.query('SELECT token_hash FROM einladung');
     expect(roh.rows[0].token_hash).toHaveLength(32);
     expect(Buffer.from(roh.rows[0].token_hash).toString()).not.toContain('TTTT');
-    expect(await einl.finde(token)).toEqual({ id: e.id, rolle: 'redaktion', ortName: null });
+    expect(await einl.finde(token)).toEqual({
+      id: e.id,
+      rolle: 'redaktion',
+      ortName: null,
+      kgName: null,
+    });
     expect(await einl.finde('X'.repeat(43))).toBeNull();
     expect(await einl.finde("' OR 1=1 --")).toBeNull();
     expect(await einl.offene()).toHaveLength(1);

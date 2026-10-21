@@ -24,12 +24,26 @@ interface Einladung {
 }
 
 const ortName = Astro.locals.ortName ?? 'eurem Ort';
+let kgName = Astro.locals.kgName ?? null;
 let meldung: string | null = null;
 let fehler: string[] = [];
 let neuerLink: string | null = null;
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
-  if (feld(f, 'aktion') === 'entfernen') {
+  if (feld(f, 'aktion') === 'kgname') {
+    // Name eurer Kirmesgesellschaft (Issue #246) – leer = „Kirmesgesellschaft <Ort>“
+    const r = await adminApi<{ name: string | null }>(
+      Astro.cookies,
+      'PUT',
+      `orte/${encodeURIComponent(Astro.locals.ortSlug ?? '')}/kirmesgesellschaft`,
+      { name: feld(f, 'kgName') },
+    );
+    if (r.status < 300) {
+      kgName = r.daten?.name ?? null;
+      Astro.locals.kgName = kgName;
+      meldung = kgName ? `Euer Name: „${kgName}“.` : 'Name zurückgesetzt.';
+    } else fehler = r.fehler;
+  } else if (feld(f, 'aktion') === 'entfernen') {
     // Eigene Leute entfernen (Issue #233) – die API lässt nur denselben Ort zu, nie sich selbst
     if (feld(f, 'rueckfrage') !== 'ja') fehler = ['Bitte das Entfernen ausdrücklich bestätigen.'];
     else {
@@ -83,6 +97,29 @@ const text = `Mach mit beim Kirmeskalender Thüringen und pflege mit uns die Kir
     Ladet weitere Leute aus eurer Kirmesgesellschaft ein. Sie bekommen dieselben Rechte wie ihr:
     Termine, Plätze und Vorschläge von <strong>{ortName}</strong> – nichts anderes.
   </p>
+
+  <h2>Name eurer Kirmesgesellschaft</h2>
+  <form class="melden" method="post">
+    <CsrfFeld />
+    <input type="hidden" name="aktion" value="kgname" />
+    <label>
+      So heißt euer Verein
+      <input
+        name="kgName"
+        maxlength="200"
+        value={kgName ?? ''}
+        placeholder={`z. B. Traditionsverein „Dorffreunde“ ${ortName} e.V.`}
+      />
+      <span class="klein leise">
+        Leer lassen = „Kirmesgesellschaft {ortName}“. Steht in der Redaktion über euren Leuten.
+      </span>
+    </label>
+    <div>
+      <button class="knopf zweit" type="submit">
+        Name speichern
+      </button>
+    </div>
+  </form>
 
   {neuerLink && (
     <EinladungsLink link={neuerLink} rolle={`Kirmesgesellschaft ${ortName}`} text={text} />

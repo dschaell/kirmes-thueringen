@@ -193,6 +193,7 @@ const mitgliederRepo = () => {
       if (m) m.name = name;
       return !!m;
     },
+    setzeKgName: async (ort: string) => ort === 'muehlberg',
   };
 };
 let einladungen = new Map<string, { info: EinladungInfo; genutzt: boolean }>();
@@ -273,6 +274,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
                     rolle: 'kirmesgesellschaft',
                     ortSlug: 'muehlberg',
                     ortName: 'Mühlberg',
+                    kgName: 'Dorffreunde Mühlberg e.V.',
                   }
                 : null,
         beende: async () => {},
@@ -725,6 +727,7 @@ describe('Admin-Bereich', () => {
       rolle: 'admin',
       ortSlug: null,
       ortName: null,
+      kgName: null,
       passkeys: false,
     });
     const m = await app.inject({
@@ -920,6 +923,18 @@ describe('Passkeys (WebAuthn)', () => {
     expect((await post('/api/v1/admin/passkeys/optionen')).statusCode).toBe(401);
     const opt = (await post('/api/v1/admin/passkeys/optionen', {}, auth)).json();
     expect(opt.optionen.rp.id).toBe('localhost');
+    // Konto ohne Eintrag (z. B. inzwischen entfernt) → nicht gefunden
+    expect(
+      (
+        await post(
+          '/api/v1/admin/passkeys/optionen',
+          {},
+          {
+            authorization: `Sitzung ${KG_SITZUNG}`,
+          },
+        )
+      ).statusCode,
+    ).toBe(404);
     const neu = await post(
       '/api/v1/admin/passkeys',
       {
@@ -1982,6 +1997,25 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
         })
       ).statusCode,
     ).toBe(400);
+    // Name der Kirmesgesellschaft (Issue #246): in /ich, eigener Ort ändern ja, fremder 403
+    expect((await rufe('GET', '/api/v1/admin/ich')).json()).toMatchObject({
+      rolle: 'kirmesgesellschaft',
+      kgName: 'Dorffreunde Mühlberg e.V.',
+    });
+    const kgName = (ort: string) =>
+      rufe('PUT', `/api/v1/admin/orte/${ort}/kirmesgesellschaft`, { name: 'Dorffreunde e.V.' });
+    const eigen = await kgName('muehlberg');
+    expect([eigen.statusCode, eigen.json()]).toEqual([200, { name: 'Dorffreunde e.V.' }]);
+    expect((await kgName('erfurt')).statusCode).toBe(403);
+    const alsAdmin = (ort: string, name: string) =>
+      app.inject({
+        method: 'PUT',
+        url: `/api/v1/admin/orte/${ort}/kirmesgesellschaft`,
+        headers: { authorization: `Sitzung ${SITZUNG}` },
+        payload: { name },
+      });
+    expect((await alsAdmin('gibtsnicht', 'X')).statusCode).toBe(404);
+    expect((await alsAdmin('muehlberg', 'x'.repeat(201))).statusCode).toBe(400);
     // Entfernen nur eigene Leute (Issue #233): Redaktion/Admin sind „nicht gefunden“
     expect((await rufe('DELETE', '/api/v1/admin/mitglieder/2')).statusCode).toBe(404);
     expect((await rufe('DELETE', '/api/v1/admin/mitglieder/1')).statusCode).toBe(404);

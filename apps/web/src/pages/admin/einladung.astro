@@ -13,7 +13,8 @@ if ('fehler' in p) Astro.response.status = p.status === 404 ? 404 : 400;
 // Rolle samt Ort anzeigen (Issue #242) – bisher wurde jede Kirmesgesellschaft als „Redaktion“ gezeigt
 const kg = 'rolle' in p && p.rolle === 'kirmesgesellschaft';
 const rolle = kg
-  ? `Kirmesgesellschaft ${'ortName' in p && p.ortName ? p.ortName : ''}`.trim()
+  ? ('kgName' in p && p.kgName) ||
+    `Kirmesgesellschaft ${'ortName' in p && p.ortName ? p.ortName : ''}`.trim()
   : 'rolle' in p && p.rolle === 'admin'
     ? 'Admin'
     : 'Redaktion';

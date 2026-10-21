@@ -89,6 +89,7 @@ const redaktion = defineMiddleware(async (ctx, next) => {
       rolle: 'admin' | 'redaktion' | 'kirmesgesellschaft';
       ortSlug: string | null;
       ortName: string | null;
+      kgName?: string | null;
     }>(ctx.cookies, 'GET', 'ich');
     if (ich.status !== 200 || !ich.daten)
       return ctx.redirect(
@@ -100,6 +101,7 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     ctx.locals.rolle = ich.daten.rolle;
     ctx.locals.ortSlug = ich.daten.ortSlug;
     ctx.locals.ortName = ich.daten.ortName;
+    ctx.locals.kgName = ich.daten.kgName ?? null;
     // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
     if (pfad.startsWith('/admin/mitglieder') && !darf(ich.daten, 'mitglieder')) {
       return ctx.redirect('/admin', 303);
