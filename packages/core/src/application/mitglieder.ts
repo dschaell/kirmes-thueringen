@@ -235,7 +235,20 @@ export class Mitgliederverwaltung {
     });
   }
 
-  entferne(akteur: Sitzung, id: string) {
+  /**
+   * Admin: jedes Mitglied (außer dem letzten Admin). Kirmesgesellschaft (Issue #233): nur Leute
+   * ihres Ortes, nicht sich selbst – alles andere gilt als nicht gefunden.
+   */
+  async entferne(akteur: Sitzung, id: string): Promise<Result<true, VerwaltungsFehler>> {
+    const ort = this.eigenerKgOrt(akteur);
+    if (ort) {
+      const ziel = (await this.mitglieder.liste()).find((m) => m.id === id);
+      const erlaubt =
+        id !== akteur.adminId && ziel?.rolle === 'kirmesgesellschaft' && ziel.ortSlug === ort;
+      return erlaubt && (await this.mitglieder.entferne(id))
+        ? ok(true)
+        : err('NICHT_GEFUNDEN' as const);
+    }
     return this.nurAdmin(akteur, async () => {
       if (await this.letzterAdmin(id)) return err('LETZTER_ADMIN' as const);
       return (await this.mitglieder.entferne(id)) ? ok(true) : err('NICHT_GEFUNDEN' as const);
