@@ -188,10 +188,18 @@ let einladungen = new Map<string, { info: EinladungInfo; genutzt: boolean }>();
 const einladungenRepo = () => {
   einladungen = new Map();
   return {
-    lege: async (token: string, rolle: Rolle) => {
+    lege: async (
+      token: string,
+      rolle: Rolle,
+      _von?: string | null,
+      _tage?: number,
+      _bez?: string,
+      ortSlug?: string | null,
+    ) => {
       const info = {
         id: String(einladungen.size + 1),
         rolle,
+        ...(ortSlug ? { ortSlug } : {}),
         erstelltAm: 'heute',
         laeuftAb: 'bald',
       };
@@ -1881,19 +1889,44 @@ describe('Rolle Kirmesgesellschaft (Issue #180)', () => {
   it('nicht freigegebene Bereiche → 403', async () => {
     await setup();
     for (const [m, u, b] of [
-      ['GET', '/api/v1/admin/mitglieder'],
-      ['GET', '/api/v1/admin/einladungen'],
-      ['POST', '/api/v1/admin/einladungen', { rolle: 'admin' }],
+      ['PUT', '/api/v1/admin/mitglieder/1/rolle', { rolle: 'admin' }],
+      ['DELETE', '/api/v1/admin/mitglieder/2'],
       ['GET', '/api/v1/admin/mitteilungen'],
       ['POST', '/api/v1/admin/orte', { name: 'X', landkreis: 'GTH' }],
       ['GET', '/api/v1/admin/orte/eigene'],
       ['DELETE', '/api/v1/admin/orte/muehlberg'],
       ['GET', '/api/v1/admin/links'],
-      ['DELETE', '/api/v1/admin/einladungen/1'],
     ] as const) {
       const r = await rufe(m, u, b);
       expect(r.statusCode, `${m} ${u}`).toBe(403);
     }
+  });
+
+  it('lädt eigene Leute ein: Rolle und Ort fest, fremder Ort/Rolle abgelehnt (Issue #231)', async () => {
+    await setup();
+    const neu = await rufe('POST', '/api/v1/admin/einladungen', {
+      rolle: 'kirmesgesellschaft',
+      bezeichnung: 'Lisa',
+    });
+    expect(neu.statusCode).toBe(201);
+    expect(neu.json()).toMatchObject({ rolle: 'kirmesgesellschaft', ortSlug: 'muehlberg' });
+    expect(
+      (
+        await rufe('POST', '/api/v1/admin/einladungen', {
+          rolle: 'kirmesgesellschaft',
+          ortSlug: 'erfurt',
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect((await rufe('POST', '/api/v1/admin/einladungen', { rolle: 'admin' })).statusCode).toBe(
+      400,
+    );
+    const offen = await rufe('GET', '/api/v1/admin/einladungen');
+    expect(offen.json().map((e: { id: string }) => e.id)).toEqual([neu.json().id]);
+    expect((await rufe('GET', '/api/v1/admin/mitglieder')).json()).toEqual([]);
+    expect((await rufe('DELETE', `/api/v1/admin/einladungen/${neu.json().id}`)).statusCode).toBe(
+      204,
+    );
   });
 
   it('fremder Ort → 403, eigener Ort → durchgelassen', async () => {

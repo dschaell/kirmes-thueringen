@@ -1,0 +1,101 @@
+---
+/**
+ * Neu erstellter Einladungslink: kopieren, teilen, per E-Mail oder WhatsApp – für Admin und
+ * Kirmesgesellschaften (Issue #231). Der Link wird nur einmal angezeigt.
+ */
+interface Props {
+  link: string;
+  rolle: string;
+  text: string;
+}
+const { link, rolle, text } = Astro.props;
+---
+
+<div class="kasten">
+  <p>
+    <strong>Diesen Link jetzt kopieren und der Person schicken.</strong> Er wird nur einmal
+    angezeigt.
+  </p>
+  <label class="einladungslink">
+    Einladungslink ({rolle})
+    <input id="einladungslink" type="text" readonly value={link} />
+  </label>
+  <div class="knopfreihe">
+    <button class="knopf" type="button" id="link-kopieren" hidden>
+      Link kopieren
+    </button>
+    <button class="knopf zweit" type="button" id="link-teilen" data-text={text} hidden>
+      Teilen …
+    </button>
+    <a
+      class="knopf zweit"
+      href={`mailto:?subject=${encodeURIComponent('Einladung zum Kirmeskalender Thüringen')}&body=${encodeURIComponent(text)}`}
+    >
+      Per E-Mail
+    </a>
+    <a
+      class="knopf zweit"
+      href={`https://wa.me/?text=${encodeURIComponent(text)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Per WhatsApp
+    </a>
+  </div>
+  <p id="teilen-status" role="status" class="klein leise" />
+  <p class="leise klein">
+    Wer den Link öffnet, wählt einen Namen und legt einen Passkey an. Danach ist der Link
+    verbraucht.
+  </p>
+</div>
+
+<script>
+  const link = document.querySelector<HTMLInputElement>('#einladungslink');
+  const kopieren = document.querySelector<HTMLButtonElement>('#link-kopieren');
+  const teilen = document.querySelector<HTMLButtonElement>('#link-teilen');
+  const status = document.querySelector<HTMLElement>('#teilen-status');
+  if (link && kopieren && teilen && status) {
+    kopieren.hidden = false;
+    kopieren.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(link.value);
+        status.textContent =
+          'Link kopiert. Du kannst ihn jetzt in deiner gewünschten App einfügen.';
+      } catch {
+        link.focus();
+        link.select();
+        status.textContent = 'Link markiert. Bitte über das Kopiermenü deines Geräts kopieren.';
+      }
+    });
+    if (navigator.share) {
+      teilen.hidden = false;
+      teilen.addEventListener('click', async () => {
+        try {
+          await navigator.share({
+            title: 'Einladung zum Kirmeskalender Thüringen',
+            text: teilen.dataset.text,
+          });
+          status.textContent = 'Einladung an die gewählte App übergeben.';
+        } catch (fehler) {
+          if (!(fehler instanceof Error && fehler.name === 'AbortError')) {
+            status.textContent =
+              'Teilen hier nicht möglich. Bitte den Link kopieren oder E-Mail verwenden.';
+          }
+        }
+      });
+    }
+  }
+</script>
+
+<style>
+  .einladungslink {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .einladungslink input {
+    width: 100%;
+    font-weight: 400;
+  }
+</style>

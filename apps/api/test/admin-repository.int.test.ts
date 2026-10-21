@@ -383,8 +383,17 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       'KG Adminort',
       'it-admin-ort',
     );
-    expect(e).toMatchObject({ rolle: 'kirmesgesellschaft', ortName: 'IT-Adminort' });
-    expect((await einladungen.offene()).find((x) => x.id === e!.id)?.ortName).toBe('IT-Adminort');
+    expect(e).toMatchObject({
+      rolle: 'kirmesgesellschaft',
+      ortName: 'IT-Adminort',
+      ortSlug: 'it-admin-ort',
+    });
+    // Ort-Schlüssel und wer eingeladen hat (Issue #231)
+    expect((await einladungen.offene()).find((x) => x.id === e!.id)).toMatchObject({
+      ortName: 'IT-Adminort',
+      ortSlug: 'it-admin-ort',
+      erstelltVon: 'IT Redaktion',
+    });
     // Rolle/Ort kommen aus der Einladung – auch wenn der Browser „admin“ behauptet
     const kontoId = await new PgKontoAnlage(pool).lege(
       { name: 'IT KG', rolle: 'admin', kennung: '00000000-0000-4000-8000-0000000000c1' },
@@ -407,7 +416,10 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
       ortName: 'IT-Adminort',
     });
     const m = new PgMitglieder(pool);
-    expect((await m.liste()).find((x) => x.id === kontoId)?.ortName).toBe('IT-Adminort');
+    expect((await m.liste()).find((x) => x.id === kontoId)).toMatchObject({
+      ortName: 'IT-Adminort',
+      ortSlug: 'it-admin-ort',
+    });
     // Ort mit KG-Konto lässt sich nicht löschen; wird sie Redaktion, fällt der Ort weg
     await pool.query("UPDATE ort SET herkunft = 'redaktion' WHERE slug = 'it-admin-ort'");
     expect(await new PgOrtVerwaltung(pool).loesche('it-admin-ort', adminId)).toBe('belegt');

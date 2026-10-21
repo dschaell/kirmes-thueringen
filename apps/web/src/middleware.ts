@@ -104,6 +104,10 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     if (pfad.startsWith('/admin/mitglieder') && !darf(ich.daten, 'mitglieder')) {
       return ctx.redirect('/admin', 303);
     }
+    // „Eure Leute“ ist die Seite der Kirmesgesellschaften – alle anderen verwalten unter Mitglieder
+    if (pfad === '/admin/unsere-leute' && !nurEigenerOrt(ich.daten)) {
+      return ctx.redirect('/admin/mitglieder', 303);
+    }
     // Kirmesgesellschaft (Issue #180): nur ihre Seiten, nur ihr Ort – die API prüft zusätzlich
     if (nurEigenerOrt(ich.daten)) {
       const eigen = ich.daten.ortSlug ?? '';
@@ -114,6 +118,7 @@ const redaktion = defineMiddleware(async (ctx, next) => {
         pfad === '/admin/termine' ||
         pfad.startsWith('/admin/termine/') ||
         pfad === `/admin/orte/${eigen}` ||
+        pfad === '/admin/unsere-leute' ||
         pfad.startsWith('/admin/passkeys') ||
         pfad === '/admin/abmelden';
       if (!erlaubt) return ctx.redirect('/admin', 303);

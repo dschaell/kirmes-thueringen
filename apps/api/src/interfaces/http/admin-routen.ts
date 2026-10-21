@@ -52,6 +52,11 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     'POST /api/v1/admin/orte/:slug/festplaetze',
     'DELETE /api/v1/admin/orte/:slug/festplaetze',
     'POST /api/v1/admin/orte/:slug/festplaetze/umbenennen',
+    // Eigene Leute einladen (Issue #231) – Ort und Rolle legt der Use Case fest
+    'GET /api/v1/admin/mitglieder',
+    'GET /api/v1/admin/einladungen',
+    'POST /api/v1/admin/einladungen',
+    'DELETE /api/v1/admin/einladungen/:id',
   ]);
 
   await app.register(async (r) => {
