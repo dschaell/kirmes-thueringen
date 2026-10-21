@@ -175,7 +175,7 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
     <input type="hidden" name="aktion" value="einladen" />
     <label>
       Für wen? (freiwillig)
-      <input name="bezeichnung" maxlength="120" placeholder="z. B. Kirmesverein Alkersleben" />
+      <input name="bezeichnung" maxlength="120" placeholder="z. B. Lisa vom Kirmesverein" />
       <span class="klein leise">
         Interne Bezeichnung, damit du mehrere offene Einladungen unterscheiden kannst.
       </span>
@@ -292,7 +292,7 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
               name="kgName"
               maxlength="200"
               value={g.personen[0]?.kgName ?? ''}
-              placeholder={`z. B. Traditionsverein „Dorffreunde“ ${g.personen[0]?.ortName ?? ''} e.V.`}
+              placeholder="z. B. Kirmesverein Musterdorf e.V."
             />
             <span class="klein leise">
               Leer lassen = „Kirmesgesellschaft {g.personen[0]?.ortName}“.
