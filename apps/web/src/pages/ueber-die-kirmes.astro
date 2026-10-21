@@ -1,7 +1,6 @@
 ---
 export const prerender = true;
 import Base from '../layouts/Base.astro';
-import { UNTERSTUETZEN_URL } from '../lib/anzeige';
 ---
 
 <Base
@@ -107,16 +106,13 @@ import { UNTERSTUETZEN_URL } from '../lib/anzeige';
         <span>Auf jeder Terminseite „Korrektur melden“ – dauert zehn Sekunden.</span>
       </li>
       <li>
-        <a href="/termin-melden?festplatz=1#festplatz">
-          <strong>Festplatz pinnen</strong>
-        </a>
-        <span>Damit „Route“ direkt zum Zelt oder Saal führt.</span>
-      </li>
-      <li>
         <a href="/redaktion-mitmachen">
-          <strong>Redaktion</strong>
+          <strong>Mitmachen</strong>
         </a>
-        <span>Lust, den Kalender für deine Gegend mit aktuell zu halten? Melde dich.</span>
+        <span>
+          Als Kirmesgesellschaft eure Kirmes samt Festplatz selbst pflegen – oder in der Redaktion
+          für deine Gegend mithelfen.
+        </span>
       </li>
     </ul>
 
@@ -128,16 +124,6 @@ import { UNTERSTUETZEN_URL } from '../lib/anzeige';
       Schällert aus Elleben im Ilm-Kreis.
     </p>
 
-    <h3>Unterstützen</h3>
-    <p>
-      Server, Kartendienst und Weiterentwicklung kosten Zeit und ein wenig Geld. Wer mag, kann den
-      Kirmeskalender mit einem kleinen Betrag unterstützen – freiwillig und ohne Gegenleistung.
-    </p>
-    <p>
-      <a class="knopf zweit" href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
-        Mit PayPal unterstützen
-      </a>
-    </p>
     <p>
       Eure Kirmes fehlt oder ein Termin stimmt nicht?{' '}
       <a href="/termin-melden">Sagt uns Bescheid.</a>

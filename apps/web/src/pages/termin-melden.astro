@@ -1,71 +1,18 @@
 ---
 /**
- * Termin melden / Link für den Festplatz anfordern. Das Formular schickt die Meldung über den
- * Server per E-Mail (Brevo) an die Redaktion – ohne eigenes E-Mail-Programm, auch ohne JavaScript.
- * Ist kein Versand möglich, bleibt der Weg über mailto.
+ * Termin melden: Assistent ohne Anmeldung, die Redaktion prüft jeden Vorschlag. Der frühere
+ * „Festplatz-Link anfordern“ entfällt (Issue #229) – dauerhaft pflegen geht über „Mitmachen“.
  */
 import KirmesAssistent from '../components/KirmesAssistent.astro';
 import { assistent } from '../lib/assistent';
 import { listeOrte, eingabeVorschlaege } from '../lib/api';
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
-import { besucherIp, sendeMeldung, type MeldungsErgebnis } from '../lib/meldung';
-import { CSRF_FELD, FORMULAR_COOKIE, csrfGueltig, csrfToken } from '../lib/csrf';
+import { FORMULAR_COOKIE, csrfToken } from '../lib/csrf';
 
-// Kontaktadresse (IONOS-Weiterleitung an die Redaktion)
-const KONTAKT = 'termine@kirmeskalender-thueringen.de';
-
-const FELDER = [
-  'art',
-  'ort',
-  'landkreis',
-  'datum',
-  'zeit',
-  'titel',
-  'veranstaltungsort',
-  'info',
-  'absender',
-  'email',
-] as const;
-type Werte = Partial<Record<(typeof FELDER)[number], string>>;
-
-let werte: Werte = { ort: Astro.url.searchParams.get('ort') ?? '' };
-let ergebnis: MeldungsErgebnis | { status: 'abgelaufen' } | null = null;
-// CSRF: Formulare nur von dieser Seite (Token im eigenen Cookie + verstecktes Feld)
-const erwartet = Astro.cookies.get(FORMULAR_COOKIE)?.value;
-if (
-  Astro.request.method === 'POST' &&
-  (await Astro.request.clone().formData()).get('art') === 'link'
-) {
-  const f = await Astro.request.formData();
-  const text = (n: string) => {
-    const v = f.get(n);
-    return typeof v === 'string' ? v : '';
-  };
-  werte = Object.fromEntries(FELDER.map((n) => [n, text(n)]));
-  const geladen = Number(text('geladen'));
-  ergebnis = !csrfGueltig(erwartet, f.get(CSRF_FELD))
-    ? { status: 'abgelaufen' }
-    : await sendeMeldung(
-        {
-          ...Object.fromEntries(Object.entries(werte).filter(([, v]) => v !== '')),
-          art: werte.art === 'link' ? 'link' : 'termin',
-          falle: text('webseite'),
-          dauerMs: Number.isFinite(geladen) ? Math.max(0, Date.now() - geladen) : 0,
-        },
-        besucherIp(Astro.request, Astro.clientAddress),
-      );
-  if (ergebnis.status === 'gesendet') werte = {};
-  if (ergebnis.status !== 'gesendet') {
-    Astro.response.status =
-      ergebnis.status === 'fehler' ? 400 : ergebnis.status === 'abgelaufen' ? 403 : 503;
-  }
-}
 Astro.response.headers.set('Cache-Control', 'no-store');
-const art = werte.art === 'link' ? 'link' : 'termin';
 const csrf = csrfToken(Astro.cookies, { cookie: FORMULAR_COOKIE, pfad: '/termin-melden' });
-const geladen = Date.now();
-const stand = await assistent(Astro, false, ergebnis !== null);
+const stand = await assistent(Astro, false);
 if (stand instanceof Response) return stand;
 const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()]);
 ---
@@ -81,39 +28,6 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
       Anmeldung. Die Redaktion prüft die Angaben vor der Veröffentlichung.
     </p>
   </section>
-
-  <div id="rueckmeldung" class="rueckmeldung">
-    {ergebnis?.status === 'gesendet' && (
-      <p class="meldung erfolg" role="status">
-        <Icon name="haken" />
-        Danke! Eure Meldung ist bei uns angekommen. Wir prüfen sie und melden uns bei Rückfragen per
-        E-Mail.
-      </p>
-    )}
-    {ergebnis?.status === 'fehler' && (
-      <p class="meldung" role="alert">
-        Bitte die markierten Angaben prüfen.
-      </p>
-    )}
-    {ergebnis?.status === 'abgelaufen' && (
-      <p class="meldung" role="alert">
-        Das Formular war zu lange geöffnet. Bitte noch einmal auf „Senden“ klicken – eure Angaben
-        stehen noch drin.
-      </p>
-    )}
-    {ergebnis?.status === 'zu-viele' && (
-      <p class="meldung" role="alert">
-        Zu viele Meldungen in kurzer Zeit – bitte später noch einmal versuchen oder direkt an{' '}
-        <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a> schreiben.
-      </p>
-    )}
-    {ergebnis?.status === 'nicht-moeglich' && (
-      <p class="meldung" role="alert">
-        Das Senden klappt gerade nicht. Bitte schreibt uns direkt an{' '}
-        <a href={`mailto:${KONTAKT}`}>{KONTAKT}</a> – eure Angaben stehen noch im Formular.
-      </p>
-    )}
-  </div>
 
   {Astro.url.searchParams.has('gesendet') ? (
     <>
@@ -139,78 +53,18 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     />
   )}
 
-  {/* Festplatz-Link nur außerhalb des laufenden Assistenten – lenkt sonst kurz vor dem Ziel ab (Issue #88) */}
-  {(stand.schritt === 1 || ergebnis !== null || Astro.url.searchParams.has('gesendet')) && (
-    <details
-      id="festplatz"
-      open={
-        (ergebnis !== null && ergebnis.status !== 'gesendet') ||
-        Astro.url.searchParams.has('festplatz')
-      }
-    >
-      <summary>Link für den Festplatz anfordern</summary>
-      <section class="lesetext">
-        <h2>Festplatz auf der Karte eintragen</h2>
-        <p>
-          Jeder Termin hat einen Knopf „Route“, der Google Maps oder Apple Karten öffnet. Ohne
-          genaue Angabe führt er nur in den Ort. Damit eure Gäste direkt am Festzelt, Saal oder
-          Sportplatz ankommen, könnt ihr den Platz selbst eintragen: Ihr bekommt einen persönlichen
-          Link – ohne Anmeldung und ohne Passwort – und setzt damit den Pin auf der Karte.
-        </p>
-      </section>
-      <form class="melden" method="post" action="/termin-melden#rueckmeldung">
-        <input type="hidden" name="art" value="link" />
-        <input type="hidden" name="geladen" value={geladen} />
-        <input type="hidden" name="csrf_token" value={csrf} />
-        <label class="falle" aria-hidden="true">
-          Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
-        </label>
-        <div class="zwei">
-          <label>
-            Für welchen Ort? *
-            <input
-              name="ort"
-              required
-              maxlength="120"
-              value={art === 'link' ? werte.ort : (werte.ort ?? '')}
-            />
-          </label>
-          <label>
-            Landkreis
-            <input name="landkreis" maxlength="60" value={werte.landkreis ?? ''} />
-          </label>
-        </div>
-        <div class="zwei">
-          <label>
-            Kirmesgesellschaft *
-            <input
-              name="absender"
-              required
-              maxlength="120"
-              autocomplete="organization"
-              value={werte.absender ?? ''}
-            />
-          </label>
-          <label>
-            E-Mail für den Link *
-            <input
-              name="email"
-              type="email"
-              required
-              maxlength="200"
-              autocomplete="email"
-              value={werte.email ?? ''}
-            />
-          </label>
-        </div>
-        <div>
-          <button class="knopf zweit" type="submit">
-            <Icon name="ort" />
-            Link anfordern
-          </button>
-        </div>
-      </form>
-    </details>
+  {/* Alte Links auf #festplatz landen hier (Issue #229) – nur außerhalb des laufenden Assistenten */}
+  {(stand.schritt === 1 || Astro.url.searchParams.has('gesendet')) && (
+    <section id="festplatz" class="kasten abstand">
+      <h2>Ihr seid Kirmesgesellschaft?</h2>
+      <p>
+        Mit einem eigenen Zugang pflegt ihr Termine, Programm und euren Festplatz auf der Karte
+        selbst – dann führt „Route“ eure Gäste direkt zum Festzelt, Saal oder Sportplatz.
+      </p>
+      <a class="mehr" href="/redaktion-mitmachen">
+        Zugang für eure Kirmesgesellschaft anfragen <Icon name="pfeil" />
+      </a>
+    </section>
   )}
 </Base>
 <style>
