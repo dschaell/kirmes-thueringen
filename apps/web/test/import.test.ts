@@ -14,14 +14,14 @@ const orte = [
 ];
 
 describe('Tabellen-Import (Issue #105)', () => {
-  it('liest die Vorlage: Ort, Art aus Klartext, bestätigt, Muttizettel', () => {
+  it('liest die Vorlage: Ort, Art aus Klartext, Muttizettel – „bestätigt“ setzt nur die KG (#240)', () => {
     const { fehler, zeilen } = pruefeTabelle(VORLAGE, orte);
     expect(fehler).toEqual([]);
     expect(
       zeilen.map((z) => [z.status, z.ortSlug, z.termin?.kategorie, z.termin?.bestaetigt]),
     ).toEqual([
-      ['neu', 'alkersleben', 'tradition', true],
-      ['neu', 'alkersleben', 'tanz', true],
+      ['neu', 'alkersleben', 'tradition', false],
+      ['neu', 'alkersleben', 'tanz', false],
     ]);
     expect(zeilen[1]?.termin).toMatchObject({
       datum: '2026-10-16',

@@ -74,11 +74,11 @@ if (Astro.request.method === 'POST' && gueltig) {
       <p>
         {loeschen
           ? 'Der Termin samt Essen & Getränken wird aus dem Kalender entfernt.'
-          : 'Bitte nur bestätigen, wenn die Angaben vom Veranstalter bestätigt wurden.'}
+          : 'Stimmen Tag, Uhrzeit und Angaben? Dann bestätigt ihr den Termin als Kirmesgesellschaft – Besucher sehen danach „bestätigt“.'}
       </p>
       <label>
         <input type="checkbox" required name="rueckfrage" value="ja" />
-        {loeschen ? 'Ja, diesen Termin löschen.' : 'Ja, vom Veranstalter bestätigt.'}
+        {loeschen ? 'Ja, diesen Termin löschen.' : 'Ja, die Angaben stimmen.'}
       </label>
       <div class="knopfreihe">
         <>

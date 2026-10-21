@@ -64,10 +64,13 @@ if (Astro.request.method === 'POST' && termine.length) {
           </li>
         ))}
       </ul>
-      <p>Bitte nur bestätigen, wenn der Veranstalter die Angaben bestätigt hat.</p>
+      <p>
+        Stimmen Tag, Uhrzeit und Angaben? Dann bestätigt ihr sie als Kirmesgesellschaft – Besucher
+        sehen danach „bestätigt“.
+      </p>
       <label>
         <input type="checkbox" required name="rueckfrage" value="ja" />
-        Ja, alle {termine.length} Termine sind vom Veranstalter bestätigt.
+        Ja, die Angaben zu allen {termine.length} Terminen stimmen.
       </label>
       <div class="knopfreihe">
         <button class="knopf">Jetzt {termine.length} Termine bestätigen</button>

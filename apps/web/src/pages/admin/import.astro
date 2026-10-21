@@ -99,8 +99,8 @@ const kaputt = zeilen.filter((z) => z.status === 'fehler').length;
   <p>
     Tabelle aus Excel, Google Sheets oder Numbers kopieren und hier einfügen – oder eine CSV-Datei
     wählen. Erste Zeile: Spaltennamen (<strong>Ort, Datum, Titel</strong> sind Pflicht; dazu Beginn,
-    Art, Band, Wo, Hinweise, Muttizettel, Bestätigt, Landkreis). Erst kommt eine Vorschau,
-    gespeichert wird danach. Vorhandene Termine werden nie geändert.
+    Art, Band, Wo, Hinweise, Muttizettel, Landkreis). Erst kommt eine Vorschau, gespeichert wird
+    danach. Vorhandene Termine werden nie geändert.
   </p>
   <p>
     <a href="/admin/import-vorlage.csv">Vorlage herunterladen (CSV)</a>
@@ -176,7 +176,6 @@ Alkersleben	16.10.2026	20:00	Kirmestanz"
                       <div class="klein leise">
                         {KATEGORIEN[z.termin.kategorie as keyof typeof KATEGORIEN]?.label}
                         {z.termin.band && ` · ${z.termin.band}`}
-                        {z.termin.bestaetigt && ' · bestätigt'}
                       </div>
                     </>
                   ) : (

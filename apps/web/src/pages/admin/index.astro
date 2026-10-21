@@ -22,6 +22,8 @@ const parameter = new URLSearchParams({ q, datum, zeitraum, limit: '25', offset:
 if (ort) parameter.set('ort', ort);
 if (von) parameter.set('von', von);
 // Aktuelle Liste als Rücksprungziel für Bearbeiten/Bestätigen/Löschen (Issue #90)
+// Bestätigen nur die Kirmesgesellschaft selbst (Issue #240)
+const kg = darf(Astro.locals, 'termine.bestaetigen');
 const zurueck = encodeURIComponent(zurueckLink(parameter));
 const markiert = new Set(markierte(p));
 const [seite, v, sicherung] = await Promise.all([
@@ -137,9 +139,9 @@ const meldung = listenMeldung(p, ortName);
       </p>
     )}
     <p class="klein leise">
-      „Bestätigen“ heißt: Die Kirmesgesellschaft hat die Angaben selbst gemacht oder bestätigt (z.
-      B. eigener Post). Besucher sehen dann „bestätigt“; alle anderen Termine gelten als
-      recherchiert.
+      „Bestätigt“ setzt nur die Kirmesgesellschaft selbst: automatisch, wenn sie Termine einträgt
+      oder ändert, oder per „Bestätigen“. Besucher sehen dann „bestätigt“; alle anderen Termine
+      gelten als recherchiert.
     </p>
     <p class="klein leise">
       {anzahl(daten.gesamt, 'Termin', 'Termine', '0 Termine')}
@@ -171,7 +173,7 @@ const meldung = listenMeldung(p, ortName);
               Für {Number(g.von.slice(0, 4)) + 1} übernehmen
             </a>
           </p>
-          {offen.length > 1 && (
+          {kg && offen.length > 1 && (
             <p class="gruppenaktion">
               <a
                 class="knopf zweit"
@@ -209,7 +211,7 @@ const meldung = listenMeldung(p, ortName);
                     <Icon name="stift" />
                     Bearbeiten
                   </a>
-                  {!t.bestaetigt && (
+                  {kg && !t.bestaetigt && (
                     <a
                       class="klein"
                       href={`/admin/termine/${t.id}/aktion?aktion=bestaetigen&zurueck=${zurueck}`}

@@ -104,11 +104,17 @@ const verwalte = new VerwalteFestplaetze(
 );
 
 const geaendert: string[] = [];
+/** Mit welchem „bestätigt“ gespeichert wurde (Issue #240) */
+const status: boolean[] = [];
 const terminVerwaltung: TerminVerwaltung = {
-  lege: async (t) => ({ ...termin, titel: t.titel, datum: t.datum }),
+  lege: async (t) => (status.push(t.bestaetigt), { ...termin, titel: t.titel, datum: t.datum }),
   legeAlle: async (ts) =>
     ts.map((t) => ({ ...termin, titel: t.titel, datum: t.datum, band: t.band, info: t.info })),
-  aendere: async (id) => (geaendert.push(`aendere:${id}`), id === termin.id),
+  aendere: async (id, t) => (
+    geaendert.push(`aendere:${id}`),
+    status.push(t.bestaetigt),
+    id === termin.id
+  ),
   setzeSpeisen: async (id) => id === termin.id,
   aendereAlle: async (aenderungen, loeschen) =>
     [...aenderungen.map((x) => x.id), ...loeschen].every((id) => id === termin.id),
@@ -814,22 +820,42 @@ describe('Admin-Bereich', () => {
     expect(await status({ method: 'PUT', url, payload: f })).toBe(200);
     expect(await status({ method: 'PUT', url: fremd, payload: f })).toBe(404);
     expect(await status({ method: 'PUT', url, payload: { ...f, datum: 'kaputt' } })).toBe(400);
-    expect(
-      await status({
+    // Bestätigen nur die Kirmesgesellschaft (Issue #240)
+    const bestaetigen = (u: string, headers: object) =>
+      app.inject({
         method: 'POST',
-        url: `${url}/bestaetigen`,
+        url: `${u}/bestaetigen`,
+        headers,
         payload: { ortSlug: 'muehlberg' },
-      }),
-    ).toBe(204);
-    expect(
-      await status({
-        method: 'POST',
-        url: `${fremd}/bestaetigen`,
-        payload: { ortSlug: 'muehlberg' },
-      }),
-    ).toBe(404);
+      });
+    expect((await bestaetigen(url, auth)).statusCode).toBe(403);
+    const kg = { authorization: `Sitzung ${KG_SITZUNG}` };
+    expect((await bestaetigen(url, kg)).statusCode).toBe(204);
+    expect((await bestaetigen(fremd, kg)).statusCode).toBe(404);
     expect(await status({ method: 'DELETE', url: `${url}?ort=muehlberg` })).toBe(204);
     expect(await status({ method: 'DELETE', url: `${fremd}?ort=muehlberg` })).toBe(404);
+  });
+
+  it('„bestätigt“ setzt nur die Kirmesgesellschaft – Redaktion nie, Bearbeiten behält (#240)', async () => {
+    await setup();
+    const kg = { authorization: `Sitzung ${KG_SITZUNG}` };
+    const neu = { ortSlug: 'muehlberg', datum: '2026-10-18', titel: 'Kirmes', bestaetigt: true };
+    status.length = 0;
+    await app.inject({ method: 'POST', url: '/api/v1/admin/termine', headers: auth, payload: neu });
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/termine',
+      headers: kg,
+      payload: { ...neu, bestaetigt: false },
+    });
+    // Bearbeiten durch die Redaktion: bisheriger Stand (Testtermin ist bestätigt), egal was gesendet wird
+    await app.inject({
+      method: 'PUT',
+      url: `/api/v1/admin/termine/${termin.id}`,
+      headers: auth,
+      payload: { ...neu, bestaetigt: false },
+    });
+    expect(status).toEqual([false, true, termin.bestaetigt]);
   });
 
   it('verwaltet Bearbeitungslinks und Mitteilungen', async () => {

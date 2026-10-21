@@ -139,22 +139,18 @@ export async function vorschlagRouten(
         return a.ok ? a.value : fehler(reply, a.error);
       },
     );
-    r.post<{ Params: { id: string }; Body: VorschlagEingabe & { bestaetigt?: boolean } }>(
+    r.post<{ Params: { id: string }; Body: VorschlagEingabe }>(
       '/api/v1/admin/termine-vorschlaege/:id/uebernehmen',
       {
         bodyLimit: 256 * 1024,
         schema: {
           params,
+          // „bestaetigt“ bestimmt der Use Case aus der Rolle (Issue #240) – vom Browser ignoriert
           body: { ...body, properties: { ...eingabe, bestaetigt: { type: 'boolean' } } },
         },
       },
       async (req, reply) => {
-        const a = await v.uebernehme(
-          token(req.headers.authorization),
-          req.params.id,
-          req.body,
-          req.body.bestaetigt ?? false,
-        );
+        const a = await v.uebernehme(token(req.headers.authorization), req.params.id, req.body);
         return a.ok ? reply.status(204).send() : fehler(reply, a.error);
       },
     );

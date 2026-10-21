@@ -10,6 +10,7 @@ describe('Rechte zentral (Issue #198)', () => {
   const tabelle: [Aktion, boolean, boolean, boolean][] = [
     ['redaktion', true, true, true],
     ['termine', true, true, true],
+    ['termine.bestaetigen', false, false, true],
     ['plaetze', true, true, true],
     ['vorschlaege', true, true, true],
     ['korrekturen', true, true, true],

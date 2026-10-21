@@ -317,13 +317,15 @@ export class Vorschlaege {
     const v = await this.eigener(s, id);
     return v ? ok(v) : err('NICHT_GEFUNDEN' as const);
   }
-  async uebernehme(token: string, id: string, e: VorschlagEingabe, bestaetigt: boolean) {
+  /** Übernimmt eine Kirmesgesellschaft den Vorschlag ihres Ortes, ist er bestätigt (Issue #240). */
+  async uebernehme(token: string, id: string, e: VorschlagEingabe) {
     const s = await this.berechtigt(token);
     if (!s) return err('VERBOTEN' as const);
     if (!(await this.eigener(s, id)) || !darf(s, 'vorschlaege', e.ortSlug))
       return err('NICHT_GEFUNDEN' as const);
     const v = await pruefeVorschlag(e, this.orte, { redaktion: true });
     if (!v.ok) return v;
+    const bestaetigt = darf(s, 'termine.bestaetigen', e.ortSlug);
     const r = await this.repo.uebernehme(
       id,
       v.value.termine.map((t) => ({ ...t, bestaetigt })),

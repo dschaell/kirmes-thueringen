@@ -174,12 +174,7 @@ const { s, redaktion, ortName } = Astro.props;
     </label>
   </section>
 )}
-{redaktion ? (
-  <label>
-    <input type="checkbox" name="bestaetigt" checked={s.bestaetigt} /> Vom Veranstalter bestätigt
-    (die Kirmesgesellschaft hat die Angaben selbst gemacht oder bestätigt, z. B. eigener Post)
-  </label>
-) : (
+{redaktion ? null : (
   <>
     <h3>Für Rückfragen (freiwillig)</h3>
     <label>

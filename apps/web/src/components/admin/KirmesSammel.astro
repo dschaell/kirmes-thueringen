@@ -85,10 +85,6 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
                 <input type="checkbox" name="s-mutti" value={String(i)} checked={t.muttizettel} />{' '}
                 Muttizettel
               </label>
-              <label class="klein">
-                <input type="checkbox" name="s-best" value={String(i)} checked={t.bestaetigt} /> Vom
-                Veranstalter bestätigt
-              </label>
               <a class="klein" href={`/admin/termine/${t.id}`}>
                 Essen & Getränke
               </a>

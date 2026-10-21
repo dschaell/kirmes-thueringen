@@ -199,7 +199,7 @@ describe('Öffentliche Vorschläge', () => {
         await v.liste(t),
         await v.anzahl(t),
         await v.finde(t, ID),
-        await v.uebernehme(t, ID, eingabe(), false),
+        await v.uebernehme(t, ID, eingabe()),
         await v.lehneAb(t, ID),
       ])
         expect(r).toEqual({ ok: false, error: 'VERBOTEN' });
@@ -218,7 +218,7 @@ describe('Öffentliche Vorschläge', () => {
     const { v, repo } = setup();
     for (const id of ['ungueltig', ID]) {
       expect(await v.finde('token', id)).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
-      expect(await v.uebernehme('token', id, eingabe(), true)).toEqual({
+      expect(await v.uebernehme('token', id, eingabe())).toEqual({
         ok: false,
         error: 'NICHT_GEFUNDEN',
       });
@@ -227,23 +227,23 @@ describe('Öffentliche Vorschläge', () => {
     expect(await v.lehneAb('token', ID)).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
     expect(await v.lehneAb('token', 'bad')).toEqual({ ok: false, error: 'NICHT_GEFUNDEN' });
   });
-  it('übernimmt ausschließlich neu validierte Termine atomar mit Admin-ID und bewusster Bestätigung', async () => {
+  it('übernimmt ausschließlich neu validierte Termine atomar mit Admin-ID – Redaktion nie „bestätigt“ (#240)', async () => {
     const { v, repo } = setup();
     vi.mocked(repo.finde).mockResolvedValue({ id: ID } as never);
-    expect(await v.uebernehme('token', ID, eingabe(), true)).toEqual({ ok: true, value: true });
+    expect(await v.uebernehme('token', ID, eingabe())).toEqual({ ok: true, value: true });
     expect(repo.uebernehme).toHaveBeenCalledWith(
       ID,
-      [expect.objectContaining({ bestaetigt: true })],
+      [expect.objectContaining({ bestaetigt: false })],
       '1',
     );
-    expect((await v.uebernehme('token', ID, { ...eingabe(), zeilen: [] }, false)).ok).toBe(false);
+    expect((await v.uebernehme('token', ID, { ...eingabe(), zeilen: [] })).ok).toBe(false);
     vi.mocked(repo.uebernehme).mockResolvedValueOnce('KONFLIKT');
-    expect(await v.uebernehme('token', ID, eingabe(), false)).toEqual({
+    expect(await v.uebernehme('token', ID, eingabe())).toEqual({
       ok: false,
       error: 'KONFLIKT',
     });
     vi.mocked(repo.uebernehme).mockResolvedValue(false);
-    expect(await v.uebernehme('token', ID, eingabe(), false)).toEqual({
+    expect(await v.uebernehme('token', ID, eingabe())).toEqual({
       ok: false,
       error: 'NICHT_GEFUNDEN',
     });
@@ -529,9 +529,7 @@ describe('Vorschläge für die Kirmesgesellschaft (Issue #180)', () => {
       ok: false,
       error: 'NICHT_GEFUNDEN',
     });
-    expect(
-      await v.uebernehme('kg', 'ab000000-0000-4000-8000-000000000002', eingabe(), false),
-    ).toEqual({
+    expect(await v.uebernehme('kg', 'ab000000-0000-4000-8000-000000000002', eingabe())).toEqual({
       ok: false,
       error: 'NICHT_GEFUNDEN',
     });
@@ -539,9 +537,15 @@ describe('Vorschläge für die Kirmesgesellschaft (Issue #180)', () => {
     expect((await v.finde('kg', ID)).ok).toBe(true);
     expect((await v.lehneAb('kg', ID)).ok).toBe(true);
     // eigener Vorschlag, aber Übernahme in fremden Ort umgeschrieben → nein
-    expect(await v.uebernehme('kg', ID, { ...eingabe(), ortSlug: 'erfurt' }, false)).toEqual({
+    expect(await v.uebernehme('kg', ID, { ...eingabe(), ortSlug: 'erfurt' })).toEqual({
       ok: false,
       error: 'NICHT_GEFUNDEN',
     });
+    // Kirmesgesellschaft übernimmt den Vorschlag ihres Ortes → bestätigt (Issue #240)
+    vi.mocked(repo.uebernehme).mockClear();
+    expect((await v.uebernehme('kg', ID, eingabe())).ok).toBe(true);
+    expect(vi.mocked(repo.uebernehme).mock.calls[0]?.[1]).toEqual([
+      expect.objectContaining({ bestaetigt: true }),
+    ]);
   });
 });
