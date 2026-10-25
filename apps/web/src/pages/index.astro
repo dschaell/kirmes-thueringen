@@ -101,12 +101,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       <h2>Nach Landkreis</h2>
       <ul class="kreisliste">
         {kreise.map((x) => (
-          <li>
+          <li class:list={[{ 'ohne-termine': x.n === 0 }]}>
             <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
             {x.n > 0 && <span class="n">{x.n}</span>}
           </li>
         ))}
       </ul>
+      {/* Am Handy nur Kreise mit Terminen – alle 23 unter „Landkreise“ (Issue #265) */}
+      <a class="mehr alle-kreise" href="/kreise">
+        Alle {kreise.length} Landkreise <Icon name="pfeil" />
+      </a>
 
       <h2>Immer aktuell im eigenen Kalender</h2>
       <p>
@@ -139,5 +143,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <style>
   .alle-termine {
     margin-top: 24px;
+  }
+  .seitenleiste .alle-kreise {
+    display: none;
+  }
+  @media (max-width: 900px) {
+    .kreisliste .ohne-termine {
+      display: none;
+    }
+    .seitenleiste .alle-kreise {
+      display: inline-flex;
+      margin: 4px 0 16px;
+    }
   }
 </style>
