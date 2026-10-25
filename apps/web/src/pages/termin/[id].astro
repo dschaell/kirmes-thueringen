@@ -55,7 +55,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   bild={`/termin/${t.id}/bild.png`}
 >
   <p class="brotkrumen">
-    <a href={`/kreise/${kreisSlug(t.ort.landkreis)}`}>{kreisName(t.ort.landkreis)}</a> ›
+    <a href={`/kreise/${kreisSlug(t.ort.landkreis)}`}>{kreisName(t.ort.landkreis)}</a> ›{' '}
     <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a>
   </p>
 

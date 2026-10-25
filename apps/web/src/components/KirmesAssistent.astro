@@ -41,7 +41,7 @@ const ortBezeichnung = bezeichner(orte);
 const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
 ---
 
-<div class="kirmes-assistent">
+<div id="assistent" class="kirmes-assistent">
   <ol class="schritte" aria-label="Fortschritt">
     {['Wo und wann?', 'Was ist los?', 'Details'].map((t, i) => (
       <li aria-current={s.schritt === i + 1 ? 'step' : undefined}>
@@ -71,7 +71,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       )}
     </div>
   )}
-  <form method="post" class="melden" data-ungespeichert>
+  <form method="post" action="#assistent" class="melden" data-ungespeichert>
     <input type="hidden" name="csrf_token" value={csrf} />
     <input type="hidden" name="stand" value={JSON.stringify(s)} />
     <label class="falle" aria-hidden="true">
@@ -226,7 +226,7 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       align-items: center;
       padding: 0 8px;
       cursor: pointer;
-      color: var(--fokus);
+      color: var(--tinte);
       text-decoration: underline;
       list-style: none;
     }

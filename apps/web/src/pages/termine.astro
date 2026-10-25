@@ -119,7 +119,7 @@ const ZEIT_TEXT: Record<string, string> = {
   wochenende: 'Dieses Wochenende',
   jahr: `Ganzes Jahr ${jahr}`,
   vergangen: 'Vergangene Termine',
-  alle: 'Ein Jahr zurück und voraus',
+  alle: 'Alle Termine (±1 Jahr)',
 };
 const chips = [
   ...(kreisGewaehlt ? [{ text: kreisKurz(kreisGewaehlt), href: ohne('kreis') }] : []),
@@ -186,7 +186,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
                 Vergangene Termine
               </option>
               <option value="alle" selected={zeit === 'alle'}>
-                Ein Jahr zurück und voraus
+                Alle Termine (±1 Jahr)
               </option>
             </select>
           </div>
