@@ -17,15 +17,18 @@ import type { LandkreisKuerzel } from '@kirmes/core';
 
 const h = heute();
 const we = wochenende(h);
-const [amWochenende, danach, orte] = await Promise.all([
-  sucheTermine({ ...we, limit: 200 }),
-  sucheTermine({ von: plusTage(we.bis, 1), bis: plusTage(we.bis, 14), limit: 40 }),
+// Startseite = „Was ist jetzt los?“ (Issue #263): ab heute bis Sonntag – auch Mo–Do der heutige
+// Tag. Alles Weitere steht nur unter „Termine“, nicht doppelt.
+const tag = new Date(h).getUTCDay(); // 0 = So
+const wochenendeSchon = tag === 0 || tag >= 5;
+const [jetzt, orte] = await Promise.all([
+  sucheTermine({ von: h, bis: we.bis, limit: 200 }),
   listeOrte(),
 ]);
-// Nichts am Wochenende und in den zwei Wochen danach? Dann die nächsten Termine überhaupt (#104)
+// Nichts bis Sonntag? Dann die nächsten Termine überhaupt (#104)
 const spaeter =
-  amWochenende.termine.length === 0 && danach.termine.length === 0
-    ? (await sucheTermine({ von: plusTage(we.bis, 15), limit: 5 })).termine
+  jetzt.termine.length === 0
+    ? (await sucheTermine({ von: plusTage(we.bis, 1), limit: 5 })).termine
     : [];
 const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
   .map((k) => ({
@@ -52,7 +55,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         'query-input': 'required name=suche',
       },
     },
-    ...amWochenende.termine.slice(0, 30).map((t) => eventJsonLd(t, Astro.site!)),
+    ...jetzt.termine.slice(0, 30).map((t) => eventJsonLd(t, Astro.site!)),
   ]}
 >
   <section class="einstieg">
@@ -77,23 +80,21 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
   <div class="zweispaltig">
     <div>
-      <h2>Dieses Wochenende</h2>
-      <TerminListe termine={amWochenende.termine} monate={false} leer={false} />
-      {amWochenende.termine.length === 0 && (
+      <h2>{wochenendeSchon ? 'Dieses Wochenende' : 'Diese Woche & am Wochenende'}</h2>
+      <TerminListe termine={jetzt.termine} monate={false} leer={false} />
+      {jetzt.termine.length === 0 && (
         <KeineTreffer
-          text="An diesem Wochenende ist keine Kirmes eingetragen."
+          text={
+            wochenendeSchon
+              ? 'An diesem Wochenende ist keine Kirmes eingetragen.'
+              : 'Bis Sonntag ist keine Kirmes eingetragen.'
+          }
           naechste={spaeter}
         />
       )}
-      {danach.termine.length > 0 && (
-        <>
-          <h2>Die zwei Wochen danach</h2>
-          <TerminListe termine={danach.termine} monate={false} hinweis={false} />
-          <a class="mehr" href={`/termine?von=${plusTage(we.bis, 1)}`}>
-            Alle weiteren Termine <Icon name="pfeil" />
-          </a>
-        </>
-      )}
+      <a class="knopf alle-termine" href="/termine">
+        Alle Termine <Icon name="pfeil" />
+      </a>
     </div>
 
     <aside class="seitenleiste">
@@ -134,3 +135,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </aside>
   </div>
 </Base>
+
+<style>
+  .alle-termine {
+    margin-top: 24px;
+  }
+</style>

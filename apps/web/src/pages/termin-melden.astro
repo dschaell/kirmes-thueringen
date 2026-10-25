@@ -24,8 +24,7 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
   <section class="einstieg">
     <h1>Termin melden</h1>
     <p class="unterzeile">
-      Eure Kirmes fehlt? Schlagt einen Termin oder das ganze Programm vor – kostenlos und ohne
-      Anmeldung. Die Redaktion prüft die Angaben vor der Veröffentlichung.
+      Eure Kirmes fehlt? Schlagt sie vor – kostenlos, ohne Anmeldung. Die Redaktion prüft vorher.
     </p>
   </section>
 
@@ -35,13 +34,13 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
       <p>
         <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>
         <a class="mehr" href="/redaktion-mitmachen">
-          Mit eigenem Zugang mitmachen <Icon name="pfeil" />
+          Jetzt mitmachen <Icon name="pfeil" />
         </a>
       </p>
       <p>
         <strong>Du willst Teil der Redaktion werden?</strong>
         <a class="mehr" href="/redaktion-mitmachen#redaktion">
-          In der Redaktion mitmachen <Icon name="pfeil" />
+          Mithelfen <Icon name="pfeil" />
         </a>
       </p>
     </aside>
@@ -96,9 +95,14 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     margin: 0 0 24px;
   }
   .mitmachen-hinweis .mehr {
-    display: flex;
+    display: inline-flex;
     gap: 6px;
-    width: fit-content;
+  }
+  @media (max-width: 400px) {
+    .mitmachen-hinweis {
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
   }
   .mitmachen-hinweis p {
     margin: 0;
