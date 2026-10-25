@@ -104,6 +104,8 @@ describe('Redaktion', () => {
         mitteilungen.push(neu);
         return neu;
       },
+      aendere: async (id, m) =>
+        id === '1' ? { ...m, id, veroeffentlichtAm: null, erstelltAm: 'jetzt' } : null,
       setzeVeroeffentlicht: async (id) => id === '1',
       loesche: async (id) => id === '1',
     };
@@ -163,6 +165,21 @@ describe('Redaktion', () => {
     expect(await r.veroeffentliche('1', true)).toBe(true);
     expect(await r.loescheMitteilung('2')).toBe(false);
     expect(await r.listeMitteilungen()).toHaveLength(1);
+  });
+
+  it('ändert Mitteilungen mit denselben Regeln wie beim Anlegen (Issue #261)', async () => {
+    const { r } = aufbau();
+    const neu = await r.aendereMitteilung('1', {
+      titel: '  Neu  ',
+      text: 'Text',
+      link: '/termine',
+    });
+    expect(neu.ok && neu.value).toMatchObject({ id: '1', titel: 'Neu', link: '/termine' });
+    expect(await r.aendereMitteilung('2', { titel: 'T', text: 'x' })).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect((await r.aendereMitteilung('1', { titel: '', text: '' })).ok).toBe(false);
   });
 
   it('legt Orte an und meldet vergebene Adressen', async () => {

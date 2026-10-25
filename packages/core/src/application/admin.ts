@@ -65,6 +65,8 @@ export interface MitteilungRepository {
   liste(): Promise<Mitteilung[]>;
   aktuelle(): Promise<Mitteilung | null>;
   lege(m: NeueMitteilung, adminId: string): Promise<Mitteilung>;
+  /** Titel, Text, Link ändern (Issue #261) – null, wenn es sie nicht gibt */
+  aendere(id: string, m: NeueMitteilung): Promise<Mitteilung | null>;
   setzeVeroeffentlicht(id: string, an: boolean): Promise<boolean>;
   loesche(id: string): Promise<boolean>;
 }
@@ -149,6 +151,14 @@ export class Redaktion {
   ): Promise<Result<Mitteilung, Validierungsfehler[]>> {
     const v = validiereMitteilung(e);
     return v.ok ? ok(await this.mitteilungen.lege(v.value, adminId)) : v;
+  }
+  /** Bearbeiten (Issue #261): gleiche Regeln wie beim Anlegen; ok(null) = gibt es nicht. */
+  async aendereMitteilung(
+    id: string,
+    e: MitteilungEingabe,
+  ): Promise<Result<Mitteilung | null, Validierungsfehler[]>> {
+    const v = validiereMitteilung(e);
+    return v.ok ? ok(await this.mitteilungen.aendere(id, v.value)) : v;
   }
   veroeffentliche(id: string, an: boolean) {
     return this.mitteilungen.setzeVeroeffentlicht(id, an);

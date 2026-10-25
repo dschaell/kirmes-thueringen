@@ -35,6 +35,8 @@ const nav = kg
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       ['/admin/orte', 'Orte & Plätze'],
+      // Aus „Mehr“ geholt, damit die angezeigte Mitteilung leicht zu finden ist (Issue #261)
+      ...(darf(Astro.locals, 'mitteilungen') ? [['/admin/mitteilungen', 'Mitteilungen']] : []),
       ...(darf(Astro.locals, 'mitglieder')
         ? [['/admin/mitglieder', 'Redaktion & Einladungen']]
         : []),
@@ -43,7 +45,6 @@ const mehr = kg
   ? [['/admin/passkeys', 'Mein Konto']]
   : [
       ['/admin/import', 'Termine importieren'],
-      ['/admin/mitteilungen', 'Mitteilungen'],
       ['/admin/links', 'Bearbeitungslinks'],
       ['/admin/passkeys', 'Mein Konto'],
     ];

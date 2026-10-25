@@ -298,6 +298,21 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     expect((await m.aktuelle())?.titel).toBe('IT Zweite');
     await m.setzeVeroeffentlicht(b.id, false);
     expect((await m.aktuelle())?.id).toBe(a.id);
+    // Bearbeiten (Issue #261): Inhalt neu, Veröffentlichung bleibt
+    const vorher = await m.aktuelle();
+    const neu = await m.aendere(a.id, {
+      titel: 'IT Erste geändert',
+      text: 'neu',
+      link: '/termine',
+    });
+    expect(neu).toMatchObject({
+      id: a.id,
+      titel: 'IT Erste geändert',
+      text: 'neu',
+      link: '/termine',
+    });
+    expect(neu?.veroeffentlichtAm).toBe(vorher?.veroeffentlichtAm);
+    expect(await m.aendere('999999999', { titel: 'IT x', text: 'x', link: null })).toBeNull();
     expect(await m.loesche(b.id)).toBe(true);
     expect(await m.loesche(b.id)).toBe(false);
     expect(await m.setzeVeroeffentlicht('999999999', true)).toBe(false);
