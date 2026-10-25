@@ -29,11 +29,51 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     </p>
   </section>
 
+  {/* Hinweis aufs Mitmachen (Issue #252) – oben, nur vor dem Assistenten; alte Links auf #festplatz landen hier */}
+  {stand.schritt === 1 && !Astro.url.searchParams.has('gesendet') && (
+    <aside id="festplatz" class="kasten mitmachen-hinweis">
+      <p>
+        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong> Dann macht gerne mit: Mit
+        einem eigenen Zugang tragt ihr eure Kirmes selbst ein und pflegt Termine, Programm, Band,
+        Essen und euren Festplatz jederzeit – ohne auf uns zu warten.
+        <a class="mehr" href="/redaktion-mitmachen">
+          Mit eurer Kirmesgesellschaft mitmachen <Icon name="pfeil" />
+        </a>
+      </p>
+      <p>
+        <strong>Du willst Teil der Redaktion werden?</strong> Du kennst die Kirmes in deiner Gegend
+        und willst helfen, den Kalender aktuell zu halten?
+        <a class="mehr" href="/redaktion-mitmachen#redaktion">
+          In der Redaktion mitmachen <Icon name="pfeil" />
+        </a>
+      </p>
+    </aside>
+  )}
+
   {Astro.url.searchParams.has('gesendet') ? (
     <>
       <p class="meldung erfolg" role="status">
         Danke! Dein Vorschlag ist angekommen. Die Redaktion prüft ihn vor der Veröffentlichung.
       </p>
+      <aside class="kasten mitmachen-hinweis">
+        <p>
+          <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong> Dann macht gerne mit: Mit
+          einem eigenen Zugang tragt ihr eure Kirmes beim nächsten Mal direkt selbst ein – sofort
+          sichtbar und als „bestätigt“ markiert.
+        </p>
+        <p>
+          <strong>Du willst Teil der Redaktion werden?</strong> Hilf mit, die Kirmes in deiner
+          Gegend aktuell zu halten.
+        </p>
+        <div class="weiter-knoepfe">
+          <a class="knopf" href="/redaktion-mitmachen">
+            Mit eurer Kirmesgesellschaft mitmachen
+          </a>
+          <a class="knopf zweit" href="/redaktion-mitmachen#redaktion">
+            In der Redaktion mitmachen
+          </a>
+        </div>
+      </aside>
       <div class="weiter-knoepfe">
         <a class="knopf" href="/termin-melden">
           Weitere Kirmes melden
@@ -52,22 +92,20 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
       titel={vorschlaege.titel}
     />
   )}
-
-  {/* Alte Links auf #festplatz landen hier (Issue #229) – nur außerhalb des laufenden Assistenten */}
-  {(stand.schritt === 1 || Astro.url.searchParams.has('gesendet')) && (
-    <section id="festplatz" class="kasten abstand">
-      <h2>Ihr seid Kirmesgesellschaft?</h2>
-      <p>
-        Mit einem eigenen Zugang pflegt ihr Termine, Programm und euren Festplatz auf der Karte
-        selbst – dann führt „Route“ eure Gäste direkt zum Festzelt, Saal oder Sportplatz.
-      </p>
-      <a class="mehr" href="/redaktion-mitmachen">
-        Zugang für eure Kirmesgesellschaft anfragen <Icon name="pfeil" />
-      </a>
-    </section>
-  )}
 </Base>
 <style>
+  .mitmachen-hinweis {
+    border-left: 4px solid var(--rot);
+    margin: 0 0 24px;
+  }
+  .mitmachen-hinweis p:first-child {
+    margin-top: 0;
+  }
+  .mitmachen-hinweis .mehr {
+    display: flex;
+    width: fit-content;
+    margin-top: 6px;
+  }
   .weiter-knoepfe {
     display: flex;
     flex-wrap: wrap;
