@@ -294,6 +294,8 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
           liste: async () => [],
           aktuelle: async () => null,
           lege: async (m) => ({ ...m, id: '5', veroeffentlichtAm: null, erstelltAm: 'jetzt' }),
+          aendere: async (id, m) =>
+            id === '5' ? { ...m, id, veroeffentlichtAm: null, erstelltAm: 'jetzt' } : null,
           setzeVeroeffentlicht: async (id) => id === '5',
           loesche: async (id) => id === '5',
         },
@@ -898,6 +900,28 @@ describe('Admin-Bereich', () => {
       }),
     ).toBe(404);
     expect(await status({ method: 'DELETE', url: '/api/v1/admin/mitteilungen/5' })).toBe(204);
+    // Bearbeiten (Issue #261)
+    const geaendert = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/mitteilungen/5',
+      headers: auth,
+      payload: { titel: 'Neu', text: 'Text', link: null },
+    });
+    expect(geaendert.json()).toMatchObject({ id: '5', titel: 'Neu' });
+    expect(
+      await status({
+        method: 'PUT',
+        url: '/api/v1/admin/mitteilungen/6',
+        payload: { titel: 'Neu', text: 'Text' },
+      }),
+    ).toBe(404);
+    expect(
+      await status({
+        method: 'PUT',
+        url: '/api/v1/admin/mitteilungen/5',
+        payload: { titel: ' ', text: 'Text' },
+      }),
+    ).toBe(400);
     expect(
       await status({
         method: 'POST',

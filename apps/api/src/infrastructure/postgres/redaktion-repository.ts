@@ -74,6 +74,16 @@ export class PgMitteilungen implements MitteilungRepository {
     return zuMitteilung(neu);
   }
 
+  async aendere(id: string, m: NeueMitteilung): Promise<Mitteilung | null> {
+    const { rows } = await abfrage<MitteilungZeile>(
+      this.db,
+      `UPDATE mitteilung SET titel = $2, text = $3, link = $4 WHERE id = $1::bigint
+       RETURNING ${MITTEILUNG_SPALTEN}`,
+      [id, m.titel, m.text, m.link],
+    );
+    return rows[0] ? zuMitteilung(rows[0]) : null;
+  }
+
   async setzeVeroeffentlicht(id: string, an: boolean): Promise<boolean> {
     const r = await abfrage(
       this.db,

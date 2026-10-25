@@ -14,6 +14,7 @@ interface Mitteilung {
 
 let meldung: string | null = null;
 let fehler: string[] = [];
+let erledigt = '';
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
@@ -35,10 +36,19 @@ if (Astro.request.method === 'POST') {
               an: aktion === 'veroeffentlichen',
             },
           )
-        : aktion === 'loeschen'
-          ? await adminApi(Astro.cookies, 'DELETE', `mitteilungen/${encodeURIComponent(id)}`)
-          : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
+        : aktion === 'aendern'
+          ? await adminApi(Astro.cookies, 'PUT', `mitteilungen/${encodeURIComponent(id)}`, {
+              titel: feld(f, 'titel'),
+              text: feld(f, 'text'),
+              link: feld(f, 'link') || null,
+            })
+          : aktion === 'loeschen'
+            ? feld(f, 'rueckfrage') === 'ja'
+              ? await adminApi(Astro.cookies, 'DELETE', `mitteilungen/${encodeURIComponent(id)}`)
+              : { status: 400, daten: null, fehler: ['Bitte das Löschen ausdrücklich bestätigen.'] }
+            : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
   if (r.status < 300) {
+    erledigt = aktion;
     meldung =
       {
         neu:
@@ -47,6 +57,7 @@ if (Astro.request.method === 'POST') {
             : 'Mitteilung als Entwurf gespeichert.',
         veroeffentlichen: 'Mitteilung veröffentlicht.',
         zurueckziehen: 'Mitteilung zurückgezogen.',
+        aendern: 'Änderung gespeichert.',
         loeschen: 'Mitteilung gelöscht.',
       }[aktion] ?? 'Erledigt.';
   } else fehler = r.fehler;
@@ -57,6 +68,13 @@ const aktuellId = liste
   .filter((m) => m.veroeffentlichtAm)
   .sort((a, b) => (b.veroeffentlichtAm ?? '').localeCompare(a.veroeffentlichtAm ?? ''))[0]?.id;
 const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
+const aktuell = liste.find((m) => m.id === aktuellId);
+// Zurückziehen der angezeigten macht still eine ältere sichtbar – das sagen wir (Issue #261)
+if (meldung && (erledigt === 'zurueckziehen' || erledigt === 'loeschen')) {
+  meldung += aktuell
+    ? ` Jetzt wird angezeigt: „${aktuell.titel}“.`
+    : ' Jetzt wird keine Mitteilung angezeigt.';
+}
 ---
 
 <AdminLayout titel="Mitteilungen" meldung={meldung} fehler={fehler}>
@@ -64,6 +82,124 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
     Besucher sehen die <strong>neueste veröffentlichte</strong> Mitteilung einmal als Hinweis. Wer
     sie schließt, sieht sie nicht wieder – erst die nächste neue Mitteilung.
   </p>
+
+  <section class="kasten angezeigt">
+    <h2>Wird gerade angezeigt</h2>
+    {aktuell ? (
+      <>
+        <p>
+          <strong>{aktuell.titel}</strong>
+          <span class="leise klein"> · seit {zeit(aktuell.veroeffentlichtAm)}</span>
+        </p>
+        <p class="volltext">{aktuell.text}</p>
+        {aktuell.link && <p class="klein">Link: {aktuell.link}</p>}
+        <form method="post">
+          <CsrfFeld />
+          <input type="hidden" name="id" value={aktuell.id} />
+          <button class="knopf zweit" name="aktion" value="zurueckziehen">
+            Zurückziehen – nicht mehr anzeigen
+          </button>
+        </form>
+        {liste.some((m) => m.veroeffentlichtAm && m.id !== aktuell.id) && (
+          <p class="leise klein">
+            Danach erscheint die nächstältere veröffentlichte Mitteilung. Soll keine mehr
+            erscheinen, die älteren ebenfalls zurückziehen.
+          </p>
+        )}
+      </>
+    ) : (
+      <p class="leer">Keine – Besucher sehen gerade keine Mitteilung.</p>
+    )}
+  </section>
+
+  <h2>Alle Mitteilungen</h2>
+  {liste.length === 0 ? (
+    <p class="leer">Noch keine Mitteilungen.</p>
+  ) : (
+    <ul class="mitteilungsliste">
+      {liste.map((m) => (
+        <li class="kasten">
+          <p>
+            <strong>{m.titel}</strong>{' '}
+            {m.id === aktuellId ? (
+              <span class="bestaetigt">wird angezeigt</span>
+            ) : m.veroeffentlichtAm ? (
+              <span class="leise klein">veröffentlicht, aber verdeckt von einer neueren</span>
+            ) : (
+              <span class="leise klein">Entwurf – nicht sichtbar</span>
+            )}
+          </p>
+          <p class="leise klein">Erstellt {zeit(m.erstelltAm)}</p>
+          <p class="volltext">{m.text}</p>
+          {m.link && <p class="klein">Link: {m.link}</p>}
+          <details>
+            <summary>Bearbeiten</summary>
+            <form class="melden" method="post">
+              <CsrfFeld />
+              <input type="hidden" name="aktion" value="aendern" />
+              <input type="hidden" name="id" value={m.id} />
+              <label>
+                Titel
+                <input name="titel" required maxlength="120" value={m.titel} />
+              </label>
+              <label>
+                Text<textarea name="text" required maxlength="2000" rows="6">{m.text}</textarea>
+              </label>
+              <label>
+                Link (optional)
+                <input
+                  name="link"
+                  maxlength="500"
+                  value={m.link ?? ''}
+                  placeholder="/termine oder https://…"
+                  pattern="(https://|/).*"
+                />
+              </label>
+              <p class="leise klein">
+                Wer die Mitteilung schon weggeklickt hat, sieht die Änderung nicht. Soll sie alle
+                noch einmal sehen: als neue Mitteilung anlegen.
+              </p>
+              <div>
+                <button class="knopf" type="submit">
+                  Änderung speichern
+                </button>
+              </div>
+            </form>
+          </details>
+          <div class="klein-knoepfe">
+            <form method="post">
+              <CsrfFeld />
+              <input type="hidden" name="id" value={m.id} />
+              {m.veroeffentlichtAm ? (
+                <button class="knopf zweit" name="aktion" value="zurueckziehen">
+                  Zurückziehen
+                </button>
+              ) : (
+                <button class="knopf" name="aktion" value="veroeffentlichen">
+                  Veröffentlichen
+                </button>
+              )}
+            </form>
+            <details class="sicherheitsfrage">
+              <summary>Löschen …</summary>
+              <form method="post">
+                <CsrfFeld />
+                <input type="hidden" name="aktion" value="loeschen" />
+                <input type="hidden" name="id" value={m.id} />
+                <label>
+                  <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, „{m.titel}“
+                  endgültig löschen.
+                </label>
+                <button class="knopf gefahr" type="submit">
+                  Jetzt löschen
+                </button>
+              </form>
+            </details>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
 
   <h2>Neue Mitteilung</h2>
   <form class="melden" method="post">
@@ -99,68 +235,37 @@ const zeit = (s: string | null) => (s ? s.replace('T', ' ') : '–');
       </button>
     </div>
   </form>
-
-  <h2>Alle Mitteilungen</h2>
-  {liste.length === 0 ? (
-    <p class="leer">Noch keine Mitteilungen.</p>
-  ) : (
-    <table class="admin-tabelle">
-      <thead>
-        <tr>
-          <th>Titel</th>
-          <th>Status</th>
-          <th>Erstellt</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {liste.map((m) => (
-          <tr>
-            <td>
-              <span class="tabellen-label">Titel</span>
-              <strong>{m.titel}</strong>
-              <div class="leise klein">
-                {m.text.slice(0, 140)}
-                {m.text.length > 140 ? '…' : ''}
-              </div>
-            </td>
-            <td>
-              <span class="tabellen-label">Status</span>
-              {m.id === aktuellId ? (
-                <span class="bestaetigt">wird angezeigt</span>
-              ) : m.veroeffentlichtAm ? (
-                'veröffentlicht (ältere)'
-              ) : (
-                'Entwurf'
-              )}
-            </td>
-            <td class="klein">
-              <span class="tabellen-label">Erstellt</span>
-              {zeit(m.erstelltAm)}
-            </td>
-            <td>
-              <div class="klein-knoepfe">
-                <form method="post">
-                  <CsrfFeld />
-                  <input type="hidden" name="id" value={m.id} />
-                  {m.veroeffentlichtAm ? (
-                    <button class="knopf zweit" name="aktion" value="zurueckziehen">
-                      Zurückziehen
-                    </button>
-                  ) : (
-                    <button class="knopf" name="aktion" value="veroeffentlichen">
-                      Veröffentlichen
-                    </button>
-                  )}
-                  <button class="knopf zweit" name="aktion" value="loeschen">
-                    Löschen
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )}
 </AdminLayout>
+
+<style>
+  .angezeigt {
+    border-left: 4px solid var(--rot);
+    margin: 16px 0 24px;
+  }
+  .angezeigt h2 {
+    margin-top: 0;
+  }
+  .volltext {
+    white-space: pre-line;
+  }
+  .mitteilungsliste {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .mitteilungsliste p {
+    margin: 0 0 6px;
+  }
+  .mitteilungsliste details {
+    margin: 8px 0;
+  }
+  .mitteilungsliste summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--rot);
+    text-decoration: underline;
+  }
+</style>
