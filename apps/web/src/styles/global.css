@@ -220,6 +220,16 @@ a:hover {
     padding-inline: 8px;
   }
 }
+/* Kleine Handys (320–400 px): Menü in zwei statt drei Zeilen (Issue #257) */
+@media (max-width: 400px) {
+  .nav {
+    gap: 2px;
+  }
+  .nav a {
+    padding-inline: 5px;
+    font-size: 1rem;
+  }
+}
 
 /* ── Einstieg ─────────────────────────────────────────────────────────────────────────── */
 .einstieg {
@@ -1043,6 +1053,20 @@ form.melden label > input[type='checkbox'] {
 .karte.gross {
   height: min(70vh, 560px);
 }
+/* Am Handy fängt die Karte jede Wischgeste ab – niedriger, damit die Seite drumherum scrollbar bleibt (Issue #257) */
+@media (max-width: 760px) {
+  .karte.gross {
+    height: min(55vh, 420px);
+    height: min(55svh, 420px);
+  }
+}
+/* Zoomknöpfe auf Touch-Geräten fingergroß – Leaflet setzt dort nur 30 px */
+.karte.leaflet-touch .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 22px;
+}
 .karte {
   height: 420px;
   /* Platz von Anfang an reservieren – kein Springen beim Laden (Issue #123) */
@@ -1147,7 +1171,9 @@ dialog.mitteilung {
   inset: auto 0 0;
   margin: 0 auto 12px;
   width: min(560px, calc(100vw - 24px));
-  max-height: 40vh;
+  /* Am Handy reichen 40 % nicht für Überschrift + Text + Knopf (Issue #257) */
+  max-height: min(75vh, 520px);
+  max-height: min(75dvh, 520px);
   overflow: auto;
   z-index: 50;
   border: 0;

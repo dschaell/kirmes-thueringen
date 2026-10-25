@@ -33,16 +33,13 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
   {stand.schritt === 1 && !Astro.url.searchParams.has('gesendet') && (
     <aside id="festplatz" class="kasten mitmachen-hinweis">
       <p>
-        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong> Dann macht gerne mit: Mit
-        einem eigenen Zugang tragt ihr eure Kirmes selbst ein und pflegt Termine, Programm, Band,
-        Essen und euren Festplatz jederzeit – ohne auf uns zu warten.
+        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>
         <a class="mehr" href="/redaktion-mitmachen">
-          Mit eurer Kirmesgesellschaft mitmachen <Icon name="pfeil" />
+          Mit eigenem Zugang mitmachen <Icon name="pfeil" />
         </a>
       </p>
       <p>
-        <strong>Du willst Teil der Redaktion werden?</strong> Du kennst die Kirmes in deiner Gegend
-        und willst helfen, den Kalender aktuell zu halten?
+        <strong>Du willst Teil der Redaktion werden?</strong>
         <a class="mehr" href="/redaktion-mitmachen#redaktion">
           In der Redaktion mitmachen <Icon name="pfeil" />
         </a>
@@ -98,13 +95,16 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     border-left: 4px solid var(--rot);
     margin: 0 0 24px;
   }
-  .mitmachen-hinweis p:first-child {
-    margin-top: 0;
-  }
   .mitmachen-hinweis .mehr {
     display: flex;
+    gap: 6px;
     width: fit-content;
-    margin-top: 6px;
+  }
+  .mitmachen-hinweis p {
+    margin: 0;
+  }
+  .mitmachen-hinweis p + p {
+    margin-top: 10px;
   }
   .weiter-knoepfe {
     display: flex;

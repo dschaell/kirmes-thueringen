@@ -243,6 +243,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             });
             document.body.append(d);
             d.show();
+            // show() fokussiert den Knopf und scrollt dabei ans Ende – Überschrift wieder ins Bild (Issue #257)
+            d.scrollTop = 0;
           })
           .catch(() => {});
       }
