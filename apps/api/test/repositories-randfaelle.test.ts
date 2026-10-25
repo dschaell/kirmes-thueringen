@@ -108,6 +108,7 @@ it('meldet fehlende Mitteilungen und Links statt Erfolg ohne Ergebnis', async ()
     'nicht gespeichert',
   );
   expect(await m.setzeVeroeffentlicht('1', true)).toBe(false);
+  expect(await m.aendere('1', { titel: 'T', text: 'x', link: null })).toBeNull();
   expect(await m.loesche('1')).toBe(false);
   expect(await new PgLinkVerwaltung(leer as never).sperre('1')).toBe(false);
 });

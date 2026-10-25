@@ -28,6 +28,25 @@ export function mitteilungenRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, 
       return reply.status(201).send(m.value);
     },
   );
+  // Bearbeiten (Issue #261) – Kirmesgesellschaften kommen nicht heran (nicht in KG_ROUTEN)
+  r.put<{ Params: { id: string }; Body: MitteilungEingabe }>(
+    '/api/v1/admin/mitteilungen/:id',
+    {
+      schema: {
+        params: ID,
+        body: objekt(['titel', 'text'], {
+          titel: TEXT(200),
+          text: TEXT(4000),
+          link: OPT_TEXT(500),
+        }),
+      },
+    },
+    async (req, reply) => {
+      const m = await d.redaktion.aendereMitteilung(req.params.id, req.body);
+      if (!m.ok) return ungueltig(reply, m.error);
+      return m.value ?? nichtGefunden(reply);
+    },
+  );
   r.post<{ Params: { id: string }; Body: { an: boolean } }>(
     '/api/v1/admin/mitteilungen/:id/veroeffentlichen',
     { schema: { params: ID, body: objekt(['an'], { an: { type: 'boolean' } }) } },
