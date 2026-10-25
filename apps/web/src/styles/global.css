@@ -794,6 +794,16 @@ legend {
   color: var(--grau);
   margin: 6px 0 0;
 }
+/* Im Fließtext auf der Textlinie statt am Symbol ausgerichtet, ohne Zusatzabstand (Issue #267) */
+.hinweis-liste .bestaetigt {
+  display: inline;
+  margin-left: 0;
+  font-size: inherit;
+}
+.hinweis-liste .bestaetigt svg {
+  vertical-align: -2px;
+  margin-right: 2px;
+}
 .leer {
   padding: 32px 0;
   color: var(--grau);
