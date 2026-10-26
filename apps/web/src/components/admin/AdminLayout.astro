@@ -199,6 +199,46 @@ const mehr = kg
   .admin-nav form {
     margin-left: auto;
   }
+  /* Am Handy ein ruhiges 2-Spalten-Raster statt krummer Zeilen, „Mehr“ gehört dazu (Issue #269) */
+  @media (max-width: 600px) {
+    .admin-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      align-items: stretch;
+    }
+    .admin-nav .mehr-nav {
+      display: flex;
+    }
+    .admin-nav .mehr-nav > summary {
+      flex: 1;
+    }
+    .admin-nav > a,
+    .admin-nav .mehr-nav > summary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 44px;
+      line-height: 1.2;
+      border: 1px solid var(--linie);
+      border-radius: 8px;
+    }
+    /* Aufklappmenü über die ganze Menübreite – egal, ob „Mehr“ links oder rechts steht */
+    .admin-nav {
+      position: relative;
+    }
+    .admin-nav .mehr-nav {
+      margin-left: 0;
+      position: static;
+    }
+    .admin-nav .mehr-nav > div {
+      left: 0;
+      right: 0;
+      min-width: 0;
+      max-width: none;
+    }
+  }
   .admin-nav .knopf {
     padding: 6px 12px;
     font-size: 0.9rem;
