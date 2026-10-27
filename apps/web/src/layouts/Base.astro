@@ -54,6 +54,8 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
       <link rel="canonical" href={canonical} />
     )}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- Google-Suche bevorzugt ein Icon in Vielfachen von 48 px (Issue #276) -->
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <link
