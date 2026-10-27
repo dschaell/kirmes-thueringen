@@ -50,6 +50,16 @@ const ROLLEN_TEXT: Record<Rolle, string> = {
   kirmesgesellschaft: 'Kirmesgesellschaft',
 };
 
+/** Was man nach der Einrichtung tun kann (Issue #282) */
+const DANACH: Record<Rolle, string> = {
+  kirmesgesellschaft:
+    'Danach könnt ihr eure Kirmestermine und Festplätze selbst eintragen und aktuell halten und weitere Leute aus eurem Verein dazuholen.',
+  redaktion:
+    'Danach kannst du Termine aller Orte eintragen und prüfen und Vorschläge von Besuchern freigeben.',
+  admin:
+    'Danach kannst du Termine aller Orte eintragen und prüfen, Vorschläge freigeben und Mitglieder verwalten.',
+};
+
 export function einladungsMail(name: string, rolle: Rolle, link: string, ort?: string | null) {
   const als =
     rolle === 'kirmesgesellschaft' && ort
@@ -57,7 +67,7 @@ export function einladungsMail(name: string, rolle: Rolle, link: string, ort?: s
       : `in der ${ROLLEN_TEXT[rolle]}`;
   return {
     betreff: 'Deine Einladung zum Kirmeskalender Thüringen',
-    text: `Hallo ${name},\n\ndanke für deine Anfrage! Du kannst jetzt ${als} mitmachen.\n\nÖffne diesen Link, wähle deinen Anzeigenamen und richte einen Passkey ein (Fingerabdruck, Gesicht oder PIN deines Geräts – kein Passwort):\n\n${link}\n\nDer Link gilt ${EINLADUNG_TAGE} Tage und kann einmal verwendet werden. Bitte nicht weitergeben.\n\nFragen? Einfach auf diese Mail antworten.\n\nKirmeskalender Thüringen\n`,
+    text: `Hallo ${name},\n\ndanke für deine Anfrage! Du kannst jetzt ${als} mitmachen.\n\nÖffne diesen Link, wähle deinen Anzeigenamen und richte einen Passkey ein (Fingerabdruck, Gesicht oder PIN deines Geräts – kein Passwort):\n\n${link}\n\n${DANACH[rolle]}\n\nDer Link gilt ${EINLADUNG_TAGE} Tage und kann einmal verwendet werden. Bitte nicht weitergeben.\n\nFragen? Einfach auf diese Mail antworten.\n\nKirmeskalender Thüringen\n`,
   };
 }
 
