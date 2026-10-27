@@ -13,6 +13,8 @@ export interface OrtDto {
   name: string;
   landkreis: LandkreisKuerzel;
   koordinate: { lat: number; lon: number } | null;
+  /** Selbst eingetragener Name der Kirmesgesellschaft (nur an Terminen) */
+  kgName?: string | null;
 }
 
 export interface OrtUebersichtDto extends OrtDto {
@@ -38,6 +40,10 @@ export interface TerminDto {
   band: string | null;
   /** Pfarrer/in beim Gottesdienst (Issue #175) */
   pfarrer?: string | null;
+  /** Veranstalter, falls nicht die Kirmesgesellschaft (Issue #278) */
+  veranstalter?: string | null;
+  /** Eintritt in Cent, 0 = frei, null = unbekannt (Issue #278) */
+  eintrittCent?: number | null;
   /** Hinweise der Kirmesgesellschaft (Eintritt, Programm, Einlass …) */
   info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung (Muttizettel) */

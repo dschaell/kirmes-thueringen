@@ -18,6 +18,8 @@ import {
   eigenerPlatz,
   platzText,
   artName,
+  eintrittText,
+  veranstalterVon,
 } from '../../lib/anzeige';
 
 const t = await findeTermin(Astro.params.id ?? '');
@@ -117,6 +119,22 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           </span>
         )}
       </dd>
+      {(veranstalterVon(t) || t.eintrittCent != null) && (
+        <>
+          <dt>
+            <Icon name="info" />
+            <span class="sr-only">Veranstalter und Eintritt</span>
+          </dt>
+          <dd>
+            {[
+              veranstalterVon(t) && `Veranstalter: ${veranstalterVon(t)}`,
+              t.eintrittCent != null && `Eintritt ${eintrittText(t.eintrittCent)}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </dd>
+        </>
+      )}
     </dl>
     {t.info && (
       <p class="hinweise">

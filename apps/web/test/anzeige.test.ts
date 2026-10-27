@@ -3,6 +3,7 @@ import {
   berlinVersatz,
   brotkrumenJsonLd,
   eventJsonLd,
+  eintrittText,
   heute,
   kreisZusammenfassung,
   musikFeld,
@@ -228,6 +229,32 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
     expect(eventJsonLd(termin({ kategorie: 'unbekannt' }), site).endDate).toBe(
       '2026-10-24T23:00:00+02:00',
     );
+  });
+  it('organizer/offers nur wenn eingetragen (Issue #278)', () => {
+    const ohne = eventJsonLd(termin(), site);
+    expect('organizer' in ohne || 'offers' in ohne).toBe(false);
+    const kg = eventJsonLd(
+      termin({
+        ort: {
+          slug: 'elleben',
+          name: 'Elleben',
+          landkreis: 'IK',
+          koordinate: null,
+          kgName: 'KV Elleben',
+        },
+        eintrittCent: 0,
+      }),
+      site,
+    );
+    expect(kg.organizer).toEqual({ '@type': 'Organization', name: 'KV Elleben' });
+    expect(kg.offers).toMatchObject({ price: '0.00', priceCurrency: 'EUR' });
+    const eigen = eventJsonLd(termin({ veranstalter: 'Feuerwehr', eintrittCent: 750 }), site);
+    expect([eigen.organizer?.name, eigen.offers?.price]).toEqual(['Feuerwehr', '7.50']);
+    expect([eintrittText(0), eintrittText(800), eintrittText(750)]).toEqual([
+      'frei',
+      '8 €',
+      '7,50 €',
+    ]);
   });
   it('Brotkrumen ab Start, mit Positionen', () => {
     expect(brotkrumenJsonLd([['Ilm-Kreis', '/kreise/ik']], site).itemListElement).toEqual([

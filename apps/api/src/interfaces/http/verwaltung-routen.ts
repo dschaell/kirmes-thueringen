@@ -17,6 +17,8 @@ const terminFormularSchema = {
     kategorie: { type: ['string', 'null'], maxLength: 20 },
     band: { type: ['string', 'null'], maxLength: 200 },
     pfarrer: { type: ['string', 'null'], maxLength: 120 },
+    veranstalter: { type: ['string', 'null'], maxLength: 200 },
+    eintritt: { type: ['string', 'null'], maxLength: 20 },
     muttizettel: { type: 'boolean' },
     info: { type: ['string', 'null'], maxLength: 1000 },
   },

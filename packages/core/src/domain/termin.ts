@@ -2,7 +2,7 @@ import { monatVon, parseDatum, type KalenderDatum } from './datum.js';
 import type { Koordinate } from './festplatz.js';
 import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
-import type { Speise } from './speisen.js';
+import { PREIS_MAX_CENT, preisAus, type Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
 
 /**
@@ -60,6 +60,8 @@ export interface Ort {
   readonly landkreis: LandkreisKuerzel;
   /** Ortsmitte (WGS84), null solange nicht geokodiert */
   readonly koordinate: Koordinate | null;
+  /** Selbst eingetragener Name der Kirmesgesellschaft (Issue #246), sonst leer */
+  readonly kgName?: string | null;
 }
 
 export interface Termin {
@@ -82,6 +84,10 @@ export interface Termin {
   readonly band: string | null;
   /** Pfarrer/in beim Gottesdienst (Issue #175) */
   readonly pfarrer?: string | null;
+  /** Veranstalter, falls nicht die Kirmesgesellschaft (z. B. Feuerwehr) – Issue #278 */
+  readonly veranstalter?: string | null;
+  /** Eintritt in Cent, 0 = frei, null = unbekannt (Issue #278) */
+  readonly eintrittCent?: number | null;
   /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
   readonly info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */
@@ -101,6 +107,9 @@ export interface TerminEingabe {
   bestaetigt?: boolean;
   band?: string | null;
   pfarrer?: string | null;
+  veranstalter?: string | null;
+  /** „5“, „5,50 €“, „frei“; leer = unbekannt */
+  eintritt?: string | null;
   info?: string | null;
   muttizettel?: boolean;
 }
@@ -119,6 +128,9 @@ export interface NeuerTermin {
   readonly bestaetigt: boolean;
   readonly band: string | null;
   readonly pfarrer?: string | null;
+  /** undefined = Formular ohne dieses Feld → gespeicherter Wert bleibt (Issue #278) */
+  readonly veranstalter?: string | null;
+  readonly eintrittCent?: number | null;
   readonly info: string | null;
   readonly muttizettel: boolean;
 }
@@ -133,6 +145,16 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TITEL_MAX = 200;
 const BAND_MAX = 120;
 const INFO_MAX = 500;
+const VERANSTALTER_MAX = 200;
+const EINTRITT_FREI = /^(frei|kostenlos|gratis|0)$/i;
+
+/** „frei“ → 0, „5,50 €“ → 550, leer → null, unlesbar oder über 1000 € → undefined */
+export function eintrittAus(text: string | null | undefined): number | null | undefined {
+  const t = text?.trim() ?? '';
+  if (EINTRITT_FREI.test(t.replace(/\s*(€|eintritt)\s*/gi, ''))) return 0;
+  const cent = preisAus(t);
+  return cent != null && cent > PREIS_MAX_CENT ? undefined : cent;
+}
 
 /** Anführungszeichen um den Bandnamen sind überflüssig (Apostrophe wie in „Sethi's“ bleiben). */
 const bereinigeBand = (b: string | null | undefined) =>
@@ -192,6 +214,23 @@ export function validiereTermin(
       meldung: `Pfarrer/in: max. ${BAND_MAX} Zeichen.`,
     });
   }
+  const veranstalter =
+    e.veranstalter === undefined ? undefined : e.veranstalter?.replace(/\s+/g, ' ').trim() || null;
+  if (veranstalter && veranstalter.length > VERANSTALTER_MAX) {
+    fehler.push({
+      feld: 'veranstalter',
+      code: 'VERANSTALTER_LAENGE',
+      meldung: `Veranstalter: max. ${VERANSTALTER_MAX} Zeichen.`,
+    });
+  }
+  const eintrittCent = e.eintritt === undefined ? null : eintrittAus(e.eintritt);
+  if (eintrittCent === undefined) {
+    fehler.push({
+      feld: 'eintritt',
+      code: 'EINTRITT_UNGUELTIG',
+      meldung: 'Eintritt: Betrag wie „5“ oder „5,50“ (bis 1000 €) oder „frei“.',
+    });
+  }
   const info = e.info?.trim().replace(/\r\n/g, '\n') || null;
   if (info && info.length > INFO_MAX) {
     fehler.push({
@@ -227,6 +266,8 @@ export function validiereTermin(
     bestaetigt: e.bestaetigt ?? false,
     band,
     pfarrer,
+    ...(veranstalter !== undefined && { veranstalter }),
+    ...(e.eintritt !== undefined && { eintrittCent: eintrittCent ?? null }),
     info,
     muttizettel: e.muttizettel ?? false,
   };
