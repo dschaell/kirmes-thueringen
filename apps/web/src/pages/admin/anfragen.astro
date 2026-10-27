@@ -19,6 +19,7 @@ interface Anfrage {
   status: 'offen' | 'angenommen' | 'abgelehnt';
   erledigtAm: string | null;
   erledigtVon: string | null;
+  grund: string | null;
 }
 const ROLLEN = { redaktion: 'Redaktion', kirmesgesellschaft: 'Kirmesgesellschaft' } as const;
 const istRolle = (r: string): r is keyof typeof ROLLEN => r in ROLLEN;
@@ -47,8 +48,16 @@ if (Astro.request.method === 'POST') {
     fehler = ['Bitte eine Rolle wählen.'];
     Astro.response.status = 400;
   } else if (aktion === 'ablehnen' && feld(f, 'rueckfrage') === 'ja') {
-    const r = await adminApi(Astro.cookies, 'POST', `anfragen/${id}/ablehnen`);
-    if (r.status < 300) meldung = 'Anfrage abgelehnt.';
+    const r = await adminApi<{ gemailt: boolean }>(
+      Astro.cookies,
+      'POST',
+      `anfragen/${id}/ablehnen`,
+      { grund: feld(f, 'grund') },
+    );
+    if (r.daten)
+      meldung = r.daten.gemailt
+        ? 'Anfrage abgelehnt – der Grund ging per E-Mail an die Person.'
+        : 'Anfrage abgelehnt (ohne E-Mail).';
     else fehler = r.fehler;
   } else {
     fehler = [
@@ -132,8 +141,20 @@ const zeit = (iso: string | null) =>
           <input type="hidden" name="aktion" value="ablehnen" />
           <input type="hidden" name="id" value={a.id} />
           <label>
-            <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, ablehnen (es geht
-            keine E-Mail raus)
+            Grund (optional)
+            <textarea
+              name="grund"
+              rows="3"
+              maxlength="1000"
+              placeholder="z. B. Für euren Ort gibt es schon einen Zugang – meldet euch bei …"
+            />
+            <span class="klein leise">
+              Mit Grund bekommt die Person eine freundliche E-Mail mit genau diesem Text. Ohne Grund
+              geht keine E-Mail raus.
+            </span>
+          </label>
+          <label>
+            <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, ablehnen
           </label>
           <button class="knopf zweit" type="submit">
             Anfrage ablehnen
@@ -155,6 +176,7 @@ const zeit = (iso: string | null) =>
               {zeit(a.erledigtAm)}
               {a.erledigtVon && ` von ${a.erledigtVon}`}
             </span>
+            {a.grund && <p class="klein anfrage-text">Grund: {a.grund}</p>}
           </li>
         ))}
       </ul>
@@ -187,6 +209,17 @@ const zeit = (iso: string | null) =>
     gap: 0.5rem;
     margin-top: 0.5rem;
     justify-items: start;
+  }
+  .ablehnen label:has(textarea) {
+    display: grid;
+    gap: 0.25rem;
+    width: 100%;
+  }
+  .ablehnen textarea {
+    width: 100%;
+  }
+  .erledigt p {
+    margin: 0.2rem 0 0;
   }
   .erledigt li {
     margin-bottom: 0.4rem;

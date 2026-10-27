@@ -13,6 +13,8 @@ import { darf } from './rechte.js';
 
 export const ANFRAGE_AUFBEWAHRUNG_TAGE = 90;
 export const ANFRAGE_OFFEN_TAGE = 180;
+/** Grund einer Ablehnung (Issue #284) */
+export const GRUND_MAX = 1000;
 
 export type AnfrageStatus = 'offen' | 'angenommen' | 'abgelehnt';
 
@@ -23,6 +25,8 @@ export interface Anfrage extends NeueAnfrage {
   erledigtAm: string | null;
   /** Name des Mitglieds, das entschieden hat (null = offen oder Konto entfernt) */
   erledigtVon: string | null;
+  /** Grund der Ablehnung – ging per Mail an die Person (Issue #284) */
+  grund: string | null;
 }
 
 // ── Ports ───────────────────────────────────────────────────────────────────────────────
@@ -31,7 +35,12 @@ export interface AnfragenRepository extends AnfragenAblage {
   liste(): Promise<Anfrage[]>;
   finde(id: string): Promise<Anfrage | null>;
   /** Nur offene; false = schon erledigt oder unbekannt */
-  erledige(id: string, status: Exclude<AnfrageStatus, 'offen'>, adminId: string): Promise<boolean>;
+  erledige(
+    id: string,
+    status: Exclude<AnfrageStatus, 'offen'>,
+    adminId: string,
+    grund?: string | null,
+  ): Promise<boolean>;
   raeumeAuf(erledigtTage: number, offenTage: number): Promise<void>;
 }
 /**
@@ -42,7 +51,7 @@ export interface Einladungspost {
   sendeAn(empfaenger: string, n: Nachricht): Promise<void>;
 }
 
-export type AnfrageFehler = VerwaltungsFehler | 'ERLEDIGT' | 'VERSAND';
+export type AnfrageFehler = VerwaltungsFehler | 'ERLEDIGT' | 'VERSAND' | 'GRUND';
 
 const ROLLEN_TEXT: Record<Rolle, string> = {
   admin: 'Admin',
@@ -68,6 +77,13 @@ export function einladungsMail(name: string, rolle: Rolle, link: string, ort?: s
   return {
     betreff: 'Deine Einladung zum Kirmeskalender Thüringen',
     text: `Hallo ${name},\n\ndanke für deine Anfrage! Du kannst jetzt ${als} mitmachen.\n\nÖffne diesen Link, wähle deinen Anzeigenamen und richte einen Passkey ein (Fingerabdruck, Gesicht oder PIN deines Geräts – kein Passwort):\n\n${link}\n\n${DANACH[rolle]}\n\nDer Link gilt ${EINLADUNG_TAGE} Tage und kann einmal verwendet werden. Bitte nicht weitergeben.\n\nFragen? Einfach auf diese Mail antworten.\n\nKirmeskalender Thüringen\n`,
+  };
+}
+
+export function ablehnungsMail(name: string, grund: string) {
+  return {
+    betreff: 'Deine Anfrage beim Kirmeskalender Thüringen',
+    text: `Hallo ${name},\n\ndanke für deine Anfrage und dein Interesse am Kirmeskalender Thüringen! Leider können wir dich gerade nicht aufnehmen.\n\n${grund}\n\nWenn du Fragen hast, antworte einfach auf diese Mail. Termine kannst du uns jederzeit über „Termin melden“ schicken:\nhttps://kirmeskalender-thueringen.de/termin-melden\n\nViele Grüße\nKirmeskalender Thüringen\n`,
   };
 }
 
@@ -113,13 +129,33 @@ export class MitmachAnfragen {
     return ok({ email: a.email });
   }
 
-  /** Ohne Mail – die Redaktion kann bei Bedarf selbst antworten (Reply-To der Benachrichtigung). */
-  async lehneAb(akteur: Sitzung, id: string): Promise<Result<true, AnfrageFehler>> {
+  /**
+   * Mit Grund geht eine Mail an die Person (Issue #284), ohne Grund keine. Schlägt der Versand
+   * fehl, bleibt die Anfrage offen.
+   */
+  async lehneAb(
+    akteur: Sitzung,
+    id: string,
+    grundRoh = '',
+  ): Promise<Result<{ gemailt: boolean }, AnfrageFehler>> {
     if (!darf(akteur, 'mitglieder')) return err('NUR_ADMIN');
+    const grund = grundRoh
+      .replace(/\r\n?/g, '\n')
+      .replace(/\p{Cc}/gu, (c) => (c === '\n' ? c : ' '))
+      .trim();
+    if (grund.length > GRUND_MAX) return err('GRUND');
     const a = await this.repo.finde(id);
     if (!a) return err('NICHT_GEFUNDEN');
     if (a.status !== 'offen') return err('ERLEDIGT');
-    await this.repo.erledige(id, 'abgelehnt', akteur.adminId);
-    return ok(true);
+    const mailen = Boolean(grund && a.email);
+    if (mailen) {
+      try {
+        await this.post.sendeAn(a.email, ablehnungsMail(a.name, grund));
+      } catch {
+        return err('VERSAND');
+      }
+    }
+    await this.repo.erledige(id, 'abgelehnt', akteur.adminId, grund || null);
+    return ok({ gemailt: mailen });
   }
 }

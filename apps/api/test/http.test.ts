@@ -2146,6 +2146,7 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
     status: 'offen',
     erledigtAm: null,
     erledigtVon: null,
+    grund: null,
   };
   const mit = async (versand: () => Promise<void>) => {
     let a = { ...anfrage };
@@ -2177,9 +2178,9 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
     const an = await rufe('POST', `/${anfrage.id}/annehmen`, auth, { rolle: 'redaktion' });
     expect([an.statusCode, an.json()]).toEqual([200, { email: 'lisa@example.org' }]);
     expect(post).toEqual(['lisa@example.org']);
-    expect((await rufe('POST', `/${anfrage.id}/ablehnen`, auth)).statusCode).toBe(409);
+    expect((await rufe('POST', `/${anfrage.id}/ablehnen`, auth, {})).statusCode).toBe(409);
     expect(
-      (await rufe('POST', '/22222222-2222-4222-8222-222222222222/ablehnen', auth)).statusCode,
+      (await rufe('POST', '/22222222-2222-4222-8222-222222222222/ablehnen', auth, {})).statusCode,
     ).toBe(404);
     for (const s of [REDAKTION_SITZUNG, KG_SITZUNG])
       expect((await rufe('GET', '', { authorization: `Sitzung ${s}` })).statusCode).toBe(403);
@@ -2188,9 +2189,17 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
     ).toBe(400);
   });
 
-  it('Ablehnen → 204; Versand scheitert → 502', async () => {
+  it('Ablehnen ohne/mit Grund; Grund zu lang → 400; Versand scheitert → 502', async () => {
+    const post = await mit(async () => {});
+    const lang = await rufe('POST', `/${anfrage.id}/ablehnen`, auth, { grund: 'x'.repeat(1001) });
+    expect(lang.statusCode).toBe(400);
+    const mitGrund = await rufe('POST', `/${anfrage.id}/ablehnen`, auth, { grund: 'Leider nein' });
+    expect([mitGrund.statusCode, mitGrund.json()]).toEqual([200, { gemailt: true }]);
+    expect(post).toEqual(['lisa@example.org']);
+    await app.close();
     await mit(async () => {});
-    expect((await rufe('POST', `/${anfrage.id}/ablehnen`, auth)).statusCode).toBe(204);
+    const ohne = await rufe('POST', `/${anfrage.id}/ablehnen`, auth, {});
+    expect([ohne.statusCode, ohne.json()]).toEqual([200, { gemailt: false }]);
     await app.close();
     await mit(async () => {
       throw new Error('SMTP');
