@@ -22,6 +22,7 @@ SELECT t.id, t.version::text AS version,
        to_char(t.geaendert_am AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS geaendert_am,
        t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.pfarrer, t.info, t.muttizettel,
+       t.veranstalter, t.eintritt_cent, o.kg_name,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
        ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon`;
@@ -81,8 +82,8 @@ const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`
 
 const SQL_EINFUEGEN = `
 INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, band, info,
-                    muttizettel, pfarrer)
-VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9, $10, $11)
+                    muttizettel, pfarrer, veranstalter, eintritt_cent)
+VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::integer)
 RETURNING id`;
 
 interface Zeile {
@@ -97,6 +98,9 @@ interface Zeile {
   bestaetigt: boolean;
   band: string | null;
   pfarrer: string | null;
+  veranstalter: string | null;
+  eintritt_cent: number | null;
+  kg_name: string | null;
   info: string | null;
   muttizettel: boolean;
   ort_slug: string;
@@ -121,6 +125,7 @@ const zuTermin = (z: Zeile): Termin => ({
     name: z.ort_name,
     landkreis: z.landkreis,
     koordinate: z.lat != null && z.lon != null ? { lat: z.lat, lon: z.lon } : null,
+    kgName: z.kg_name,
   },
   datum: z.datum as KalenderDatum,
   beginn: z.beginn,
@@ -130,6 +135,8 @@ const zuTermin = (z: Zeile): Termin => ({
   bestaetigt: z.bestaetigt,
   band: z.band,
   pfarrer: z.pfarrer,
+  veranstalter: z.veranstalter,
+  eintrittCent: z.eintritt_cent,
   info: z.info,
   muttizettel: z.muttizettel,
   festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,
@@ -199,6 +206,8 @@ export class PgTerminRepository implements TerminRepository {
       t.info,
       t.muttizettel ?? false,
       t.pfarrer,
+      t.veranstalter ?? null,
+      t.eintrittCent ?? null,
     ]);
     const neu = rows[0];
     if (!neu) throw new Error('INSERT lieferte keine ID');
@@ -214,6 +223,8 @@ export class PgTerminRepository implements TerminRepository {
       festplatz: null,
       band: t.band,
       pfarrer: t.pfarrer,
+      veranstalter: t.veranstalter ?? null,
+      eintrittCent: t.eintrittCent ?? null,
       info: t.info,
       muttizettel: t.muttizettel ?? false,
     };

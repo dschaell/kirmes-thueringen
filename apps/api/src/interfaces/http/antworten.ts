@@ -28,6 +28,8 @@ export const terminDto = (t: Termin) => ({
   festplatz: t.festplatz,
   band: t.band,
   pfarrer: t.pfarrer,
+  veranstalter: t.veranstalter ?? null,
+  eintrittCent: t.eintrittCent ?? null,
   muttizettel: t.muttizettel,
   info: t.info,
   // Letzte Änderung – Kalender-Abos erkennen damit Änderungen (Issue #139)

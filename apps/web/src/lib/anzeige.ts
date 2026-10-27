@@ -228,6 +228,15 @@ export function eventJsonLd(t: TerminDto, site: URL) {
       ...(geo && { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lon } }),
     },
     ...(t.band && { performer: { '@type': 'MusicGroup', name: t.band } }),
+    ...(veranstalterVon(t) && { organizer: { '@type': 'Organization', name: veranstalterVon(t) } }),
+    ...(t.eintrittCent != null && {
+      offers: {
+        '@type': 'Offer',
+        price: (t.eintrittCent / 100).toFixed(2),
+        priceCurrency: 'EUR',
+        url,
+      },
+    }),
     description:
       t.info ??
       `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${t.band}` : ''}.`,
@@ -235,6 +244,19 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     url,
   };
 }
+
+/**
+ * Wer veranstaltet (Issue #278): eigener Eintrag am Termin, sonst der selbst eingetragene Name der
+ * Kirmesgesellschaft – nie geraten, sonst null.
+ */
+export const veranstalterVon = (t: Pick<TerminDto, 'veranstalter' | 'ort'>): string | null =>
+  t.veranstalter ?? t.ort.kgName ?? null;
+
+/** 0 → „frei“, 800 → „8 €“, 750 → „7,50 €“ */
+export const eintrittText = (cent: number): string =>
+  cent === 0
+    ? 'frei'
+    : `${(cent / 100).toLocaleString('de-DE', { minimumFractionDigits: cent % 100 ? 2 : 0 })} €`;
 
 /** Brotkrumen für Suchmaschinen: Start › … › aktuelle Seite (Issue #182). */
 export function brotkrumenJsonLd(stufen: [name: string, pfad: string][], site: URL) {

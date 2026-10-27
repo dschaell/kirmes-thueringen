@@ -359,6 +359,8 @@ export class Redaktion {
       bestaetigt: f.bestaetigt ?? false,
       band: f.band ?? null,
       pfarrer: f.pfarrer,
+      veranstalter: f.veranstalter,
+      eintritt: f.eintritt,
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,
     });

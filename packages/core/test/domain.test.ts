@@ -6,6 +6,7 @@ import {
   parseLandkreis,
   plusTage,
   validiereTermin,
+  eintrittAus,
   type KalenderDatum,
   type TerminEingabe,
 } from '../src/index.js';
@@ -121,6 +122,43 @@ describe('validiereTermin', () => {
     const r = validiereTermin({ ...basis, veranstaltungsort: '   ', beginn: null });
     expect(r.ok && r.value.termin.veranstaltungsort).toBeNull();
     expect(r.ok && r.value.termin.beginn).toBeNull();
+  });
+});
+
+describe('Veranstalter und Eintritt (Issue #278)', () => {
+  const basis = {
+    ortSlug: 'alkersleben',
+    landkreis: 'IK',
+    datum: '2027-09-17',
+    titel: 'Kirmestanz',
+    kategorie: 'tanz',
+  };
+  it('Eintritt: Betrag, „frei“, leer; unlesbar oder über 1000 € ist ein Fehler', () => {
+    expect(eintrittAus('8')).toBe(800);
+    expect(eintrittAus('7,50 €')).toBe(750);
+    expect(eintrittAus('Eintritt frei')).toBe(0);
+    expect(eintrittAus('kostenlos')).toBe(0);
+    expect(eintrittAus(' ')).toBeNull();
+    expect(eintrittAus(null)).toBeNull();
+    expect(eintrittAus('acht')).toBeUndefined();
+    expect(eintrittAus('1001')).toBeUndefined();
+    const r = validiereTermin({ ...basis, eintritt: '5', veranstalter: '  Feuerwehr   Muster ' });
+    expect(r.ok && r.value.termin).toMatchObject({
+      eintrittCent: 500,
+      veranstalter: 'Feuerwehr Muster',
+    });
+    const leer = validiereTermin({ ...basis, eintritt: '', veranstalter: '' });
+    expect(leer.ok && leer.value.termin).toMatchObject({ eintrittCent: null, veranstalter: null });
+    const falsch = validiereTermin({ ...basis, eintritt: 'viel', veranstalter: 'x'.repeat(201) });
+    expect(!falsch.ok && falsch.error.map((f) => f.code)).toEqual([
+      'VERANSTALTER_LAENGE',
+      'EINTRITT_UNGUELTIG',
+    ]);
+  });
+  it('nicht mitgeschickt → Felder fehlen (gespeicherter Wert bleibt)', () => {
+    const r = validiereTermin(basis);
+    expect(r.ok && 'veranstalter' in r.value.termin).toBe(false);
+    expect(r.ok && 'eintrittCent' in r.value.termin).toBe(false);
   });
 });
 

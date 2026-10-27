@@ -518,7 +518,10 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       bezeichnung: 'IT',
     };
     const vorher = await pool.query(
-      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+      // nur Orte dieses Tests – parallele Testdateien protokollieren ebenfalls ohne Link/Admin
+      `SELECT count(*)::int AS n FROM aenderungsprotokoll
+        WHERE link_id IS NULL AND admin_id IS NULL
+          AND (ort_id IS NULL OR ort_id IN (SELECT id FROM ort WHERE slug = 'it-ulla'))`,
     );
     await expect(
       new PgFestplatzRepository(pool).speichere(
@@ -559,7 +562,10 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
       ),
     ).toBe(false);
     const nachher = await pool.query(
-      'SELECT count(*)::int AS n FROM aenderungsprotokoll WHERE link_id IS NULL AND admin_id IS NULL',
+      // nur Orte dieses Tests – parallele Testdateien protokollieren ebenfalls ohne Link/Admin
+      `SELECT count(*)::int AS n FROM aenderungsprotokoll
+        WHERE link_id IS NULL AND admin_id IS NULL
+          AND (ort_id IS NULL OR ort_id IN (SELECT id FROM ort WHERE slug = 'it-ulla'))`,
     );
     expect(nachher.rows[0].n).toBe(vorher.rows[0].n);
   });

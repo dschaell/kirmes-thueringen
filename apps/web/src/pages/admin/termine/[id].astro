@@ -4,7 +4,14 @@ import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
-import { KATEGORIEN, datumLangJahr, speiseZeile, artName, musikFeld } from '../../../lib/anzeige';
+import {
+  KATEGORIEN,
+  datumLangJahr,
+  eintrittText,
+  speiseZeile,
+  artName,
+  musikFeld,
+} from '../../../lib/anzeige';
 import type { TerminHerkunft } from '@kirmes/core';
 import Herkunft from '../../../components/admin/TerminHerkunft.astro';
 import { listenFilter, nachAktion } from '../../../lib/terminliste';
@@ -37,6 +44,8 @@ let werte = {
   pfarrer: t?.pfarrer ?? '',
   veranstaltungsort: t?.veranstaltungsort ?? '',
   info: t?.info ?? '',
+  veranstalter: t?.veranstalter ?? '',
+  eintritt: t?.eintrittCent == null ? '' : eintrittText(t.eintrittCent),
   kategorie: t?.kategorie ?? '',
   bestaetigt: t?.bestaetigt ?? false,
   muttizettel: t?.muttizettel ?? false,
@@ -61,6 +70,8 @@ if (Astro.request.method === 'POST' && t) {
     pfarrer: feld(f, 'pfarrer'),
     veranstaltungsort: feld(f, 'veranstaltungsort'),
     info: feld(f, 'info'),
+    veranstalter: feld(f, 'veranstalter'),
+    eintritt: feld(f, 'eintritt'),
     kategorie: feld(f, 'kategorie'),
     bestaetigt: f.has('bestaetigt'),
     muttizettel: f.has('muttizettel'),
@@ -155,6 +166,10 @@ const hinterlegt =
                   <dd>{t.pfarrer}</dd>
                 </>
               )}
+              <dt>Veranstalter</dt>
+              <dd>{t.veranstalter ?? '–'}</dd>
+              <dt>Eintritt</dt>
+              <dd>{t.eintrittCent == null ? '–' : eintrittText(t.eintrittCent)}</dd>
               <dt>Hinweise</dt>
               <dd>{t.info ?? '–'}</dd>
               <dt>Wo genau?</dt>
@@ -258,6 +273,31 @@ const hinterlegt =
             ))}
           </select>
         </label>
+        <div class="zwei">
+          <>
+            <label>
+              Veranstalter (optional)
+              <input
+                name="veranstalter"
+                maxlength="200"
+                placeholder={t.ort.kgName ?? `Kirmesgesellschaft ${t.ort.name}`}
+                value={werte.veranstalter}
+              />
+              <span class="klein leise">Nur ausfüllen, wenn jemand anderes veranstaltet.</span>
+            </label>
+            <label>
+              Eintritt (optional)
+              <input
+                name="eintritt"
+                maxlength="20"
+                inputmode="decimal"
+                placeholder="z. B. 8 oder frei"
+                value={werte.eintritt}
+              />
+              <span class="klein leise">Leer lassen, wenn noch unklar.</span>
+            </label>
+          </>
+        </div>
         <label>
           Hinweise (öffentlich)
           <textarea name="info" maxlength="500" rows="3" set:text={werte.info} />
