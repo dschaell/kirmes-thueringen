@@ -8,6 +8,23 @@ import {
 } from '../src/infrastructure/post.js';
 
 describe('SmtpPostausgang', () => {
+  it('Einladung an die Person der Anfrage, Antwort an die Redaktion (Issue #279)', async () => {
+    const gesendet: Parameters<MailTransport['sendMail']>[0][] = [];
+    const post = new SmtpPostausgang(
+      { von: 'Kirmeskalender <noreply@kirmes.example>', an: 'redaktion@kirmes.example' },
+      { sendMail: async (m) => void gesendet.push(m) },
+    );
+    await post.sendeAn('lisa@example.org', { betreff: 'Einladung', text: 'Link' });
+    expect(gesendet).toEqual([
+      {
+        from: 'Kirmeskalender <noreply@kirmes.example>',
+        to: 'lisa@example.org',
+        replyTo: 'redaktion@kirmes.example',
+        subject: 'Einladung',
+        text: 'Link',
+      },
+    ]);
+  });
   it('schickt an die feste Redaktionsadresse, Antwort an die meldende Person', async () => {
     const gesendet: Parameters<MailTransport['sendMail']>[0][] = [];
     const post = new SmtpPostausgang(
