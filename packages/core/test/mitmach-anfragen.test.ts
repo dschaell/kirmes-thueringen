@@ -123,6 +123,13 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
   });
 
   it('Einladungstext je Rolle', () => {
+    expect(einladungsMail('Jo', 'kirmesgesellschaft', 'L', 'X').text).toContain(
+      'eure Kirmestermine und Festplätze selbst eintragen',
+    );
+    expect(einladungsMail('Jo', 'redaktion', 'L').text).toContain(
+      'Vorschläge von Besuchern freigeben',
+    );
+    expect(einladungsMail('Jo', 'admin', 'L').text).toContain('Mitglieder verwalten');
     expect(einladungsMail('Jo', 'redaktion', 'L').text).toContain('in der Redaktion mitmachen');
     expect(einladungsMail('Jo', 'kirmesgesellschaft', 'L', null).text).toContain(
       'in der Kirmesgesellschaft mitmachen',
