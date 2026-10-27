@@ -28,9 +28,13 @@ describe.runIf(url)('Mitmach-Anfragen (PostgreSQL, #279)', () => {
     const adminId = admin.rows[0]?.id ?? null;
     expect(await repo.erledige(erste.id, 'angenommen', adminId as string)).toBe(true);
     expect(await repo.erledige(erste.id, 'abgelehnt', adminId as string)).toBe(false);
+    const zweite = eigene[1]!;
+    expect(await repo.erledige(zweite.id, 'abgelehnt', adminId as string, 'IT Grund')).toBe(true);
+    expect(await repo.finde(zweite.id)).toMatchObject({ status: 'abgelehnt', grund: 'IT Grund' });
     expect(await repo.finde(erste.id)).toMatchObject({ status: 'angenommen', email: null });
     const danach = (await repo.liste()).filter((a) => a.name.startsWith('IT '));
-    expect(danach.map((a) => a.name)).toEqual(['IT Zweite', 'IT Erste']);
+    expect(danach.map((a) => a.name).sort()).toEqual(['IT Erste', 'IT Zweite']);
+    expect(danach.every((a) => a.status !== 'offen')).toBe(true);
   });
   it('räumt alte Anfragen auf', async () => {
     await db.query(

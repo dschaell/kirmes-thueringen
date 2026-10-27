@@ -48,12 +48,12 @@ describe('Mitmach-Anfragen werden gespeichert (Issue #279)', () => {
       email: 'jo@example.org',
       dauerMs: 9000,
     };
-    await m.melde({ ...basis, ort: '', info: ' Hallo\r\nWelt ' }, 'a');
+    await m.melde({ ...basis, ort: '', info: ' Hallo\r\nWelt\t! ' }, 'a');
     await m.melde({ ...basis, ort: 'Ilm-Kreis' }, 'b');
     await m.melde({ ...basis, ort: '', falle: 'bot' }, 'c');
     await m.melde(termin, 'd');
     expect(gespeichert).toEqual([
-      { name: 'Jo', email: 'jo@example.org', ort: null, info: 'Hallo\nWelt', max: 200 },
+      { name: 'Jo', email: 'jo@example.org', ort: null, info: 'Hallo\nWelt !', max: 200 },
       { name: 'Jo', email: 'jo@example.org', ort: 'Ilm-Kreis', info: null, max: 200 },
     ]);
   });

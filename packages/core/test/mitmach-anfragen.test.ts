@@ -27,6 +27,7 @@ function aufbau(o: { versandFehler?: boolean; ladeFehler?: boolean } = {}) {
         status: 'offen',
         erledigtAm: null,
         erledigtVon: null,
+        grund: null,
       },
     ],
   ]);
@@ -34,10 +35,10 @@ function aufbau(o: { versandFehler?: boolean; ladeFehler?: boolean } = {}) {
     lege: async () => true,
     liste: async () => [...anfragen.values()],
     finde: async (id) => anfragen.get(id) ?? null,
-    erledige: async (id, status) => {
+    erledige: async (id, status, _admin, grund = null) => {
       const a = anfragen.get(id);
       if (!a || a.status !== 'offen') return false;
-      anfragen.set(id, { ...a, status, email: null });
+      anfragen.set(id, { ...a, status, email: null, grund });
       return true;
     },
     raeumeAuf: async () => {},
@@ -115,11 +116,34 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
     expect(await m.lehneAb(admin, 'x')).toEqual(err('NICHT_GEFUNDEN'));
   });
 
-  it('Ablehnen ohne Mail', async () => {
+  it('Ablehnen ohne Grund: keine Mail', async () => {
     const { m, anfragen, post } = aufbau();
-    expect(await m.lehneAb(admin, 'a1')).toEqual(ok(true));
-    expect(anfragen.get('a1')?.status).toBe('abgelehnt');
+    expect(await m.lehneAb(admin, 'a1', '   ')).toEqual(ok({ gemailt: false }));
+    expect(anfragen.get('a1')).toMatchObject({ status: 'abgelehnt', grund: null });
     expect(post).toEqual([]);
+  });
+
+  it('Ablehnen mit Grund: Mail mit dem Text, Grund bleibt gespeichert (Issue #284)', async () => {
+    const { m, anfragen, post } = aufbau();
+    expect(await m.lehneAb(admin, 'a1', ' Für\tMühlberg gibt es\r\nschon einen Zugang. ')).toEqual(
+      ok({ gemailt: true }),
+    );
+    expect(post[0]?.an).toBe('lisa@example.org');
+    expect(post[0]?.n.betreff).toBe('Deine Anfrage beim Kirmeskalender Thüringen');
+    expect(post[0]?.n.text).toContain('Hallo Lisa,');
+    expect(post[0]?.n.text).toContain('Für Mühlberg gibt es\nschon einen Zugang.');
+    expect(anfragen.get('a1')).toMatchObject({
+      status: 'abgelehnt',
+      grund: 'Für Mühlberg gibt es\nschon einen Zugang.',
+      email: null,
+    });
+  });
+
+  it('Ablehnen: Grund zu lang; Versand scheitert → bleibt offen', async () => {
+    const { m, anfragen } = aufbau({ versandFehler: true });
+    expect(await m.lehneAb(admin, 'a1', 'x'.repeat(1001))).toEqual(err('GRUND'));
+    expect(await m.lehneAb(admin, 'a1', 'Leider nein')).toEqual(err('VERSAND'));
+    expect(anfragen.get('a1')?.status).toBe('offen');
   });
 
   it('Einladungstext je Rolle', () => {

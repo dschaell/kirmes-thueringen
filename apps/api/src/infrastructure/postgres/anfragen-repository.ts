@@ -3,7 +3,7 @@ import type pg from 'pg';
 
 const SQL_LISTE = `
 SELECT a.id, a.eingegangen_am::text AS "eingegangenAm", a.name, a.email, a.ort, a.info,
-       a.status, a.erledigt_am::text AS "erledigtAm", m.name AS "erledigtVon"
+       a.status, a.erledigt_am::text AS "erledigtAm", m.name AS "erledigtVon", a.grund
   FROM mitmach_anfrage a LEFT JOIN admin m ON m.id = a.erledigt_von
  ORDER BY a.status <> 'offen', CASE WHEN a.status = 'offen' THEN a.eingegangen_am END,
           a.erledigt_am DESC
@@ -11,7 +11,7 @@ SELECT a.id, a.eingegangen_am::text AS "eingegangenAm", a.name, a.email, a.ort, 
 
 const SQL_FINDE = `
 SELECT a.id, a.eingegangen_am::text AS "eingegangenAm", a.name, a.email, a.ort, a.info,
-       a.status, a.erledigt_am::text AS "erledigtAm", m.name AS "erledigtVon"
+       a.status, a.erledigt_am::text AS "erledigtAm", m.name AS "erledigtVon", a.grund
   FROM mitmach_anfrage a LEFT JOIN admin m ON m.id = a.erledigt_von
  WHERE a.id = $1::uuid`;
 
@@ -36,12 +36,18 @@ export class PgAnfragen implements AnfragenRepository {
     const r = await this.db.query<Anfrage>(SQL_FINDE, [id]);
     return r.rows[0] ?? null;
   }
-  async erledige(id: string, status: 'angenommen' | 'abgelehnt', adminId: string) {
+  async erledige(
+    id: string,
+    status: 'angenommen' | 'abgelehnt',
+    adminId: string,
+    grund: string | null = null,
+  ) {
     // datenaenderung-freigegeben: #279 – nur die Anfrage selbst; die E-Mail wird dabei gelöscht.
     const r = await this.db.query(
-      `UPDATE mitmach_anfrage SET status = $2, erledigt_am = now(), erledigt_von = $3, email = NULL
+      `UPDATE mitmach_anfrage SET status = $2, erledigt_am = now(), erledigt_von = $3, email = NULL,
+              grund = $4
         WHERE id = $1::uuid AND status = 'offen'`,
-      [id, status, adminId],
+      [id, status, adminId, grund],
     );
     return r.rowCount === 1;
   }
