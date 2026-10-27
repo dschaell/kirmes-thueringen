@@ -11,6 +11,7 @@ import { zugangRouten } from './admin/zugang.js';
 import { kontoRouten } from './admin/konto.js';
 import { plaetzeRouten } from './admin/plaetze.js';
 import { mitgliederRouten } from './admin/mitglieder.js';
+import { anfragenRouten } from './admin/anfragen.js';
 import { mitteilungenRouten } from './admin/mitteilungen.js';
 import { orteRouten } from './admin/orte.js';
 import { termineRouten } from './admin/termine.js';
@@ -86,6 +87,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     kontoRouten(r, d, k);
     plaetzeRouten(r, d, k);
     mitgliederRouten(r, d, k);
+    anfragenRouten(r, d, k);
     mitteilungenRouten(r, d, k);
     orteRouten(r, d, k);
     termineRouten(r, d, k);

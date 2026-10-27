@@ -4,6 +4,7 @@ import type {
   Beitritt,
   Ersteinrichtung,
   Mitgliederverwaltung,
+  MitmachAnfragen,
   Passkeys,
   Redaktion,
   RedaktionsTermine,
@@ -33,6 +34,8 @@ export interface AdminAbhaengigkeiten {
   /** Einladung annehmen – braucht WEBSITE_URL (Passkeys) */
   beitritt?: Beitritt;
   mitglieder: Mitgliederverwaltung;
+  /** Mitmach-Anfragen (Issue #279) – braucht E-Mail-Versand und WEBSITE_URL */
+  anfragen?: MitmachAnfragen;
   /** Plätze eines Ortes (Kirche, Festzelt …) mit Standort – Issue #62 */
   festplaetze?: RedaktionsFestplaetze;
   /** Eingabe-Vorschläge (Bands, Titel) aus allen Terminen */

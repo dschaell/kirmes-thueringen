@@ -17,6 +17,19 @@ export interface Nachricht {
 export interface Postausgang {
   sende(n: Nachricht): Promise<void>;
 }
+/** Mitmach-Anfrage zum Speichern (Issue #279, Verwaltung in mitmach-anfragen.ts) */
+export interface NeueAnfrage {
+  name: string;
+  email: string;
+  ort: string | null;
+  info: string | null;
+}
+/** Schutz vor Überflutung: ab so vielen offenen Anfragen wird nur noch gemailt */
+export const ANFRAGEN_MAX_OFFEN = 200;
+export interface AnfragenAblage {
+  /** false = schon zu viele offene Anfragen */
+  lege(a: NeueAnfrage, maxOffen: number): Promise<boolean>;
+}
 /** Zählt Meldungen je Schlüssel in einem Zeitfenster. */
 export interface Drosselung {
   /** true und mitgezählt, solange das Limit nicht erreicht ist */
@@ -114,7 +127,7 @@ function nachricht(e: MeldungEingabe): Nachricht {
       betreff: zeile(`Mitmachen in der Redaktion: ${e.absender}`).slice(0, 150),
       text: `Anfrage, in der Redaktion mitzumachen.\n\n${zeilen([['Region / Ort', e.ort]])}${
         info ? `\n\n${info}\n` : '\n'
-      }\n${absender}\n\nWenn es passt: im Redaktionsbereich unter „Mitglieder“ eine Einladung erzeugen und den Link schicken.\n`,
+      }\n${absender}\n\nAnnehmen oder ablehnen im Redaktionsbereich unter „Anfragen“ – beim Annehmen geht der Einladungslink automatisch an die angegebene Adresse.\n`,
       antwortAn: zeile(e.email),
     };
   }
@@ -150,6 +163,8 @@ export class MeldeAnRedaktion {
     private readonly post: Postausgang,
     private readonly jeAbsender: Drosselung,
     private readonly gesamt: Drosselung,
+    /** Mitmach-Anfragen zusätzlich speichern (Issue #279) */
+    private readonly anfragen?: AnfragenAblage,
   ) {}
 
   /**
@@ -165,6 +180,17 @@ export class MeldeAnRedaktion {
     if (zeile(e.falle) || (e.dauerMs ?? 0) < MELDUNG_MIN_DAUER_MS) return ok({ gesendet: false });
     if (!this.jeAbsender.erlaube(herkunft) || !this.gesamt.erlaube('gesamt')) {
       return err('ZU_VIELE');
+    }
+    if (e.art === 'mitmachen' && this.anfragen) {
+      await this.anfragen.lege(
+        {
+          name: zeile(e.absender),
+          email: zeile(e.email),
+          ort: zeile(e.ort) || null,
+          info: mehrzeilig(e.info) || null,
+        },
+        ANFRAGEN_MAX_OFFEN,
+      );
     }
     await this.post.sende(nachricht(e));
     return ok({ gesendet: true });

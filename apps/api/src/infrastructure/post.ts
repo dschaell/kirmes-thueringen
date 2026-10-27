@@ -3,7 +3,7 @@
  * Drosselung im Speicher. Empfänger und Absender kommen nur aus der Konfiguration.
  */
 import nodemailer from 'nodemailer';
-import type { Drosselung, Nachricht, Postausgang } from '@kirmes/core';
+import type { Drosselung, Einladungspost, Nachricht, Postausgang } from '@kirmes/core';
 
 export interface SmtpKonfiguration {
   host: string;
@@ -42,7 +42,7 @@ export const smtpTransport = (k: SmtpKonfiguration): MailTransport =>
     socketTimeout: 20_000,
   });
 
-export class SmtpPostausgang implements Postausgang {
+export class SmtpPostausgang implements Postausgang, Einladungspost {
   constructor(
     private readonly k: Pick<SmtpKonfiguration, 'von' | 'an'>,
     private readonly transport: MailTransport,
@@ -53,6 +53,20 @@ export class SmtpPostausgang implements Postausgang {
       from: this.k.von,
       to: this.k.an,
       ...(n.antwortAn && { replyTo: n.antwortAn }),
+      subject: n.betreff,
+      text: n.text,
+    });
+  }
+
+  /**
+   * Einladung an die Adresse einer angenommenen Mitmach-Anfrage (Issue #279) – nur aus einer
+   * Admin-Aktion. Antworten gehen an die Redaktion.
+   */
+  async sendeAn(empfaenger: string, n: Nachricht): Promise<void> {
+    await this.transport.sendMail({
+      from: this.k.von,
+      to: empfaenger,
+      replyTo: this.k.an,
       subject: n.betreff,
       text: n.text,
     });

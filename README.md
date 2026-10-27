@@ -60,9 +60,10 @@ Unter `/admin` (Footer „Anmelden (Redaktion)“), Anmeldung **nur mit Passkey*
 | **Admin**              | zusätzlich Mitglieder einladen, Rollen ändern, selbst angelegte Orte löschen, Sicherungen                                                |
 
 - Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey
-- Mitmachen: `/redaktion-mitmachen` → Anfrage per Mail → Admin lädt unter „Redaktion &
-  Einladungen“ ein – Kirmesgesellschaften mit Rolle „Kirmesgesellschaft“ und ihrem Ort; danach
-  lädt die Kirmesgesellschaft weitere eigene Leute unter „Eure Leute“ selbst ein
+- Mitmachen: `/redaktion-mitmachen` → Anfrage erscheint unter „Anfragen“ (plus Mail an die
+  Redaktion) → Admin nimmt an (Rolle Redaktion oder Kirmesgesellschaft mit Ort; der
+  Einladungslink geht sofort per Mail an die Person) oder lehnt ab. Danach lädt die
+  Kirmesgesellschaft weitere eigene Leute unter „Eure Leute“ selbst ein
 - „Kirmes eintragen“: ganzes Programm auf einmal, fehlende Orte direkt mit anlegen, Kirmes vom
   Vorjahr übernehmen; Tabellen-Import unter „Mehr → Termine importieren“
 

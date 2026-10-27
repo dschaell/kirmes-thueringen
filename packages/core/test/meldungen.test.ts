@@ -33,6 +33,32 @@ const termin: MeldungEingabe = {
   dauerMs: 20_000,
 };
 
+describe('Mitmach-Anfragen werden gespeichert (Issue #279)', () => {
+  it('nur Art „mitmachen“, bereinigt, nicht bei Bots', async () => {
+    const gespeichert: unknown[] = [];
+    const m = new MeldeAnRedaktion(
+      { sende: async () => {} },
+      { erlaube: () => true },
+      { erlaube: () => true },
+      { lege: async (a, max) => (gespeichert.push({ ...a, max }), true) },
+    );
+    const basis = {
+      art: 'mitmachen' as const,
+      absender: ' Jo ',
+      email: 'jo@example.org',
+      dauerMs: 9000,
+    };
+    await m.melde({ ...basis, ort: '', info: ' Hallo\r\nWelt ' }, 'a');
+    await m.melde({ ...basis, ort: 'Ilm-Kreis' }, 'b');
+    await m.melde({ ...basis, ort: '', falle: 'bot' }, 'c');
+    await m.melde(termin, 'd');
+    expect(gespeichert).toEqual([
+      { name: 'Jo', email: 'jo@example.org', ort: null, info: 'Hallo\nWelt', max: 200 },
+      { name: 'Jo', email: 'jo@example.org', ort: 'Ilm-Kreis', info: null, max: 200 },
+    ]);
+  });
+});
+
 describe('Meldung an die Redaktion', () => {
   it('schickt eine Terminmeldung mit Antwortadresse der meldenden Person', async () => {
     const { m, gesendet } = aufbau();
@@ -66,7 +92,7 @@ describe('Meldung an die Redaktion', () => {
       betreff: 'Mitmachen in der Redaktion: Moni',
       antwortAn: 'moni@example.org',
     });
-    expect(gesendet[0]?.text).toContain('Einladung erzeugen');
+    expect(gesendet[0]?.text).toContain('unter „Anfragen“');
     await m.melde(
       {
         art: 'mitmachen',
