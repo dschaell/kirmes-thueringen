@@ -38,7 +38,10 @@ const nav = kg
       // Aus „Mehr“ geholt, damit die angezeigte Mitteilung leicht zu finden ist (Issue #261)
       ...(darf(Astro.locals, 'mitteilungen') ? [['/admin/mitteilungen', 'Mitteilungen']] : []),
       ...(darf(Astro.locals, 'mitglieder')
-        ? [['/admin/mitglieder', 'Redaktion & Einladungen']]
+        ? [
+            ['/admin/anfragen', 'Anfragen'],
+            ['/admin/mitglieder', 'Redaktion & Einladungen'],
+          ]
         : []),
     ];
 const mehr = kg

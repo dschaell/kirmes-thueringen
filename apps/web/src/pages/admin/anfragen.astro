@@ -1,0 +1,204 @@
+---
+/**
+ * Mitmach-Anfragen (Issue #279) – nur für Admins (Middleware + API prüfen die Rolle).
+ * Annehmen erzeugt eine Einladung und schickt den Link sofort an die angegebene Adresse.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import { adminApi, feld } from '../../lib/admin';
+import { listeOrte } from '../../lib/api';
+import { findeOrtEindeutig } from '../../lib/ortssuche';
+
+interface Anfrage {
+  id: string;
+  eingegangenAm: string;
+  name: string;
+  email: string | null;
+  ort: string | null;
+  info: string | null;
+  status: 'offen' | 'angenommen' | 'abgelehnt';
+  erledigtAm: string | null;
+  erledigtVon: string | null;
+}
+const ROLLEN = { redaktion: 'Redaktion', kirmesgesellschaft: 'Kirmesgesellschaft' } as const;
+const istRolle = (r: string): r is keyof typeof ROLLEN => r in ROLLEN;
+
+let meldung: string | null = null;
+let fehler: string[] = [];
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const aktion = feld(f, 'aktion');
+  const id = encodeURIComponent(feld(f, 'id'));
+  const rolle = feld(f, 'rolle');
+  if (aktion === 'annehmen' && istRolle(rolle)) {
+    // Kirmesgesellschaft: Ort aus dem Verzeichnis (wie bei Einladungen, Issue #180)
+    const ortSlug =
+      rolle === 'kirmesgesellschaft'
+        ? (findeOrtEindeutig(await listeOrte(), feld(f, 'ort'))?.slug ?? '')
+        : undefined;
+    const r = await adminApi<{ email: string }>(Astro.cookies, 'POST', `anfragen/${id}/annehmen`, {
+      rolle,
+      ...(ortSlug !== undefined && { ortSlug }),
+    });
+    if (r.daten)
+      meldung = `Angenommen – die Einladung (${ROLLEN[rolle]}) ist an ${r.daten.email} unterwegs.`;
+    else fehler = r.fehler;
+  } else if (aktion === 'annehmen') {
+    fehler = ['Bitte eine Rolle wählen.'];
+    Astro.response.status = 400;
+  } else if (aktion === 'ablehnen' && feld(f, 'rueckfrage') === 'ja') {
+    const r = await adminApi(Astro.cookies, 'POST', `anfragen/${id}/ablehnen`);
+    if (r.status < 300) meldung = 'Anfrage abgelehnt.';
+    else fehler = r.fehler;
+  } else {
+    fehler = [
+      aktion === 'ablehnen' ? 'Bitte das Ablehnen ausdrücklich bestätigen.' : 'Unbekannte Aktion.',
+    ];
+    Astro.response.status = 400;
+  }
+}
+const anfragen = await adminApi<Anfrage[]>(Astro.cookies, 'GET', 'anfragen');
+const offen = (anfragen.daten ?? []).filter((a) => a.status === 'offen');
+const erledigt = (anfragen.daten ?? []).filter((a) => a.status !== 'offen');
+const zeit = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString('de-DE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Europe/Berlin',
+      })
+    : '–';
+---
+
+<AdminLayout titel="Anfragen" meldung={meldung} fehler={[...fehler, ...anfragen.fehler]}>
+  <p>
+    Anfragen über „<a href="/redaktion-mitmachen">Mitmachen</a>“. Beim Annehmen geht der
+    Einladungslink sofort per E-Mail an die Person – 7 Tage gültig, nur einmal nutzbar.
+  </p>
+
+  <h2>Offen ({offen.length})</h2>
+  {offen.length === 0 && <p class="leise">Keine offenen Anfragen.</p>}
+  {offen.map((a) => (
+    <article class="kasten anfrage">
+      <h3>{a.name}</h3>
+      <p class="klein leise">
+        {zeit(a.eingegangenAm)} · <a href={`mailto:${a.email}`}>{a.email}</a>
+      </p>
+      {a.ort && (
+        <p>
+          <strong>Ort / Region:</strong> {a.ort}
+        </p>
+      )}
+      {a.info && <p class="anfrage-text">{a.info}</p>}
+      <form class="melden" method="post">
+        <CsrfFeld />
+        <input type="hidden" name="aktion" value="annehmen" />
+        <input type="hidden" name="id" value={a.id} />
+        <label>
+          Annehmen als
+          <select name="rolle" required>
+            <option value="" selected disabled>
+              Bitte wählen …
+            </option>
+            <option value="kirmesgesellschaft">
+              Kirmesgesellschaft – nur Termine und Plätze des eigenen Ortes
+            </option>
+            <option value="redaktion">Redaktion – alle Orte und Termine</option>
+          </select>
+        </label>
+        <label class="kg-ort">
+          Ort der Kirmesgesellschaft
+          <span class="ortssuche">
+            <input
+              name="ort"
+              maxlength="200"
+              placeholder="Ort suchen …"
+              autocomplete="off"
+              value={a.ort ?? ''}
+              data-ortssuche
+            />
+          </span>
+        </label>
+        <div>
+          <button class="knopf" type="submit">
+            Annehmen und Einladung senden
+          </button>
+        </div>
+      </form>
+      <details class="ablehnen">
+        <summary>Ablehnen …</summary>
+        <form method="post">
+          <CsrfFeld />
+          <input type="hidden" name="aktion" value="ablehnen" />
+          <input type="hidden" name="id" value={a.id} />
+          <label>
+            <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, ablehnen (es geht
+            keine E-Mail raus)
+          </label>
+          <button class="knopf zweit" type="submit">
+            Anfrage ablehnen
+          </button>
+        </form>
+      </details>
+    </article>
+  ))}
+
+  {erledigt.length > 0 && (
+    <>
+      <h2>Erledigt</h2>
+      <ul class="erledigt">
+        {erledigt.map((a) => (
+          <li>
+            <strong>{a.name}</strong>
+            {a.ort && ` (${a.ort})`} – {a.status === 'angenommen' ? 'angenommen' : 'abgelehnt'}{' '}
+            <span class="klein leise">
+              {zeit(a.erledigtAm)}
+              {a.erledigtVon && ` von ${a.erledigtVon}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+  <p class="klein leise">
+    Datenschutz: Die E-Mail-Adresse wird beim Annehmen oder Ablehnen gelöscht, erledigte Anfragen
+    nach 90 Tagen, unbeantwortete nach 180 Tagen.
+  </p>
+</AdminLayout>
+<style>
+  .anfrage {
+    margin-bottom: 1rem;
+  }
+  .anfrage h3 {
+    margin: 0 0 0.25rem;
+  }
+  .anfrage-text {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .anfrage a {
+    overflow-wrap: anywhere;
+  }
+  .ablehnen {
+    margin-top: 0.75rem;
+  }
+  .ablehnen form {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    justify-items: start;
+  }
+  .erledigt li {
+    margin-bottom: 0.4rem;
+  }
+  /* Ortsfeld nur bei Rolle Kirmesgesellschaft, auch ohne JavaScript */
+  .kg-ort {
+    display: none;
+  }
+  form:has(select[name='rolle'] option[value='kirmesgesellschaft']:checked) .kg-ort {
+    display: grid;
+  }
+</style>
+<script>
+  import '../../scripts/ortssuche';
+</script>

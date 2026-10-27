@@ -103,7 +103,10 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     ctx.locals.ortName = ich.daten.ortName;
     ctx.locals.kgName = ich.daten.kgName ?? null;
     // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
-    if (pfad.startsWith('/admin/mitglieder') && !darf(ich.daten, 'mitglieder')) {
+    if (
+      (pfad.startsWith('/admin/mitglieder') || pfad.startsWith('/admin/anfragen')) &&
+      !darf(ich.daten, 'mitglieder')
+    ) {
       return ctx.redirect('/admin', 303);
     }
     // „Eure Leute“ ist die Seite der Kirmesgesellschaften – alle anderen verwalten unter Mitglieder

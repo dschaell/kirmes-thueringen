@@ -12,6 +12,8 @@ import {
   Beitritt,
   Ersteinrichtung,
   Mitgliederverwaltung,
+  MitmachAnfragen,
+  type Anfrage,
   Registrierung,
   RedaktionsFestplaetze,
   type Vorschlaege,
@@ -134,6 +136,7 @@ let einrichtungAktiv: Ersteinrichtung | undefined;
 let beitrittAktiv: Beitritt | undefined;
 let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
 let sicherungenAktiv: (() => Promise<unknown>) | undefined;
+let anfragenAktiv: MitmachAnfragen | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const KG_SITZUNG = 'K'.repeat(43);
@@ -287,6 +290,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       festplaetze: festplaetzeAktiv,
       vorschlaege: vorschlaegeAktiv,
       sicherungen: sicherungenAktiv,
+      anfragen: anfragenAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -2127,5 +2131,76 @@ describe('Herkunft für Kirmesgesellschaften (Issue #200)', () => {
     expect((await rufe(KG_SITZUNG)).statusCode).toBe(200);
     expect((await rufe(REDAKTION_SITZUNG)).statusCode).toBe(200);
     expect(orte).toEqual(['muehlberg', null]);
+  });
+});
+
+describe('Mitmach-Anfragen (Issue #279)', () => {
+  const auth = { authorization: `Sitzung ${SITZUNG}` };
+  const anfrage: Anfrage = {
+    id: '11111111-1111-4111-8111-111111111111',
+    eingegangenAm: '2026-10-27',
+    name: 'Lisa',
+    email: 'lisa@example.org',
+    ort: null,
+    info: null,
+    status: 'offen',
+    erledigtAm: null,
+    erledigtVon: null,
+  };
+  const mit = async (versand: () => Promise<void>) => {
+    let a = { ...anfrage };
+    const post: string[] = [];
+    anfragenAktiv = new MitmachAnfragen(
+      {
+        lege: async () => true,
+        liste: async () => [a],
+        finde: async (id) => (id === a.id ? a : null),
+        erledige: async (_id, status) => ((a = { ...a, status, email: null }), true),
+        raeumeAuf: async () => {},
+      },
+      new Mitgliederverwaltung(mitgliederRepo(), einladungenRepo(), {
+        neuesToken: () => 'E'.repeat(43),
+      }),
+      { sendeAn: async (an) => (await versand(), void post.push(an)) },
+      'https://k.de',
+    );
+    await setup();
+    anfragenAktiv = undefined;
+    return post;
+  };
+  const rufe = (method: 'GET' | 'POST', url: string, headers: object, payload?: object) =>
+    app.inject({ method, url: `/api/v1/admin/anfragen${url}`, headers, payload } as never);
+
+  it('Admin sieht, nimmt an (Mail), doppelt → 409; Redaktion und KG → 403', async () => {
+    const post = await mit(async () => {});
+    expect((await rufe('GET', '', auth)).json()).toHaveLength(1);
+    const an = await rufe('POST', `/${anfrage.id}/annehmen`, auth, { rolle: 'redaktion' });
+    expect([an.statusCode, an.json()]).toEqual([200, { email: 'lisa@example.org' }]);
+    expect(post).toEqual(['lisa@example.org']);
+    expect((await rufe('POST', `/${anfrage.id}/ablehnen`, auth)).statusCode).toBe(409);
+    expect(
+      (await rufe('POST', '/22222222-2222-4222-8222-222222222222/ablehnen', auth)).statusCode,
+    ).toBe(404);
+    for (const s of [REDAKTION_SITZUNG, KG_SITZUNG])
+      expect((await rufe('GET', '', { authorization: `Sitzung ${s}` })).statusCode).toBe(403);
+    expect(
+      (await rufe('POST', `/${anfrage.id}/annehmen`, auth, { rolle: 'admin' })).statusCode,
+    ).toBe(400);
+  });
+
+  it('Ablehnen → 204; Versand scheitert → 502', async () => {
+    await mit(async () => {});
+    expect((await rufe('POST', `/${anfrage.id}/ablehnen`, auth)).statusCode).toBe(204);
+    await app.close();
+    await mit(async () => {
+      throw new Error('SMTP');
+    });
+    const r = await rufe('POST', `/${anfrage.id}/annehmen`, auth, { rolle: 'redaktion' });
+    expect(r.statusCode).toBe(502);
+  });
+
+  it('ohne Mailversand nicht vorhanden', async () => {
+    await setup();
+    expect((await rufe('GET', '', auth)).statusCode).toBe(404);
   });
 });

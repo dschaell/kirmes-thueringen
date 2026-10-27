@@ -2,6 +2,7 @@ import { Korrekturen, Vorschlaege } from '@kirmes/core';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
 import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
 import { PgKorrekturen } from './infrastructure/postgres/korrektur-repository.js';
+import { PgAnfragen } from './infrastructure/postgres/anfragen-repository.js';
 /** Composition Root: einziger Ort, an dem konkrete Adapter mit den Use Cases verdrahtet werden. */
 import {
   FindeOrt,
@@ -14,6 +15,9 @@ import {
   Beitritt,
   Ersteinrichtung,
   Mitgliederverwaltung,
+  MitmachAnfragen,
+  ANFRAGE_AUFBEWAHRUNG_TAGE,
+  ANFRAGE_OFFEN_TAGE,
   Registrierung,
   MeldeAnRedaktion,
   Passkeys,
@@ -117,7 +121,14 @@ const einrichtung =
     : undefined;
 const vorschlagsRepo = new PgVorschlaege(pool);
 const korrekturRepo = new PgKorrekturen(pool);
-const raeumeAuf = () => Promise.all([vorschlagsRepo.raeumeAuf(), korrekturRepo.raeumeAuf()]);
+const anfragenRepo = new PgAnfragen(pool);
+const raeumeAuf = () =>
+  Promise.all([
+    vorschlagsRepo.raeumeAuf(),
+    korrekturRepo.raeumeAuf(),
+    anfragenRepo.raeumeAuf(ANFRAGE_AUFBEWAHRUNG_TAGE, ANFRAGE_OFFEN_TAGE),
+  ]);
+const mitglieder = new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto);
 // Aufräumen darf den Start nie verhindern (Issue #94) – Fehler wird nach dem Start geloggt
 const ersterAufraeumlauf = raeumeAuf().then(
   () => true,
@@ -165,6 +176,7 @@ const app = await baueApp({
         postausgang,
         new SpeicherDrosselung(5, 3_600_000),
         new SpeicherDrosselung(100, 3_600_000),
+        anfragenRepo,
       )
     : undefined,
   admin: {
@@ -175,7 +187,11 @@ const app = await baueApp({
     passkeys,
     einrichtung,
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
-    mitglieder: new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto),
+    mitglieder,
+    anfragen:
+      postausgang && k.websiteUrl
+        ? new MitmachAnfragen(anfragenRepo, mitglieder, postausgang, k.websiteUrl)
+        : undefined,
     vorschlaege: () => terminVorschlaege(pool),
     sicherungen: k.sicherungen ? leseSicherungen.bind(null, k.sicherungen) : undefined,
     festplaetze: new RedaktionsFestplaetze(
