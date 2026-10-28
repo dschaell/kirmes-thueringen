@@ -668,6 +668,12 @@ legend {
   font-weight: 650;
   padding-top: 1px;
 }
+.eintrag .zeit .bis {
+  display: block;
+  color: var(--grau);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
 .eintrag .zeit.offen {
   color: var(--grau);
   font-weight: 400;

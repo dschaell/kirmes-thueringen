@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   berlinVersatz,
+  dauerMinuten,
+  uhrzeitText,
   brotkrumenJsonLd,
   eventJsonLd,
   eintrittText,
@@ -255,6 +257,19 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
       '8 €',
       '7,50 €',
     ]);
+  });
+  it('echte Endzeit (Issue #286), auch nach Mitternacht', () => {
+    const vv = termin({ beginn: '10:00', ende: '12:30', kategorie: 'sonstiges' });
+    expect(eventJsonLd(vv, site).endDate).toBe('2026-10-24T12:30:00+02:00');
+    expect(eventJsonLd(termin({ ende: '02:00' }), site).endDate).toBe('2026-10-25T02:00:00+01:00');
+    expect(dauerMinuten(vv)).toBe(150);
+    expect(dauerMinuten(termin({ ende: '20:00' }))).toBe(300);
+    expect([
+      uhrzeitText(vv),
+      uhrzeitText(termin()),
+      uhrzeitText(termin({ ende: '20:00' })),
+      uhrzeitText(termin({ beginn: null })),
+    ]).toEqual(['10:00–12:30', '20:00', '20:00', null]);
   });
   it('Brotkrumen ab Start, mit Positionen', () => {
     expect(brotkrumenJsonLd([['Ilm-Kreis', '/kreise/ik']], site).itemListElement).toEqual([

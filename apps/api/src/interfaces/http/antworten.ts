@@ -29,6 +29,7 @@ export const terminDto = (t: Termin) => ({
   band: t.band,
   pfarrer: t.pfarrer,
   veranstalter: t.veranstalter ?? null,
+  ende: t.ende ?? null,
   eintrittCent: t.eintrittCent ?? null,
   muttizettel: t.muttizettel,
   info: t.info,

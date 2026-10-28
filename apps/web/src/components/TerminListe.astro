@@ -71,7 +71,12 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
             const route = routenLinks(t);
             return (
               <li class="eintrag">
-                <span class:list={['zeit', { offen: !t.beginn }]}>{t.beginn ?? 'ganztags'}</span>
+                <span class:list={['zeit', { offen: !t.beginn }]}>
+                  {t.beginn ?? 'ganztags'}
+                  {t.beginn && t.ende && t.ende !== t.beginn && (
+                    <span class="bis">bis {t.ende}</span>
+                  )}
+                </span>
                 <div>
                   <a class="titel" href={`/termin/${t.id}`}>
                     {t.titel}

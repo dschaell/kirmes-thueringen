@@ -162,6 +162,36 @@ describe('Veranstalter und Eintritt (Issue #278)', () => {
   });
 });
 
+describe('Endzeit (Issue #286)', () => {
+  const basis = {
+    ortSlug: 'alkersleben',
+    landkreis: 'IK',
+    datum: '2027-09-17',
+    beginn: '10:00',
+    titel: 'Kartenvorverkauf',
+    kategorie: 'sonstiges',
+  };
+  const codes = (x: object) => {
+    const r = validiereTermin({ ...basis, ...x });
+    return r.ok ? [] : r.error.map((f) => f.code);
+  };
+  it('speichert Endzeit, leer = keine, nicht mitgeschickt = Feld fehlt', () => {
+    const r = validiereTermin({ ...basis, ende: ' 12:00 ' });
+    expect(r.ok && r.value.termin.ende).toBe('12:00');
+    const leer = validiereTermin({ ...basis, ende: '' });
+    expect(leer.ok && leer.value.termin.ende).toBeNull();
+    const ohne = validiereTermin(basis);
+    expect(ohne.ok && 'ende' in ohne.value.termin).toBe(false);
+    // vor Beginn = nach Mitternacht
+    expect(codes({ beginn: '20:00', ende: '02:00' })).toEqual([]);
+  });
+  it('Fehler: Format, ohne Beginn, gleich Beginn', () => {
+    expect(codes({ ende: '25:00' })).toEqual(['UHRZEIT_UNGUELTIG']);
+    expect(codes({ beginn: null, ende: '12:00' })).toEqual(['ENDE_OHNE_BEGINN']);
+    expect(codes({ ende: '10:00' })).toEqual(['ENDE_GLEICH_BEGINN']);
+  });
+});
+
 describe('Pfarrer/in beim Gottesdienst (Issue #175)', () => {
   const basis = {
     ortSlug: 'alkersleben',

@@ -360,6 +360,7 @@ export class Redaktion {
       band: f.band ?? null,
       pfarrer: f.pfarrer,
       veranstalter: f.veranstalter,
+      ende: f.ende,
       eintritt: f.eintritt,
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,

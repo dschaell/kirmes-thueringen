@@ -20,6 +20,7 @@ import {
   artName,
   eintrittText,
   veranstalterVon,
+  uhrzeitText,
 } from '../../lib/anzeige';
 
 const t = await findeTermin(Astro.params.id ?? '');
@@ -36,7 +37,8 @@ const datum = datumLangJahr(t.datum);
 const vorbei = t.datum < heute();
 const rel = relativerTag(t.datum);
 const relativ = rel ? rel[0]!.toUpperCase() + rel.slice(1) : null;
-const teilenText = `${t.titel} – ${t.ort.name}, ${datum}${t.beginn ? `, ${t.beginn} Uhr` : ''}`;
+const uhrzeit = uhrzeitText(t);
+const teilenText = `${t.titel} – ${t.ort.name}, ${datum}${uhrzeit ? `, ${uhrzeit} Uhr` : ''}`;
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
@@ -72,9 +74,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <dl class="fakten">
       <dt>
         <Icon name="uhr" />
-        <span class="sr-only">Beginn</span>
+        <span class="sr-only">Uhrzeit</span>
       </dt>
-      <dd>{t.beginn ? `${t.beginn} Uhr` : 'Uhrzeit noch offen'}</dd>
+      <dd>{uhrzeit ? `${uhrzeit} Uhr` : 'Uhrzeit noch offen'}</dd>
       <dt>
         <Icon name="ort" />
         <span class="sr-only">Ort</span>

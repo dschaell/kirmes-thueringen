@@ -191,11 +191,11 @@ export function berlinVersatz(datum: string): string {
   return teil === 'GMT+2' ? '+02:00' : '+01:00';
 }
 
-/** Ortszeit + Stunden → „2026-10-24T01:00:00+02:00“ (über Mitternacht korrekt). */
-function plusStunden(datum: string, beginn: string, stunden: number): string {
+/** Ortszeit + Minuten → „2026-10-24T01:00:00+02:00“ (über Mitternacht korrekt). */
+function plusMinuten(datum: string, beginn: string, minuten: number): string {
   const [h = 0, m = 0] = beginn.split(':').map(Number);
   const d = new Date(
-    Date.UTC(+datum.slice(0, 4), +datum.slice(5, 7) - 1, +datum.slice(8, 10), h + stunden, m),
+    Date.UTC(+datum.slice(0, 4), +datum.slice(5, 7) - 1, +datum.slice(8, 10), h, m + minuten),
   );
   const tag = d.toISOString().slice(0, 10);
   return `${tag}T${d.toISOString().slice(11, 16)}:00${berlinVersatz(tag)}`;
@@ -213,7 +213,7 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     '@type': 'Event',
     name: `${t.titel} – ${t.ort.name}`,
     startDate: t.beginn ? `${t.datum}T${t.beginn}:00${berlinVersatz(t.datum)}` : t.datum,
-    endDate: t.beginn ? plusStunden(t.datum, t.beginn, DAUER_STUNDEN[t.kategorie] ?? 3) : t.datum,
+    endDate: t.beginn ? plusMinuten(t.datum, t.beginn, dauerMinuten(t)) : t.datum,
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     location: {
@@ -244,6 +244,25 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     url,
   };
 }
+
+const minutenVon = (hhmm: string) => {
+  const [h = 0, m = 0] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Dauer ab Beginn (Issue #286): echte Endzeit – davor liegend = nach Mitternacht –, sonst übliche
+ * Dauer der Art.
+ */
+export function dauerMinuten(t: Pick<TerminDto, 'beginn' | 'ende' | 'kategorie'>): number {
+  if (!t.beginn || !t.ende || t.ende === t.beginn) return (DAUER_STUNDEN[t.kategorie] ?? 3) * 60;
+  const d = minutenVon(t.ende) - minutenVon(t.beginn);
+  return d > 0 ? d : d + 24 * 60;
+}
+
+/** „20:00“, mit Endzeit „10:00–12:00“; null ohne Beginn */
+export const uhrzeitText = (t: Pick<TerminDto, 'beginn' | 'ende'>): string | null =>
+  t.beginn ? (t.ende && t.ende !== t.beginn ? `${t.beginn}–${t.ende}` : t.beginn) : null;
 
 /**
  * Wer veranstaltet (Issue #278): eigener Eintrag am Termin, sonst der selbst eingetragene Name der

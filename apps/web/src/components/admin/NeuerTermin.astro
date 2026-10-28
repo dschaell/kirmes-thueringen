@@ -1,14 +1,17 @@
 ---
 /** Neuer Einzeltermin mit Recherche-Assistent – aus admin/termine.astro (Issue #199). */
 import CsrfFeld from './CsrfFeld.astro';
+import Endzeit from './Endzeit.astro';
 import Icon from '../Icon.astro';
 import type { TerminDto } from '../../lib/api';
 import { KATEGORIEN } from '../../lib/anzeige';
 interface Props {
-  einzelWerte: Partial<TerminDto> | null;
+  einzelWerte: (Partial<TerminDto> & { eintritt?: string }) | null;
+  /** Platzhalter für „Veranstalter“ */
+  ortName: string;
   veranstaltungsorte: string[];
 }
-const { einzelWerte, veranstaltungsorte } = Astro.props;
+const { einzelWerte, ortName, veranstaltungsorte } = Astro.props;
 ---
 
 <h2>Neuer Termin</h2>
@@ -41,6 +44,7 @@ const { einzelWerte, veranstaltungsorte } = Astro.props;
       <input name="beginn" type="time" value={einzelWerte?.beginn ?? ''} />
     </label>
   </div>
+  <Endzeit ende={einzelWerte?.ende ?? ''} />
   <label>
     Veranstaltung *
     <input
@@ -84,9 +88,32 @@ const { einzelWerte, veranstaltungsorte } = Astro.props;
         name="info"
         maxlength="500"
         rows="2"
-        placeholder="z. B. Eintritt 8 €, Einlass ab 18"
+        placeholder="z. B. Einlass ab 18, Shuttlebus"
         set:text={einzelWerte?.info ?? ''}
       />
+    </label>
+  </div>
+  <div class="zwei">
+    <label>
+      Veranstalter (optional)
+      <input
+        name="veranstalter"
+        maxlength="200"
+        placeholder={ortName}
+        value={einzelWerte?.veranstalter ?? ''}
+      />
+      <span class="klein leise">Nur ausfüllen, wenn jemand anderes veranstaltet.</span>
+    </label>
+    <label>
+      Eintritt (optional)
+      <input
+        name="eintritt"
+        maxlength="20"
+        inputmode="decimal"
+        placeholder="z. B. 8 oder frei"
+        value={einzelWerte?.eintritt ?? ''}
+      />
+      <span class="klein leise">Leer lassen, wenn noch unklar.</span>
     </label>
   </div>
   <datalist id="vo-liste">

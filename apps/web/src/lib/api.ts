@@ -40,6 +40,8 @@ export interface TerminDto {
   band: string | null;
   /** Pfarrer/in beim Gottesdienst (Issue #175) */
   pfarrer?: string | null;
+  /** Endzeit HH:MM, null = keine; vor Beginn = nach Mitternacht (Issue #286) */
+  ende?: string | null;
   /** Veranstalter, falls nicht die Kirmesgesellschaft (Issue #278) */
   veranstalter?: string | null;
   /** Eintritt in Cent, 0 = frei, null = unbekannt (Issue #278) */

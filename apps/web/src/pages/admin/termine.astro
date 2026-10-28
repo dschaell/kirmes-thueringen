@@ -36,7 +36,7 @@ const ort = ortSlug ? await findeOrt(ortSlug) : null;
 const alleModus = p.get('modus') === 'alle';
 
 let meldung: string | null = null;
-let einzelEingabe: Partial<TerminDto> | null = null;
+let einzelEingabe: (Partial<TerminDto> & { eintritt?: string }) | null = null;
 let fehler: string[] = [];
 const sammelEingaben = new Map<string, Partial<TerminDto> & { loeschen?: boolean }>();
 if (Astro.request.method === 'POST' && ort) {
@@ -50,17 +50,22 @@ if (Astro.request.method === 'POST' && ort) {
     version: feld(f, 'version'),
     datum: feld(f, 'datum'),
     beginn: feld(f, 'beginn') || null,
+    // ohne Haken keine Endzeit (Issue #286)
+    ende: (f.get('mitende') === 'ja' && feld(f, 'ende')) || null,
     titel: feld(f, 'titel'),
     veranstaltungsort: feld(f, 'veranstaltungsort') || null,
     kategorie: feld(f, 'kategorie') || null,
     bestaetigt: f.get('bestaetigt') === 'ja',
     band: feld(f, 'band') || null,
+    veranstalter: feld(f, 'veranstalter') || null,
+    eintritt: feld(f, 'eintritt') || null,
     info: feld(f, 'info') || null,
     muttizettel: f.get('muttizettel') === 'ja',
   };
   if (aktion === 'speichern')
     einzelEingabe = {
       ...formular,
+      eintritt: formular.eintritt ?? '',
       kategorie:
         formular.kategorie && istKategorie(formular.kategorie) ? formular.kategorie : undefined,
     };
@@ -297,6 +302,7 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
       {!alleModus && (
         <NeuerTermin
           einzelWerte={einzelWerte}
+          ortName={ort.kgName ?? `Kirmesgesellschaft ${ort.name}`}
           veranstaltungsorte={veranstaltungsorte as string[]}
         />
       )}
