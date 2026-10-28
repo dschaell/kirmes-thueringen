@@ -131,6 +131,8 @@ export function leseProgramm(
                 aktiv: true,
                 datum: feld(f, `datum-${i}`),
                 beginn: feld(f, `beginn-${i}`),
+                // ohne Haken keine Endzeit (Issue #288)
+                ende: f.get(`mitende-${i}`) === 'ja' ? feld(f, `ende-${i}`) : '',
                 titel: feld(f, `titel-${i}`),
                 // Art wählbar (Issue #93); leer = beim Speichern aus dem Titel erkennen
                 kategorie: istKategorie(feld(f, `kat-${i}`)) ? feld(f, `kat-${i}`) : null,

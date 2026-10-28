@@ -16,6 +16,7 @@ type Termin = {
   version: string;
   datum: string;
   beginn: string | null;
+  ende?: string | null;
   titel: string;
   veranstaltungsort: string | null;
   kategorie: string;
@@ -109,6 +110,7 @@ function zeigeTermine() {
     ...termine.map((t) => {
       const li = el('li', 'eintrag');
       const zeit = el('span', 'zeit', t.beginn ?? '');
+      if (t.beginn && t.ende) zeit.append(el('span', 'bis', `bis ${t.ende}`));
       const info = el('div');
       const titel = el('strong', '', t.titel);
       const wo = el(
@@ -158,6 +160,8 @@ function bearbeiten(t: Termin) {
   bearbeiteteVersion = t.version;
   feld('datum').value = t.datum;
   feld('beginn').value = t.beginn ?? '';
+  (feld('mitende') as HTMLInputElement).checked = Boolean(t.ende);
+  feld('ende').value = t.ende ?? '';
   feld('titel').value = t.titel;
   feld('veranstaltungsort').value = t.veranstaltungsort ?? '';
   feld('kategorie').value = t.kategorie;
@@ -185,6 +189,8 @@ formular.addEventListener('submit', async (e) => {
     ...(bearbeiteteId ? { version: bearbeiteteVersion } : {}),
     datum: feld('datum').value,
     beginn: feld('beginn').value || null,
+    // ohne Haken keine Endzeit (Issue #288)
+    ende: ((feld('mitende') as HTMLInputElement).checked && feld('ende').value) || null,
     titel: feld('titel').value,
     veranstaltungsort: feld('veranstaltungsort').value || null,
     kategorie: feld('kategorie').value || null,

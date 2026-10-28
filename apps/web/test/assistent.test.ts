@@ -56,6 +56,11 @@ describe('Kirmes-Assistent', () => {
       'Kirmesparty',
     ]);
     expect(z[0]?.veranstaltungsort).toBe('Kirche');
+    // Endzeit nur mit Haken (Issue #288)
+    f.set('ende-0', '12:00');
+    expect(leseProgramm(f, alt, false)[0]?.ende).toBe('');
+    f.set('mitende-0', 'ja');
+    expect(leseProgramm(f, alt, false)[0]?.ende).toBe('12:00');
   });
   it('freiwillige Details und Speisen werden derselben Veranstaltung zugeordnet', () => {
     const alt = vorlage('2027-09-17', '4');

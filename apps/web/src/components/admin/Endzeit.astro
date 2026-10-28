@@ -5,18 +5,26 @@
  */
 interface Props {
   ende: string;
+  /** Anhang an die Feldnamen, z. B. „-0“ im Kirmes-Assistenten (mitende-0, ende-0) */
+  zusatz?: string;
 }
-const { ende } = Astro.props;
+const { ende, zusatz = '' } = Astro.props;
 ---
 
 <div class="endzeit">
   <label class="klein">
-    <input type="checkbox" name="mitende" value="ja" checked={Boolean(ende)} /> Endzeit angeben (z.
-    B. Kartenvorverkauf bis 12 Uhr)
+    <input
+      type="checkbox"
+      class="mitende"
+      name={`mitende${zusatz}`}
+      value="ja"
+      checked={Boolean(ende)}
+    />{' '}
+    Endzeit angeben (z. B. Kartenvorverkauf bis 12 Uhr)
   </label>
   <label class="endzeit-feld">
     Ende
-    <input type="time" name="ende" value={ende} />
+    <input type="time" name={`ende${zusatz}`} value={ende} />
     <span class="klein leise">Früher als der Beginn = nach Mitternacht.</span>
   </label>
 </div>
@@ -28,7 +36,7 @@ const { ende } = Astro.props;
   .endzeit-feld {
     display: none !important;
   }
-  .endzeit:has(input[name='mitende']:checked) .endzeit-feld {
+  .endzeit:has(.mitende:checked) .endzeit-feld {
     display: grid !important;
   }
 </style>

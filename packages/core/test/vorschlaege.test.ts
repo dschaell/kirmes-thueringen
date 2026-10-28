@@ -376,7 +376,7 @@ describe('Mail zum neuen Vorschlag (Issue #171)', () => {
         veranstaltungsort: 'Kirche',
         platz: { lat: 50.86, lon: 11.09 },
       }),
-      termin('2027-09-18', '20:00', 'Kirmestanz', { band: 'Belconda' }),
+      termin('2027-09-18', '20:00', 'Kirmestanz', { band: 'Belconda', ende: '02:00' }),
     ],
   };
   it('Betreff und Programm mit Wochentag, direkter Link', () => {
@@ -390,7 +390,7 @@ describe('Mail zum neuen Vorschlag (Issue #171)', () => {
         '',
         'Programm:',
         '- Fr., 17.09.2027, 18:00 Uhr – Kirmesgottesdienst (Kirche · Kartenpunkt)',
-        '- Sa., 18.09.2027, 20:00 Uhr – Kirmestanz (Band/DJ: Belconda)',
+        '- Sa., 18.09.2027, 20:00–02:00 Uhr – Kirmestanz (Band/DJ: Belconda)',
         '',
         'Eingereicht von: KG Elleben – „Antworten“ geht direkt an den Einsender',
         '',

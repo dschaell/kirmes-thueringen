@@ -2,7 +2,7 @@
 /** Schritt 3: Details – aus KirmesAssistent.astro (Issue #199). */
 import type { AssistentStand } from '../../lib/assistent';
 import { mitEssen } from '../../lib/assistent';
-import { anzahl, datumLangJahr, musikFeld } from '../../lib/anzeige';
+import { anzahl, datumLangJahr, musikFeld, uhrzeitText } from '../../lib/anzeige';
 import { erkenneKategorie } from '@kirmes/core';
 interface Props {
   s: AssistentStand;
@@ -49,7 +49,7 @@ const { s, redaktion, ortName } = Astro.props;
           <strong>{z.titel}</strong>
           <span class="leise klein">
             {datumLangJahr(z.datum)}
-            {z.beginn && ` · ${z.beginn} Uhr`}
+            {uhrzeitText(z) && ` · ${uhrzeitText(z)} Uhr`}
           </span>
         </summary>
         <div class="details-inhalt">

@@ -220,7 +220,7 @@ export function vorschlagsMail(
       t.platz && 'Kartenpunkt',
       t.speisen.length > 0 && 'Essen & Getränke',
     ].filter(Boolean);
-    return `- ${tagText(t.datum)}${t.beginn ? `, ${t.beginn} Uhr` : ''} – ${t.titel}${
+    return `- ${tagText(t.datum)}${t.beginn ? `, ${t.beginn}${t.ende ? `–${t.ende}` : ''} Uhr` : ''} – ${t.titel}${
       details.length ? ` (${details.join(' · ')})` : ''
     }`;
   });

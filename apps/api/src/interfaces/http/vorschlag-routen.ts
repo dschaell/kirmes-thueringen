@@ -9,6 +9,7 @@ export const vorschlagsZeileSchema = {
   properties: {
     datum: text(10),
     beginn: { type: ['string', 'null'], maxLength: 5 },
+    ende: { type: ['string', 'null'], maxLength: 5 },
     titel: text(200),
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     band: { type: ['string', 'null'], maxLength: 120 },

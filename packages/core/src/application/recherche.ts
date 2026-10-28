@@ -88,6 +88,7 @@ export const RECHERCHE_SPALTEN = [
   'landkreis',
   'datum',
   'beginn',
+  'ende',
   'titel',
   'veranstaltungsort',
   'kategorie',
@@ -103,6 +104,8 @@ export interface RechercheZeile {
   landkreis: string | null;
   datum: string;
   beginn: string | null;
+  /** Endzeit (Issue #288), leer = keine */
+  ende: string | null;
   titel: string;
   veranstaltungsort: string | null;
   kategorie: string;
@@ -119,6 +122,8 @@ const SPALTEN_ALIAS: Record<string, string> = {
   uhrzeit: 'beginn',
   zeit: 'beginn',
   uhr: 'beginn',
+  bis: 'ende',
+  endzeit: 'ende',
   wo: 'veranstaltungsort',
   platz: 'veranstaltungsort',
   ortderveranstaltung: 'veranstaltungsort',
@@ -199,6 +204,7 @@ export function leseRecherche(
           landkreis: wert(z, 'landkreis').toUpperCase() || null,
           datum: normDatum(wert(z, 'datum')),
           beginn: normUhrzeit(wert(z, 'beginn')),
+          ende: normUhrzeit(wert(z, 'ende')),
           titel,
           veranstaltungsort: wert(z, 'veranstaltungsort') || null,
           kategorie: kategorie || erkenneKategorie(bereinigeTitel(titel)),

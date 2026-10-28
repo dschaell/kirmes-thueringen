@@ -55,6 +55,16 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     await db.end();
   });
   it('speichert privat, liest geordnet mit Speisen und findet keine unbekannten IDs', async () => {
+    expect(
+      await repo.lege({
+        ...eingabe(),
+        termine: [{ ...termin, titel: 'Vorverkauf', ende: '12:00' }],
+      }),
+    ).toMatch(/^[0-9a-f-]{36}$/);
+    // Endzeit bleibt im Vorschlag erhalten (Issue #288)
+    const mitEnde = (await repo.liste()).find((v) => v.termine[0]?.titel === 'Vorverkauf');
+    expect(mitEnde?.termine[0]?.ende).toBe('12:00');
+    await db.query('DELETE FROM vorschlag WHERE id = $1::uuid', [mitEnde?.id]);
     expect(await repo.lege(eingabe())).toMatch(/^[0-9a-f-]{36}$/);
     const v = (await repo.liste()).find((v) => v.ortSlug === 'it-vorschlag');
     expect(v).toMatchObject({
@@ -76,7 +86,9 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
   it('übernimmt mit Speisen und Audit atomar und entfernt Kontakt und Nachricht', async () => {
     const v = (await repo.liste()).find((v) => v.ortSlug === 'it-vorschlag');
     const id = v?.id ?? '';
-    expect(await repo.uebernehme(id, [{ ...termin, bestaetigt: true }], adminId)).toBe(true);
+    expect(
+      await repo.uebernehme(id, [{ ...termin, bestaetigt: true, ende: '02:00' }], adminId),
+    ).toBe(true);
     expect(await repo.finde(id)).toBeNull();
     const status = (
       await db.query(
@@ -94,10 +106,10 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     expect(
       (
         await db.query(
-          "SELECT bestaetigt FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug = 'it-vorschlag')",
+          "SELECT bestaetigt, to_char(ende, 'HH24:MI') AS ende FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug = 'it-vorschlag')",
         )
       ).rows,
-    ).toEqual([{ bestaetigt: true }]);
+    ).toEqual([{ bestaetigt: true, ende: '02:00' }]);
     expect(
       (
         await db.query(

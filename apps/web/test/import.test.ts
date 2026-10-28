@@ -27,6 +27,7 @@ describe('Tabellen-Import (Issue #105)', () => {
     expect(zeilen[1]?.termin).toMatchObject({
       datum: '2026-10-16',
       beginn: '20:00',
+      ende: '02:00',
       band: 'Die Musterband',
       veranstaltungsort: 'Festzelt',
       muttizettel: true,
