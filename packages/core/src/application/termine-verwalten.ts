@@ -47,6 +47,7 @@ export interface TerminFormular {
   pfarrer?: string | null;
   veranstalter?: string | null;
   eintritt?: string | null;
+  ende?: string | null;
   info?: string | null;
   muttizettel?: boolean;
 }
@@ -212,6 +213,7 @@ export class VerwalteTermine {
       band: f.band ?? null,
       pfarrer: f.pfarrer,
       veranstalter: f.veranstalter,
+      ende: f.ende,
       eintritt: f.eintritt,
       info: f.info ?? null,
       muttizettel: f.muttizettel ?? false,

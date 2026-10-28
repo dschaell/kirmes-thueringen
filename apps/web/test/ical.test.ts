@@ -39,6 +39,8 @@ describe('iCalendar (Issue #108)', () => {
     expect(ics).toContain('DURATION:PT5H');
     expect(ics).toContain('DTSTART;VALUE=DATE:20261018\r\nDTEND;VALUE=DATE:20261019');
     expect(ics).toContain('X-WR-CALNAME:Kirmes im Ilm-Kreis');
+    // echte Endzeit (Issue #286)
+    expect(alsIcal([t({ ende: '12:30' })], undefined, 'K')).toContain('DURATION:PT150M');
     for (const z of ics.split('\r\n')) expect(bytes(z)).toBeLessThanOrEqual(75);
   });
 });

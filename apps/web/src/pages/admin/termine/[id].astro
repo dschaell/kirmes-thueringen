@@ -2,12 +2,14 @@
 import { nameAusKartenlink } from '@kirmes/core';
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
+import Endzeit from '../../../components/admin/Endzeit.astro';
 import { adminApi, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
 import {
   KATEGORIEN,
   datumLangJahr,
   eintrittText,
+  uhrzeitText,
   speiseZeile,
   artName,
   musikFeld,
@@ -39,6 +41,7 @@ let fehler: string[] = geladen.fehler;
 let werte = {
   datum: t?.datum ?? '',
   beginn: t?.beginn ?? '',
+  ende: t?.ende ?? '',
   titel: t?.titel ?? '',
   band: t?.band ?? '',
   pfarrer: t?.pfarrer ?? '',
@@ -65,6 +68,8 @@ if (Astro.request.method === 'POST' && t) {
   werte = {
     datum: feld(f, 'datum'),
     beginn: feld(f, 'beginn'),
+    // ohne Haken keine Endzeit (Issue #286)
+    ende: f.get('mitende') === 'ja' ? feld(f, 'ende') : '',
     titel: feld(f, 'titel'),
     band: feld(f, 'band'),
     pfarrer: feld(f, 'pfarrer'),
@@ -112,6 +117,7 @@ if (Astro.request.method === 'POST' && t) {
         ...werte,
         version,
         beginn: werte.beginn || null,
+        ende: werte.ende || null,
         ortSlug: t.ort.slug,
         // ohne Haken keine Einträge übernehmen (Issue #155)
         speisen: essen ? speisen : [],
@@ -156,7 +162,7 @@ const hinterlegt =
               <dd>{t.titel}</dd>
               <dt>Datum / Uhrzeit</dt>
               <dd>
-                {datumLangJahr(t.datum)} {t.beginn && `· ${t.beginn} Uhr`}
+                {datumLangJahr(t.datum)} {uhrzeitText(t) && `· ${uhrzeitText(t)} Uhr`}
               </dd>
               <dt>{musikFeld(t.kategorie)}</dt>
               <dd>{t.band ?? '–'}</dd>
@@ -208,6 +214,7 @@ const hinterlegt =
             </label>
           </>
         </div>
+        <Endzeit ende={werte.ende} />
         <label>
           Veranstaltung
           <input

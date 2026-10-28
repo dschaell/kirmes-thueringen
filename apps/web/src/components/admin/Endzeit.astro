@@ -1,0 +1,34 @@
+---
+/**
+ * Optionale Endzeit (Issue #286), z. B. Kartenvorverkauf 10–12 Uhr. Das Feld erscheint erst nach dem
+ * Haken – auch ohne JavaScript; ohne Haken wird keine Endzeit gespeichert.
+ */
+interface Props {
+  ende: string;
+}
+const { ende } = Astro.props;
+---
+
+<div class="endzeit">
+  <label class="klein">
+    <input type="checkbox" name="mitende" value="ja" checked={Boolean(ende)} /> Endzeit angeben (z.
+    B. Kartenvorverkauf bis 12 Uhr)
+  </label>
+  <label class="endzeit-feld">
+    Ende
+    <input type="time" name="ende" value={ende} />
+    <span class="klein leise">Früher als der Beginn = nach Mitternacht.</span>
+  </label>
+</div>
+<style>
+  .endzeit {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .endzeit-feld {
+    display: none !important;
+  }
+  .endzeit:has(input[name='mitende']:checked) .endzeit-feld {
+    display: grid !important;
+  }
+</style>

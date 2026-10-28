@@ -61,4 +61,22 @@ describe.runIf(url)('Veranstalter und Eintritt (#278)', () => {
     const ohne = await repo.speichere(t({ titel: 'IT Frühschoppen', kategorie: 'fruehschoppen' }));
     expect(await repo.finde(ohne.id)).toMatchObject({ veranstalter: null, eintrittCent: null });
   });
+  it('Endzeit (#286): anlegen, behalten ohne Feld, ohne Beginn weg', async () => {
+    const a = await v.lege(t({ beginn: '10:00', ende: '12:00', titel: 'IT Vorverkauf' }), durch);
+    expect(a.ende).toBe('12:00');
+    expect((await repo.finde(a.id))?.ende).toBe('12:00');
+    const v1 = (await repo.finde(a.id))?.version;
+    expect(await v.aendere(a.id, t({ beginn: '10:00', titel: 'IT VV', version: v1 }), durch)).toBe(
+      true,
+    );
+    expect((await repo.finde(a.id))?.ende).toBe('12:00');
+    const v2 = (await repo.finde(a.id))?.version;
+    expect(await v.aendere(a.id, t({ beginn: null, titel: 'IT VV', version: v2 }), durch)).toBe(
+      true,
+    );
+    expect((await repo.finde(a.id))?.ende).toBeNull();
+    const r = await repo.speichere(t({ titel: 'IT Tanz', ende: '02:00' }));
+    expect((await repo.finde(r.id))?.ende).toBe('02:00');
+    expect((await repo.speichere(t({ titel: 'IT Ohne' }))).ende).toBeNull();
+  });
 });

@@ -11,10 +11,10 @@ import { abfrage } from './pool.js';
 const SQL_ANLEGEN = `
 INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, quelle,
                     eingetragen_durch, eingetragen_von_admin, band, info, muttizettel, pfarrer,
-                    veranstalter, eintritt_cent)
+                    veranstalter, eintritt_cent, ende)
 SELECT o.id, $2::date, $3::time, $4, $5, $6, $8,
        CASE WHEN $7::bigint IS NULL THEN 'Redaktion' ELSE 'Kirmesgesellschaft' END, $7, $9, $10, $11, $12, $13,
-       $14, $15::integer
+       $14, $15::integer, $16::time
   FROM ort o WHERE o.slug = $1
 RETURNING id, version::text AS version, ort_id, (SELECT name FROM ort WHERE id = termin.ort_id) AS ort_name`;
 
@@ -25,17 +25,21 @@ UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltu
        -- Issue #278: nicht mitgeschickt ($16/$18 false) = gespeicherten Wert behalten
        veranstalter = CASE WHEN $16::boolean THEN $15 ELSE t.veranstalter END,
        eintritt_cent = CASE WHEN $18::boolean THEN $17::integer ELSE t.eintritt_cent END,
+       -- Issue #286: ohne Beginn keine Endzeit; nicht mitgeschickt ($20 false) = behalten
+       ende = CASE WHEN $4::time IS NULL THEN NULL WHEN $20::boolean THEN $19::time ELSE t.ende END,
        geaendert_am = clock_timestamp(), version = t.version + 1
   FROM ort o
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
 
-/** Parameter $15–$18 von SQL_AENDERN: Wert und „mitgeschickt“ je Feld (Issue #278). */
+/** Parameter $15–$20 von SQL_AENDERN: Wert und „mitgeschickt“ je Feld (Issues #278, #286). */
 const neueFelder = (t: NeuerTermin) => [
   t.veranstalter ?? null,
   t.veranstalter !== undefined,
   t.eintrittCent ?? null,
   t.eintrittCent !== undefined,
+  t.ende ?? null,
+  t.ende !== undefined,
 ];
 
 const SQL_BESTAETIGEN = `
@@ -255,6 +259,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         t.pfarrer,
         t.veranstalter ?? null,
         t.eintrittCent ?? null,
+        t.ende ?? null,
       ],
     );
     const neu = r.rows[0];
@@ -278,6 +283,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
       ort: { slug: t.ortSlug, name: neu.ort_name, landkreis: t.landkreis, koordinate: null },
       datum: t.datum,
       beginn: t.beginn,
+      ende: t.ende ?? null,
       titel: t.titel,
       veranstaltungsort: t.veranstaltungsort,
       kategorie: t.kategorie,

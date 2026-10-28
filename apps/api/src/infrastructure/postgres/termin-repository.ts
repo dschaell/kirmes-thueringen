@@ -20,7 +20,8 @@ import { abfrage } from './pool.js';
 const SQL_TERMIN_DETAILS = `
 SELECT t.id, t.version::text AS version,
        to_char(t.geaendert_am AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS geaendert_am,
-       t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn, t.titel,
+       t.datum::text AS datum, to_char(t.beginn, 'HH24:MI') AS beginn,
+       to_char(t.ende, 'HH24:MI') AS ende, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.pfarrer, t.info, t.muttizettel,
        t.veranstalter, t.eintritt_cent, o.kg_name,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
@@ -82,8 +83,8 @@ const SQL_ORT_ID = `SELECT id, name FROM ort WHERE slug = $1 AND landkreis = $2`
 
 const SQL_EINFUEGEN = `
 INSERT INTO termin (ort_id, datum, beginn, titel, veranstaltungsort, kategorie, bestaetigt, band, info,
-                    muttizettel, pfarrer, veranstalter, eintritt_cent)
-VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::integer)
+                    muttizettel, pfarrer, veranstalter, eintritt_cent, ende)
+VALUES ($1, $2::date, $3::time, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::integer, $14::time)
 RETURNING id`;
 
 interface Zeile {
@@ -92,6 +93,7 @@ interface Zeile {
   id: string;
   datum: string;
   beginn: string | null;
+  ende: string | null;
   titel: string;
   veranstaltungsort: string | null;
   kategorie: Kategorie;
@@ -129,6 +131,7 @@ const zuTermin = (z: Zeile): Termin => ({
   },
   datum: z.datum as KalenderDatum,
   beginn: z.beginn,
+  ende: z.ende,
   titel: z.titel,
   veranstaltungsort: z.veranstaltungsort,
   kategorie: z.kategorie,
@@ -208,6 +211,7 @@ export class PgTerminRepository implements TerminRepository {
       t.pfarrer,
       t.veranstalter ?? null,
       t.eintrittCent ?? null,
+      t.ende ?? null,
     ]);
     const neu = rows[0];
     if (!neu) throw new Error('INSERT lieferte keine ID');
@@ -216,6 +220,7 @@ export class PgTerminRepository implements TerminRepository {
       ort: { slug: t.ortSlug, name: o.name, landkreis: t.landkreis, koordinate: null },
       datum: t.datum,
       beginn: t.beginn,
+      ende: t.ende ?? null,
       titel: t.titel,
       veranstaltungsort: t.veranstaltungsort,
       kategorie: t.kategorie,

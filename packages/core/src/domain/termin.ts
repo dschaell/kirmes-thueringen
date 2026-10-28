@@ -73,6 +73,8 @@ export interface Termin {
   readonly ort: Ort;
   readonly datum: KalenderDatum;
   readonly beginn: string | null; // HH:MM
+  /** Endzeit HH:MM, null = keine; vor Beginn = nach Mitternacht (Issue #286) */
+  readonly ende?: string | null;
   readonly titel: string;
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
@@ -101,6 +103,8 @@ export interface TerminEingabe {
   landkreis: string;
   datum: string;
   beginn?: string | null;
+  /** undefined = Formular ohne dieses Feld (Issue #286) */
+  ende?: string | null;
   titel: string;
   veranstaltungsort?: string | null;
   kategorie: string;
@@ -122,6 +126,8 @@ export interface NeuerTermin {
   readonly landkreis: LandkreisKuerzel;
   readonly datum: KalenderDatum;
   readonly beginn: string | null;
+  /** undefined = Formular ohne dieses Feld → gespeicherter Wert bleibt (Issue #286) */
+  readonly ende?: string | null;
   readonly titel: string;
   readonly veranstaltungsort: string | null;
   readonly kategorie: Kategorie;
@@ -242,6 +248,18 @@ export function validiereTermin(
   if (e.beginn != null && !UHRZEIT.test(e.beginn)) {
     fehler.push({ feld: 'beginn', code: 'UHRZEIT_UNGUELTIG', meldung: 'Uhrzeit im Format HH:MM.' });
   }
+  const ende = e.ende === undefined ? undefined : e.ende?.trim() || null;
+  if (ende && !UHRZEIT.test(ende)) {
+    fehler.push({ feld: 'ende', code: 'UHRZEIT_UNGUELTIG', meldung: 'Endzeit im Format HH:MM.' });
+  } else if (ende && !e.beginn) {
+    fehler.push({ feld: 'ende', code: 'ENDE_OHNE_BEGINN', meldung: 'Endzeit nur mit Beginn.' });
+  } else if (ende && ende === e.beginn) {
+    fehler.push({
+      feld: 'ende',
+      code: 'ENDE_GLEICH_BEGINN',
+      meldung: 'Endzeit muss sich vom Beginn unterscheiden.',
+    });
+  }
   const kategorie = kategorieAus(e.kategorie);
   if (!kategorie) {
     fehler.push({
@@ -260,6 +278,7 @@ export function validiereTermin(
     landkreis: landkreis.value,
     datum: datum.value,
     beginn: e.beginn ?? null,
+    ...(ende !== undefined && { ende }),
     titel,
     veranstaltungsort: e.veranstaltungsort?.trim() || null,
     kategorie,

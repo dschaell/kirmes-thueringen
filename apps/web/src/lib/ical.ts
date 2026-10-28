@@ -1,5 +1,5 @@
 /** iCalendar (RFC 5545) für Kalender-Abo und Einzeltermine. */
-import { eigenerPlatz, speiseZeile } from './anzeige';
+import { dauerMinuten, eigenerPlatz, speiseZeile } from './anzeige';
 import type { TerminDto } from './api';
 
 const esc = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
@@ -93,7 +93,8 @@ export function alsIcal(termine: TerminDto[], site: URL | undefined, kalendernam
       ...(t.beginn
         ? [
             `DTSTART;TZID=Europe/Berlin:${d}T${t.beginn.replace(':', '')}00`,
-            `DURATION:${DAUER[t.kategorie] ?? 'PT3H'}`,
+            // Echte Endzeit (Issue #286), sonst übliche Dauer der Art
+            `DURATION:${t.ende ? `PT${dauerMinuten(t)}M` : (DAUER[t.kategorie] ?? 'PT3H')}`,
           ]
         : [`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${naechsterTag(t.datum)}`]),
       `SUMMARY:${esc(`${t.titel} – ${t.ort.name}`)}`,
