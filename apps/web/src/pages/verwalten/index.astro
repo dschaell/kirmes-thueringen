@@ -6,6 +6,7 @@
  */
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
+import Endzeit from '../../components/admin/Endzeit.astro';
 import { KATEGORIEN } from '../../lib/anzeige';
 ---
 
@@ -47,6 +48,7 @@ import { KATEGORIEN } from '../../lib/anzeige';
             <input name="beginn" type="time" />
           </label>
         </div>
+        <Endzeit ende="" />
         <label>
           Veranstaltung *
           <input name="titel" required maxlength="200" placeholder="z. B. Kirmestanz" />

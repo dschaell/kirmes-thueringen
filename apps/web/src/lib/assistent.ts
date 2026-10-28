@@ -91,6 +91,7 @@ export async function assistent(
         zeilen: neu.map((t) => ({
           datum: t.datum,
           beginn: t.beginn ?? '',
+          ende: t.ende ?? '',
           titel: t.titel,
           kategorie: t.kategorie,
           band: t.band ?? '',
@@ -298,6 +299,7 @@ export async function assistent(
       .map((z) => ({
         datum: z.datum,
         beginn: z.beginn || null,
+        ende: (z.beginn && z.ende) || null,
         titel: z.titel,
         kategorie: z.kategorie && istKategorie(z.kategorie) ? z.kategorie : null,
         band: z.band || null,

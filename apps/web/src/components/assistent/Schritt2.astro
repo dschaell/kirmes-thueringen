@@ -1,7 +1,8 @@
 ---
 /** Schritt 2: Was ist los – aus KirmesAssistent.astro (Issue #199). */
 import type { AssistentStand } from '../../lib/assistent';
-import { KATEGORIEN, datumKurz, datumLangJahr, heute } from '../../lib/anzeige';
+import { KATEGORIEN, datumKurz, datumLangJahr, heute, uhrzeitText } from '../../lib/anzeige';
+import Endzeit from '../admin/Endzeit.astro';
 interface Props {
   s: AssistentStand;
   redaktion: boolean;
@@ -51,7 +52,9 @@ const NEU = 'Neue Veranstaltung';
       <div class="zeilenkopf">
         <strong class="zeilentitel">{z.titel.trim() || NEU}</strong>
         <span class="klein leise zeitangabe">
-          {[datumKurz(z.datum, jahr), z.beginn && `${z.beginn} Uhr`].filter(Boolean).join(' · ')}
+          {[datumKurz(z.datum, jahr), uhrzeitText(z) && `${uhrzeitText(z)} Uhr`]
+            .filter(Boolean)
+            .join(' · ')}
         </span>
       </div>
       <button
@@ -86,6 +89,7 @@ const NEU = 'Neue Veranstaltung';
               <input name={`beginn-${i}`} type="time" value={z.beginn ?? ''} />
             </label>
           </div>
+          <Endzeit ende={z.ende ?? ''} zusatz={`-${i}`} />
           <label>
             Art
             <select name={`kat-${i}`}>

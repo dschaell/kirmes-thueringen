@@ -112,6 +112,7 @@ describe('leseRecherche', () => {
             landkreis: 'GTH',
             datum: '2026-10-18',
             beginn: '20:00',
+            ende: null,
             titel: 'Kirmestanz',
             veranstaltungsort: 'Festzelt',
             kategorie: 'tanz',
@@ -129,6 +130,7 @@ describe('leseRecherche', () => {
             landkreis: null,
             datum: '2026-11-07',
             beginn: null,
+            ende: null,
             titel: 'Kindertanz',
             veranstaltungsort: null,
             kategorie: 'familie',
@@ -154,6 +156,15 @@ describe('leseRecherche', () => {
       ['Ulla', '2026-11-07', 'Kirmestanz', 'Belconda', 'Eintritt 8 €'],
     ]);
     expect(r.ok && r.value[0]?.daten).toMatchObject({ band: 'Belconda', info: 'Eintritt 8 €' });
+  });
+
+  it('liest die optionale Spalte Ende (Issue #288)', () => {
+    const r = leseRecherche([
+      ['Ort', 'Datum', 'Beginn', 'bis', 'Titel'],
+      ['Ulla', '2026-11-07', '10', '12 Uhr', 'Kartenvorverkauf'],
+      ['Ulla', '2026-11-08', '20:00', '', 'Kirmestanz'],
+    ]);
+    expect(r.ok && r.value.map((z) => z.daten.ende)).toEqual(['12:00', null]);
   });
 
   it('liest die optionale Spalte Muttizettel', () => {

@@ -3,7 +3,7 @@ import type { Korrektur, Vorschlag } from '@kirmes/core';
 import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import { adminApi, feld } from '../../lib/admin';
-import { anzahl, datumKurz, heute } from '../../lib/anzeige';
+import { anzahl, datumKurz, heute, uhrzeitText } from '../../lib/anzeige';
 let fehler: string[] = [];
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
@@ -78,7 +78,7 @@ const jahr = heute().slice(0, 4);
         {v.termine.map((t) => (
           <li>
             {datumKurz(t.datum, jahr)}
-            {t.beginn && ` · ${t.beginn} Uhr`} · {t.titel}
+            {uhrzeitText(t) && ` · ${uhrzeitText(t)} Uhr`} · {t.titel}
           </li>
         ))}
       </ul>

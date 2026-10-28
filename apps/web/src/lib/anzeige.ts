@@ -261,7 +261,7 @@ export function dauerMinuten(t: Pick<TerminDto, 'beginn' | 'ende' | 'kategorie'>
 }
 
 /** „20:00“, mit Endzeit „10:00–12:00“; null ohne Beginn */
-export const uhrzeitText = (t: Pick<TerminDto, 'beginn' | 'ende'>): string | null =>
+export const uhrzeitText = (t: { beginn?: string | null; ende?: string | null }): string | null =>
   t.beginn ? (t.ende && t.ende !== t.beginn ? `${t.beginn}–${t.ende}` : t.beginn) : null;
 
 /**

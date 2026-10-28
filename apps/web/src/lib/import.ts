@@ -19,6 +19,7 @@ export const IMPORT_MAX_ZEICHEN = 500_000;
 export interface ImportTermin {
   datum: string;
   beginn: string | null;
+  ende: string | null;
   titel: string;
   kategorie: string;
   veranstaltungsort: string | null;
@@ -72,6 +73,7 @@ export function pruefeTabelle(
       landkreis: ort.landkreis,
       datum: d.datum,
       beginn: d.beginn,
+      ende: d.ende,
       titel: d.titel,
       veranstaltungsort: d.veranstaltungsort,
       kategorie: kategorie(d.kategorie, d.titel),
@@ -97,6 +99,7 @@ export function pruefeTabelle(
       termin: {
         datum: t.datum,
         beginn: t.beginn,
+        ende: t.ende ?? null,
         titel: t.titel,
         kategorie: t.kategorie,
         veranstaltungsort: t.veranstaltungsort,
@@ -147,6 +150,6 @@ export function bloecke(zeilen: ImportZeile[]): { ortSlug: string; termine: Impo
 }
 
 export const VORLAGE =
-  'Ort;Landkreis;Datum;Beginn;Titel;Art;Band;Wo;Hinweise;Muttizettel\r\n' +
-  'Musterdorf;IK;16.10.2026;18:00;Kirmesgottesdienst;Gottesdienst;;Kirche;;\r\n' +
-  'Musterdorf;IK;16.10.2026;20:00;Kirmestanz;Kirmestanz;Die Musterband;Festzelt;Eintritt 8 €;ja\r\n';
+  'Ort;Landkreis;Datum;Beginn;Ende;Titel;Art;Band;Wo;Hinweise;Muttizettel\r\n' +
+  'Musterdorf;IK;16.10.2026;18:00;;Kirmesgottesdienst;Gottesdienst;;Kirche;;\r\n' +
+  'Musterdorf;IK;16.10.2026;20:00;02:00;Kirmestanz;Kirmestanz;Die Musterband;Festzelt;Eintritt 8 €;ja\r\n';
