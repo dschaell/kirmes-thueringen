@@ -278,7 +278,7 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
           <a href={`/admin/termine?ort=${ort.slug}`} aria-current={!alleModus && 'page'}>
             Einzelner Termin
           </a>
-          <a href={`/admin/kirmes-eintragen?ort=${ort.slug}`}>Ganze Kirmes eintragen</a>
+          <a href={`/admin/kirmes-eintragen?ort=${ort.slug}`}>Kirmes eintragen</a>
           {termine.length > 0 && (
             <a
               href={`/admin/termine?ort=${ort.slug}&modus=alle`}
