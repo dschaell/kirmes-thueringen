@@ -107,19 +107,32 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     </div>
                   )}
                 </div>
-                {route && (
-                  <a
-                    class="route"
-                    href={route.google}
-                    data-apple={route.apple}
-                    rel="noopener"
-                    target="_blank"
-                    aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                <div class="aktionen">
+                  {route && (
+                    <a
+                      class="route"
+                      href={route.google}
+                      data-apple={route.apple}
+                      rel="noopener"
+                      target="_blank"
+                      aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                    >
+                      <Icon name="route" groesse={16} />
+                      Route
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    class="merken"
+                    data-merken={t.id}
+                    aria-pressed="false"
+                    aria-label={`${t.titel} in ${t.ort.name} merken`}
+                    hidden
                   >
-                    <Icon name="route" groesse={16} />
-                    Route
-                  </a>
-                )}
+                    <Icon name="stern" groesse={16} />
+                    <span class="merken-text">Merken</span>
+                  </button>
+                </div>
               </li>
             );
           })}
@@ -130,6 +143,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
 ))}
 
 <script>
+  import '../scripts/merken';
   // Auf iPhone, iPad und Mac Apple Karten öffnen, sonst Google Maps.
   if (/iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
     for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-apple]')) {

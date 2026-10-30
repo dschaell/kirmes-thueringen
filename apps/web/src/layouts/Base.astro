@@ -44,6 +44,7 @@ const unten = [
 ] as const;
 const mehr = [
   ['/', 'Start'],
+  ['/gemerkt', 'Gemerkte Termine'],
   ['/orte', 'Orte A–Z'],
   ['/kreise', 'Landkreise'],
   ['/kalender-abonnieren', 'Kalender abonnieren'],
@@ -172,6 +173,9 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             </li>
             <li>
               <a href="/termine">Alle Termine</a>
+            </li>
+            <li>
+              <a href="/gemerkt">Gemerkte Termine</a>
             </li>
             <li>
               <a href="/orte">Orte A–Z</a>

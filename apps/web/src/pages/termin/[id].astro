@@ -226,6 +226,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         <Icon name="teilen" />
         Teilen
       </a>
+      <button
+        type="button"
+        class="knopf zweit merken"
+        data-merken={t.id}
+        aria-pressed="false"
+        hidden
+      >
+        <Icon name="stern" />
+        <span class="merken-text">Merken</span>
+      </button>
     </div>
     <p class="genau">
       {!route
@@ -265,6 +275,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 </Base>
 
 <script>
+  import '../../scripts/merken';
   // Auf dem Handy das System-Teilen-Menü (WhatsApp, Signal, …) nutzen, sonst WhatsApp-Web-Link.
   const a = document.getElementById('teilen') as HTMLAnchorElement | null;
   if (a && navigator.share) {
