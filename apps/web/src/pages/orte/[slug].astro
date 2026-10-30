@@ -127,6 +127,40 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </>
   )}
 
+  {ort.profil && (
+    // Vereinsprofil (Issue #310) – Text der Kirmesgesellschaft, Links ohne SEO-Empfehlung
+    <section class="vereinsprofil" aria-labelledby="profil-titel">
+      <h2 id="profil-titel">{ort.kgName ?? `Kirmesgesellschaft ${ort.name}`}</h2>
+      {ort.profil.text && <p class="profil-text">{ort.profil.text}</p>}
+      {(ort.profil.website || ort.profil.instagram || ort.profil.facebook) && (
+        <ul class="profil-links">
+          {ort.profil.website && (
+            <li>
+              <a href={ort.profil.website} rel="nofollow ugc noopener" target="_blank">
+                Website
+              </a>
+            </li>
+          )}
+          {ort.profil.instagram && (
+            <li>
+              <a href={ort.profil.instagram} rel="nofollow ugc noopener" target="_blank">
+                Instagram
+              </a>
+            </li>
+          )}
+          {ort.profil.facebook && (
+            <li>
+              <a href={ort.profil.facebook} rel="nofollow ugc noopener" target="_blank">
+                Facebook
+              </a>
+            </li>
+          )}
+        </ul>
+      )}
+      {ort.profil.kontakt && <p class="klein">Kontakt: {ort.profil.kontakt}</p>}
+    </section>
+  )}
+
   <div class="kasten abstand">
     <h2>Kirmesgesellschaft {ort.name}?</h2>
     <p>

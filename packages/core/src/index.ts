@@ -22,6 +22,8 @@ export * from './application/einrichtung.js';
 export * from './application/mitglieder.js';
 export * from './application/mitmach-anfragen.js';
 export * from './application/plakate.js';
+export * from './application/ortsprofile.js';
+export * from './domain/ortsprofil.js';
 export * from './application/vorschlaege.js';
 export * from './application/korrekturen.js';
 export * from './application/redaktions-termine.js';

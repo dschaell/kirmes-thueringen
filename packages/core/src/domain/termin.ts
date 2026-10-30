@@ -4,6 +4,7 @@ import { parseLandkreis, type LandkreisKuerzel } from './landkreis.js';
 import { err, ok, type Result, type Validierungsfehler } from './result.js';
 import { PREIS_MAX_CENT, preisAus, type Speise } from './speisen.js';
 import { bereinigeTitel, istKeinTermin } from './text.js';
+import type { Ortsprofil } from './ortsprofil.js';
 
 /**
  * Klare Arten (Issues #64, #135, #147, #154, #223): Kirmestanz (`tanz`), Party/Disco (`party`),
@@ -62,6 +63,8 @@ export interface Ort {
   readonly koordinate: Koordinate | null;
   /** Selbst eingetragener Name der Kirmesgesellschaft (Issue #246), sonst leer */
   readonly kgName?: string | null;
+  /** Vereinsprofil (Issue #310) – nur in der Einzelansicht des Ortes geladen */
+  readonly profil?: Ortsprofil | null;
 }
 
 export interface Termin {
