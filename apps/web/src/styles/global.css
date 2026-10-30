@@ -1276,18 +1276,15 @@ ul.bands li + li::before {
   gap: 12px;
   margin-top: 16px;
 }
-.plakat-hochladen h2 {
+.plakat-hochladen h2,
+.plakat-hochladen legend {
   margin: 0;
+  font-weight: 700;
 }
 .plakat-vorschau {
   max-width: 200px;
   border-radius: 8px;
   border: 1px solid var(--linie);
-}
-.plakat-hochladen form {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
 }
 /* Vorbei (Issue #294): deutlich, mit Weg zum nächsten Termin */
 .vorbei-hinweis {
