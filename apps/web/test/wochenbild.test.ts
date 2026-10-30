@@ -23,5 +23,6 @@ describe('Wochenbild (Issue #308)', () => {
   it('rendert ein PNG', () => {
     const png = new Uint8Array(wochenbildPng('1.11.', z(2), 'story'));
     expect([...png.slice(1, 4)].map((c) => String.fromCharCode(c)).join('')).toBe('PNG');
-  });
+    // Rendern dauert auf geteilten CI-Rechnern mehrere Sekunden
+  }, 30_000);
 });
