@@ -55,7 +55,13 @@ const { s, redaktion, ortName } = Astro.props;
         <div class="details-inhalt">
           <label>
             {musikFeld(z.kategorie || erkenneKategorie(z.titel))}
-            <input name={`band-${i}`} maxlength="120" list="bands-assistent" value={z.band ?? ''} />
+            <input
+              name={`band-${i}`}
+              maxlength="120"
+              placeholder="mehrere mit Komma trennen"
+              list="bands-assistent"
+              value={z.band ?? ''}
+            />
           </label>
           {((z.kategorie || erkenneKategorie(z.titel)) === 'tradition' || z.pfarrer) && (
             <label>

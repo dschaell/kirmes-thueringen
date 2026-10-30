@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bandText,
   berlinVersatz,
   dauerMinuten,
   entfernungKm,
@@ -208,6 +209,19 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
       muttizettel: false,
       ...x,
     }) as never;
+  it('mehrere Bands/DJs (Issue #324): Fließtext mit „und“, Event-Daten mit einem Eintrag je Band', () => {
+    expect(bandText('X-traWild, DJ Aybee, Pfundskerle')).toBe(
+      'X-traWild, DJ Aybee und Pfundskerle',
+    );
+    expect(bandText('Belconda')).toBe('Belconda');
+    expect(bandText(null)).toBe('');
+    const e = eventJsonLd(termin({ band: 'X-traWild, DJ Aybee' }), site);
+    expect(e.performer).toEqual([
+      { '@type': 'MusicGroup', name: 'X-traWild' },
+      { '@type': 'MusicGroup', name: 'DJ Aybee' },
+    ]);
+    expect(e.description).toContain('mit X-traWild und DJ Aybee.');
+  });
   it('Zeitzone Sommer/Winter', () => {
     expect(berlinVersatz('2026-10-24')).toBe('+02:00');
     expect(berlinVersatz('2026-10-26')).toBe('+01:00');
