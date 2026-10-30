@@ -240,7 +240,11 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     description:
       t.info ??
       `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${t.band}` : ''}.`,
-    image: [new URL(`/termin/${t.id}/bild.png`, site).href],
+    // Echtes Plakat bevorzugt (Issue #297), sonst das erzeugte Vorschaubild
+    image: [
+      ...(t.plakat ? [new URL(plakatPfad(t.id, t.plakat, 'gross'), site).href] : []),
+      new URL(`/termin/${t.id}/bild.png`, site).href,
+    ],
     url,
   };
 }
@@ -263,6 +267,10 @@ export function dauerMinuten(t: Pick<TerminDto, 'beginn' | 'ende' | 'kategorie'>
 /** „20:00“, mit Endzeit „10:00–12:00“; null ohne Beginn */
 export const uhrzeitText = (t: { beginn?: string | null; ende?: string | null }): string | null =>
   t.beginn ? (t.ende && t.ende !== t.beginn ? `${t.beginn}–${t.ende}` : t.beginn) : null;
+
+/** Bildadresse eines Plakats (Issue #297); der Stand macht sie bei jedem neuen Bild neu. */
+export const plakatPfad = (id: string, stand: string, groesse: 'gross' | 'klein') =>
+  `/termin/${id}/plakat/${groesse}.webp?v=${encodeURIComponent(stand)}`;
 
 /** Luftlinie in km (Haversine) – für „In meiner Nähe“ (Issue #296). */
 export function entfernungKm(

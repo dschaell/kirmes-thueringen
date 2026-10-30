@@ -1,4 +1,6 @@
-import { Korrekturen, Vorschlaege } from '@kirmes/core';
+import { Korrekturen, Plakate, Vorschlaege } from '@kirmes/core';
+import { PgPlakate } from './infrastructure/postgres/plakat-repository.js';
+import { SharpBildwandler } from './infrastructure/bildwandler.js';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
 import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
 import { PgKorrekturen } from './infrastructure/postgres/korrektur-repository.js';
@@ -122,6 +124,7 @@ const einrichtung =
 const vorschlagsRepo = new PgVorschlaege(pool);
 const korrekturRepo = new PgKorrekturen(pool);
 const anfragenRepo = new PgAnfragen(pool);
+const plakate = new Plakate(new PgPlakate(pool), new SharpBildwandler());
 const raeumeAuf = () =>
   Promise.all([
     vorschlagsRepo.raeumeAuf(),
@@ -139,6 +142,7 @@ const aufraeumen = setInterval(() => {
 }, 24 * 3600_000);
 aufraeumen.unref();
 const app = await baueApp({
+  plakate,
   korrekturen:
     postausgang && k.websiteUrl
       ? new Korrekturen(
@@ -188,6 +192,7 @@ const app = await baueApp({
     einrichtung,
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
     mitglieder,
+    plakate,
     anfragen:
       postausgang && k.websiteUrl
         ? new MitmachAnfragen(anfragenRepo, mitglieder, postausgang, k.websiteUrl)

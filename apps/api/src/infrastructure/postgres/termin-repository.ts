@@ -24,6 +24,9 @@ SELECT t.id, t.version::text AS version,
        to_char(t.ende, 'HH24:MI') AS ende, t.titel,
        t.veranstaltungsort, t.kategorie, t.bestaetigt, t.band, t.pfarrer, t.info, t.muttizettel,
        t.veranstalter, t.eintritt_cent, o.kg_name,
+       -- Plakat (Issue #297): Stand für Bildadressen, NULL = keins
+       (SELECT extract(epoch FROM p.hochgeladen_am)::bigint::text
+          FROM termin_plakat p WHERE p.termin_id = t.id) AS plakat,
        o.slug AS ort_slug, o.name AS ort_name, o.landkreis,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
        ST_Y(f.lage::geometry) AS f_lat, ST_X(f.lage::geometry) AS f_lon`;
@@ -103,6 +106,7 @@ interface Zeile {
   veranstalter: string | null;
   eintritt_cent: number | null;
   kg_name: string | null;
+  plakat: string | null;
   info: string | null;
   muttizettel: boolean;
   ort_slug: string;
@@ -140,6 +144,7 @@ const zuTermin = (z: Zeile): Termin => ({
   pfarrer: z.pfarrer,
   veranstalter: z.veranstalter,
   eintrittCent: z.eintritt_cent,
+  plakat: z.plakat,
   info: z.info,
   muttizettel: z.muttizettel,
   festplatz: z.f_lat != null && z.f_lon != null ? { lat: z.f_lat, lon: z.f_lon } : null,

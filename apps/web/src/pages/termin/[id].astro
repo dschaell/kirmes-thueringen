@@ -21,6 +21,7 @@ import {
   eintrittText,
   veranstalterVon,
   uhrzeitText,
+  plakatPfad,
 } from '../../lib/anzeige';
 
 const t = await findeTermin(Astro.params.id ?? '');
@@ -162,6 +163,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         </>
       )}
     </dl>
+    {t.plakat && (
+      <figure class="plakat">
+        <a href={plakatPfad(t.id, t.plakat, 'gross')} target="_blank" rel="noopener">
+          <img
+            src={plakatPfad(t.id, t.plakat, 'gross')}
+            alt={`Plakat: ${t.titel} in ${t.ort.name}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+      </figure>
+    )}
     {t.info && (
       <p class="hinweise">
         <Icon name="info" />

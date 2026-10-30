@@ -6,6 +6,7 @@ import type {
   Mitgliederverwaltung,
   MitmachAnfragen,
   Passkeys,
+  Plakate,
   Redaktion,
   RedaktionsTermine,
   RedaktionsFestplaetze,
@@ -36,6 +37,8 @@ export interface AdminAbhaengigkeiten {
   mitglieder: Mitgliederverwaltung;
   /** Mitmach-Anfragen (Issue #279) – braucht E-Mail-Versand und WEBSITE_URL */
   anfragen?: MitmachAnfragen;
+  /** Plakat je Termin (Issue #297) */
+  plakate?: Plakate;
   /** Plätze eines Ortes (Kirche, Festzelt …) mit Standort – Issue #62 */
   festplaetze?: RedaktionsFestplaetze;
   /** Eingabe-Vorschläge (Bands, Titel) aus allen Terminen */

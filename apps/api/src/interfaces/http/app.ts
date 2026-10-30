@@ -242,6 +242,38 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     },
   );
 
+  // Plakat eines Termins (Issue #297): neu kodiertes WebP; die Adresse enthält den Stand, daher lange cachebar
+  if (d.plakate) {
+    const plakate = d.plakate;
+    app.get<{ Params: { id: string; groesse: 'gross' | 'klein' } }>(
+      '/api/v1/termine/:id/plakat/:groesse',
+      {
+        schema: {
+          params: {
+            type: 'object',
+            required: ['id', 'groesse'],
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              groesse: { type: 'string', enum: ['gross', 'klein'] },
+            },
+          },
+        },
+      },
+      async (req, reply) => {
+        const bild = await plakate.zeige(req.params.id, req.params.groesse);
+        if (!bild)
+          return reply
+            .status(404)
+            .type('application/problem+json')
+            .send(problem(404, 'Kein Plakat'));
+        return reply
+          .type('image/webp')
+          .header('Cache-Control', 'public, max-age=86400')
+          .send(Buffer.from(bild));
+      },
+    );
+  }
+
   app.get<{ Querystring: { bbox?: string } }>(
     '/api/v1/orte',
     {

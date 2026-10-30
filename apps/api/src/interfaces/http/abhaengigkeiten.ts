@@ -6,6 +6,7 @@ import type {
   ListeOrte,
   MeldeAnRedaktion,
   Mitteilung,
+  Plakate,
   SucheTermine,
   VerwalteFestplaetze,
   VerwalteTermine,
@@ -29,6 +30,8 @@ export interface AppAbhaengigkeiten {
   meldungen?: MeldeAnRedaktion;
   terminVorschlaege?: Vorschlaege;
   korrekturen?: Korrekturen;
+  /** Plakate je Termin (Issue #297), öffentlich lesbar */
+  plakate?: Plakate;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }
