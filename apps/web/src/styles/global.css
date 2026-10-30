@@ -786,6 +786,17 @@ legend {
   position: relative;
   z-index: 1;
 }
+/* Plakat-Vorschau in Listen (Issue #306) */
+.eintrag .liste-plakat {
+  float: right;
+  width: 56px;
+  height: 80px;
+  object-fit: cover;
+  margin: 2px 0 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
+}
 /* Route und Merken (Issue #295) */
 .eintrag .aktionen {
   display: flex;
