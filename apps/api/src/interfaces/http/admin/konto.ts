@@ -8,6 +8,26 @@ import type { Kontext } from './kontext.js';
 export async function kontoRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Kontext) {
   const { ANTWORT, admin, akteur } = k;
   const passkeys = d.passkeys;
+  // Zugriffszahlen – nur Admins (Issue #311)
+  if (d.zugriffe) {
+    const zugriffe = d.zugriffe;
+    r.get<{ Querystring: { tage?: number } }>(
+      '/api/v1/admin/zugriffe',
+      {
+        schema: {
+          querystring: {
+            type: 'object',
+            additionalProperties: false,
+            properties: { tage: { type: 'integer', minimum: 1, maximum: 400 } },
+          },
+        },
+      },
+      async (req, reply) => {
+        const s = await zugriffe.statistik(akteur(req), req.query.tage);
+        return s.ok ? s.value : reply.status(403).send(problem(403, 'Nur für Admins.'));
+      },
+    );
+  }
   // Stand der Sicherungen – nur Admins (Issue #45)
   if (d.sicherungen) {
     const sicherungen = d.sicherungen;

@@ -104,8 +104,9 @@ const redaktion = defineMiddleware(async (ctx, next) => {
     ctx.locals.kgName = ich.daten.kgName ?? null;
     // Mitglieder verwalten nur Admins (die API prüft das zusätzlich)
     if (
-      (pfad.startsWith('/admin/mitglieder') || pfad.startsWith('/admin/anfragen')) &&
-      !darf(ich.daten, 'mitglieder')
+      ((pfad.startsWith('/admin/mitglieder') || pfad.startsWith('/admin/anfragen')) &&
+        !darf(ich.daten, 'mitglieder')) ||
+      (pfad.startsWith('/admin/zugriffe') && !darf(ich.daten, 'statistik'))
     ) {
       return ctx.redirect('/admin', 303);
     }

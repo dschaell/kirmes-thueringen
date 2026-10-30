@@ -1,4 +1,12 @@
-import { Korrekturen, Ortsprofile, Plakate, Vorschlaege } from '@kirmes/core';
+import {
+  Korrekturen,
+  Ortsprofile,
+  Plakate,
+  Vorschlaege,
+  Zugriffe,
+  ZUGRIFFE_AUFBEWAHRUNG_TAGE,
+} from '@kirmes/core';
+import { PgZugriffe } from './infrastructure/postgres/zugriffe-repository.js';
 import { PgPlakate } from './infrastructure/postgres/plakat-repository.js';
 import { SharpBildwandler } from './infrastructure/bildwandler.js';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
@@ -125,11 +133,14 @@ const vorschlagsRepo = new PgVorschlaege(pool);
 const korrekturRepo = new PgKorrekturen(pool);
 const anfragenRepo = new PgAnfragen(pool);
 const plakate = new Plakate(new PgPlakate(pool), new SharpBildwandler());
+const zugriffsRepo = new PgZugriffe(pool);
+const zugriffe = new Zugriffe(zugriffsRepo);
 const raeumeAuf = () =>
   Promise.all([
     vorschlagsRepo.raeumeAuf(),
     korrekturRepo.raeumeAuf(),
     anfragenRepo.raeumeAuf(ANFRAGE_AUFBEWAHRUNG_TAGE, ANFRAGE_OFFEN_TAGE),
+    zugriffsRepo.raeumeAuf(ZUGRIFFE_AUFBEWAHRUNG_TAGE),
   ]);
 const mitglieder = new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto);
 // Aufräumen darf den Start nie verhindern (Issue #94) – Fehler wird nach dem Start geloggt
@@ -143,6 +154,7 @@ const aufraeumen = setInterval(() => {
 aufraeumen.unref();
 const app = await baueApp({
   plakate,
+  zugriffe,
   korrekturen:
     postausgang && k.websiteUrl
       ? new Korrekturen(
@@ -194,6 +206,7 @@ const app = await baueApp({
     mitglieder,
     plakate,
     ortsprofile: new Ortsprofile(orte),
+    zugriffe,
     anfragen:
       postausgang && k.websiteUrl
         ? new MitmachAnfragen(anfragenRepo, mitglieder, postausgang, k.websiteUrl)

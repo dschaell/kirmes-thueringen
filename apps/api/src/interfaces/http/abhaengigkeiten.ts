@@ -7,6 +7,7 @@ import type {
   MeldeAnRedaktion,
   Mitteilung,
   Plakate,
+  Zugriffe,
   SucheTermine,
   VerwalteFestplaetze,
   VerwalteTermine,
@@ -30,6 +31,8 @@ export interface AppAbhaengigkeiten {
   meldungen?: MeldeAnRedaktion;
   terminVorschlaege?: Vorschlaege;
   korrekturen?: Korrekturen;
+  /** Zugriffszahlen ohne Tracking (Issue #311) – Meldung nur aus dem internen Netz */
+  zugriffe?: Zugriffe;
   /** Plakate je Termin (Issue #297), öffentlich lesbar */
   plakate?: Plakate;
   datenbankErreichbar: () => Promise<boolean>;

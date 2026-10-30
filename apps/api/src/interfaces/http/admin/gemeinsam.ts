@@ -8,6 +8,7 @@ import type {
   Ortsprofile,
   Passkeys,
   Plakate,
+  Zugriffe,
   Redaktion,
   RedaktionsTermine,
   RedaktionsFestplaetze,
@@ -40,6 +41,8 @@ export interface AdminAbhaengigkeiten {
   anfragen?: MitmachAnfragen;
   /** Vereinsprofil je Ort (Issue #310) */
   ortsprofile?: Ortsprofile;
+  /** Zugriffszahlen (Issue #311), nur Admins */
+  zugriffe?: Zugriffe;
   /** Plakat je Termin (Issue #297) */
   plakate?: Plakate;
   /** Plätze eines Ortes (Kirche, Festzelt …) mit Standort – Issue #62 */
