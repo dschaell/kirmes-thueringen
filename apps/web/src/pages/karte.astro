@@ -9,6 +9,8 @@ import { heute, kreisKurz, plusTage, wochenende } from '../lib/anzeige';
 
 // Zeitfilter (Issue #109) – als Links, funktioniert auch ohne JavaScript
 const ZEITEN = [
+  // „Diese Woche“: heute bis Sonntag (Issue #309)
+  ['woche', 'Diese Woche', 'diese Woche'],
   ['wochenende', 'Dieses Wochenende', 'dieses Wochenende'],
   ['4wochen', 'Nächste 4 Wochen', 'in den nächsten 4 Wochen'],
   ['alle', 'Alle kommenden', 'mit kommenden Terminen'],
@@ -18,11 +20,13 @@ const zeitRoh = Astro.url.searchParams.get('zeit');
 const zeit: Zeit = ZEITEN.some(([k]) => k === zeitRoh) ? (zeitRoh as Zeit) : 'alle';
 const h = heute();
 const bereich =
-  zeit === 'wochenende'
-    ? wochenende(h)
-    : zeit === '4wochen'
-      ? { von: h, bis: plusTage(h, 28) }
-      : null;
+  zeit === 'woche'
+    ? { von: h, bis: plusTage(h, (7 - new Date(h).getUTCDay()) % 7) }
+    : zeit === 'wochenende'
+      ? wochenende(h)
+      : zeit === '4wochen'
+        ? { von: h, bis: plusTage(h, 28) }
+        : null;
 
 const alleOrte = await listeOrte();
 const anzahl = new Map<string, number>();
@@ -40,7 +44,7 @@ const punkte = orte.map((o) => ({
   lat: o.koordinate!.lat,
   lon: o.koordinate!.lon,
 }));
-const [, zeitText, zeitSatz] = ZEITEN.find(([k]) => k === zeit) ?? ZEITEN[2];
+const [, zeitText, zeitSatz] = ZEITEN.find(([k]) => k === zeit) ?? ZEITEN[3];
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
