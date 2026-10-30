@@ -80,7 +80,13 @@ const { einzelWerte, ortName, veranstaltungsorte } = Astro.props;
   <div class="zwei">
     <label>
       Band / DJ
-      <input name="band" maxlength="120" list="band-liste" value={einzelWerte?.band ?? ''} />
+      <input
+        name="band"
+        maxlength="120"
+        placeholder="mehrere mit Komma trennen"
+        list="band-liste"
+        value={einzelWerte?.band ?? ''}
+      />
     </label>
     <label>
       Hinweise (öffentlich)

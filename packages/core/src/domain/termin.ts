@@ -167,12 +167,21 @@ export function eintrittAus(text: string | null | undefined): number | null | un
   return cent != null && cent > PREIS_MAX_CENT ? undefined : cent;
 }
 
-/** Anführungszeichen um den Bandnamen sind überflüssig (Apostrophe wie in „Sethi's“ bleiben). */
-const bereinigeBand = (b: string | null | undefined) =>
-  b
-    ?.replace(/["„“”]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim() || null;
+/**
+ * Mehrere Bands/DJs an einem Abend (Issue #324): mit Komma oder Semikolon getrennt, jede einzeln
+ * angezeigt. Anführungszeichen um den Namen sind überflüssig (Apostrophe wie in „Sethi's“ bleiben);
+ * leere und doppelte Einträge fallen weg.
+ */
+export function bandsAus(b: string | null | undefined): string[] {
+  const gesehen = new Set<string>();
+  return (b ?? '')
+    .replace(/["„“”]/g, '')
+    .split(/[,;]/)
+    .map((n) => n.replace(/\s+/g, ' ').trim())
+    .filter((n) => n && !gesehen.has(n.toLowerCase()) && gesehen.add(n.toLowerCase()));
+}
+
+const bereinigeBand = (b: string | null | undefined) => bandsAus(b).join(', ') || null;
 
 /** Herbst = traditionelle Kirmeszeit in Thüringen (Kirchweih nach der Ernte). */
 export const HERBST_MONATE = [9, 10, 11] as const;

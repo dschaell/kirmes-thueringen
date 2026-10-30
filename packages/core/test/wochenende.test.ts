@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bandsAus,
   MAX_VERANSTALTUNGEN,
   validiereAlle,
   validiereTermin,
@@ -19,6 +20,17 @@ describe('Band und Hinweise am Termin', () => {
       info: ' Eintritt 8 € ',
     });
     expect(r.ok && r.value.termin).toMatchObject({ band: "Sethi's Faction", info: 'Eintritt 8 €' });
+  });
+  it('mehrere Bands/DJs: Komma oder Semikolon, einheitlich gespeichert (Issue #324)', () => {
+    const r = pruefe({
+      datum: '2026-10-17',
+      titel: 'Kirmestanz',
+      band: ' X-traWild ;DJ  Aybee,, „Pfundskerle“, x-trawild ',
+    });
+    expect(r.ok && r.value.termin.band).toBe('X-traWild, DJ Aybee, Pfundskerle');
+    expect(bandsAus('Pfundskerle & Friends')).toEqual(['Pfundskerle & Friends']);
+    expect(bandsAus(null)).toEqual([]);
+    expect(bandsAus(' , ; ')).toEqual([]);
   });
   it('leere Felder werden null, zu lange abgelehnt', () => {
     expect(pruefe({ datum: '2026-10-17', titel: 'Kirmes', band: '  ', info: '' }).ok && true).toBe(

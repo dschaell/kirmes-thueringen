@@ -1,5 +1,5 @@
 ---
-import { darf } from '@kirmes/core';
+import { bandsAus, darf } from '@kirmes/core';
 /**
  * Termine aller Orte verwalten. Ohne ?ort= wird ein Ort gesucht; mit ?ort=<slug> werden dessen Termine
  * gezeigt und können angelegt, gesammelt geändert, bestätigt und gelöscht werden. Einzelne Termine
@@ -196,7 +196,7 @@ const veranstaltungsorte = [
 const vorschlaege = (
   await adminApi<{ bands: string[]; titel: string[] }>(Astro.cookies, 'GET', 'vorschlaege')
 ).daten ?? { bands: [], titel: [] };
-const bands = [...new Set([...termine.map((t) => t.band).filter(Boolean), ...vorschlaege.bands])];
+const bands = [...new Set([...termine.flatMap((t) => bandsAus(t.band)), ...vorschlaege.bands])];
 const titelVorschlaege = [...new Set([...vorschlaege.titel])];
 ---
 

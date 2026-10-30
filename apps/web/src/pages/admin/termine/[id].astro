@@ -265,7 +265,13 @@ const hinterlegt =
           <>
             <label>
               {musikFeld(werte.kategorie)}
-              <input name="band" maxlength="120" list="bands-bearbeiten" value={werte.band} />
+              <input
+                name="band"
+                maxlength="120"
+                placeholder="mehrere mit Komma trennen"
+                list="bands-bearbeiten"
+                value={werte.band}
+              />
             </label>
             {(werte.kategorie === 'tradition' || werte.pfarrer) && (
               <label>
