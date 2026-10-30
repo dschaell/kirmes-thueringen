@@ -17,6 +17,7 @@ import {
   platzText,
   suchZeitraum,
   wochenende,
+  zeitraumKurz,
 } from '../src/lib/anzeige';
 
 describe('heute (Thüringer Ortszeit)', () => {
@@ -295,5 +296,12 @@ describe('In meiner Nähe (Issue #296)', () => {
     expect(standortAus('48.1,11.5')).toBeNull();
     expect(standortAus('50.9;11')).toBeNull();
     expect(standortAus(null)).toBeNull();
+  });
+});
+
+describe('zeitraumKurz (Issue #305)', () => {
+  it('kurz für Titel', () => {
+    expect(zeitraumKurz('2026-10-30', '2026-11-01')).toBe('30.10.–1.11.');
+    expect(zeitraumKurz('2026-11-01', '2026-11-01')).toBe('1.11.');
   });
 });

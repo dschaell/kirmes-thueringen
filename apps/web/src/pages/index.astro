@@ -48,6 +48,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: 'Kirmeskalender Thüringen',
+      // Seitenname in der Google-Suche statt der Domain (Issue #305)
+      alternateName: ['Kirmeskalender', 'Kirmes Thüringen'],
       url: Astro.site,
       potentialAction: {
         '@type': 'SearchAction',
