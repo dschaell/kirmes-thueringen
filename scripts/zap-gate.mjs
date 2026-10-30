@@ -12,6 +12,13 @@ const AUSNAHMEN = [
       'Formulare auf /verwalten senden per fetch mit dem Bearbeitungslink im Authorization-Header ' +
       '(Bearer) – den setzt keine fremde Seite, CSRF ist ausgeschlossen (gefunden über robots.txt, #182)',
   },
+  {
+    plugin: '10055', // CSP: Failure to Define Directive with No Fallback
+    url: /\/einbetten\/[a-z0-9-]+$/,
+    grund:
+      'Das Termin-Widget soll auf beliebigen Vereins- und Gemeindeseiten laufen, daher ' +
+      'frame-ancestors * – nur auf /einbetten/, ohne Skripte, Formulare oder Anmeldung (#307)',
+  },
 ];
 const ausgenommen = (a) =>
   (a.instances ?? []).length > 0 &&
