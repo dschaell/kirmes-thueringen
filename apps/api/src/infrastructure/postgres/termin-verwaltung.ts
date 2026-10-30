@@ -1,4 +1,4 @@
-import { TerminKonflikt } from '@kirmes/core';
+import { bandsAus, TerminKonflikt } from '@kirmes/core';
 import type { Berechtigung, NeuerTermin, Speise, Termin, TerminVerwaltung } from '@kirmes/core';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
@@ -391,5 +391,7 @@ export async function terminVorschlaege(
       [],
     ),
   ]);
-  return { bands: bands.rows.map((r) => r.wert), titel: titel.rows.map((r) => r.wert) };
+  // Mehrere Bands je Termin (Issue #324) – vorgeschlagen wird jeder Name einzeln
+  const einzeln = [...new Set(bands.rows.flatMap((r) => bandsAus(r.wert)))];
+  return { bands: einzeln, titel: titel.rows.map((r) => r.wert) };
 }

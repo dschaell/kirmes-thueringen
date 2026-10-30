@@ -324,6 +324,44 @@ export async function baueApp(d: AppAbhaengigkeiten) {
 
   verwaltungRouten(app, d);
 
+  // Zugriffszahlen (Issue #311): Summen der Website, nur aus dem internen Netz (Docker/localhost)
+  if (d.zugriffe) {
+    const zugriffe = d.zugriffe;
+    app.post<{ Body: { aufrufe: { pfad: string; anzahl: number }[] } }>(
+      '/api/v1/intern/aufrufe',
+      {
+        bodyLimit: 256 * 1024,
+        schema: {
+          body: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['aufrufe'],
+            properties: {
+              aufrufe: {
+                type: 'array',
+                maxItems: 2000,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['pfad', 'anzahl'],
+                  properties: {
+                    pfad: { type: 'string', maxLength: 200 },
+                    anzahl: { type: 'integer', minimum: 1, maximum: 1000000 },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      async (req, reply) => {
+        if (!istInternesNetz(req.socket.remoteAddress))
+          return reply.status(404).send(problem(404, 'Nicht gefunden'));
+        return { erfasst: await zugriffe.erfasse(req.body.aufrufe) };
+      },
+    );
+  }
+
   // ── Mitteilungen (öffentlich) ──────────────────────────────────────────────────────────
   app.get('/api/v1/mitteilungen/aktuell', async (_req, reply) => {
     const m = await d.aktuelleMitteilung();

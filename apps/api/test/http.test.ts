@@ -15,6 +15,7 @@ import {
   MitmachAnfragen,
   Plakate,
   Ortsprofile,
+  Zugriffe,
   type Anfrage,
   Registrierung,
   RedaktionsFestplaetze,
@@ -141,6 +142,7 @@ let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let anfragenAktiv: MitmachAnfragen | undefined;
 let plakateAktiv: Plakate | undefined;
 let ortsprofileAktiv: Ortsprofile | undefined;
+let zugriffeAktiv: Zugriffe | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const KG_SITZUNG = 'K'.repeat(43);
@@ -263,6 +265,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     ),
     aktuelleMitteilung: async () => mitteilung,
     plakate: plakateAktiv,
+    zugriffe: zugriffeAktiv,
     meldungen: meldungenAktiv,
     terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
@@ -298,6 +301,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       anfragen: anfragenAktiv,
       plakate: plakateAktiv,
       ortsprofile: ortsprofileAktiv,
+      zugriffe: zugriffeAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -2333,5 +2337,62 @@ describe('Vereinsprofil (Issue #310)', () => {
   it('ohne Abhängigkeit nicht vorhanden', async () => {
     await setup();
     expect((await rufe(SITZUNG, 'muehlberg', {})).statusCode).toBe(404);
+  });
+});
+
+describe('Zugriffszahlen (Issue #311)', () => {
+  const mit = async () => {
+    const erfasst: unknown[] = [];
+    zugriffeAktiv = new Zugriffe({
+      erfasse: async (a) => void erfasst.push(a),
+      statistik: async () => ({ tage: [{ tag: '2026-10-30', anzahl: 4 }], seiten: [] }),
+      raeumeAuf: async () => {},
+    });
+    await setup();
+    zugriffeAktiv = undefined;
+    return erfasst;
+  };
+  it('Meldung nur aus dem internen Netz; Statistik nur für Admins', async () => {
+    const erfasst = await mit();
+    const intern = await app.inject({
+      method: 'POST',
+      url: '/api/v1/intern/aufrufe',
+      remoteAddress: '172.18.0.5',
+      payload: { aufrufe: [{ pfad: '/orte/ulla', anzahl: 3 }] },
+    });
+    expect([intern.statusCode, intern.json()]).toEqual([200, { erfasst: 1 }]);
+    const fremd = await app.inject({
+      method: 'POST',
+      url: '/api/v1/intern/aufrufe',
+      remoteAddress: '203.0.113.9',
+      payload: { aufrufe: [{ pfad: '/', anzahl: 1 }] },
+    });
+    expect(fremd.statusCode).toBe(404);
+    expect(erfasst).toHaveLength(1);
+    const s = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/zugriffe?tage=7',
+      headers: { authorization: `Sitzung ${SITZUNG}` },
+    });
+    expect([s.statusCode, s.json().tage[0].anzahl]).toEqual([200, 4]);
+    const r = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/zugriffe',
+      headers: { authorization: `Sitzung ${REDAKTION_SITZUNG}` },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+  it('ohne Abhängigkeit nicht vorhanden', async () => {
+    await setup();
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/v1/intern/aufrufe',
+          remoteAddress: '127.0.0.1',
+          payload: { aufrufe: [] },
+        })
+      ).statusCode,
+    ).toBe(404);
   });
 });

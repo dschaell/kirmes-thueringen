@@ -1,10 +1,18 @@
 /** Darstellungs-Helfer des Frontends (keine Fachlogik – die liegt im Core bzw. hinter der API). */
-import { LANDKREISE, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
+import { bandsAus, LANDKREISE, type Kategorie, type LandkreisKuerzel } from '@kirmes/core';
 import type { TerminDto } from './api';
 
 export { LANDKREISE };
 
 /** Anzeige der Arten – so, wie Kirmesleute sie nennen (Issues #64, #135, #147, #154, #223). */
+/** „A, B, C“ → „A, B und C“ für Fließtext (Issue #324) */
+export const bandText = (band: string | null | undefined) =>
+  bandsAus(band)
+    .join(', ')
+    .replace(/, ([^,]*)$/, ' und $1');
+
+export { bandsAus };
+
 export const KATEGORIEN: Record<Kategorie, { label: string; kurz: string }> = {
   tanz: { label: 'Kirmestanz', kurz: 'Kirmestanz' },
   party: { label: 'Party/Disco', kurz: 'Party/Disco' },
@@ -233,7 +241,9 @@ export function eventJsonLd(t: TerminDto, site: URL) {
       },
       ...(geo && { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lon } }),
     },
-    ...(t.band && { performer: { '@type': 'MusicGroup', name: t.band } }),
+    ...(t.band && {
+      performer: bandsAus(t.band).map((name) => ({ '@type': 'MusicGroup', name })),
+    }),
     ...(veranstalterVon(t) && { organizer: { '@type': 'Organization', name: veranstalterVon(t) } }),
     ...(t.eintrittCent != null && {
       offers: {
@@ -245,7 +255,7 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     }),
     description:
       t.info ??
-      `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${t.band}` : ''}.`,
+      `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${bandText(t.band)}` : ''}.`,
     // Echtes Plakat bevorzugt (Issue #297), sonst das erzeugte Vorschaubild
     image: [
       ...(t.plakat ? [new URL(plakatPfad(t.id, t.plakat, 'gross'), site).href] : []),

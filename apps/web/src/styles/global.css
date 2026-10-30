@@ -933,6 +933,20 @@ legend {
   font-size: 0.92rem;
   color: var(--tinte);
 }
+/* Mehrere Bands/DJs einzeln (Issue #324) */
+ul.bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+ul.bands li + li::before {
+  content: '·';
+  padding: 0 0.4em;
+  color: var(--grau);
+}
 .eintrag .band .icon {
   color: var(--rot);
 }

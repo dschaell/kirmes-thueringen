@@ -22,6 +22,7 @@ describe('Rechte zentral (Issue #198)', () => {
     ['orte.loeschen', true, false, false],
     ['mitglieder', true, false, false],
     ['sicherungen', true, false, false],
+    ['statistik', true, false, false],
   ];
   it.each(tabelle)('%s: Admin %s, Redaktion %s, KG %s', (aktion, a, r, k) => {
     expect([darf(admin, aktion), darf(redaktion, aktion), darf(kg, aktion)]).toEqual([a, r, k]);

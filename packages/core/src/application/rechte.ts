@@ -23,7 +23,9 @@ export type Aktion =
   | 'links'
   | 'import'
   | 'mitglieder'
-  | 'sicherungen';
+  | 'sicherungen'
+  /** Zugriffszahlen (Issue #311) */
+  | 'statistik';
 
 const ALLE: readonly Rolle[] = ['admin', 'redaktion', 'kirmesgesellschaft'];
 const MODERATION: readonly Rolle[] = ['admin', 'redaktion'];
@@ -45,6 +47,7 @@ export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
   'orte.loeschen': NUR_ADMIN,
   mitglieder: NUR_ADMIN,
   sicherungen: NUR_ADMIN,
+  statistik: NUR_ADMIN,
 };
 
 /** Bereiche, die an einen Ort gebunden sind – die Kirmesgesellschaft nur am eigenen (Issue #180). */

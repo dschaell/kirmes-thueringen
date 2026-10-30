@@ -14,6 +14,7 @@ import {
   wochentag,
   artName,
   plakatPfad,
+  bandsAus,
 } from '../lib/anzeige';
 import Icon from './Icon.astro';
 
@@ -131,7 +132,11 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     <div class="band">
                       <Icon name="musik" groesse={14} />
                       <span class="sr-only">Musik: </span>
-                      {t.band}
+                      <ul class="bands">
+                        {bandsAus(t.band).map((b) => (
+                          <li>{b}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
