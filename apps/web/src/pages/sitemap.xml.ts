@@ -6,24 +6,33 @@ import { LANDKREISE, heute, kreisSlug } from '../lib/anzeige';
 export const GET: APIRoute = async ({ site }) => {
   const [orte, termine] = await Promise.all([listeOrte(), alleTermine({ von: heute() })]);
   // lastmod (Issue #182): Termin = letzte Änderung, Ort = jüngste Änderung seiner Termine
+  // Issue #305: auch Landkreis- und Übersichtsseiten mit der jüngsten Änderung ihrer Termine
   const zuletzt = new Map<string, string>();
+  const merke = (schluessel: string, tag: string) => {
+    if (tag > (zuletzt.get(schluessel) ?? '')) zuletzt.set(schluessel, tag);
+  };
   for (const t of termine) {
     const tag = t.geaendertAm?.slice(0, 10);
-    if (tag && tag > (zuletzt.get(t.ort.slug) ?? '')) zuletzt.set(t.ort.slug, tag);
+    if (!tag) continue;
+    merke(t.ort.slug, tag);
+    merke(`/kreise/${kreisSlug(t.ort.landkreis)}`, tag);
+    merke('/', tag);
   }
   const eintraege: [pfad: string, lastmod?: string][] = [
+    ...['/', '/termine', '/orte', '/kreise', '/karte'].map((p): [string, string?] => [
+      p,
+      zuletzt.get('/'),
+    ]),
+    ...Object.keys(LANDKREISE).map((k): [string, string?] => [
+      `/kreise/${kreisSlug(k)}`,
+      zuletzt.get(`/kreise/${kreisSlug(k)}`),
+    ]),
     ...[
-      '/',
-      '/termine',
-      '/orte',
-      '/kreise',
       '/termin-melden',
       '/redaktion-mitmachen',
       '/ueber-die-kirmes',
       '/muttizettel',
-      '/karte',
       '/kalender-abonnieren',
-      ...Object.keys(LANDKREISE).map((k) => `/kreise/${kreisSlug(k)}`),
     ].map((p): [string] => [p]),
     ...orte
       .filter((o) => o.anzahlKommend > 0)
