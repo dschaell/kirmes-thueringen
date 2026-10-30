@@ -11,12 +11,19 @@ interface Props {
 }
 const { titel, meldung = null, fehler = [] } = Astro.props;
 const pfad = Astro.url.pathname;
-const [vorschlaege, korrekturen] = Astro.locals.adminId
+const [vorschlaege, korrekturen, anfragen] = Astro.locals.adminId
   ? await Promise.all([
       adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
       adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'korrekturen/anzahl'),
+      // Offene Mitmach-Anfragen zählen (Issue #334) – nur wer sie bearbeiten darf
+      darf(Astro.locals, 'mitglieder')
+        ? adminApi<{ status: string }[]>(Astro.cookies, 'GET', 'anfragen')
+        : null,
     ])
-  : [null, null];
+  : [null, null, null];
+const offeneAnfragen = anfragen?.daten
+  ? anfragen.daten.filter((a) => a.status === 'offen').length
+  : null;
 // Vorschläge und Korrekturhinweise warten auf derselben Seite (Issue #107)
 const offen =
   vorschlaege?.daten || korrekturen?.daten
@@ -35,11 +42,13 @@ const nav = kg
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       ['/admin/orte', 'Orte & Plätze'],
+      // Wochenbild zum Posten (Issue #335)
+      ['/admin/social-media', 'Social Media'],
       // Aus „Mehr“ geholt, damit die angezeigte Mitteilung leicht zu finden ist (Issue #261)
       ...(darf(Astro.locals, 'mitteilungen') ? [['/admin/mitteilungen', 'Mitteilungen']] : []),
       ...(darf(Astro.locals, 'mitglieder')
         ? [
-            ['/admin/anfragen', 'Anfragen'],
+            ['/admin/anfragen', offeneAnfragen ? `Anfragen (${offeneAnfragen})` : 'Anfragen'],
             ['/admin/mitglieder', 'Redaktion & Einladungen'],
           ]
         : []),
@@ -204,42 +213,47 @@ const mehr = kg
   .admin-nav form {
     margin-left: auto;
   }
-  /* Am Handy ein ruhiges 2-Spalten-Raster statt krummer Zeilen, „Mehr“ gehört dazu (Issue #269) */
+  /*
+   * Am Handy eine Zeile zum Wischen statt Kachelraster (Issue #328) – das Raster belegte die halbe
+   * erste Bildschirmseite. „Mehr“ bleibt rechts fest sichtbar.
+   */
   @media (max-width: 600px) {
     .admin-nav {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      margin: 0 -16px;
+      padding: 0 16px 8px;
       gap: 6px;
-      align-items: stretch;
+      position: relative;
     }
-    .admin-nav .mehr-nav {
-      display: flex;
-    }
-    .admin-nav .mehr-nav > summary {
-      flex: 1;
+    .admin-nav::-webkit-scrollbar {
+      display: none;
     }
     .admin-nav > a,
     .admin-nav .mehr-nav > summary {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      min-height: 44px;
-      line-height: 1.2;
+      flex: none;
+      white-space: nowrap;
+      min-height: 40px;
+      padding: 6px 12px;
       border: 1px solid var(--linie);
-      border-radius: 8px;
-    }
-    /* Aufklappmenü über die ganze Menübreite – egal, ob „Mehr“ links oder rechts steht */
-    .admin-nav {
-      position: relative;
+      border-radius: 999px;
     }
     .admin-nav .mehr-nav {
       margin-left: 0;
-      position: static;
-    }
-    .admin-nav .mehr-nav > div {
-      left: 0;
+      position: sticky;
       right: 0;
+      flex: none;
+      background: var(--papier);
+      box-shadow: -10px 0 10px -4px var(--papier);
+    }
+    /* Aufklappmenü fest unter der Leiste, volle Breite */
+    .admin-nav .mehr-nav > div {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      top: auto;
       min-width: 0;
       max-width: none;
     }
