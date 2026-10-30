@@ -303,6 +303,19 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
       ))}
     </ul>
   )}
+  {zeit === 'wochenende' && !q && (
+    // Wochenbild zum Teilen (Issue #308)
+    <p class="klein">
+      Als Bild teilen:{' '}
+      <a href="/wochenbild.png" target="_blank" rel="noopener">
+        Instagram-Beitrag
+      </a>{' '}
+      ·{' '}
+      <a href="/wochenbild.png?format=story" target="_blank" rel="noopener">
+        WhatsApp-Status
+      </a>
+    </p>
+  )}
   <p class="leise" aria-live="polite" id="trefferzahl">
     {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
   </p>
