@@ -13,8 +13,16 @@ export interface OrtDto {
   name: string;
   landkreis: LandkreisKuerzel;
   koordinate: { lat: number; lon: number } | null;
-  /** Selbst eingetragener Name der Kirmesgesellschaft (nur an Terminen) */
+  /** Selbst eingetragener Name der Kirmesgesellschaft */
   kgName?: string | null;
+  /** Vereinsprofil (Issue #310), nur in der Einzelansicht des Ortes */
+  profil?: {
+    text: string | null;
+    website: string | null;
+    instagram: string | null;
+    facebook: string | null;
+    kontakt: string | null;
+  } | null;
 }
 
 export interface OrtUebersichtDto extends OrtDto {

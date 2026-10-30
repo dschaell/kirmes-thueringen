@@ -14,6 +14,7 @@ import {
   Mitgliederverwaltung,
   MitmachAnfragen,
   Plakate,
+  Ortsprofile,
   type Anfrage,
   Registrierung,
   RedaktionsFestplaetze,
@@ -139,6 +140,7 @@ let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
 let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let anfragenAktiv: MitmachAnfragen | undefined;
 let plakateAktiv: Plakate | undefined;
+let ortsprofileAktiv: Ortsprofile | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const KG_SITZUNG = 'K'.repeat(43);
@@ -295,6 +297,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       sicherungen: sicherungenAktiv,
       anfragen: anfragenAktiv,
       plakate: plakateAktiv,
+      ortsprofile: ortsprofileAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -2303,5 +2306,32 @@ describe('Plakate (Issue #297)', () => {
     expect(
       (await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/gross` })).statusCode,
     ).toBe(404);
+  });
+});
+
+describe('Vereinsprofil (Issue #310)', () => {
+  const rufe = (sitzung: string, slug: string, payload: object) =>
+    app.inject({
+      method: 'PUT',
+      url: `/api/v1/admin/orte/${slug}/profil`,
+      headers: { authorization: `Sitzung ${sitzung}` },
+      payload,
+    });
+  it('KG am eigenen Ort; fremder Ort 403; ungültig 400; unbekannt 404', async () => {
+    ortsprofileAktiv = new Ortsprofile({ setze: async (slug) => slug !== 'fehlt' });
+    await setup();
+    ortsprofileAktiv = undefined;
+    const ok = await rufe(KG_SITZUNG, 'muehlberg', { text: 'Hallo', website: 'kv.de' });
+    expect([ok.statusCode, ok.json().website]).toEqual([200, 'https://kv.de/']);
+    expect((await rufe(KG_SITZUNG, 'ulla', { text: 'x' })).statusCode).toBe(403);
+    expect((await rufe(SITZUNG, 'muehlberg', { website: 'http://x.de' })).statusCode).toBe(400);
+    expect((await rufe(SITZUNG, 'fehlt', {})).statusCode).toBe(404);
+    expect((await rufe(REDAKTION_SITZUNG, 'ulla', { kontakt: 'Vereinsheim' })).statusCode).toBe(
+      200,
+    );
+  });
+  it('ohne Abhängigkeit nicht vorhanden', async () => {
+    await setup();
+    expect((await rufe(SITZUNG, 'muehlberg', {})).statusCode).toBe(404);
   });
 });
