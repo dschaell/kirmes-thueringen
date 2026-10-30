@@ -549,6 +549,17 @@ select {
   color: var(--tinte);
   box-shadow: 0 16px 64px #0004;
 }
+/* Mit Maus am großen Bildschirm etwas größer (Issue #322) */
+@media (pointer: fine) and (min-width: 768px) {
+  .datumsauswahl {
+    width: 440px;
+    padding: 20px;
+  }
+  .datumsauswahl button {
+    min-height: 48px;
+    font-size: 1.05rem;
+  }
+}
 .datumsauswahl::backdrop {
   background: #0006;
 }
