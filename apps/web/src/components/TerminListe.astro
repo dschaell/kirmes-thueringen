@@ -13,6 +13,7 @@ import {
   tagMonat,
   wochentag,
   artName,
+  plakatPfad,
 } from '../lib/anzeige';
 import Icon from './Icon.astro';
 
@@ -87,6 +88,18 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                   )}
                 </span>
                 <div>
+                  {t.plakat && (
+                    // Vorschau (Issue #306): feste Größe, damit nichts springt
+                    <img
+                      class="liste-plakat"
+                      src={plakatPfad(t.id, t.plakat, 'klein')}
+                      alt=""
+                      width="56"
+                      height="80"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
                   <a class="titel" href={`/termin/${t.id}`}>
                     {t.titel}
                   </a>
