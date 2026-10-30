@@ -1,4 +1,4 @@
-import { Korrekturen, Plakate, Vorschlaege } from '@kirmes/core';
+import { Korrekturen, Ortsprofile, Plakate, Vorschlaege } from '@kirmes/core';
 import { PgPlakate } from './infrastructure/postgres/plakat-repository.js';
 import { SharpBildwandler } from './infrastructure/bildwandler.js';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
@@ -193,6 +193,7 @@ const app = await baueApp({
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
     mitglieder,
     plakate,
+    ortsprofile: new Ortsprofile(orte),
     anfragen:
       postausgang && k.websiteUrl
         ? new MitmachAnfragen(anfragenRepo, mitglieder, postausgang, k.websiteUrl)

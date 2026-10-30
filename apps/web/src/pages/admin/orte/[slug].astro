@@ -10,6 +10,7 @@ import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import Icon from '../../../components/Icon.astro';
 import { darf, nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
 import { adminApi, feld } from '../../../lib/admin';
+import { findeOrt } from '../../../lib/api';
 import { LANDKREISE, kreisKurz, kreisName } from '../../../lib/anzeige';
 
 type Koordinate = { lat: number; lon: number };
@@ -26,6 +27,8 @@ const platzName = (name: string) => name || 'Hauptfestplatz';
 
 let meldung: string | null = null;
 let fehler: string[] = [];
+/** Eingaben des Vereinsprofils bleiben bei einem Fehler im Formular stehen */
+let profilEingabe: Record<string, string> | null = null;
 if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const aktion = feld(f, 'aktion');
@@ -57,7 +60,15 @@ if (Astro.request.method === 'POST') {
                   name: feld(f, 'name'),
                   landkreis: feld(f, 'landkreis'),
                 })
-              : null;
+              : aktion === 'profil'
+                ? await adminApi(Astro.cookies, 'PUT', `${pfad}/profil`, {
+                    text: feld(f, 'text'),
+                    website: feld(f, 'website'),
+                    instagram: feld(f, 'instagram'),
+                    facebook: feld(f, 'facebook'),
+                    kontakt: feld(f, 'kontakt'),
+                  })
+                : null;
   if (r && r.status < 300) {
     meldung =
       aktion === 'umbenennen'
@@ -68,14 +79,24 @@ if (Astro.request.method === 'POST') {
             ? `Kartenpunkt von „${platzName(name)}“ gelöscht – die Termine bleiben.`
             : aktion === 'mitte'
               ? 'Ortsmitte gespeichert.'
-              : 'Ort gespeichert.';
-  } else if (r) fehler = r.fehler;
+              : aktion === 'profil'
+                ? 'Vereinsprofil gespeichert – es steht jetzt auf der Ortsseite.'
+                : 'Ort gespeichert.';
+  } else if (r) {
+    fehler = r.fehler;
+    if (aktion === 'profil')
+      profilEingabe = Object.fromEntries(
+        ['text', 'website', 'instagram', 'facebook', 'kontakt'].map((k) => [k, feld(f, k)]),
+      );
+  }
 }
 
 const u = await adminApi<Uebersicht>(Astro.cookies, 'GET', `${pfad}/festplaetze`);
 if (!u.daten) return Astro.redirect('/admin/orte', 303);
 const { ort, plaetze, eigenerOrt } = u.daten;
 const ohnePunkt = plaetze.filter((p) => !p.koordinate && p.termine > 0).length;
+// Vereinsprofil (Issue #310): aktueller Stand von der öffentlichen Ortsseite
+const profil = profilEingabe ?? (await findeOrt(ort.slug))?.profil ?? null;
 const karte = (k: Koordinate) =>
   `https://www.google.com/maps/search/?api=1&query=${k.lat},${k.lon}`;
 const googleSuche = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ort.name}, Thüringen`)}`;
@@ -241,6 +262,76 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
       </div>
     </form>
   </details>
+
+  <h2>Vereinsprofil</h2>
+  <p class="leise">
+    Erscheint auf der <a href={`/orte/${ort.slug}`}>Ortsseite</a>: ein paar Sätze zu eurer Kirmes,
+    eure Links und ein öffentlicher Kontakt. Alles freiwillig – leere Felder werden nicht gezeigt.
+  </p>
+  <form class="melden vereinsprofil-form" method="post">
+    <CsrfFeld />
+    <label>
+      Über eure Kirmes
+      <textarea
+        name="text"
+        rows="5"
+        maxlength="800"
+        placeholder="z. B. Seit wann es die Kirmes gibt, was es Besonderes gibt, wer mitmacht …"
+        set:text={profil?.text ?? ''}
+      />
+    </label>
+    <div class="zwei">
+      <label>
+        Website
+        <input
+          name="website"
+          maxlength="300"
+          inputmode="url"
+          placeholder="https://…"
+          value={profil?.website ?? ''}
+        />
+      </label>
+      <label>
+        Instagram
+        <input
+          name="instagram"
+          maxlength="300"
+          inputmode="url"
+          placeholder="instagram.com/…"
+          value={profil?.instagram ?? ''}
+        />
+      </label>
+    </div>
+    <div class="zwei">
+      <label>
+        Facebook
+        <input
+          name="facebook"
+          maxlength="300"
+          inputmode="url"
+          placeholder="facebook.com/…"
+          value={profil?.facebook ?? ''}
+        />
+      </label>
+      <label>
+        Öffentlicher Kontakt
+        <input
+          name="kontakt"
+          maxlength="200"
+          placeholder="z. B. info@… oder Vereinsheim"
+          value={profil?.kontakt ?? ''}
+        />
+        <span class="klein leise">
+          Erscheint öffentlich – bitte nur Vereinsadressen, keine privaten Nummern.
+        </span>
+      </label>
+    </div>
+    <div>
+      <button class="knopf" name="aktion" value="profil">
+        Vereinsprofil speichern
+      </button>
+    </div>
+  </form>
 
   {redaktion && (
     <>

@@ -816,6 +816,28 @@ legend {
   border: 1px solid var(--linie);
   background: var(--flaeche);
 }
+/* Vereinsprofil (Issue #310) */
+.vereinsprofil {
+  margin-top: 32px;
+}
+.profil-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-width: 65ch;
+}
+.profil-links {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0;
+}
+.profil-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
 /* Route und Merken (Issue #295) */
 .eintrag .aktionen {
   display: flex;
