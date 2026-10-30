@@ -27,5 +27,6 @@ describe('Vorschaubild je Termin (Issue #110)', () => {
     );
     expect(png.getUint32(0)).toBe(0x89504e47);
     expect([png.getUint32(16), png.getUint32(20)]).toEqual([1200, 630]);
-  });
+    // Rendern dauert auf geteilten CI-Rechnern mehrere Sekunden
+  }, 30_000);
 });
