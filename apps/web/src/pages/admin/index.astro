@@ -26,9 +26,8 @@ if (von) parameter.set('von', von);
 const kg = darf(Astro.locals, 'termine.bestaetigen');
 const zurueck = encodeURIComponent(zurueckLink(parameter));
 const markiert = new Set(markierte(p));
-const [seite, v, sicherung] = await Promise.all([
+const [seite, sicherung] = await Promise.all([
   adminApi<TerminSeite>(Astro.cookies, 'GET', `termine?${parameter}`),
-  adminApi<{ anzahl: number }>(Astro.cookies, 'GET', 'termine-vorschlaege/anzahl'),
   // Nur Admins und nur mit eingebundenem Sicherungsverzeichnis – sonst 403/404 und keine Zeile (#45)
   adminApi<SicherungsStand>(Astro.cookies, 'GET', 'sicherungen'),
 ]);
@@ -59,22 +58,8 @@ const meldung = listenMeldung(p, ortName);
   <div class="hauptaktionen">
     <a class="knopf" href="/admin/kirmes-eintragen">
       <Icon name="kalender" />
-      Ganze Kirmes eintragen
+      Kirmes eintragen
     </a>
-    {/* Einzelner Termin ohne Umweg (Issue #329) */}
-    <a class="knopf zweit" href="/admin/termine">
-      <Icon name="stift" />
-      Einzelnen Termin eintragen
-    </a>
-    {darf(Astro.locals, 'import') && (
-      <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
-    )}
-    {(v.daten?.anzahl ?? 0) > 0 && (
-      <a href="/admin/vorschlaege">
-        {anzahl(v.daten?.anzahl ?? 0, 'Vorschlag wartet', 'Vorschläge warten')} auf Prüfung
-      </a>
-    )}
-    {!kg && <a href="/admin/social-media">Wochenbild für Social Media</a>}
   </div>
   {sicherungsStand && (
     <p
