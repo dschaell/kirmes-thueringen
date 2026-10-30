@@ -244,6 +244,25 @@ a:hover {
   }
 }
 
+/*
+ * Als App vom Home-Bildschirm (Issue #269): iOS legt oben einen Unschärfestreifen über die Seite.
+ * Ein fester, einfarbiger Streifen unter der Statusleiste verhindert, dass Inhalt darunter
+ * durchscheint; der Kopf rückt etwas tiefer, damit das Logo nicht im Übergang liegt.
+ */
+@media (display-mode: standalone) {
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--papier);
+    z-index: 100;
+  }
+  .kopf {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+  }
+}
+
 /* ── Leiste unten am Handy (Issue #294) ─────────────────────────────────────────────────── */
 .leiste {
   display: none;
