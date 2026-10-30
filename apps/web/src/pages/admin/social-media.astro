@@ -1,0 +1,150 @@
+---
+/**
+ * Social Media (Issue #335): das Wochenbild (#308) als Beitrag und Status/Story mit Vorschau,
+ * Herunterladen, Teilen (am Handy direkt an Instagram/WhatsApp) und fertigem Begleittext.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
+import { alleTermine } from '../../lib/api';
+import { wochenende, wochentag, zeitraumKurz } from '../../lib/anzeige';
+
+const { von, bis } = wochenende();
+const termine = await alleTermine({ von, bis });
+const zeitraum = zeitraumKurz(von, bis);
+const link = new URL('/termine?zeit=wochenende', Astro.site).href;
+const zeilen = termine.map(
+  (t) =>
+    `• ${wochentag(t.datum).slice(0, 2)}.${t.beginn ? ` ${t.beginn}` : ''} ${t.ort.name} – ${t.titel}`,
+);
+const text = [
+  `Kirmes am Wochenende in Thüringen (${zeitraum}) 🎉`,
+  '',
+  ...(zeilen.length ? zeilen : ['Dieses Wochenende ist noch nichts eingetragen.']),
+  '',
+  `Alle Termine, Route und Kalender: ${link}`,
+  '',
+  '#kirmes #kirchweih #thüringen #kirmeskalender',
+].join('\n');
+const formate = [
+  { name: 'Instagram-Beitrag', groesse: '1080 × 1350', datei: 'beitrag', url: '/wochenbild.png' },
+  {
+    name: 'Status / Story',
+    groesse: '1080 × 1920',
+    datei: 'story',
+    url: '/wochenbild.png?format=story',
+  },
+];
+---
+
+<AdminLayout titel="Social Media">
+  <p class="lesetext leise">
+    Fertige Bilder mit den Kirmes-Terminen dieses Wochenendes ({zeitraum},{' '}
+    {termine.length === 1 ? '1 Termin' : `${termine.length} Termine`}). Sie werden bei jedem Aufruf
+    neu erstellt – Änderungen an Terminen sind sofort drin.
+  </p>
+
+  <div class="sm-bilder">
+    {formate.map((f) => (
+      <figure class="sm-bild">
+        <img
+          src={f.url}
+          alt={`Wochenbild als ${f.name}`}
+          width="1080"
+          height={f.datei === 'story' ? 1920 : 1350}
+          loading="lazy"
+        />
+        <figcaption>
+          <strong>{f.name}</strong> <span class="leise klein">{f.groesse}</span>
+        </figcaption>
+        <div class="sm-knoepfe">
+          <a class="knopf" href={f.url} download={`kirmes-wochenende-${von}-${f.datei}.png`}>
+            <Icon name="pfeil" groesse={16} /> Herunterladen
+          </a>
+          <button class="knopf zweit sm-teilen" type="button" data-url={f.url} hidden>
+            <Icon name="teilen" groesse={16} /> Teilen …
+          </button>
+        </div>
+      </figure>
+    ))}
+  </div>
+
+  <h2>Text zum Bild</h2>
+  <label class="sm-text">
+    <span class="sr-only">Begleittext</span>
+    <textarea id="sm-text" rows="12" readonly>{text}</textarea>
+  </label>
+  <p>
+    <button class="knopf zweit" type="button" id="sm-kopieren" hidden>
+      Text kopieren
+    </button>
+    <span id="sm-status" class="klein leise" role="status"></span>
+  </p>
+</AdminLayout>
+
+<script>
+  const feld = document.querySelector<HTMLTextAreaElement>('#sm-text');
+  const knopf = document.querySelector<HTMLButtonElement>('#sm-kopieren');
+  const status = document.querySelector('#sm-status');
+  if (feld && knopf && status) {
+    knopf.hidden = false;
+    knopf.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(feld.value);
+        status.textContent = 'Text kopiert.';
+      } catch {
+        feld.focus();
+        feld.select();
+        status.textContent = 'Text markiert – bitte über das Kopiermenü kopieren.';
+      }
+    });
+  }
+  // Am Handy: Bild samt Text direkt an Instagram, WhatsApp & Co. geben
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.sm-teilen')) {
+    if (!navigator.canShare) continue;
+    b.hidden = false;
+    b.addEventListener('click', async () => {
+      try {
+        const blob = await (await fetch(b.dataset.url ?? '')).blob();
+        const datei = new File([blob], 'kirmes-wochenende.png', { type: 'image/png' });
+        const daten = { files: [datei], text: feld?.value ?? '' };
+        if (navigator.canShare(daten)) await navigator.share(daten);
+        else if (status) status.textContent = 'Teilen geht hier nicht – bitte herunterladen.';
+      } catch {
+        /* abgebrochen */
+      }
+    });
+  }
+</script>
+
+<style>
+  .sm-bilder {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin: 16px 0 28px;
+    align-items: start;
+  }
+  .sm-bild {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .sm-bild img {
+    width: 100%;
+    height: auto;
+    max-height: 520px;
+    object-fit: contain;
+    border: 1px solid var(--linie);
+    border-radius: 10px;
+    background: var(--flaeche);
+  }
+  .sm-knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sm-text textarea {
+    width: 100%;
+    font: inherit;
+  }
+</style>
