@@ -257,6 +257,13 @@ for (const feld of document.querySelectorAll<HTMLInputElement>('input[type="date
     zeichnen(iso(ansicht));
     dialog.showModal();
   });
+  // Mit Maus (Mac/PC) öffnet ein Klick ins Feld den großen eigenen Kalender statt des winzigen
+  // Systemfensters (Issue #322). Tastatur tippt weiter direkt; am Handy bleibt das Datumsrad.
+  feld.addEventListener('mousedown', (ereignis) => {
+    if (!matchMedia('(pointer: fine)').matches || ereignis.button !== 0) return;
+    ereignis.preventDefault();
+    ausloeser.click();
+  });
   kopf.append(zurueck, monat, weiter);
   aktionen.append(heute, leeren, fertig);
   dialog.append(kopf, tage, aktionen);
