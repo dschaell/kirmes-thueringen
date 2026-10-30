@@ -1164,6 +1164,37 @@ legend {
   margin: 0;
   flex: 1 1 20em;
 }
+/* Plakat (Issue #297): ganz sichtbar, nie höher als der Bildschirm */
+.plakat {
+  margin: 16px 0;
+}
+.plakat img {
+  display: block;
+  max-width: 100%;
+  max-height: 80vh;
+  height: auto;
+  border-radius: var(--r);
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
+}
+.plakat-hochladen {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.plakat-hochladen h2 {
+  margin: 0;
+}
+.plakat-vorschau {
+  max-width: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--linie);
+}
+.plakat-hochladen form {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
 /* Vorbei (Issue #294): deutlich, mit Weg zum nächsten Termin */
 .vorbei-hinweis {
   border-left: 4px solid var(--grau);

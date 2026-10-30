@@ -3,13 +3,14 @@ import { nameAusKartenlink } from '@kirmes/core';
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import Endzeit from '../../../components/admin/Endzeit.astro';
-import { adminApi, feld } from '../../../lib/admin';
+import { adminApi, adminPlakat, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
 import {
   KATEGORIEN,
   datumLangJahr,
   eintrittText,
   uhrzeitText,
+  plakatPfad,
   speiseZeile,
   artName,
   musikFeld,
@@ -62,7 +63,38 @@ let gerichte = Math.min(20, Math.max(3, speisen.length + 1));
 let essen = speisen.length > 0;
 // Kartenlink direkt bei „Wo genau?“ (Issue #163) – wird als Platz des Ortes gespeichert
 let standort = '';
-if (Astro.request.method === 'POST' && t) {
+const BILDTYPEN = ['image/jpeg', 'image/png', 'image/webp'];
+// Plakat (Issue #297): eigenes Formular, nach dem Speichern zurück auf diese Seite
+let meldung: string | null =
+  Astro.url.searchParams.get('plakat') === 'gespeichert'
+    ? 'Plakat gespeichert.'
+    : Astro.url.searchParams.get('plakat') === 'entfernt'
+      ? 'Plakat entfernt.'
+      : null;
+const plakatAktion =
+  Astro.request.method === 'POST' && t
+    ? (await Astro.request.clone().formData()).get('aktion')
+    : null;
+if (t && (plakatAktion === 'plakat' || plakatAktion === 'plakat-loeschen')) {
+  const f = await Astro.request.formData();
+  const datei = f.get('plakat');
+  const r =
+    plakatAktion === 'plakat-loeschen'
+      ? await adminPlakat(Astro.cookies, t.id)
+      : datei instanceof File && datei.size > 0
+        ? BILDTYPEN.includes(datei.type)
+          ? await adminPlakat(Astro.cookies, t.id, datei)
+          : { status: 400, daten: null, fehler: ['Bitte ein Foto als JPEG, PNG oder WebP wählen.'] }
+        : { status: 400, daten: null, fehler: ['Bitte zuerst ein Bild auswählen.'] };
+  if (r.status < 300) {
+    const u = new URL(Astro.url);
+    u.searchParams.set('plakat', plakatAktion === 'plakat' ? 'gespeichert' : 'entfernt');
+    return Astro.redirect(`${u.pathname}${u.search}`, 303);
+  }
+  fehler = r.fehler;
+  meldung = null;
+  Astro.response.status = r.status;
+} else if (Astro.request.method === 'POST' && t) {
   const f = await Astro.request.formData();
   version = feld(f, 'version');
   werte = {
@@ -142,7 +174,11 @@ const hinterlegt =
   (plaetze?.daten?.festplaetze ?? []).some((p) => p.name === werte.veranstaltungsort.trim());
 ---
 
-<AdminLayout titel={t ? 'Termin bearbeiten' : 'Termin nicht gefunden'} fehler={fehler}>
+<AdminLayout
+  titel={t ? 'Termin bearbeiten' : 'Termin nicht gefunden'}
+  fehler={fehler}
+  meldung={meldung}
+>
   {t && (
     <>
       <p>
@@ -358,6 +394,40 @@ const hinterlegt =
           </>
         </div>
       </form>
+      <section class="kasten plakat-hochladen" aria-labelledby="plakat-titel">
+        <h2 id="plakat-titel">Plakat</h2>
+        {t.plakat && (
+          <img
+            class="plakat-vorschau"
+            src={plakatPfad(t.id, t.plakat, 'klein')}
+            alt="Aktuelles Plakat"
+            loading="lazy"
+          />
+        )}
+        <form method="post" enctype="multipart/form-data">
+          <CsrfFeld />
+          <label>
+            {t.plakat ? 'Anderes Plakat hochladen' : 'Plakat oder Foto hochladen'}
+            <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" required />
+            <span class="klein leise">
+              JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder hochladen, an denen ihr die Rechte
+              habt (z. B. euer eigenes Plakat). Wir speichern eine verkleinerte Kopie ohne
+              Metadaten.
+            </span>
+          </label>
+          <button class="knopf" name="aktion" value="plakat">
+            Plakat speichern
+          </button>
+        </form>
+        {t.plakat && (
+          <form method="post">
+            <CsrfFeld />
+            <button class="knopf zweit" name="aktion" value="plakat-loeschen">
+              Plakat entfernen
+            </button>
+          </form>
+        )}
+      </section>
       <datalist id="bands-bearbeiten">
         {(v.daten?.bands ?? []).map((b) => (
           <option value={b} />
