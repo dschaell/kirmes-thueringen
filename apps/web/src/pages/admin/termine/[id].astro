@@ -64,37 +64,16 @@ let essen = speisen.length > 0;
 // Kartenlink direkt bei „Wo genau?“ (Issue #163) – wird als Platz des Ortes gespeichert
 let standort = '';
 const BILDTYPEN = ['image/jpeg', 'image/png', 'image/webp'];
-// Plakat (Issue #297): eigenes Formular, nach dem Speichern zurück auf diese Seite
+// Plakat (Issue #297) wird mit „Alle Änderungen speichern“ hochgeladen oder entfernt (Issue #332)
 let meldung: string | null =
-  Astro.url.searchParams.get('plakat') === 'gespeichert'
-    ? 'Plakat / Flyer gespeichert.'
-    : Astro.url.searchParams.get('plakat') === 'entfernt'
-      ? 'Plakat / Flyer entfernt.'
+  Astro.url.searchParams.get('plakat') === 'fehler'
+    ? null
+    : Astro.url.searchParams.get('plakat') === 'gespeichert'
+      ? 'Plakat / Flyer gespeichert.'
       : null;
-const plakatAktion =
-  Astro.request.method === 'POST' && t
-    ? (await Astro.request.clone().formData()).get('aktion')
-    : null;
-if (t && (plakatAktion === 'plakat' || plakatAktion === 'plakat-loeschen')) {
-  const f = await Astro.request.formData();
-  const datei = f.get('plakat');
-  const r =
-    plakatAktion === 'plakat-loeschen'
-      ? await adminPlakat(Astro.cookies, t.id)
-      : datei instanceof File && datei.size > 0
-        ? BILDTYPEN.includes(datei.type)
-          ? await adminPlakat(Astro.cookies, t.id, datei)
-          : { status: 400, daten: null, fehler: ['Bitte ein Foto als JPEG, PNG oder WebP wählen.'] }
-        : { status: 400, daten: null, fehler: ['Bitte zuerst ein Bild auswählen.'] };
-  if (r.status < 300) {
-    const u = new URL(Astro.url);
-    u.searchParams.set('plakat', plakatAktion === 'plakat' ? 'gespeichert' : 'entfernt');
-    return Astro.redirect(`${u.pathname}${u.search}`, 303);
-  }
-  fehler = r.fehler;
-  meldung = null;
-  Astro.response.status = r.status;
-} else if (Astro.request.method === 'POST' && t) {
+if (Astro.url.searchParams.get('plakat') === 'fehler')
+  fehler = ['Termin gespeichert, das Bild aber nicht – bitte ein JPEG, PNG oder WebP wählen.'];
+if (Astro.request.method === 'POST' && t) {
   const f = await Astro.request.formData();
   version = feld(f, 'version');
   werte = {
@@ -127,7 +106,12 @@ if (t && (plakatAktion === 'plakat' || plakatAktion === 'plakat-loeschen')) {
   // „Wo genau?“ leer? Namen aus dem Google-Maps-Link übernehmen (Issue #165)
   if (standort && !werte.veranstaltungsort.trim())
     werte.veranstaltungsort = nameAusKartenlink(standort) ?? '';
-  if (feld(f, 'aktion') === 'gericht') {
+  const plakat = f.get('plakat');
+  const neuesPlakat = plakat instanceof File && plakat.size > 0 ? plakat : null;
+  if (neuesPlakat && !BILDTYPEN.includes(neuesPlakat.type)) {
+    fehler = ['Bitte als Plakat / Flyer ein Foto als JPEG, PNG oder WebP wählen.'];
+    Astro.response.status = 400;
+  } else if (feld(f, 'aktion') === 'gericht') {
     gerichte = Math.min(20, namen.length + 1);
     essen = true;
   } else {
@@ -154,7 +138,16 @@ if (t && (plakatAktion === 'plakat' || plakatAktion === 'plakat-loeschen')) {
         // ohne Haken keine Einträge übernehmen (Issue #155)
         speisen: essen ? speisen : [],
       });
-      if (r.status < 300) return Astro.redirect(nachAktion(zurueck, 'gespeichert', [id]), 303);
+      if (r.status < 300) {
+        const bild = neuesPlakat
+          ? await adminPlakat(Astro.cookies, t.id, neuesPlakat)
+          : f.has('plakat-weg')
+            ? await adminPlakat(Astro.cookies, t.id)
+            : null;
+        if (bild && bild.status >= 300)
+          return Astro.redirect(`/admin/termine/${encodeURIComponent(id)}?plakat=fehler`, 303);
+        return Astro.redirect(nachAktion(zurueck, 'gespeichert', [id]), 303);
+      }
       fehler = r.fehler;
       Astro.response.status = r.status;
     }
@@ -183,7 +176,11 @@ const hinterlegt =
     <>
       <p>
         <strong>{t.ort.name}</strong> ·{' '}
-        <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a>
+        <a href={`/admin/termine?ort=${t.ort.slug}`}>Alle Termine und Plätze dieses Ortes</a> ·{' '}
+        {/* Öffentliche Seite (Issue #333) */}
+        <a href={`/termin/${t.id}`} target="_blank" rel="noopener">
+          Auf der Website ansehen
+        </a>
       </p>
       <Herkunft herkunft={herkunft?.daten?.[id]} />
       {fehler.length > 0 && (
@@ -235,7 +232,13 @@ const hinterlegt =
         </div>
       )}
 
-      <form class="melden" method="post" data-ungespeichert data-terminentwurf>
+      <form
+        class="melden"
+        method="post"
+        enctype="multipart/form-data"
+        data-ungespeichert
+        data-terminentwurf
+      >
         <CsrfFeld />
         <input type="hidden" name="version" value={version} />
         <div class="zwei">
@@ -391,6 +394,31 @@ const hinterlegt =
             )}
           </div>
         </fieldset>
+        <fieldset class="kasten plakat-hochladen">
+          <legend>Plakat / Flyer</legend>
+          {t.plakat && (
+            <img
+              class="plakat-vorschau"
+              src={plakatPfad(t.id, t.plakat, 'klein')}
+              alt="Aktuelles Plakat / Flyer"
+              loading="lazy"
+            />
+          )}
+          <label>
+            {t.plakat ? 'Anderes Bild hochladen' : 'Plakat, Flyer oder Foto hochladen'}
+            <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" />
+            <span class="klein leise">
+              JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder hochladen, an denen ihr die Rechte
+              habt (z. B. euer eigenes Plakat oder euren Flyer). Wir speichern eine verkleinerte
+              Kopie ohne Metadaten. Gespeichert wird mit „Alle Änderungen speichern“.
+            </span>
+          </label>
+          {t.plakat && (
+            <label>
+              <input type="checkbox" name="plakat-weg" value="ja" /> Plakat / Flyer entfernen
+            </label>
+          )}
+        </fieldset>
         <div class="knopfreihe">
           <>
             <button class="knopf" name="aktion" value="speichern">
@@ -400,40 +428,6 @@ const hinterlegt =
           </>
         </div>
       </form>
-      <section class="kasten plakat-hochladen" aria-labelledby="plakat-titel">
-        <h2 id="plakat-titel">Plakat / Flyer</h2>
-        {t.plakat && (
-          <img
-            class="plakat-vorschau"
-            src={plakatPfad(t.id, t.plakat, 'klein')}
-            alt="Aktuelles Plakat / Flyer"
-            loading="lazy"
-          />
-        )}
-        <form method="post" enctype="multipart/form-data">
-          <CsrfFeld />
-          <label>
-            {t.plakat ? 'Anderes Bild hochladen' : 'Plakat, Flyer oder Foto hochladen'}
-            <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" required />
-            <span class="klein leise">
-              JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder hochladen, an denen ihr die Rechte
-              habt (z. B. euer eigenes Plakat oder euren Flyer). Wir speichern eine verkleinerte
-              Kopie ohne Metadaten.
-            </span>
-          </label>
-          <button class="knopf" name="aktion" value="plakat">
-            Plakat / Flyer speichern
-          </button>
-        </form>
-        {t.plakat && (
-          <form method="post">
-            <CsrfFeld />
-            <button class="knopf zweit" name="aktion" value="plakat-loeschen">
-              Plakat / Flyer entfernen
-            </button>
-          </form>
-        )}
-      </section>
       <datalist id="bands-bearbeiten">
         {(v.daten?.bands ?? []).map((b) => (
           <option value={b} />
