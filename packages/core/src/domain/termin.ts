@@ -90,6 +90,8 @@ export interface Termin {
   readonly veranstalter?: string | null;
   /** Eintritt in Cent, 0 = frei, null = unbekannt (Issue #278) */
   readonly eintrittCent?: number | null;
+  /** Plakat hochgeladen: Stand (für Bildadressen), null = keins – Issue #297 */
+  readonly plakat?: string | null;
   /** Öffentliche Hinweise: Eintritt, Einlass, Shuttle … */
   readonly info: string | null;
   /** Minderjährige brauchen eine Erziehungsbeauftragung („Muttizettel“, § 1 Abs. 1 Nr. 4 JuSchG) */

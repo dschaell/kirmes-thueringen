@@ -25,7 +25,7 @@ describe('Google Maps nur auf Terminseiten und in der Termin-Redaktion (#62)', (
 
 describe('Karte und Festplatz-Seite ohne Drittanbieter (#103)', () => {
   it('keine externen Kacheln oder Adresssuche, COEP wieder an, Standort erlaubt', () => {
-    for (const p of ['/karte', '/verwalten?link=x']) {
+    for (const p of ['/karte', '/verwalten?link=x', '/termine', '/termine?nahe=50.9,11']) {
       expect(csp(p), p).not.toContain('openstreetmap');
       expect(coep(p), p).toBe('require-corp');
       expect((headerFuer(p) as Record<string, string>)['Permissions-Policy'], p).toContain(

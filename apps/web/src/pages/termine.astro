@@ -8,22 +8,28 @@ import Icon from '../components/Icon.astro';
 import TerminListe from '../components/TerminListe.astro';
 import KeineTreffer from '../components/KeineTreffer.astro';
 import {
+  alleTermine,
   listeOrte,
   sucheTermine,
   UngueltigeAnfrage,
   type TerminDto,
   type TerminSeite,
 } from '../lib/api';
-import { sucheOrte, type OrtTreffer } from '../lib/ortssuche';
+import { findeOrtEindeutig, sucheOrte, type OrtTreffer } from '../lib/ortssuche';
 import {
   KATEGORIEN,
   LANDKREISE,
   anzahl,
   heute,
+  wochenende,
+  zeitraumKurz,
   imKreis,
   kreisKurz,
   suchZeitraum,
   artName,
+  entfernungKm,
+  standortAus,
+  UMKREISE,
 } from '../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
 
@@ -37,6 +43,16 @@ const nurBest = p.get('best') === '1';
 const vonRoh = p.get('von') ?? '';
 const vonParam = /^\d{4}-\d{2}-\d{2}$/.test(vonRoh) ? vonRoh : null;
 const offset = Math.max(0, Math.floor(Number(p.get('seite') ?? 1)) - 1) * SEITE || 0;
+// In meiner Nähe (Issue #296): eigener Standort (gerundet) oder ein gewählter Ort als Mitte
+const um = p.get('um')?.trim().slice(0, 200) ?? '';
+const standort = standortAus(p.get('nahe'));
+const kmRoh = Number(p.get('km'));
+const km = (UMKREISE as readonly number[]).includes(kmRoh) ? kmRoh : 20;
+const orte = !standort && um ? await listeOrte() : [];
+const umSlug = orte.length ? findeOrtEindeutig(orte, um)?.slug : undefined;
+const umOrt = orte.find((o) => o.slug === umSlug) ?? null;
+const mitte = standort ?? umOrt?.koordinate ?? null;
+const umkreisText = standort ? 'deinen Standort' : (umOrt?.name ?? um);
 
 const h = heute();
 const {
@@ -48,16 +64,30 @@ const jahr = zeit === 'jahr' && zeitraum.von ? zeitraum.von.slice(0, 4) : h.slic
 
 let ergebnis: TerminSeite = { gesamt: 0, termine: [] };
 let fehler: string | null = null;
+const entfernung: Record<string, number> = {};
+const suche = {
+  ...zeitraum,
+  q: suchtext,
+  landkreis: kreis ? [kreis] : [],
+  kategorie: kat,
+  bestaetigt: nurBest || undefined,
+};
 try {
-  ergebnis = await sucheTermine({
-    ...zeitraum,
-    q: suchtext,
-    landkreis: kreis ? [kreis] : [],
-    kategorie: kat,
-    bestaetigt: nurBest || undefined,
-    limit: SEITE,
-    offset,
-  });
+  if (um && !mitte) {
+    fehler = umOrt
+      ? `Für ${umOrt.name} ist noch kein Kartenpunkt hinterlegt – bitte einen Nachbarort wählen.`
+      : `Ort „${um}“ nicht gefunden – bitte aus der Liste wählen.`;
+    Astro.response.status = 400;
+  } else if (mitte) {
+    // Umkreis: Entfernung zum Festplatz, sonst zur Ortsmitte; Reihenfolge bleibt nach Datum
+    const nah = (await alleTermine(suche)).filter((t) => {
+      const punkt = t.festplatz ?? t.ort.koordinate;
+      if (!punkt) return false;
+      entfernung[t.id] = entfernungKm(mitte, punkt);
+      return entfernung[t.id]! <= km;
+    });
+    ergebnis = { gesamt: nah.length, termine: nah.slice(offset, offset + SEITE) };
+  } else ergebnis = await sucheTermine({ ...suche, limit: SEITE, offset });
 } catch (e) {
   if (!(e instanceof UngueltigeAnfrage)) throw e;
   fehler = e.fehler.map((f) => f.meldung).join(' ');
@@ -81,7 +111,7 @@ if (!fehler && ergebnis.gesamt === 0) {
 }
 
 const aktiveFilter =
-  (kreis ? 1 : 0) + (zeit !== 'kommend' ? 1 : 0) + kat.length + (nurBest ? 1 : 0);
+  (kreis ? 1 : 0) + (zeit !== 'kommend' ? 1 : 0) + kat.length + (nurBest ? 1 : 0) + (mitte ? 1 : 0);
 const seiten = Math.ceil(ergebnis.gesamt / SEITE);
 const aktuell = offset / SEITE + 1;
 const seitenLink = (n: number) => {
@@ -128,6 +158,9 @@ const chips = [
     : []),
   ...kat.filter((k) => k in KATEGORIEN).map((k) => ({ text: artName(k), href: ohne('kat', k) })),
   ...(nurBest ? [{ text: 'Nur bestätigte', href: ohne('best') }] : []),
+  ...(mitte
+    ? [{ text: `Bis ${km} km um ${umkreisText}`, href: ohne(standort ? 'nahe' : 'um') }]
+    : []),
 ];
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
@@ -136,9 +169,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   title={
     ueberschrift === 'Kirmes-Termine'
       ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
-      : `${ueberschrift} – Kirmeskalender Thüringen`
+      : ueberschrift === 'Kirmes am Wochenende'
+        ? // Suchbegriff „Kirmes Wochenende Thüringen“ samt Datum im Titel (Issue #305)
+          `Kirmes am Wochenende in Thüringen (${zeitraumKurz(wochenende().von, wochenende().bis)}) – Kirmeskalender`
+        : `${ueberschrift} – Kirmeskalender Thüringen`
   }
-  description={`Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`}
+  description={
+    ueberschrift === 'Kirmes am Wochenende'
+      ? `Wo ist dieses Wochenende Kirmes in Thüringen? ${anzahl(ergebnis.gesamt, 'Termin', 'Termine')} vom ${zeitraumKurz(wochenende().von, wochenende().bis)} – Kirmestanz, Frühschoppen, Kinderkirmes, mit Anfahrt.`
+      : `Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`
+  }
 >
   <section class="einstieg">
     <h1>{ueberschrift}</h1>
@@ -157,7 +197,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
           Suchen
         </button>
       </div>
-      <details class="filter" open={aktiveFilter > 0}>
+      <input type="hidden" name="nahe" value={standort ? `${standort.lat},${standort.lon}` : ''} />
+      <button class="knopf zweit nahe-knopf" type="button" id="nahe-knopf" hidden>
+        <Icon name="standort" />
+        In meiner Nähe
+      </button>
+      <p class="klein leise" id="nahe-info" role="status"></p>
+      <details class="filter" open={aktiveFilter - (mitte ? 1 : 0) > 0}>
         <summary>
           <Icon name="filter" />
           Filter {aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>}
@@ -190,6 +236,29 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
               </option>
             </select>
           </div>
+          <fieldset>
+            <legend>Umkreis</legend>
+            <div class="zwei">
+              <label class="ortssuche">
+                <span class="sr-only">Um Ort</span>
+                <input
+                  name="um"
+                  maxlength="200"
+                  placeholder="Um Ort, z. B. Arnstadt"
+                  autocomplete="off"
+                  value={standort ? '' : um}
+                  data-ortssuche
+                />
+              </label>
+              <select name="km" aria-label="Umkreis in km">
+                {UMKREISE.map((k) => (
+                  <option value={k} selected={k === km}>
+                    bis {k} km
+                  </option>
+                ))}
+              </select>
+            </div>
+          </fieldset>
           <fieldset>
             <legend>Art der Veranstaltung</legend>
             <div class="marken">
@@ -238,7 +307,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
   </p>
   <h2 class="sr-only">Gefundene Termine</h2>
-  <TerminListe termine={ergebnis.termine} leer={false} />
+  <TerminListe
+    termine={ergebnis.termine}
+    leer={false}
+    entfernung={mitte ? entfernung : undefined}
+  />
   {!fehler && ergebnis.gesamt === 0 && (
     <KeineTreffer orte={ortTreffer} breiter={breiter} naechste={naechste} />
   )}
@@ -262,6 +335,38 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   )}
 </Base>
 <script>
+  import '../scripts/ortssuche';
+  // In meiner Nähe (Issue #296): Standort nur auf Knopfdruck, gerundet (~1 km), nie gespeichert
+  const naheKnopf = document.querySelector<HTMLButtonElement>('#nahe-knopf');
+  const naheInfo = document.querySelector('#nahe-info');
+  const filterForm = document.querySelector<HTMLFormElement>('#filter');
+  if (naheKnopf && filterForm && 'geolocation' in navigator) {
+    naheKnopf.hidden = false;
+    naheKnopf.addEventListener('click', () => {
+      if (naheInfo) naheInfo.textContent = 'Standort wird ermittelt …';
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          const feld = (n: string) => filterForm.elements.namedItem(n) as HTMLInputElement | null;
+          const nahe = feld('nahe');
+          if (nahe) nahe.value = `${coords.latitude.toFixed(2)},${coords.longitude.toFixed(2)}`;
+          const um = feld('um');
+          if (um) um.value = '';
+          filterForm.submit();
+        },
+        () => {
+          if (naheInfo)
+            naheInfo.textContent =
+              'Standort nicht verfügbar – unter „Filter“ einfach einen Ort eintragen.';
+        },
+        { maximumAge: 600_000, timeout: 10_000 },
+      );
+    });
+  }
+  // Ort eingetippt → eigener Standort gilt nicht mehr
+  filterForm?.querySelector('input[name="um"]')?.addEventListener('input', () => {
+    const nahe = filterForm.elements.namedItem('nahe') as HTMLInputElement | null;
+    if (nahe) nahe.value = '';
+  });
   // Filter sofort anwenden (Issue #111) – ohne JS bleibt „Filter anwenden“.
   const form = document.querySelector<HTMLFormElement>('#filter');
   const SCHLUESSEL = 'kirmes-filter-fokus';
@@ -301,6 +406,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   }
 </script>
 <style>
+  #nahe-info:empty {
+    display: none;
+  }
+  .nahe-knopf {
+    margin-top: 10px;
+  }
   .chips {
     list-style: none;
     display: flex;

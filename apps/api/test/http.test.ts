@@ -13,6 +13,7 @@ import {
   Ersteinrichtung,
   Mitgliederverwaltung,
   MitmachAnfragen,
+  Plakate,
   type Anfrage,
   Registrierung,
   RedaktionsFestplaetze,
@@ -137,6 +138,7 @@ let beitrittAktiv: Beitritt | undefined;
 let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
 let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let anfragenAktiv: MitmachAnfragen | undefined;
+let plakateAktiv: Plakate | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const KG_SITZUNG = 'K'.repeat(43);
@@ -258,6 +260,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       uhr,
     ),
     aktuelleMitteilung: async () => mitteilung,
+    plakate: plakateAktiv,
     meldungen: meldungenAktiv,
     terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
@@ -291,6 +294,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       vorschlaege: vorschlaegeAktiv,
       sicherungen: sicherungenAktiv,
       anfragen: anfragenAktiv,
+      plakate: plakateAktiv,
       passkeys: passkeysAktiv,
       einrichtung: einrichtungAktiv,
       redaktion: new Redaktion(
@@ -2211,5 +2215,93 @@ describe('Mitmach-Anfragen (Issue #279)', () => {
   it('ohne Mailversand nicht vorhanden', async () => {
     await setup();
     expect((await rufe('GET', '', auth)).statusCode).toBe(404);
+  });
+});
+
+describe('Plakate (Issue #297)', () => {
+  const T1 = '11111111-1111-4111-8111-111111111111';
+  const T2 = '22222222-2222-4222-8222-222222222222';
+  const bilder = new Map<string, Uint8Array>();
+  const mit = async () => {
+    plakateAktiv = new Plakate(
+      {
+        ortVon: async (id) => (id === T1 ? 'muehlberg' : id === T2 ? 'ulla' : null),
+        speichere: async (id, b) => void bilder.set(id, b.gross),
+        loesche: async (id) => bilder.delete(id),
+        lade: async (id) => bilder.get(id) ?? null,
+      },
+      {
+        wandle: async (d) => (d[0] === 0xff ? { gross: d, klein: d, breite: 10, hoehe: 20 } : null),
+      },
+    );
+    await setup();
+    plakateAktiv = undefined;
+  };
+  const lade = (sitzung: string, id: string, typ: string, body: Buffer | string) =>
+    app.inject({
+      method: 'PUT',
+      url: `/api/v1/admin/termine/${id}/plakat`,
+      headers: { authorization: `Sitzung ${sitzung}`, 'content-type': typ },
+      payload: body,
+    });
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff]);
+
+  it('hochladen, öffentlich abrufen, entfernen', async () => {
+    await mit();
+    const r = await lade(SITZUNG, T1, 'image/jpeg', jpeg);
+    expect([r.statusCode, r.json()]).toEqual([200, { breite: 10, hoehe: 20 }]);
+    const bild = await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/gross` });
+    expect([bild.statusCode, bild.headers['content-type'], bild.rawPayload]).toEqual([
+      200,
+      'image/webp',
+      jpeg,
+    ]);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/riesig` })).statusCode,
+    ).toBe(400);
+    const weg = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/termine/${T1}/plakat`,
+      headers: { authorization: `Sitzung ${SITZUNG}` },
+    });
+    expect(weg.statusCode).toBe(204);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/klein` })).statusCode,
+    ).toBe(404);
+    const nochmal = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/termine/${T1}/plakat`,
+      headers: { authorization: `Sitzung ${SITZUNG}` },
+    });
+    expect(nochmal.statusCode).toBe(404);
+  });
+
+  it('KG nur eigener Ort; kein Bild, falscher Typ, zu groß, ohne Anmeldung', async () => {
+    await mit();
+    expect((await lade(KG_SITZUNG, T1, 'image/png', jpeg)).statusCode).toBe(200);
+    expect((await lade(KG_SITZUNG, T2, 'image/png', jpeg)).statusCode).toBe(404);
+    expect((await lade(SITZUNG, T1, 'image/webp', Buffer.from('xx'))).statusCode).toBe(400);
+    expect((await lade(SITZUNG, T1, 'image/svg+xml', '<svg/>')).statusCode).toBe(415);
+    expect((await lade(SITZUNG, T1, 'application/json', '{}')).statusCode).toBe(415);
+    expect(
+      (await lade(SITZUNG, T1, 'image/jpeg', Buffer.alloc(8 * 1024 * 1024 + 1, 0xff))).statusCode,
+    ).toBe(413);
+    expect(
+      (
+        await app.inject({
+          method: 'PUT',
+          url: `/api/v1/admin/termine/${T1}/plakat`,
+          headers: { 'content-type': 'image/jpeg' },
+          payload: jpeg,
+        })
+      ).statusCode,
+    ).toBe(401);
+  });
+
+  it('ohne Plakate nicht vorhanden', async () => {
+    await setup();
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/gross` })).statusCode,
+    ).toBe(404);
   });
 });

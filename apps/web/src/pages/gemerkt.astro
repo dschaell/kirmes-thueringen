@@ -1,0 +1,71 @@
+---
+/**
+ * Gemerkte Termine (Issue #295). Die Liste liegt nur im Browser; das Skript hängt die IDs an die
+ * Adresse (?t=…), damit der Server die Termine anzeigen kann. Nichts wird gespeichert.
+ */
+import Base from '../layouts/Base.astro';
+import TerminListe from '../components/TerminListe.astro';
+import { findeTermin } from '../lib/api';
+import { heute } from '../lib/anzeige';
+
+const ID = /^[0-9a-f-]{36}$/;
+const ids = [
+  ...new Set((Astro.url.searchParams.get('t') ?? '').split(',').filter((x) => ID.test(x))),
+].slice(0, 100);
+const termine = (await Promise.all(ids.map((id) => findeTermin(id))))
+  .filter((t) => t !== null && t.datum >= heute())
+  .map((t) => t!)
+  .sort(
+    (a, b) =>
+      a.datum.localeCompare(b.datum) || (a.beginn ?? '99:99').localeCompare(b.beginn ?? '99:99'),
+  );
+const abgefragt = Astro.url.searchParams.has('t');
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<Base
+  title="Gemerkte Termine – Kirmeskalender Thüringen"
+  description="Deine gemerkten Kirmestermine."
+  noindex
+>
+  <section class="einstieg">
+    <h1>Gemerkte Termine</h1>
+    <p class="unterzeile">
+      Mit <strong>Merken</strong> bei einem Termin landet er hier. Die Liste bleibt nur in diesem
+      Browser – kein Konto, nichts wird bei uns gespeichert. Vorbei ist vorbei: Vergangene Termine
+      verschwinden von allein.
+    </p>
+  </section>
+  <div id="gemerkt" data-gueltig={termine.map((t) => t.id).join(',')} data-abgefragt={abgefragt}>
+    {termine.length > 0 ? (
+      <TerminListe termine={termine} hinweis={false} />
+    ) : (
+      <p class="leer" id="gemerkt-leer">
+        Noch nichts gemerkt. Unter <a href="/termine">Termine</a> bei einer Veranstaltung auf
+        „Merken“ tippen.
+      </p>
+    )}
+  </div>
+  <noscript>
+    <p class="kasten">Zum Merken braucht dein Browser JavaScript.</p>
+  </noscript>
+</Base>
+
+<script>
+  import { gemerkte, speichere } from '../scripts/merken';
+
+  const box = document.getElementById('gemerkt');
+  const ids = gemerkte();
+  if (box?.dataset.abgefragt !== 'true') {
+    // Erster Aufruf: gemerkte IDs an die Adresse hängen, damit der Server sie anzeigt
+    if (ids.length) location.replace(`/gemerkt?t=${ids.join(',')}`);
+  } else {
+    // Vergangene oder gelöschte Termine aus der Liste nehmen; neu Gemerktes nachladen
+    const gueltig = new Set((box.dataset.gueltig ?? '').split(',').filter(Boolean));
+    const angefragt = new Set(new URLSearchParams(location.search).get('t')?.split(',') ?? []);
+    speichere(ids.filter((id) => gueltig.has(id) || !angefragt.has(id)));
+    const neu = gemerkte();
+    if (neu.some((id) => !angefragt.has(id)) || neu.length !== gueltig.size)
+      history.replaceState(null, '', `/gemerkt?t=${neu.join(',')}`);
+  }
+</script>
