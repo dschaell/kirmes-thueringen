@@ -1,0 +1,129 @@
+---
+/**
+ * Einbett-Widget (Issue #307): die kommenden Termine eines Ortes als schlanke Seite für ein iframe
+ * auf Vereins- oder Gemeindeseiten. Keine Cookies, kein Tracking, kein Skript; Links öffnen den
+ * Kirmeskalender in einem neuen Tab. Darf als einzige Seite fremd eingebettet werden (Header).
+ */
+import { alleTermine, findeOrt } from '../../lib/api';
+import { artName, datumKurz, heute, plusTage, uhrzeitText } from '../../lib/anzeige';
+
+const ort = await findeOrt(Astro.params.ort ?? '');
+if (!ort) return new Response('Ort nicht gefunden', { status: 404 });
+const h = heute();
+const termine = (await alleTermine({ ort: ort.slug, von: h, bis: plusTage(h, 365) })).slice(0, 12);
+const seite = (pfad: string) => new URL(pfad, Astro.site).href;
+Astro.response.headers.set('Cache-Control', 'public, max-age=600');
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={seite(`/orte/${ort.slug}`)} />
+    <title>Kirmes in {ort.name} – Kirmeskalender Thüringen</title>
+  </head>
+  <body>
+    <main>
+      <h1>Kirmes in {ort.name}</h1>
+      {termine.length === 0 ? (
+        <p class="leer">Gerade sind keine Termine eingetragen.</p>
+      ) : (
+        <ul>
+          {termine.map((t) => (
+            <li>
+              <a href={seite(`/termin/${t.id}`)} target="_blank" rel="noopener">
+                <span class="wann">
+                  {datumKurz(t.datum)}
+                  {uhrzeitText(t) && ` · ${uhrzeitText(t)} Uhr`}
+                </span>
+                <span class="was">{t.titel}</span>
+                <span class="art">{artName(t.kategorie)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="fuss">
+        <a href={seite(`/orte/${ort.slug}`)} target="_blank" rel="noopener">
+          Alle Termine im Kirmeskalender Thüringen ↗
+        </a>
+      </p>
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light dark;
+    --text: #1f1b16;
+    --leise: #6b6155;
+    --rot: #a4161a;
+    --linie: #e6dccd;
+    --grund: transparent;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #f3ede4;
+      --leise: #b9ad9d;
+      --rot: #e8685c;
+      --linie: #3a332b;
+    }
+  }
+  body {
+    margin: 0;
+    background: var(--grund);
+    color: var(--text);
+    font:
+      16px/1.4 system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+  }
+  main {
+    padding: 12px;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  li a {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--linie);
+    color: inherit;
+    text-decoration: none;
+  }
+  li a:hover .was {
+    color: var(--rot);
+    text-decoration: underline;
+  }
+  .wann {
+    grid-column: 1 / -1;
+    color: var(--leise);
+    font-size: 0.9rem;
+  }
+  .was {
+    font-weight: 650;
+  }
+  .art {
+    color: var(--leise);
+    font-size: 0.85rem;
+    align-self: center;
+  }
+  .leer {
+    color: var(--leise);
+  }
+  .fuss a {
+    color: var(--rot);
+    font-weight: 600;
+  }
+</style>

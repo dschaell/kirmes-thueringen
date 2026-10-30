@@ -849,6 +849,23 @@ legend {
   min-height: 44px;
   font-weight: 600;
 }
+/* Einbett-Code (Issue #307) */
+.einbetten {
+  margin-top: 16px;
+}
+.einbetten > summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.einbetten textarea {
+  width: 100%;
+  font:
+    0.85rem/1.4 ui-monospace,
+    monospace;
+}
 /* Route und Merken (Issue #295) */
 .eintrag .aktionen {
   display: flex;
