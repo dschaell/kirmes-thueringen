@@ -60,9 +60,31 @@ const eigene =
   ).daten ?? [];
 
 const suche = Astro.url.searchParams.get('suche')?.trim().toLowerCase() ?? '';
+const alleOrte = await listeOrte();
 const treffer = suche
-  ? (await listeOrte()).filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
+  ? alleOrte.filter((o) => o.name.toLowerCase().includes(suche)).slice(0, 30)
   : [];
+
+/** Orte mit kommenden Terminen samt ihren Plätzen – ohne Umweg über „Bearbeiten“ (Issue #326) */
+type Platz = { name: string; termine: number; koordinate: { lat: number; lon: number } | null };
+const aktive = (
+  await Promise.all(
+    alleOrte
+      .filter((o) => o.anzahlKommend > 0)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+      .map(async (o) => ({
+        ...o,
+        plaetze:
+          (
+            await adminApi<{ plaetze: Platz[] }>(
+              Astro.cookies,
+              'GET',
+              `orte/${encodeURIComponent(o.slug)}/festplaetze`,
+            )
+          ).daten?.plaetze ?? null,
+      })),
+  )
+).filter((o) => o.plaetze !== null);
 const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   kreisKurz(a).localeCompare(kreisKurz(b), 'de'),
 );
@@ -104,7 +126,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
             <td class="klein">{o.anzahlKommend} Termine</td>
             <td>
               <a class="knopf zweit" href={`/admin/orte/${o.slug}`}>
-                <Icon name="stift" groesse={14} /> Bearbeiten
+                <Icon name="stift" groesse={14} /> Plätze & Ort
               </a>{' '}
               <a class="knopf zweit" href={`/admin/termine?ort=${o.slug}`}>
                 Termine
@@ -114,6 +136,48 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
         ))}
       </tbody>
     </table>
+  )}
+
+  <h2>Orte mit kommenden Terminen</h2>
+  {aktive.length === 0 ? (
+    <p class="leise">Gerade hat kein Ort kommende Termine.</p>
+  ) : (
+    <ul class="ort-plaetze">
+      {aktive.map((o) => (
+        <li>
+          <div class="kopfzeile">
+            <a href={`/orte/${o.slug}`} class="ortname">
+              {o.name}
+            </a>{' '}
+            <span class="leise klein">
+              ({kreisKurz(o.landkreis)}) · {o.anzahlKommend} kommende Termine
+            </span>
+          </div>
+          {o.plaetze?.length ? (
+            <ul class="plaetze">
+              {o.plaetze.map((p) => (
+                <li>
+                  <Icon name="standort" groesse={14} /> {p.name || 'Hauptfestplatz'}{' '}
+                  <span class="leise klein">
+                    · {p.termine} {p.termine === 1 ? 'Termin' : 'Termine'} ·{' '}
+                    {p.koordinate ? (
+                      'Kartenpunkt gesetzt'
+                    ) : (
+                      <strong class="fehlt">kein Kartenpunkt</strong>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="leise klein">Noch keine Plätze.</p>
+          )}
+          <a class="knopf zweit" href={`/admin/orte/${o.slug}`}>
+            <Icon name="stift" groesse={14} /> Plätze bearbeiten
+          </a>
+        </li>
+      ))}
+    </ul>
   )}
 
   {eigene.length > 0 && (
@@ -162,8 +226,9 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   <h2>Neuen Ort anlegen</h2>
   <p class="kasten klein">
     <strong>Kirche, Festzelt oder Sportplatz?</strong> Das ist kein neuer Ort, sondern ein{' '}
-    <strong>Platz</strong> im Ort: oben den Ort suchen, „Bearbeiten“ wählen und dort den Platz mit
-    Google-Maps-Link anlegen. Termine mit gleichem „Wo genau?“ führen dann dorthin.
+    <strong>Platz</strong> im Ort: beim Ort „Plätze bearbeiten“ (oder den Ort suchen und „Plätze &
+    Ort“) wählen und dort den Platz mit Google-Maps-Link anlegen. Termine mit gleichem „Wo genau?“
+    führen dann dorthin.
   </p>
   <form class="melden" method="post">
     <CsrfFeld />
@@ -194,6 +259,35 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   </form>
 </AdminLayout>
 <style>
+  .ort-plaetze {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px;
+    display: grid;
+    gap: 12px;
+  }
+  .ort-plaetze > li {
+    border: 1px solid var(--linie);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--flaeche);
+  }
+  .ort-plaetze .ortname {
+    font-weight: 700;
+  }
+  .plaetze {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 10px;
+    display: grid;
+    gap: 4px;
+  }
+  .plaetze li {
+    overflow-wrap: anywhere;
+  }
+  .plaetze .fehlt {
+    color: var(--rot);
+  }
   .loeschen-form {
     display: flex;
     align-items: center;
