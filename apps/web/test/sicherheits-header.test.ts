@@ -37,3 +37,15 @@ describe('Karte und Festplatz-Seite ohne Drittanbieter (#103)', () => {
     );
   });
 });
+
+describe('Einbett-Widget (Issue #307)', () => {
+  it('nur /einbetten/ darf fremd eingebettet werden', () => {
+    const h = headerFuer('/einbetten/ulla') as Record<string, string>;
+    expect(h['X-Frame-Options']).toBeUndefined();
+    expect(h['Content-Security-Policy']).toContain('frame-ancestors *');
+    expect(h['Cross-Origin-Resource-Policy']).toBe('cross-origin');
+    const sonst = headerFuer('/orte/ulla') as Record<string, string>;
+    expect(sonst['X-Frame-Options']).toBe('DENY');
+    expect(sonst['Content-Security-Policy']).toContain("frame-ancestors 'none'");
+  });
+});

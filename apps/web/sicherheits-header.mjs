@@ -58,17 +58,34 @@ export const SICHERHEITS_HEADER_GOOGLE_KARTE = {
   'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
 };
 
+/**
+ * Einbett-Widget (Issue #307): darf als iframe auf fremden Seiten (Vereine, Gemeinden) stehen –
+ * nur diese Seiten. Ohne X-Frame-Options, frame-ancestors offen, Ressource fremd ladbar.
+ */
+const BASIS_EINBETTEN = Object.fromEntries(
+  Object.entries(BASIS).filter(([name]) => name !== 'X-Frame-Options'),
+);
+export const SICHERHEITS_HEADER_EINBETTEN = {
+  ...BASIS_EINBETTEN,
+  'Cross-Origin-Resource-Policy': 'cross-origin',
+  'Content-Security-Policy': alsText({ ...CSP, 'frame-ancestors': '*' }),
+  'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
 export const headerFuer = (pfad) =>
-  pfad.startsWith('/verwalten')
-    ? SICHERHEITS_HEADER_VERWALTUNG
-    : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
-      pfad === '/karte' ||
-        pfad.startsWith('/karte?') ||
-        pfad === '/termine' ||
-        pfad.startsWith('/termine?')
-      ? SICHERHEITS_HEADER_KARTE
-      : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
-          pfad === '/admin/termine' ||
-          pfad.startsWith('/admin/termine?')
-        ? SICHERHEITS_HEADER_GOOGLE_KARTE
-        : SICHERHEITS_HEADER;
+  pfad.startsWith('/einbetten/')
+    ? SICHERHEITS_HEADER_EINBETTEN
+    : pfad.startsWith('/verwalten')
+      ? SICHERHEITS_HEADER_VERWALTUNG
+      : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
+        pfad === '/karte' ||
+          pfad.startsWith('/karte?') ||
+          pfad === '/termine' ||
+          pfad.startsWith('/termine?')
+        ? SICHERHEITS_HEADER_KARTE
+        : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
+            pfad === '/admin/termine' ||
+            pfad.startsWith('/admin/termine?')
+          ? SICHERHEITS_HEADER_GOOGLE_KARTE
+          : SICHERHEITS_HEADER;

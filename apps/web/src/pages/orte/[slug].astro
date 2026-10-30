@@ -38,6 +38,8 @@ const naechster = kommend[0];
 const nachbarn = orte
   .filter((o) => o.landkreis === ort.landkreis && o.slug !== ort.slug && o.anzahlKommend > 0)
   .slice(0, 30);
+// Einbett-Code für Vereins- und Gemeindeseiten (Issue #307)
+const einbettCode = `<iframe src="${new URL(`/einbetten/${ort.slug}`, Astro.site).href}" title="Kirmes-Termine ${ort.name}" width="100%" height="420" style="border:0" loading="lazy"></iframe>`;
 const route = routenLinks(naechster ?? { festplatz: null, veranstaltungsort: null, ort });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
@@ -173,6 +175,19 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <a class="mehr" href="/redaktion-mitmachen">
       Eigenen Zugang anfragen <Icon name="pfeil" />
     </a>
+    <details class="einbetten">
+      <summary>Termine auf eurer Website zeigen</summary>
+      <p class="klein">
+        Diesen Code auf der Vereins- oder Gemeindeseite einfügen – die Termine aktualisieren sich
+        dort von selbst. Ohne Cookies und ohne Tracking.
+      </p>
+      <textarea readonly rows="4" aria-label="Code zum Einbetten" set:text={einbettCode} />
+      <p class="klein">
+        <a href={`/einbetten/${ort.slug}`} target="_blank" rel="noopener">
+          Vorschau ansehen
+        </a>
+      </p>
+    </details>
   </div>
 
   {nachbarn.length > 0 && (
