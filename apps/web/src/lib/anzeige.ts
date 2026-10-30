@@ -113,6 +113,12 @@ export const plusTage = (iso: string, tage: number) =>
   new Date(Date.parse(iso) + tage * 86_400_000).toISOString().slice(0, 10);
 
 /** Nächstes (bzw. laufendes) Wochenende Freitag–Sonntag. */
+/** „31.10.–2.11.“ – kurzer Zeitraum für Titel (Issue #305) */
+export const zeitraumKurz = (von: string, bis: string) => {
+  const kurz = (iso: string) => `${Number(iso.slice(8, 10))}.${Number(iso.slice(5, 7))}.`;
+  return von === bis ? kurz(von) : `${kurz(von)}–${kurz(bis)}`;
+};
+
 export function wochenende(h = heute()): { von: string; bis: string } {
   const tag = new Date(h).getUTCDay(); // 0 = So
   const freitag = plusTage(h, tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag);
@@ -240,7 +246,11 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     description:
       t.info ??
       `${artName(t.kategorie)} in ${t.ort.name} am ${datumLang(t.datum)}${t.beginn ? ` ab ${t.beginn} Uhr` : ''}${t.band ? ` mit ${t.band}` : ''}.`,
-    image: [new URL(`/termin/${t.id}/bild.png`, site).href],
+    // Echtes Plakat bevorzugt (Issue #297), sonst das erzeugte Vorschaubild
+    image: [
+      ...(t.plakat ? [new URL(plakatPfad(t.id, t.plakat, 'gross'), site).href] : []),
+      new URL(`/termin/${t.id}/bild.png`, site).href,
+    ],
     url,
   };
 }
@@ -263,6 +273,36 @@ export function dauerMinuten(t: Pick<TerminDto, 'beginn' | 'ende' | 'kategorie'>
 /** „20:00“, mit Endzeit „10:00–12:00“; null ohne Beginn */
 export const uhrzeitText = (t: { beginn?: string | null; ende?: string | null }): string | null =>
   t.beginn ? (t.ende && t.ende !== t.beginn ? `${t.beginn}–${t.ende}` : t.beginn) : null;
+
+/** Bildadresse eines Plakats (Issue #297); der Stand macht sie bei jedem neuen Bild neu. */
+export const plakatPfad = (id: string, stand: string, groesse: 'gross' | 'klein') =>
+  `/termin/${id}/plakat/${groesse}.webp?v=${encodeURIComponent(stand)}`;
+
+/** Luftlinie in km (Haversine) – für „In meiner Nähe“ (Issue #296). */
+export function entfernungKm(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number {
+  const rad = (g: number) => (g * Math.PI) / 180;
+  const h =
+    Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+export const UMKREISE = [10, 20, 50] as const;
+
+/**
+ * „50.92,11.03“ → Punkt, auf 2 Nachkommastellen (~1 km) gerundet: genauer braucht es niemand,
+ * und so steht nie der genaue Standort in einer Adresse. Nur Thüringen und Umgebung.
+ */
+export function standortAus(text: string | null): { lat: number; lon: number } | null {
+  const m = /^(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/.exec(text?.trim() ?? '');
+  if (!m) return null;
+  const lat = Math.round(Number(m[1]) * 100) / 100;
+  const lon = Math.round(Number(m[2]) * 100) / 100;
+  return lat >= 49 && lat <= 52.5 && lon >= 8.5 && lon <= 14 ? { lat, lon } : null;
+}
 
 /**
  * Wer veranstaltet (Issue #278): eigener Eintrag am Termin, sonst der selbst eingetragene Name der

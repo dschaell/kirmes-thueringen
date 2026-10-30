@@ -21,6 +21,7 @@ import {
   eintrittText,
   veranstalterVon,
   uhrzeitText,
+  plakatPfad,
 } from '../../lib/anzeige';
 
 const t = await findeTermin(Astro.params.id ?? '');
@@ -30,6 +31,12 @@ if (!t) return Astro.rewrite('/404');
 const rundherum = (
   await alleTermine({ ort: t.ort.slug, von: plusTage(t.datum, -4), bis: plusTage(t.datum, 4) })
 ).filter((x) => x.id !== t.id);
+
+// Vorbei (Issue #294): auf die nächste Veranstaltung im Ort hinweisen
+const naechster =
+  t.datum < heute()
+    ? ((await alleTermine({ ort: t.ort.slug, von: heute() })).find((x) => x.id !== t.id) ?? null)
+    : null;
 
 const route = routenLinks(t);
 const url = new URL(`/termin/${t.id}`, Astro.site).href;
@@ -70,6 +77,24 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       {vorbei && <span class="leise"> · bereits vorbei</span>}
     </p>
     <h1>{t.titel}</h1>
+    {vorbei && (
+      <p class="kasten vorbei-hinweis" role="note">
+        <strong>Dieser Termin ist vorbei.</strong>{' '}
+        {naechster ? (
+          <>
+            Als Nächstes in {t.ort.name}:{' '}
+            <a href={`/termin/${naechster.id}`}>
+              {naechster.titel} am {datumLangJahr(naechster.datum)}
+            </a>
+          </>
+        ) : (
+          <>
+            Neue Termine aus {t.ort.name} findest du unter{' '}
+            <a href={`/orte/${t.ort.slug}`}>Kirmes {t.ort.name}</a>.
+          </>
+        )}
+      </p>
+    )}
 
     <dl class="fakten">
       <dt>
@@ -138,6 +163,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         </>
       )}
     </dl>
+    {t.plakat && (
+      <figure class="plakat">
+        <a href={plakatPfad(t.id, t.plakat, 'gross')} target="_blank" rel="noopener">
+          <img
+            src={plakatPfad(t.id, t.plakat, 'gross')}
+            alt={`Plakat / Flyer: ${t.titel} in ${t.ort.name}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+      </figure>
+    )}
     {t.info && (
       <p class="hinweise">
         <Icon name="info" />
@@ -202,6 +239,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         <Icon name="teilen" />
         Teilen
       </a>
+      <button
+        type="button"
+        class="knopf zweit merken"
+        data-merken={t.id}
+        aria-pressed="false"
+        hidden
+      >
+        <Icon name="stern" />
+        <span class="merken-text">Merken</span>
+      </button>
     </div>
     <p class="genau">
       {!route
@@ -213,12 +260,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
             : 'Die Route führt in den Ort.'}
     </p>
     {(t.festplatz ?? t.ort.koordinate) && (
-      <GoogleKarte
-        lat={(t.festplatz ?? t.ort.koordinate)!.lat}
-        lon={(t.festplatz ?? t.ort.koordinate)!.lon}
-        titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
-        genau={Boolean(t.festplatz)}
-      />
+      // Eingeklappt (Issue #294): Route-Knöpfe reichen meist, Karte auf Wunsch
+      <details class="karte-auf">
+        <summary>
+          <Icon name="karte" /> Karte anzeigen
+        </summary>
+        <GoogleKarte
+          lat={(t.festplatz ?? t.ort.koordinate)!.lat}
+          lon={(t.festplatz ?? t.ort.koordinate)!.lon}
+          titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
+          genau={Boolean(t.festplatz)}
+        />
+      </details>
     )}
   </article>
 
@@ -235,6 +288,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 </Base>
 
 <script>
+  import '../../scripts/merken';
   // Auf dem Handy das System-Teilen-Menü (WhatsApp, Signal, …) nutzen, sonst WhatsApp-Web-Link.
   const a = document.getElementById('teilen') as HTMLAnchorElement | null;
   if (a && navigator.share) {

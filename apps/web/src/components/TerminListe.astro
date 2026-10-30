@@ -13,6 +13,7 @@ import {
   tagMonat,
   wochentag,
   artName,
+  plakatPfad,
 } from '../lib/anzeige';
 import Icon from './Icon.astro';
 
@@ -26,8 +27,17 @@ interface Props {
   hinweis?: boolean;
   /** Eigenen Leer-Hinweis zeigen (aus, wenn die Seite selbst Auswege anbietet) */
   leer?: boolean;
+  /** Entfernung in km je Termin-ID (Umkreissuche, Issue #296) */
+  entfernung?: Record<string, number>;
 }
-const { termine, ortLinks = true, monate = true, hinweis = true, leer = true } = Astro.props;
+const {
+  termine,
+  ortLinks = true,
+  monate = true,
+  hinweis = true,
+  leer = true,
+  entfernung,
+} = Astro.props;
 
 type Tag = { datum: string; termine: TerminDto[] };
 const gruppen: { monat: string; tage: Tag[] }[] = [];
@@ -78,6 +88,18 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                   )}
                 </span>
                 <div>
+                  {t.plakat && (
+                    // Vorschau (Issue #306): feste Größe, damit nichts springt
+                    <img
+                      class="liste-plakat"
+                      src={plakatPfad(t.id, t.plakat, 'klein')}
+                      alt=""
+                      width="56"
+                      height="80"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
                   <a class="titel" href={`/termin/${t.id}`}>
                     {t.titel}
                   </a>
@@ -98,6 +120,12 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       <span class="ortname">{t.ort.name}</span>
                     )}
                     {platzText(t) && <> · {platzText(t)}</>}
+                    {entfernung?.[t.id] !== undefined && (
+                      <span class="entfernung">
+                        {' '}
+                        · {Math.max(1, Math.round(entfernung[t.id]!))} km
+                      </span>
+                    )}
                   </div>
                   {t.band && (
                     <div class="band">
@@ -107,19 +135,32 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                     </div>
                   )}
                 </div>
-                {route && (
-                  <a
-                    class="route"
-                    href={route.google}
-                    data-apple={route.apple}
-                    rel="noopener"
-                    target="_blank"
-                    aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                <div class="aktionen">
+                  {route && (
+                    <a
+                      class="route"
+                      href={route.google}
+                      data-apple={route.apple}
+                      rel="noopener"
+                      target="_blank"
+                      aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                    >
+                      <Icon name="route" groesse={16} />
+                      Route
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    class="merken"
+                    data-merken={t.id}
+                    aria-pressed="false"
+                    aria-label={`${t.titel} in ${t.ort.name} merken`}
+                    hidden
                   >
-                    <Icon name="route" groesse={16} />
-                    Route
-                  </a>
-                )}
+                    <Icon name="stern" groesse={16} />
+                    <span class="merken-text">Merken</span>
+                  </button>
+                </div>
               </li>
             );
           })}
@@ -130,6 +171,7 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
 ))}
 
 <script>
+  import '../scripts/merken';
   // Auf iPhone, iPad und Mac Apple Karten öffnen, sonst Google Maps.
   if (/iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
     for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-apple]')) {

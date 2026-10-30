@@ -40,6 +40,8 @@ export interface TerminDto {
   band: string | null;
   /** Pfarrer/in beim Gottesdienst (Issue #175) */
   pfarrer?: string | null;
+  /** Plakat: Stand für die Bildadresse, null = keins (Issue #297) */
+  plakat?: string | null;
   /** Endzeit HH:MM, null = keine; vor Beginn = nach Mitternacht (Issue #286) */
   ende?: string | null;
   /** Veranstalter, falls nicht die Kirmesgesellschaft (Issue #278) */
@@ -85,6 +87,25 @@ export class UngueltigeAnfrage extends Error {
     super('Ungültige Anfrage');
     this.name = 'UngueltigeAnfrage';
   }
+}
+
+/** Plakat als WebP (Issue #297); null = keins. Rohbytes, daher eigener Abruf. */
+export async function holePlakat(
+  id: string,
+  groesse: 'gross' | 'klein',
+): Promise<ArrayBuffer | null> {
+  let res: Response;
+  try {
+    res = await fetch(
+      new URL(`/api/v1/termine/${encodeURIComponent(id)}/plakat/${groesse}`, API_URL),
+      { signal: AbortSignal.timeout(TIMEOUT_MS) },
+    );
+  } catch (e) {
+    throw new ApiNichtErreichbar({ cause: e });
+  }
+  if (res.status === 404 || res.status === 400) return null;
+  if (!res.ok) throw new ApiNichtErreichbar();
+  return res.arrayBuffer();
 }
 
 async function hole<T>(pfad: string, params?: URLSearchParams): Promise<T | null> {

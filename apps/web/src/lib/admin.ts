@@ -58,6 +58,38 @@ export async function adminApi<T = unknown>(
   return { status: res.status, daten: res.ok ? (json as T) : null, fehler };
 }
 
+/** Plakat hochladen (Datei) oder löschen (ohne Datei) – Issue #297. Liefert Status und Fehler. */
+export async function adminPlakat(
+  cookies: AstroCookies,
+  terminId: string,
+  datei?: File,
+): Promise<AdminAntwort<unknown>> {
+  const token = cookies.get(SITZUNGS_COOKIE)?.value ?? '';
+  let res: Response;
+  try {
+    res = await fetch(
+      new URL(`/api/v1/admin/termine/${encodeURIComponent(terminId)}/plakat`, API_URL),
+      {
+        method: datei ? 'PUT' : 'DELETE',
+        headers: {
+          authorization: `Sitzung ${token}`,
+          ...(datei && { 'content-type': datei.type }),
+        },
+        body: datei ? await datei.arrayBuffer() : undefined,
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+  } catch (e) {
+    throw new ApiNichtErreichbar({ cause: e });
+  }
+  const json = res.status === 204 ? null : await res.json().catch(() => null);
+  return {
+    status: res.status,
+    daten: res.ok ? json : null,
+    fehler: res.ok ? [] : [json?.title ?? `Fehler ${res.status}`],
+  };
+}
+
 /** Anmeldung (ohne Cookie) – liefert Token oder Fehlermeldung. */
 /** Formularfeld als Text (leer, wenn nicht vorhanden). */
 export const feld = (f: FormData, name: string) => {
