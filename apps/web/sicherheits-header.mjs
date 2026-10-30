@@ -61,7 +61,11 @@ export const SICHERHEITS_HEADER_GOOGLE_KARTE = {
 export const headerFuer = (pfad) =>
   pfad.startsWith('/verwalten')
     ? SICHERHEITS_HEADER_VERWALTUNG
-    : pfad === '/karte' || pfad.startsWith('/karte?')
+    : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
+      pfad === '/karte' ||
+        pfad.startsWith('/karte?') ||
+        pfad === '/termine' ||
+        pfad.startsWith('/termine?')
       ? SICHERHEITS_HEADER_KARTE
       : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
           pfad === '/admin/termine' ||

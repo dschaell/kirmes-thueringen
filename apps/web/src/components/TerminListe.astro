@@ -26,8 +26,17 @@ interface Props {
   hinweis?: boolean;
   /** Eigenen Leer-Hinweis zeigen (aus, wenn die Seite selbst Auswege anbietet) */
   leer?: boolean;
+  /** Entfernung in km je Termin-ID (Umkreissuche, Issue #296) */
+  entfernung?: Record<string, number>;
 }
-const { termine, ortLinks = true, monate = true, hinweis = true, leer = true } = Astro.props;
+const {
+  termine,
+  ortLinks = true,
+  monate = true,
+  hinweis = true,
+  leer = true,
+  entfernung,
+} = Astro.props;
 
 type Tag = { datum: string; termine: TerminDto[] };
 const gruppen: { monat: string; tage: Tag[] }[] = [];
@@ -98,6 +107,12 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       <span class="ortname">{t.ort.name}</span>
                     )}
                     {platzText(t) && <> · {platzText(t)}</>}
+                    {entfernung?.[t.id] !== undefined && (
+                      <span class="entfernung">
+                        {' '}
+                        · {Math.max(1, Math.round(entfernung[t.id]!))} km
+                      </span>
+                    )}
                   </div>
                   {t.band && (
                     <div class="band">

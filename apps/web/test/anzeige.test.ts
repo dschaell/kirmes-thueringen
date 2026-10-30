@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   berlinVersatz,
   dauerMinuten,
+  entfernungKm,
+  standortAus,
   uhrzeitText,
   brotkrumenJsonLd,
   eventJsonLd,
@@ -276,5 +278,22 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
       { '@type': 'ListItem', position: 1, name: 'Kirmeskalender Thüringen', item: 'https://k.de/' },
       { '@type': 'ListItem', position: 2, name: 'Ilm-Kreis', item: 'https://k.de/kreise/ik' },
     ]);
+  });
+});
+
+describe('In meiner Nähe (Issue #296)', () => {
+  it('Luftlinie in km', () => {
+    // Erfurt Dom → Arnstadt Markt ≈ 17 km
+    expect(
+      entfernungKm({ lat: 50.9757, lon: 11.0225 }, { lat: 50.8353, lon: 10.9465 }),
+    ).toBeCloseTo(16.6, 0);
+    expect(entfernungKm({ lat: 50.9, lon: 11 }, { lat: 50.9, lon: 11 })).toBe(0);
+  });
+  it('Standort gerundet, nur Thüringen und Umgebung', () => {
+    expect(standortAus('50.97571,11.02249')).toEqual({ lat: 50.98, lon: 11.02 });
+    expect(standortAus(' 50.9,11 ')).toEqual({ lat: 50.9, lon: 11 });
+    expect(standortAus('48.1,11.5')).toBeNull();
+    expect(standortAus('50.9;11')).toBeNull();
+    expect(standortAus(null)).toBeNull();
   });
 });
