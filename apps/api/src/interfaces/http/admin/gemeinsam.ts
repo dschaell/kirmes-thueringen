@@ -5,6 +5,7 @@ import type {
   Ersteinrichtung,
   Mitgliederverwaltung,
   MitmachAnfragen,
+  Ortsprofile,
   Passkeys,
   Plakate,
   Redaktion,
@@ -37,6 +38,8 @@ export interface AdminAbhaengigkeiten {
   mitglieder: Mitgliederverwaltung;
   /** Mitmach-Anfragen (Issue #279) – braucht E-Mail-Versand und WEBSITE_URL */
   anfragen?: MitmachAnfragen;
+  /** Vereinsprofil je Ort (Issue #310) */
+  ortsprofile?: Ortsprofile;
   /** Plakat je Termin (Issue #297) */
   plakate?: Plakate;
   /** Plätze eines Ortes (Kirche, Festzelt …) mit Standort – Issue #62 */
