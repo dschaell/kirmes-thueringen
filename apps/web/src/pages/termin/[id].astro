@@ -31,6 +31,12 @@ const rundherum = (
   await alleTermine({ ort: t.ort.slug, von: plusTage(t.datum, -4), bis: plusTage(t.datum, 4) })
 ).filter((x) => x.id !== t.id);
 
+// Vorbei (Issue #294): auf die nächste Veranstaltung im Ort hinweisen
+const naechster =
+  t.datum < heute()
+    ? ((await alleTermine({ ort: t.ort.slug, von: heute() })).find((x) => x.id !== t.id) ?? null)
+    : null;
+
 const route = routenLinks(t);
 const url = new URL(`/termin/${t.id}`, Astro.site).href;
 const datum = datumLangJahr(t.datum);
@@ -70,6 +76,24 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
       {vorbei && <span class="leise"> · bereits vorbei</span>}
     </p>
     <h1>{t.titel}</h1>
+    {vorbei && (
+      <p class="kasten vorbei-hinweis" role="note">
+        <strong>Dieser Termin ist vorbei.</strong>{' '}
+        {naechster ? (
+          <>
+            Als Nächstes in {t.ort.name}:{' '}
+            <a href={`/termin/${naechster.id}`}>
+              {naechster.titel} am {datumLangJahr(naechster.datum)}
+            </a>
+          </>
+        ) : (
+          <>
+            Neue Termine aus {t.ort.name} findest du unter{' '}
+            <a href={`/orte/${t.ort.slug}`}>Kirmes {t.ort.name}</a>.
+          </>
+        )}
+      </p>
+    )}
 
     <dl class="fakten">
       <dt>
@@ -213,12 +237,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
             : 'Die Route führt in den Ort.'}
     </p>
     {(t.festplatz ?? t.ort.koordinate) && (
-      <GoogleKarte
-        lat={(t.festplatz ?? t.ort.koordinate)!.lat}
-        lon={(t.festplatz ?? t.ort.koordinate)!.lon}
-        titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
-        genau={Boolean(t.festplatz)}
-      />
+      // Eingeklappt (Issue #294): Route-Knöpfe reichen meist, Karte auf Wunsch
+      <details class="karte-auf">
+        <summary>
+          <Icon name="karte" /> Karte anzeigen
+        </summary>
+        <GoogleKarte
+          lat={(t.festplatz ?? t.ort.koordinate)!.lat}
+          lon={(t.festplatz ?? t.ort.koordinate)!.lon}
+          titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
+          genau={Boolean(t.festplatz)}
+        />
+      </details>
     )}
   </article>
 

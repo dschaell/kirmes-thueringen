@@ -244,6 +244,98 @@ a:hover {
   }
 }
 
+/* ── Leiste unten am Handy (Issue #294) ─────────────────────────────────────────────────── */
+.leiste {
+  display: none;
+}
+@media (max-width: 760px) {
+  /* Oben nur noch die Marke – die Ziele liegen unten im Daumenbereich */
+  .kopf:not(.kompakt) .nav {
+    display: none;
+  }
+  .kopf:not(.kompakt) .wrap {
+    min-height: 56px;
+    padding-bottom: 4px;
+  }
+  body:has(.leiste) {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  .leiste {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: var(--papier);
+    border-top: 1px solid var(--linie);
+    box-shadow: 0 -4px 16px rgb(0 0 0 / 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .leiste > a,
+  .leiste-mehr > summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 60px;
+    color: var(--tinte);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .leiste-mehr > summary::-webkit-details-marker {
+    display: none;
+  }
+  .leiste > a[aria-current],
+  .leiste-mehr:has([aria-current]) > summary,
+  .leiste-mehr[open] > summary {
+    color: var(--rot);
+  }
+  .leiste-menue {
+    position: absolute;
+    right: 8px;
+    bottom: calc(100% + 8px);
+    display: grid;
+    min-width: 220px;
+    padding: 6px;
+    background: var(--papier);
+    border: 1px solid var(--linie);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  }
+  .leiste-menue a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 8px;
+    color: var(--tinte);
+    text-decoration: none;
+    font-weight: 550;
+  }
+  .leiste-menue a[aria-current] {
+    color: var(--rot);
+  }
+  .leiste-menue a:hover {
+    background: var(--flaeche);
+  }
+}
+@media (max-width: 760px) {
+  /* Mitteilung über der Leiste, nicht dahinter */
+  body:has(.leiste) dialog.mitteilung {
+    margin-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    z-index: 60;
+  }
+}
+@media print {
+  .leiste {
+    display: none !important;
+  }
+}
+
 /* ── Einstieg ─────────────────────────────────────────────────────────────────────────── */
 .einstieg {
   padding: 40px 0 8px;
@@ -1039,6 +1131,27 @@ legend {
 .muttizettel-hinweis p {
   margin: 0;
   flex: 1 1 20em;
+}
+/* Vorbei (Issue #294): deutlich, mit Weg zum nächsten Termin */
+.vorbei-hinweis {
+  border-left: 4px solid var(--grau);
+  margin: 12px 0 4px;
+}
+/* Karte zum Aufklappen (Issue #294) */
+.karte-auf {
+  margin-top: 12px;
+}
+.karte-auf > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--rot);
+}
+.karte-auf[open] > summary {
+  margin-bottom: 8px;
 }
 .genau {
   font-size: 0.85rem;

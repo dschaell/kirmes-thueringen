@@ -4,6 +4,7 @@ import '../styles/global.css';
 // Schriften vorladen: kein Springen des Layouts beim Nachladen (Issue #123)
 import bitterUrl from '@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2?url';
 import sourceSansUrl from '@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2?url';
+import Icon from '../components/Icon.astro';
 import { ohneSchraegstrich, UNTERSTUETZEN_URL } from '../lib/anzeige';
 
 interface Props {
@@ -35,6 +36,21 @@ const nav = [
   ['/termin-melden', 'Termin melden'],
   ['/ueber-die-kirmes', 'Über die Kirmes'],
 ];
+/** Handy (Issue #294): Leiste unten für den Daumen, der Rest unter „Mehr“ */
+const unten = [
+  ['/termine', 'Termine', 'kalender'],
+  ['/karte', 'Karte', 'karte'],
+  ['/termin-melden', 'Melden', 'stift'],
+] as const;
+const mehr = [
+  ['/', 'Start'],
+  ['/orte', 'Orte A–Z'],
+  ['/kreise', 'Landkreise'],
+  ['/kalender-abonnieren', 'Kalender abonnieren'],
+  ['/ueber-die-kirmes', 'Über die Kirmes'],
+  ['/redaktion-mitmachen', 'Mitmachen'],
+];
+const aktiv = (href: string) => (href === '/' ? pfad === '/' : pfad.startsWith(href));
 /** JSON sicher in <script> einbetten: „<“ maskieren, damit kein Titel das Script-Tag beenden kann. */
 const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
 ---
@@ -109,6 +125,29 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
       </div>
     </header>
     {!kompakt && <div class="wimpel" aria-hidden="true" />}
+    {!kompakt && (
+      <nav class="leiste" aria-label="Schnellnavigation">
+        {unten.map(([href, label, icon]) => (
+          <a href={href} aria-current={aktiv(href) ? 'page' : undefined}>
+            <Icon name={icon} groesse={22} />
+            {label}
+          </a>
+        ))}
+        <details class="leiste-mehr">
+          <summary>
+            <Icon name="menue" groesse={22} />
+            Mehr
+          </summary>
+          <div class="leiste-menue">
+            {mehr.map(([href, label]) => (
+              <a href={href} aria-current={aktiv(href!) ? 'page' : undefined}>
+                {label}
+              </a>
+            ))}
+          </div>
+        </details>
+      </nav>
+    )}
     <main id="inhalt" class="wrap">
       <slot />
     </main>
@@ -189,6 +228,18 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
       import '../scripts/formularfelder';
       import '../scripts/ungespeichert';
       import '../scripts/entwuerfe';
+
+      // „Mehr“ der Leiste unten (Issue #294): schließt bei Tipp daneben und mit Esc
+      const leisteMehr = document.querySelector<HTMLDetailsElement>('.leiste-mehr');
+      document.addEventListener('click', (e) => {
+        if (leisteMehr?.open && !leisteMehr.contains(e.target as Node)) leisteMehr.open = false;
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && leisteMehr?.open) {
+          leisteMehr.open = false;
+          leisteMehr.querySelector('summary')?.focus();
+        }
+      });
 
       // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
       // Inhalte nur als Text (textContent) – nie als HTML.
