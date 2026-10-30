@@ -61,6 +61,11 @@ const meldung = listenMeldung(p, ortName);
       <Icon name="kalender" />
       Ganze Kirmes eintragen
     </a>
+    {/* Einzelner Termin ohne Umweg (Issue #329) */}
+    <a class="knopf zweit" href="/admin/termine">
+      <Icon name="stift" />
+      Einzelnen Termin eintragen
+    </a>
     {darf(Astro.locals, 'import') && (
       <a href="/admin/import">Viele Termine aus einer Tabelle importieren</a>
     )}
@@ -69,16 +74,7 @@ const meldung = listenMeldung(p, ortName);
         {anzahl(v.daten?.anzahl ?? 0, 'Vorschlag wartet', 'Vorschläge warten')} auf Prüfung
       </a>
     )}
-    <span class="klein">
-      Wochenbild zum Posten:{' '}
-      <a href="/wochenbild.png" target="_blank" rel="noopener">
-        Instagram-Beitrag
-      </a>{' '}
-      ·{' '}
-      <a href="/wochenbild.png?format=story" target="_blank" rel="noopener">
-        Status/Story
-      </a>
-    </span>
+    {!kg && <a href="/admin/social-media">Wochenbild für Social Media</a>}
   </div>
   {sicherungsStand && (
     <p
@@ -178,7 +174,10 @@ const meldung = listenMeldung(p, ortName);
               {offen.length > 0 && ` · ${offen.length} unbestätigt`}
             </span>
           </summary>
+          {/* Was man mit einer Kirmes oft braucht, direkt am Kopf (Issue #330) */}
           <p class="gruppenaktion klein">
+            <a href={`/admin/termine?ort=${g.ort}`}>Termin hinzufügen</a>
+            <a href={`/admin/orte/${g.ort}`}>Plätze</a>
             <a href={`/admin/kirmes-eintragen?vorjahr=${g.ort}&von=${g.von}&bis=${g.bis}`}>
               Für {Number(g.von.slice(0, 4)) + 1} übernehmen
             </a>
@@ -206,11 +205,12 @@ const meldung = listenMeldung(p, ortName);
                     {artName(t.kategorie)}
                     {t.band && ` · ${t.band}`}
                     {t.muttizettel && ' · Muttizettel'}
+                    <span class="klein leise">
+                      {' '}
+                      · {t.bestaetigt ? 'bestätigt' : 'noch nicht bestätigt'}
+                    </span>
                   </p>
-                  <p class="klein leise">
-                    {t.bestaetigt ? 'Vom Veranstalter bestätigt' : 'Noch nicht bestätigt'}
-                  </p>
-                  <Herkunft herkunft={herkunft?.daten?.[t.id]} />
+                  <Herkunft herkunft={herkunft?.daten?.[t.id]} kompakt />
                 </div>
                 <div class="terminaktionen">
                   <a
@@ -229,6 +229,10 @@ const meldung = listenMeldung(p, ortName);
                       Bestätigen
                     </a>
                   )}
+                  {/* Öffentliche Seite (Issue #333) */}
+                  <a class="klein" href={`/termin/${t.id}`} target="_blank" rel="noopener">
+                    Ansehen
+                  </a>
                   <a
                     class="klein"
                     href={`/admin/termine/${t.id}/aktion?aktion=loeschen&zurueck=${zurueck}`}
@@ -303,6 +307,14 @@ const meldung = listenMeldung(p, ortName);
   }
   .gruppenaktion {
     margin: 0 0 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+  }
+  .gruppenaktion.klein a {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
   }
   .terminkarten li:last-child {
     border-bottom: 0;
@@ -310,8 +322,8 @@ const meldung = listenMeldung(p, ortName);
   .terminkarten li {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
-    padding: 20px 0;
+    gap: 16px;
+    padding: 12px 0;
     border-bottom: 1px solid var(--linie);
   }
   .terminkarten li.markiert {
@@ -323,10 +335,10 @@ const meldung = listenMeldung(p, ortName);
   }
   .terminkarten h3,
   .terminkarten p {
-    margin: 0 0 6px;
+    margin: 0 0 3px;
   }
   .terminkarten h3 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
   .terminaktionen {
     display: flex;
@@ -356,7 +368,8 @@ const meldung = listenMeldung(p, ortName);
       display: block;
     }
     .terminaktionen {
-      margin-top: 12px;
+      margin-top: 6px;
+      gap: 4px 16px;
     }
   }
 </style>

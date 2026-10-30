@@ -2,8 +2,10 @@
 import type { TerminHerkunft } from '@kirmes/core';
 interface Props {
   herkunft?: TerminHerkunft;
+  /** Eine Zeile für lange Listen (Issue #331) */
+  kompakt?: boolean;
 }
-const { herkunft: h } = Astro.props;
+const { herkunft: h, kompakt = false } = Astro.props;
 // Unbekannte Herkunft (z. B. vor Einführung des Protokolls) wird nicht angezeigt – Issue #218
 const name =
   h?.name ??
@@ -25,7 +27,14 @@ const gName =
   g?.name ?? (g?.weg === 'bearbeitungslink' ? 'Kirmesgesellschaft' : 'Konto inzwischen gelöscht');
 ---
 
-{h && name && (
+{kompakt && h && name && (
+  <p class="klein leise">
+    {`${h.weg === 'vorschlag' ? 'Übernommen' : 'Angelegt'}: ${name}`}
+    {datum && ` · ${datum}`}
+    {g && ` · zuletzt bearbeitet: ${gName}, ${zeit(g.am)}`}
+  </p>
+)}
+{!kompakt && h && name && (
   <p class="klein leise">
     {`${h.weg === 'vorschlag' ? 'Übernommen von' : 'Angelegt von'}: ${name}`}
     {datum && ` · ${datum}`}
@@ -33,7 +42,7 @@ const gName =
     {h.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
   </p>
 )}
-{g && (
+{!kompakt && g && (
   <p class="klein leise">
     Zuletzt bearbeitet von: {gName} · {zeit(g.am)}
     {g.weg === 'bearbeitungslink' && ' · über Bearbeitungslink'}
