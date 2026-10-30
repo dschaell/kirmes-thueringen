@@ -32,13 +32,13 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
   {stand.schritt === 1 && !Astro.url.searchParams.has('gesendet') && (
     <aside id="festplatz" class="kasten mitmachen-hinweis">
       <p>
-        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>
+        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>{' '}
         <a class="mehr" href="/redaktion-mitmachen">
           Jetzt mitmachen <Icon name="pfeil" />
         </a>
       </p>
       <p>
-        <strong>Du willst Teil der Redaktion werden?</strong>
+        <strong>Du willst Teil der Redaktion werden?</strong>{' '}
         <a class="mehr" href="/redaktion-mitmachen#redaktion">
           Mithelfen <Icon name="pfeil" />
         </a>
