@@ -21,6 +21,8 @@ import {
   LANDKREISE,
   anzahl,
   heute,
+  wochenende,
+  zeitraumKurz,
   imKreis,
   kreisKurz,
   suchZeitraum,
@@ -167,9 +169,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   title={
     ueberschrift === 'Kirmes-Termine'
       ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
-      : `${ueberschrift} – Kirmeskalender Thüringen`
+      : ueberschrift === 'Kirmes am Wochenende'
+        ? // Suchbegriff „Kirmes Wochenende Thüringen“ samt Datum im Titel (Issue #305)
+          `Kirmes am Wochenende in Thüringen (${zeitraumKurz(wochenende().von, wochenende().bis)}) – Kirmeskalender`
+        : `${ueberschrift} – Kirmeskalender Thüringen`
   }
-  description={`Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`}
+  description={
+    ueberschrift === 'Kirmes am Wochenende'
+      ? `Wo ist dieses Wochenende Kirmes in Thüringen? ${anzahl(ergebnis.gesamt, 'Termin', 'Termine')} vom ${zeitraumKurz(wochenende().von, wochenende().bis)} – Kirmestanz, Frühschoppen, Kinderkirmes, mit Anfahrt.`
+      : `Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`
+  }
 >
   <section class="einstieg">
     <h1>{ueberschrift}</h1>

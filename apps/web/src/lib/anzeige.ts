@@ -113,6 +113,12 @@ export const plusTage = (iso: string, tage: number) =>
   new Date(Date.parse(iso) + tage * 86_400_000).toISOString().slice(0, 10);
 
 /** Nächstes (bzw. laufendes) Wochenende Freitag–Sonntag. */
+/** „31.10.–2.11.“ – kurzer Zeitraum für Titel (Issue #305) */
+export const zeitraumKurz = (von: string, bis: string) => {
+  const kurz = (iso: string) => `${Number(iso.slice(8, 10))}.${Number(iso.slice(5, 7))}.`;
+  return von === bis ? kurz(von) : `${kurz(von)}–${kurz(bis)}`;
+};
+
 export function wochenende(h = heute()): { von: string; bis: string } {
   const tag = new Date(h).getUTCDay(); // 0 = So
   const freitag = plusTage(h, tag === 0 ? -2 : tag === 6 ? -1 : 5 - tag);
