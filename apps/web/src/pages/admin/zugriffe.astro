@@ -1,0 +1,115 @@
+---
+/**
+ * Zugriffszahlen (Issue #311) – nur Admins. Gezählt werden nur Seitenaufrufe je Tag und Pfad:
+ * keine IP, keine Cookies, keine Kennung; Bots und Redaktion zählen nicht mit.
+ */
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import { adminApi } from '../../lib/admin';
+import { anzahl } from '../../lib/anzeige';
+
+const TAGE = [7, 30, 90, 365] as const;
+const roh = Number(Astro.url.searchParams.get('tage'));
+const tage = (TAGE as readonly number[]).includes(roh) ? roh : 30;
+const r = await adminApi<{
+  tage: { tag: string; anzahl: number }[];
+  seiten: { pfad: string; anzahl: number }[];
+}>(Astro.cookies, 'GET', `zugriffe?tage=${tage}`);
+const daten = r.daten ?? { tage: [], seiten: [] };
+const summe = daten.tage.reduce((s, t) => s + t.anzahl, 0);
+const hoechst = Math.max(1, ...daten.tage.map((t) => t.anzahl));
+const tagText = (iso: string) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString('de-DE', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'Europe/Berlin',
+  });
+---
+
+<AdminLayout titel="Zugriffe" fehler={r.fehler}>
+  <p class="leise">
+    Seitenaufrufe ohne Tracking: nur Summen je Tag und Seite – keine IP, keine Cookies. Bots und
+    Redaktion zählen nicht mit. Nach 400 Tagen gelöscht.
+  </p>
+  <nav class="zeitwahl" aria-label="Zeitraum">
+    {TAGE.map((t) => (
+      <a href={`/admin/zugriffe?tage=${t}`} aria-current={t === tage ? 'page' : undefined}>
+        {t === 365 ? '1 Jahr' : `${t} Tage`}
+      </a>
+    ))}
+  </nav>
+  <p>
+    <strong>{anzahl(summe, 'Aufruf', 'Aufrufe')}</strong> in den letzten {tage} Tagen.
+  </p>
+
+  <h2>Je Tag</h2>
+  {daten.tage.length === 0 ? (
+    <p class="leise">Noch keine Zahlen.</p>
+  ) : (
+    <ul class="zugriffe-tage">
+      {daten.tage.map((t) => (
+        <li>
+          <span class="zugriffe-tag">{tagText(t.tag)}</span>
+          <meter min="0" max={hoechst} value={t.anzahl} aria-label={`${t.anzahl} Aufrufe`} />
+          <span class="zahl">{t.anzahl}</span>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <h2>Meistbesuchte Seiten</h2>
+  {daten.seiten.length > 0 && (
+    <ol class="zugriffe-seiten">
+      {daten.seiten.map((s) => (
+        <li>
+          <a href={s.pfad} target="_blank" rel="noopener">
+            {s.pfad}
+          </a>{' '}
+          <span class="leise">{s.anzahl}</span>
+        </li>
+      ))}
+    </ol>
+  )}
+</AdminLayout>
+<style>
+  .zeitwahl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .zeitwahl a {
+    padding: 8px 12px;
+    border: 1px solid var(--linie);
+    border-radius: 999px;
+    text-decoration: none;
+    color: var(--tinte);
+  }
+  .zeitwahl a[aria-current] {
+    border-color: var(--rot);
+    color: var(--rot);
+    font-weight: 600;
+  }
+  .zugriffe-tage {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .zugriffe-tage li {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr 3.5rem;
+    gap: 8px;
+    align-items: center;
+  }
+  .zugriffe-tage meter {
+    width: 100%;
+  }
+  .zugriffe-tage .zahl {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .zugriffe-seiten a {
+    overflow-wrap: anywhere;
+  }
+</style>
