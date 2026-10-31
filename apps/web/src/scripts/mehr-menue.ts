@@ -16,7 +16,7 @@ document.addEventListener('keydown', (e) => {
 
 // Handy: aktiven Punkt der wischbaren Leiste ins Bild holen (Issue #328)
 document
-  .querySelector('.admin-nav > a[aria-current]')
+  .querySelector('.admin-nav-links > a[aria-current]')
   ?.scrollIntoView({ block: 'nearest', inline: 'center' });
 
 export {};
