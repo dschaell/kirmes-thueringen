@@ -1,0 +1,21 @@
+---
+/** Schalter „Schrift größer“ (Issue #347) – merkt sich die Wahl im Browser, braucht JavaScript. */
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+const stufen = [
+  ['', 'A', 'Normale Schrift'],
+  ['gross', 'A+', 'Große Schrift'],
+  ['sehr-gross', 'A++', 'Sehr große Schrift'],
+] as const;
+---
+
+<div class="schrift-schalter" role="group" aria-labelledby={id} hidden>
+  <span id={id}>Schriftgröße</span>
+  {stufen.map(([wert, zeichen, name]) => (
+    <button type="button" data-schrift={wert} aria-label={name} aria-pressed="false">
+      {zeichen}
+    </button>
+  ))}
+</div>

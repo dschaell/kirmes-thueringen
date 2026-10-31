@@ -55,6 +55,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
   <div class="zweispaltig">
     <div>
+      {/* Überschriftenfolge h1 → h2 → h3 für Bildschirmleser (Issue #347) */}
+      <h2 class="sr-only">Kommende Termine</h2>
       <TerminListe termine={kommend.termine} />
       {kommend.gesamt > kommend.termine.length && (
         <a class="mehr" href={`/termine?kreis=${encodeURIComponent(k)}`}>
