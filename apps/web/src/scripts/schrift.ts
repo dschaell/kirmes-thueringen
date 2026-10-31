@@ -26,4 +26,47 @@ for (const gruppe of document.querySelectorAll<HTMLElement>('.schrift-schalter')
 }
 zeigen();
 
+/** Design (Issue #356): wie in /einstellungen.js – Hintergrund und Modus auf <html> */
+const DESIGNS: Record<string, [string, string]> = {
+  auto: ['relief', ''],
+  'band-dunkel': ['band', 'dunkel'],
+  'band-hell': ['band', 'hell'],
+  'relief-hell': ['relief', 'hell'],
+  'relief-dunkel': ['relief', 'dunkel'],
+  schlicht: ['', ''],
+};
+const aktuellesDesign = () => {
+  try {
+    const d = localStorage.getItem('kirmes-design') ?? 'auto';
+    return d in DESIGNS ? d : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+const zeigeDesign = () => {
+  const d = aktuellesDesign();
+  for (const k of document.querySelectorAll<HTMLButtonElement>('[data-design]'))
+    k.setAttribute('aria-pressed', String(k.dataset.design === d));
+};
+for (const gruppe of document.querySelectorAll<HTMLElement>('.design-schalter')) {
+  gruppe.hidden = false;
+  gruppe.addEventListener('click', (e) => {
+    const knopf = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-design]');
+    const d = knopf?.dataset.design;
+    if (!d || !(d in DESIGNS)) return;
+    const [hintergrund, modus] = DESIGNS[d] ?? ['', ''];
+    if (hintergrund) html.dataset.hintergrund = hintergrund;
+    else delete html.dataset.hintergrund;
+    if (modus) html.dataset.modus = modus;
+    else delete html.dataset.modus;
+    try {
+      localStorage.setItem('kirmes-design', d);
+    } catch {
+      /* ohne Speicher gilt die Wahl nur für diese Seite */
+    }
+    zeigeDesign();
+  });
+}
+zeigeDesign();
+
 export {};

@@ -372,6 +372,10 @@ a:hover {
     right: 8px;
     bottom: calc(100% + 8px);
     display: grid;
+    /* Schrift- und Design-Auswahl passen auch auf kleine Handys (Issue #356) */
+    max-height: min(70vh, 560px);
+    max-width: calc(100vw - 16px);
+    overflow-y: auto;
     min-width: 220px;
     padding: 6px;
     background: var(--papier);
@@ -1877,4 +1881,208 @@ input[aria-invalid='true'],
 }
 .push-knopf[aria-pressed='true'] .icon path {
   fill: currentColor;
+}
+
+/* ── Designs mit Hintergrund (Issue #356) ──────────────────────────────────────────────
+ * Hintergrund fest hinter der Seite, Inhalte auf Milchglas davor – beim Scrollen wandert der
+ * Inhalt über das Bild, das wirkt räumlich. „Schlicht“ = ohne Bild.
+ */
+html[data-hintergrund] {
+  --glas: color-mix(in srgb, var(--papier) 74%, transparent);
+  --glas-rand: color-mix(in srgb, var(--tinte) 10%, transparent);
+  background: var(--papier);
+}
+html[data-hintergrund='relief'] {
+  --tapete: url('/design/relief-hell.svg') 0 0 / 130px repeat;
+}
+html[data-hintergrund='band'] {
+  --tapete: url('/design/band-hell.svg') center / cover no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-hintergrund='relief']:not([data-modus='hell']) {
+    --tapete:
+      url('/design/band-einzeln-dunkel.svg') center / cover no-repeat,
+      url('/design/relief-dunkel.svg') 0 0 / 130px repeat;
+  }
+  html[data-hintergrund='band']:not([data-modus='hell']) {
+    --tapete: url('/design/band-dunkel.svg') center / cover no-repeat;
+  }
+}
+html[data-hintergrund='relief'][data-modus='dunkel'] {
+  --tapete:
+    url('/design/band-einzeln-dunkel.svg') center / cover no-repeat,
+    url('/design/relief-dunkel.svg') 0 0 / 130px repeat;
+}
+html[data-hintergrund='band'][data-modus='dunkel'] {
+  --tapete: url('/design/band-dunkel.svg') center / cover no-repeat;
+}
+html[data-hintergrund] body {
+  background: transparent;
+}
+html[data-hintergrund] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--tapete);
+  pointer-events: none;
+}
+html[data-hintergrund] .kopf,
+html[data-hintergrund] .fuss,
+html[data-hintergrund] main#inhalt {
+  background: var(--glas);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+}
+html[data-hintergrund] main#inhalt {
+  margin-top: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--glas-rand);
+  padding-top: 4px;
+  padding-bottom: 24px;
+}
+@media (max-width: 760px) {
+  html[data-hintergrund] main#inhalt {
+    margin: 12px 8px 0;
+    padding-inline: 14px;
+  }
+  /* Untere Leiste schwebt als Glas-Kachel wie in einer App */
+  html[data-hintergrund] .leiste {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
+    border: 1px solid var(--glas-rand);
+    border-radius: 24px;
+    background: var(--glas);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.18);
+  }
+  html[data-hintergrund] body:has(.leiste) {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+}
+/* Wer weniger Transparenz will, bekommt volle Flächen */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-hintergrund] {
+    --glas: var(--papier);
+  }
+}
+
+/* App-Kacheln auf der Startseite (Issue #356) */
+.app-kacheln {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 761px) {
+  .app-kacheln {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.app-kacheln a {
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  min-height: 92px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--glas-rand, var(--linie));
+  background: var(--flaeche);
+  color: var(--tinte);
+  font-weight: 700;
+  text-decoration: none;
+}
+.app-kacheln a .icon {
+  color: var(--rot);
+}
+.app-kacheln a:hover {
+  border-color: var(--rand);
+}
+
+/* Design-Auswahl (Issue #356) */
+.design-schalter {
+  margin: 12px 0;
+}
+.design-schalter > span {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.design-schalter div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.design-schalter button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px 6px 6px;
+  font: 600 0.95rem/1 var(--text);
+  color: var(--tinte);
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.design-schalter button[aria-pressed='true'] {
+  border-color: var(--tinte);
+  box-shadow: 0 0 0 2px var(--tinte) inset;
+}
+.design-schalter .muster {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--rand);
+  background: var(--papier);
+  flex: none;
+}
+.design-schalter [data-design='band-dunkel'] .muster {
+  background: url('/design/band-dunkel.svg') center / cover;
+}
+.design-schalter [data-design='band-hell'] .muster {
+  background: url('/design/band-hell.svg') center / cover;
+}
+.design-schalter [data-design='relief-hell'] .muster {
+  background: url('/design/relief-hell.svg') 0 0 / 40px;
+}
+.design-schalter [data-design='relief-dunkel'] .muster {
+  background: url('/design/relief-dunkel.svg') 0 0 / 40px;
+}
+.design-schalter [data-design='auto'] .muster {
+  background: linear-gradient(135deg, #f3e1d3 50%, #160a0c 50%);
+}
+.fuss .design-schalter {
+  grid-column: 1 / -1;
+}
+/* Startseite: einzelne Glas-Kacheln statt einer großen Fläche – dazwischen das Bild (Issue #356) */
+html[data-hintergrund] main#inhalt:has(.app-kacheln) {
+  background: none;
+  border: 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding-inline: 0;
+}
+html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg,
+html[data-hintergrund] main#inhalt:has(.app-kacheln) .zweispaltig > *,
+html[data-hintergrund] .app-kacheln a {
+  background: var(--glas);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--glas-rand);
+  border-radius: 24px;
+}
+html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg,
+html[data-hintergrund] main#inhalt:has(.app-kacheln) .zweispaltig > * {
+  padding: 18px 16px;
+  margin-bottom: 14px;
+}
+html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
+  background: color-mix(in srgb, var(--flaeche) 70%, transparent);
 }

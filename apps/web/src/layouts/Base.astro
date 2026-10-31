@@ -52,6 +52,7 @@ const aktiv = (href: string) => (href === '/' ? pfad === '/' : pfad.startsWith(h
 /** JSON sicher in <script> einbetten: „<“ maskieren, damit kein Titel das Script-Tag beenden kann. */
 const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
 import SchriftSchalter from '../components/SchriftSchalter.astro';
+import DesignSchalter from '../components/DesignSchalter.astro';
 ---
 
 <!doctype html>
@@ -143,6 +144,7 @@ import SchriftSchalter from '../components/SchriftSchalter.astro';
               </a>
             ))}
             <SchriftSchalter id="schrift-leiste" />
+            <DesignSchalter id="design-leiste" />
           </div>
         </details>
       </nav>
@@ -217,6 +219,7 @@ import SchriftSchalter from '../components/SchriftSchalter.astro';
           </ul>
         </div>
         <SchriftSchalter id="schrift-fuss" />
+        <DesignSchalter id="design-fuss" />
         <div class="recht">
           <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
           <span>

@@ -1,0 +1,27 @@
+---
+/** Design-Auswahl (Issue #356) – merkt sich die Wahl im Browser, braucht JavaScript. */
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+const designs = [
+  ['auto', 'Automatisch'],
+  ['relief-hell', 'Relief hell'],
+  ['relief-dunkel', 'Relief dunkel'],
+  ['band-hell', 'Band hell'],
+  ['band-dunkel', 'Band dunkel'],
+  ['schlicht', 'Schlicht'],
+] as const;
+---
+
+<div class="design-schalter" role="group" aria-labelledby={id} hidden>
+  <span id={id}>Design</span>
+  <div>
+    {designs.map(([wert, name]) => (
+      <button type="button" data-design={wert} aria-pressed="false">
+        <span class="muster" aria-hidden="true" />
+        {name}
+      </button>
+    ))}
+  </div>
+</div>
