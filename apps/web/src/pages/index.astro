@@ -85,6 +85,33 @@ import Ornament from '../components/Ornament.astro';
         Suchen
       </button>
     </form>
+    {/* App-Kacheln (Issue #356) */}
+    <ul class="app-kacheln">
+      <li>
+        <a href="/termine#nahe-knopf">
+          <Icon name="standort" />
+          In meiner Nähe
+        </a>
+      </li>
+      <li>
+        <a href="/gemerkt">
+          <Icon name="stern" />
+          Gemerkt
+        </a>
+      </li>
+      <li>
+        <a href="/karte">
+          <Icon name="karte" />
+          Karte
+        </a>
+      </li>
+      <li>
+        <a href="/termin-melden">
+          <Icon name="stift" />
+          Termin melden
+        </a>
+      </li>
+    </ul>
   </section>
 
   <div class="zweispaltig">
