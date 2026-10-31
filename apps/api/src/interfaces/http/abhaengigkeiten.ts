@@ -15,6 +15,7 @@ import type {
 } from '@kirmes/core';
 import type { FastifyServerOptions } from 'fastify';
 import type { AdminAbhaengigkeiten } from './admin-routen.js';
+import type { PushAbhaengigkeiten } from './push-routen.js';
 
 export interface AppAbhaengigkeiten {
   sucheTermine: SucheTermine;
@@ -35,6 +36,8 @@ export interface AppAbhaengigkeiten {
   zugriffe?: Zugriffe;
   /** Plakate je Termin (Issue #297), öffentlich lesbar */
   plakate?: Plakate;
+  /** Push-Benachrichtigungen (Issue #348); nur mit VAPID-Schlüsseln */
+  push?: PushAbhaengigkeiten;
   datenbankErreichbar: () => Promise<boolean>;
   logger?: FastifyServerOptions['logger'];
 }

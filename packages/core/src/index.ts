@@ -25,6 +25,7 @@ export * from './application/plakate.js';
 export * from './application/ortsprofile.js';
 export * from './domain/ortsprofil.js';
 export * from './application/zugriffe.js';
+export * from './application/push.js';
 export * from './application/vorschlaege.js';
 export * from './application/korrekturen.js';
 export * from './application/redaktions-termine.js';

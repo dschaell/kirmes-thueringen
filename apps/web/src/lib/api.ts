@@ -204,9 +204,12 @@ export async function verwaltung(
 }
 
 /** JSON-Body der Bearbeitungsseite lesen (max. 4 KB). */
-export async function leseJson(request: Request): Promise<{ body: unknown } | Response> {
+export async function leseJson(
+  request: Request,
+  max = 4_096,
+): Promise<{ body: unknown } | Response> {
   const text = await request.text();
-  if (text.length > 4_096) return new Response(null, { status: 413 });
+  if (text.length > max) return new Response(null, { status: 413 });
   try {
     return { body: JSON.parse(text) };
   } catch {
@@ -223,3 +226,29 @@ export const eingabeVorschlaege = async () =>
     bands: [],
     titel: [],
   };
+
+/**
+ * Push-Abo (Issue #348) an die API weiterreichen. Der Browser spricht nie direkt mit der API.
+ * 404 = Push ist auf dem Server (noch) nicht eingerichtet.
+ */
+export async function pushAnApi(
+  methode: 'GET' | 'PUT' | 'DELETE',
+  pfad: 'schluessel' | 'abo',
+  body?: unknown,
+): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(new URL(`/api/v1/push/${pfad}`, API_URL), {
+      method: methode,
+      headers: body !== undefined ? { 'content-type': 'application/json' } : {},
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new ApiNichtErreichbar({ cause: e });
+  }
+  return new Response(res.status === 204 ? null : await res.text(), {
+    status: res.status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  });
+}

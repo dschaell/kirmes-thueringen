@@ -1881,3 +1881,21 @@ input[aria-invalid='true'],
 .essen-gruppe:not(:has(.haken input:checked)) .speisen-felder {
   display: none;
 }
+/* Benachrichtigungen (Issue #348) */
+.push {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin: 12px 0 4px;
+}
+.push p {
+  margin: 0;
+}
+.push-knopf[aria-pressed='true'] {
+  background: var(--rot-zart);
+  border-color: var(--rot);
+  color: var(--rot);
+}
+.push-knopf[aria-pressed='true'] .icon path {
+  fill: currentColor;
+}

@@ -21,6 +21,7 @@ const termine = (await Promise.all(ids.map((id) => findeTermin(id))))
   );
 const abgefragt = Astro.url.searchParams.has('t');
 Astro.response.headers.set('Cache-Control', 'no-store');
+import PushSchalter from '../components/PushSchalter.astro';
 ---
 
 <Base
@@ -35,6 +36,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       Browser – kein Konto, nichts wird bei uns gespeichert. Vorbei ist vorbei: Vergangene Termine
       verschwinden von allein.
     </p>
+    <PushSchalter art="gemerkt" />
   </section>
   <div id="gemerkt" data-gueltig={termine.map((t) => t.id).join(',')} data-abgefragt={abgefragt}>
     {termine.length > 0 ? (

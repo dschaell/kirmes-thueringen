@@ -1,0 +1,40 @@
+---
+/**
+ * Benachrichtigungen (Issue #348): „Folgen“ auf der Ortsseite bzw. „Benachrichtigen“ bei den
+ * gemerkten Terminen. Ohne JavaScript, ohne Push im Browser oder ohne Schlüssel auf dem Server
+ * bleibt alles ausgeblendet; auf dem iPhone in Safari gibt es den Hinweis zur Home-Bildschirm-App.
+ */
+import Icon from './Icon.astro';
+interface Props {
+  art: 'ort' | 'gemerkt';
+  ortSlug?: string;
+  ortName?: string;
+}
+const { art, ortSlug, ortName } = Astro.props;
+---
+
+<div class="push" data-push={art} data-ort={ortSlug} hidden>
+  <button class="knopf zweit push-knopf" type="button" aria-pressed="false">
+    <Icon name="glocke" />
+    <span class="push-text">{art === 'ort' ? `${ortName} folgen` : 'Benachrichtigen'}</span>
+  </button>
+  <p class="klein leise push-info">
+    {art === 'ort'
+      ? 'Nachricht bei neuen, geänderten oder abgesagten Terminen und am Vortag.'
+      : 'Nachricht, wenn sich ein gemerkter Termin ändert oder abgesagt wird, und am Vortag.'}
+  </p>
+  {art === 'gemerkt' && (
+    <label class="klein push-erinnerung-feld" hidden>
+      <input type="checkbox" class="push-erinnerung" checked /> Erinnerung am Vortag um 18 Uhr
+    </label>
+  )}
+  <p class="klein push-ios" hidden>
+    Auf dem iPhone: in Safari <strong>Teilen → Zum Home-Bildschirm</strong>, die App öffnen und hier
+    tippen.
+  </p>
+  <p class="klein push-status" role="status"></p>
+</div>
+
+<script>
+  import '../scripts/push';
+</script>
