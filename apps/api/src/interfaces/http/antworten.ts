@@ -39,7 +39,3 @@ export const terminDto = (t: Termin) => ({
   // Mittagstisch nur in der Einzelansicht
   ...(t.speisen && { speisen: t.speisen }),
 });
-
-/** „Authorization: Bearer <token>“ → token */
-export const bearer = (h: string | undefined): string =>
-  h?.startsWith('Bearer ') ? h.slice(7).trim() : '';

@@ -1,5 +1,4 @@
 import type {
-  Bearbeitungslinks,
   Berechtigung,
   Festplatz,
   FestplatzRepository,
@@ -8,38 +7,12 @@ import type {
   LandkreisKuerzel,
   Umbenennung,
 } from '@kirmes/core';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type pg from 'pg';
 import { abfrage } from './pool.js';
 
-/** 32 zufällige Bytes, Base64url → 43 Zeichen. Nur der SHA-256-Hash wird gespeichert. */
-export const erzeugeToken = (): string => randomBytes(32).toString('base64url');
+/** SHA-256 eines Tokens – gespeichert wird nur der Hash (auch für Konten genutzt). */
 export const hashToken = (token: string): Buffer => createHash('sha256').update(token).digest();
-const TOKEN_FORMAT = /^[A-Za-z0-9_-]{43}$/;
-
-const SQL_LINK_PRUEFEN = `
-UPDATE bearbeitungslink l SET zuletzt_genutzt = now()
-  FROM ort o
- WHERE l.token_hash = $1 AND l.gesperrt_am IS NULL AND o.id = l.ort_id
-RETURNING l.id::text AS id, o.slug, o.landkreis, l.bezeichnung`;
-
-export class PgBearbeitungslinks implements Bearbeitungslinks {
-  constructor(private readonly db: pg.Pool) {}
-
-  async pruefe(token: string): Promise<Berechtigung | null> {
-    if (!TOKEN_FORMAT.test(token)) return null; // spart den DB-Zugriff bei Unsinn
-    const { rows } = await abfrage<{
-      id: string;
-      slug: string;
-      landkreis: string;
-      bezeichnung: string;
-    }>(this.db, SQL_LINK_PRUEFEN, [hashToken(token)]);
-    const r = rows[0];
-    return r
-      ? { linkId: r.id, ortSlug: r.slug, landkreis: r.landkreis, bezeichnung: r.bezeichnung }
-      : null;
-  }
-}
 
 const SQL_ORT = `
 SELECT id, slug, name, landkreis, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon,

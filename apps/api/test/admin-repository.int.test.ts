@@ -7,15 +7,11 @@ import {
   PgEinladungen,
   PgKontoAnlage,
   PgMitglieder,
-  PgLinkVerwaltung,
   PgMitteilungen,
   PgOrtVerwaltung,
   PgSitzungen,
 } from '../src/infrastructure/postgres/admin-repository.js';
-import {
-  PgBearbeitungslinks,
-  PgFestplatzRepository,
-} from '../src/infrastructure/postgres/festplatz-repository.js';
+import { PgFestplatzRepository } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { terminVorschlaege } from '../src/infrastructure/postgres/termin-verwaltung.js';
 import { erstellePool } from '../src/infrastructure/postgres/pool.js';
 import { PgPasskeys } from '../src/infrastructure/postgres/passkey-repository.js';
@@ -459,22 +455,5 @@ describe.runIf(url)('Redaktion (PostgreSQL)', () => {
     expect(await m.setzeRolle(kontoId!, 'redaktion')).toBe(true);
     expect(await sitzungen.pruefe(st)).toMatchObject({ rolle: 'redaktion', ortSlug: null });
     await pool.query('DELETE FROM admin WHERE id = $1::bigint', [kontoId]);
-  });
-
-  it('Links: erstellen, auflisten, prüfen, sperren', async () => {
-    const l = new PgLinkVerwaltung(pool);
-    const token = krypto.neuesToken();
-    const link = await l.erstelle('it-admin-ort', 'IT-KG', token);
-    expect(link).toMatchObject({
-      ortSlug: 'it-admin-ort',
-      ortName: 'IT-Adminort',
-      bezeichnung: 'IT-KG',
-    });
-    expect(await l.erstelle('it-admin-gibtsnicht', 'x', krypto.neuesToken())).toBeNull();
-    expect((await l.liste()).some((x) => x.id === link!.id)).toBe(true);
-    expect((await new PgBearbeitungslinks(pool).pruefe(token))?.ortSlug).toBe('it-admin-ort');
-    expect(await l.sperre(link!.id)).toBe(true);
-    expect(await l.sperre(link!.id)).toBe(false);
-    expect(await new PgBearbeitungslinks(pool).pruefe(token)).toBeNull();
   });
 });

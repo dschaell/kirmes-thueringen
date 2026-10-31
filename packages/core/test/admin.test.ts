@@ -137,23 +137,6 @@ describe('Redaktion', () => {
       } as never,
       async (slug) => (slug === 'ulla' ? 'WL' : null),
       termine,
-      {
-        erstelle: async (ortSlug, bezeichnung) =>
-          ortSlug === 'ulla'
-            ? {
-                id: '9',
-                ortSlug,
-                ortName: 'Ulla',
-                bezeichnung,
-                erstelltAm: 'heute',
-                zuletztGenutzt: null,
-                gesperrtAm: null,
-              }
-            : null,
-        liste: async () => [],
-        sperre: async (id) => id === '9',
-      },
-      { neuesToken: () => 'LINKTOKEN' },
     );
     return { r, gelegt };
   }
@@ -278,18 +261,6 @@ describe('Redaktion', () => {
     expect(await r.loescheTermin('x', 'ulla', '1')).toBe(true);
     expect(await r.loescheTermin('x', 'nirgendwo', '1')).toBe(false);
   });
-
-  it('erstellt Bearbeitungslinks mit frischem Token', async () => {
-    const { r } = aufbau();
-    expect(await r.erstelleLink('ulla', 'KG Ulla')).toMatchObject({
-      ok: true,
-      value: { token: 'LINKTOKEN' },
-    });
-    expect((await r.erstelleLink('ulla', ' ')).ok).toBe(false);
-    expect((await r.erstelleLink('nirgendwo', 'KG')).ok).toBe(false);
-    expect(await r.sperreLink('9')).toBe(true);
-    expect(await r.listeLinks()).toEqual([]);
-  });
 });
 
 describe('Randfälle der Use Cases', () => {
@@ -314,8 +285,6 @@ describe('Randfälle der Use Cases', () => {
         bestaetige: async () => false,
         loesche: async () => false,
       },
-      { erstelle: async () => null, liste: async () => [], sperre: async () => false },
-      { neuesToken: () => 't' },
     );
     const t = await r.legeTermin({ ortSlug: 'x', datum: '2026-02-30', titel: '' }, '1');
     expect(!t.ok && t.error.map((f) => f.code).sort()).toEqual(['DATUM_UNGUELTIG', 'TITEL_LAENGE']);

@@ -10,7 +10,6 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node dist/main.js",
     "migrate": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/migrate.ts",
-    "link": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/links.ts",
     "orte": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/orte.ts",
     "beispiele": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/beispiele.ts",
     "termine:import": "tsx --env-file-if-exists=../../.env src/infrastructure/postgres/termine-import.ts",

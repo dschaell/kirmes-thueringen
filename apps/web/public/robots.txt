@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
-# Redaktion und Verwaltung sind nicht öffentlich (dort ohnehin noindex) – Crawl-Budget sparen
+# Die Redaktion ist nicht öffentlich (dort ohnehin noindex) – Crawl-Budget sparen
 Disallow: /admin
-Disallow: /verwalten
 Sitemap: https://kirmeskalender-thueringen.de/sitemap.xml

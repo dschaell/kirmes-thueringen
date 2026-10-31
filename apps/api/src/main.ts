@@ -25,8 +25,6 @@ import {
   FindeTermin,
   ListeOrte,
   SucheTermine,
-  VerwalteFestplaetze,
-  VerwalteTermine,
   AdminAnmeldung,
   Beitritt,
   Ersteinrichtung,
@@ -43,10 +41,7 @@ import {
 } from '@kirmes/core';
 import { ladeKonfiguration } from './config.js';
 import { leseSicherungen } from './infrastructure/sicherungen.js';
-import {
-  PgBearbeitungslinks,
-  PgFestplatzRepository,
-} from './infrastructure/postgres/festplatz-repository.js';
+import { PgFestplatzRepository } from './infrastructure/postgres/festplatz-repository.js';
 import { NodeKryptografie, SpeicherAnmeldeversuche } from './infrastructure/krypto.js';
 import {
   ortLandkreis,
@@ -55,7 +50,6 @@ import {
   PgErsterAdmin,
   PgKontoAnlage,
   PgMitglieder,
-  PgLinkVerwaltung,
   PgMitteilungen,
   PgOrtVerwaltung,
   PgSitzungen,
@@ -89,7 +83,6 @@ const pool = erstellePool({
 const uhr = new SystemUhr();
 const orte = new PgOrtRepository(pool);
 const termine = new PgTerminRepository(pool);
-const links = new PgBearbeitungslinks(pool);
 const pushRepo = new PgPush(pool);
 // Push nur mit VAPID-Schlüsseln (Issue #348) – sonst ist alles wie bisher
 const benachrichtigungen = k.vapid
@@ -214,8 +207,6 @@ const app = await baueApp({
   findeTermin: new FindeTermin(termine),
   listeOrte: new ListeOrte(orte, uhr),
   findeOrt: new FindeOrt(orte),
-  verwalteFestplaetze: new VerwalteFestplaetze(links, new PgFestplatzRepository(pool)),
-  verwalteTermine: new VerwalteTermine(links, terminVerwaltung, termine, uhr),
   aktuelleMitteilung: () => mitteilungen.aktuelle(),
   // Meldungen: je Besucher 5 pro Stunde, insgesamt 100 pro Stunde
   meldungen: postausgang
@@ -254,8 +245,6 @@ const app = await baueApp({
       new PgOrtVerwaltung(pool),
       ortLandkreis(pool),
       terminVerwaltung,
-      new PgLinkVerwaltung(pool),
-      krypto,
     ),
   },
   datenbankErreichbar: () => datenbankErreichbar(pool),

@@ -93,21 +93,6 @@ export interface OrtVerwaltung {
     adminId: string,
   ): Promise<OrtAendern>;
 }
-export interface LinkInfo {
-  id: string;
-  ortSlug: string;
-  ortName: string;
-  bezeichnung: string;
-  erstelltAm: string;
-  zuletztGenutzt: string | null;
-  gesperrtAm: string | null;
-}
-export interface LinkVerwaltung {
-  erstelle(ortSlug: string, bezeichnung: string, token: string): Promise<LinkInfo | null>;
-  liste(): Promise<LinkInfo[]>;
-  sperre(id: string): Promise<boolean>;
-}
-
 // ── Sitzung ────────────────────────────────────────────────────────────────────────────
 /** Angemeldet wird nur mit Passkey (siehe passkeys.ts); hier wird die Sitzung geprüft/beendet. */
 export const SITZUNG_STUNDEN = 12;
@@ -137,8 +122,6 @@ export class Redaktion {
     private readonly orte: OrtVerwaltung,
     private readonly ortLandkreis: (slug: string) => Promise<string | null>,
     private readonly termine: TerminVerwaltung,
-    private readonly links: LinkVerwaltung,
-    private readonly krypto: Pick<Kryptografie, 'neuesToken'>,
   ) {}
 
   // Mitteilungen
@@ -312,30 +295,6 @@ export class Redaktion {
   async loescheTermin(id: string, ortSlug: string, adminId: string, version?: string) {
     const b = await this.berechtigungFuer(ortSlug, adminId);
     return b ? this.termine.loesche(id, b, version) : false;
-  }
-
-  // Bearbeitungslinks
-  listeLinks() {
-    return this.links.liste();
-  }
-  async erstelleLink(
-    ortSlug: string,
-    bezeichnung: string,
-  ): Promise<Result<{ link: LinkInfo; token: string }, Validierungsfehler[]>> {
-    const b = bezeichnung.trim();
-    if (!b || b.length > 200) {
-      return err([
-        { feld: 'bezeichnung', code: 'BEZEICHNUNG_LAENGE', meldung: 'Bezeichnung: 1–200 Zeichen.' },
-      ]);
-    }
-    const token = this.krypto.neuesToken();
-    const link = await this.links.erstelle(ortSlug, b, token);
-    return link
-      ? ok({ link, token })
-      : err([{ feld: 'ortSlug', code: 'ORT_UNBEKANNT', meldung: 'Ort nicht gefunden.' }]);
-  }
-  sperreLink(id: string) {
-    return this.links.sperre(id);
   }
 
   private async berechtigungFuer(ortSlug: string, adminId: string): Promise<Berechtigung | null> {

@@ -9,8 +9,6 @@ import type {
   Plakate,
   Zugriffe,
   SucheTermine,
-  VerwalteFestplaetze,
-  VerwalteTermine,
   Vorschlaege,
 } from '@kirmes/core';
 import type { FastifyServerOptions } from 'fastify';
@@ -22,8 +20,6 @@ export interface AppAbhaengigkeiten {
   listeOrte: ListeOrte;
   findeOrt: FindeOrt;
   findeTermin: FindeTermin;
-  verwalteFestplaetze: VerwalteFestplaetze;
-  verwalteTermine: VerwalteTermine;
   /** Neueste veröffentlichte Mitteilung (öffentlich) */
   aktuelleMitteilung: () => Promise<Mitteilung | null>;
   /** Redaktionszugang; ohne diese Abhängigkeit gibt es keine Admin-Endpunkte */

@@ -311,7 +311,7 @@ const titelVorschlaege = [...new Set([...vorschlaege.titel])];
 
   {ort && (
     <>
-      {!darf(Astro.locals, 'links') ? (
+      {!darf(Astro.locals, 'orte.bearbeiten') ? (
         <p class="brotkrumen">
           <a href={`/orte/${ort.slug}`}>Öffentliche Ortsseite</a>
         </p>

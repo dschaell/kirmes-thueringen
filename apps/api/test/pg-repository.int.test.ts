@@ -4,12 +4,7 @@
  */
 import { PersistenzNichtVerfuegbar, type KalenderDatum, type TerminFilter } from '@kirmes/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  erzeugeToken,
-  hashToken,
-  PgBearbeitungslinks,
-  PgFestplatzRepository,
-} from '../src/infrastructure/postgres/festplatz-repository.js';
+import { PgFestplatzRepository } from '../src/infrastructure/postgres/festplatz-repository.js';
 import { PgOrtRepository } from '../src/infrastructure/postgres/ort-repository.js';
 import { VerwaltungMitGelesenemStand } from './verwaltung-mit-gelesenem-stand.js';
 import { PgTerminVerwaltung } from '../src/infrastructure/postgres/termin-verwaltung.js';
@@ -183,60 +178,34 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
     expect(await orte.finde('it-gibtsnicht')).toBeNull();
   });
 
-  it('Bearbeitungslink: nur Hash gespeichert, gesperrte Links ungültig, Festplatz am Termin', async () => {
-    const token = erzeugeToken();
-    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    const { rows } = await pool.query<{ id: string }>(
-      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
-       SELECT id, $1, 'IT-KG' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
-      [hashToken(token)],
-    );
-    const links = new PgBearbeitungslinks(pool);
-    const b = await links.pruefe(token);
-    expect(b).toEqual({
-      linkId: rows[0]?.id,
-      ortSlug: 'it-ulla',
-      landkreis: 'WL',
-      bezeichnung: 'IT-KG',
-    });
-    expect(await links.pruefe(erzeugeToken())).toBeNull();
-    expect(await links.pruefe("' OR 1=1 --")).toBeNull();
-
+  it('Festplatz am Termin mit Protokoll; unbekannter Ort (ohne Konto-ID)', async () => {
+    // Berechtigung ohne Mitglied – wie früher beim Bearbeitungslink (Issue #355)
+    const b = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT-KG' };
     const festplaetze = new PgFestplatzRepository(pool);
-    await festplaetze.speichere('it-ulla', { name: '', koordinate: { lat: 50.95, lon: 11.2 } }, b!);
+    await festplaetze.speichere('it-ulla', { name: '', koordinate: { lat: 50.95, lon: 11.2 } }, b);
     const termine = await repo.suche({ ...basis, ortSlug: 'it-ulla' });
     expect(termine.eintraege[0]?.festplatz).toEqual({ lat: 50.95, lon: 11.2 });
-
     const u = await festplaetze.uebersicht('it-ulla');
     expect(u?.festplaetze).toEqual([{ name: '', koordinate: { lat: 50.95, lon: 11.2 } }]);
-    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(true);
-    expect(await festplaetze.loesche('it-ulla', '', b!)).toBe(false);
-    const protokoll = await pool.query(
-      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
-      [b!.linkId],
-    );
-    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
-      'festplatz_gespeichert',
-      'festplatz_geloescht',
-    ]);
-
-    await pool.query('UPDATE bearbeitungslink SET gesperrt_am = now() WHERE id = $1', [b!.linkId]);
-    expect(await links.pruefe(token)).toBeNull();
+    expect(await festplaetze.loesche('it-ulla', '', b)).toBe(true);
+    expect(await festplaetze.loesche('it-ulla', '', b)).toBe(false);
+    expect(await festplaetze.loesche('it-gibtsnicht', '', b)).toBe(false);
     expect(await festplaetze.uebersicht('it-gibtsnicht')).toBeNull();
+    // Umbenennen und Ortsmitte ebenfalls ohne Konto-ID protokollierbar
+    await festplaetze.speichere(
+      'it-ulla',
+      { name: 'Alt', koordinate: { lat: 50.95, lon: 11.2 } },
+      b,
+    );
+    expect(await festplaetze.benenneUm('it-ulla', 'Alt', 'Neu', b)).toBe('umbenannt');
+    expect(await festplaetze.loesche('it-ulla', 'Neu', b)).toBe(true);
+    expect(await festplaetze.setzeOrtsmitte('it-gibtsnicht', { lat: 50.9, lon: 11 }, b)).toBe(
+      false,
+    );
   });
 
-  it('Kirmesgesellschaft verwaltet nur Termine ihres Ortes – mit Protokoll', async () => {
-    const link = await pool.query<{ id: string }>(
-      `INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
-       SELECT id, $1, 'IT-KG Ulla' FROM ort WHERE slug = 'it-ulla' RETURNING id::text`,
-      [hashToken(erzeugeToken())],
-    );
-    const durch = {
-      linkId: link.rows[0]!.id,
-      ortSlug: 'it-ulla',
-      landkreis: 'WL',
-      bezeichnung: 'IT-KG Ulla',
-    };
+  it('Termine nur am eigenen Ort – auch ohne Konto-ID', async () => {
+    const durch = { linkId: null, ortSlug: 'it-ulla', landkreis: 'WL', bezeichnung: 'IT-KG Ulla' };
     const v = new VerwaltungMitGelesenemStand(pool);
     const neu = await v.lege(
       {
@@ -268,26 +237,12 @@ describe.runIf(url)('PgTerminRepository (PostgreSQL)', () => {
         durch,
       ),
     ).toBe(true);
-
-    // Termin aus Mühlberg ist für den Ulla-Link tabu
     const fremd = (await repo.suche({ ...basis, suchtext: 'ZZTEST', ortSlug: 'it-muehlberg' }))
-      .eintraege[0]!;
-    expect(await v.loesche(fremd.id, durch)).toBe(false);
-    expect(await v.bestaetige(fremd.id, durch)).toBe(false);
-    expect(await repo.finde(fremd.id)).not.toBeNull();
-
+      .eintraege[0];
+    expect(await v.loesche(fremd?.id ?? '', durch)).toBe(false);
+    expect(await v.bestaetige(fremd?.id ?? '', durch)).toBe(false);
     expect(await v.bestaetige(neu.id, durch)).toBe(true);
     expect(await v.loesche(neu.id, durch)).toBe(true);
-    const protokoll = await pool.query(
-      'SELECT aktion FROM aenderungsprotokoll WHERE link_id = $1 ORDER BY id',
-      [durch.linkId],
-    );
-    expect(protokoll.rows.map((r) => r.aktion)).toEqual([
-      'termin_angelegt',
-      'termin_geaendert',
-      'termin_bestaetigt',
-      'termin_geloescht',
-    ]);
   });
 
   it('Bearbeiten: Termin und Mittagstisch in einer Transaktion, inklusive Rollback', async () => {

@@ -1,11 +1,9 @@
-/** Redaktionsdaten: Mitteilungen, Orte, Bearbeitungslinks (Issue #199: aus admin-repository.ts ausgelagert). */
+/** Redaktionsdaten: Mitteilungen, Orte (Issue #199: aus admin-repository.ts ausgelagert). */
 import type {
   EigenerOrt,
   OrtAendern,
   OrtLoeschen,
   LandkreisKuerzel,
-  LinkInfo,
-  LinkVerwaltung,
   Mitteilung,
   MitteilungRepository,
   NeueMitteilung,
@@ -14,7 +12,6 @@ import type {
   OrtVerwaltung,
 } from '@kirmes/core';
 import type pg from 'pg';
-import { hashToken } from './festplatz-repository.js';
 import { abfrage } from './pool.js';
 
 interface MitteilungZeile {
@@ -215,62 +212,3 @@ export const ortLandkreis = (db: pg.Pool) => async (slug: string) => {
   );
   return rows[0]?.landkreis ?? null;
 };
-
-interface LinkZeile {
-  id: string;
-  slug: string;
-  ort: string;
-  bezeichnung: string;
-  erstellt: string;
-  genutzt: string | null;
-  gesperrt: string | null;
-}
-const zuLink = (z: LinkZeile): LinkInfo => ({
-  id: z.id,
-  ortSlug: z.slug,
-  ortName: z.ort,
-  bezeichnung: z.bezeichnung,
-  erstelltAm: z.erstellt,
-  zuletztGenutzt: z.genutzt,
-  gesperrtAm: z.gesperrt,
-});
-const LINK_SPALTEN = `l.id::text, o.slug, o.name AS ort, l.bezeichnung,
-  to_char(l.erstellt_am AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') AS erstellt,
-  to_char(l.zuletzt_genutzt AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI') AS genutzt,
-  to_char(l.gesperrt_am AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD') AS gesperrt`;
-
-export class PgLinkVerwaltung implements LinkVerwaltung {
-  constructor(private readonly db: pg.Pool) {}
-
-  async erstelle(ortSlug: string, bezeichnung: string, token: string): Promise<LinkInfo | null> {
-    const { rows } = await abfrage<LinkZeile>(
-      this.db,
-      `WITH neu AS (
-         INSERT INTO bearbeitungslink (ort_id, token_hash, bezeichnung)
-         SELECT id, $2, $3 FROM ort WHERE slug = $1 RETURNING *
-       )
-       SELECT ${LINK_SPALTEN} FROM neu l JOIN ort o ON o.id = l.ort_id`,
-      [ortSlug, hashToken(token), bezeichnung],
-    );
-    return rows[0] ? zuLink(rows[0]) : null;
-  }
-
-  async liste(): Promise<LinkInfo[]> {
-    const { rows } = await abfrage<LinkZeile>(
-      this.db,
-      `SELECT ${LINK_SPALTEN} FROM bearbeitungslink l JOIN ort o ON o.id = l.ort_id
-        ORDER BY l.gesperrt_am IS NOT NULL, o.name, l.id`,
-      [],
-    );
-    return rows.map(zuLink);
-  }
-
-  async sperre(id: string): Promise<boolean> {
-    const r = await abfrage(
-      this.db,
-      'UPDATE bearbeitungslink SET gesperrt_am = now() WHERE id = $1::bigint AND gesperrt_am IS NULL',
-      [id],
-    );
-    return (r.rowCount ?? 0) > 0;
-  }
-}

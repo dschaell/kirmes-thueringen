@@ -52,8 +52,8 @@ npm run db:beispiele # erfundene Beispieltermine (nie auf dem Server)
 - Erster Admin: `/admin/einrichten` → Link ans Redaktionspostfach → Name + Passkey.
 - Mitmachen: `/redaktion-mitmachen` → Anfrage unter „Anfragen“ → Admin nimmt an (Einladungslink geht
   per Mail an die Person) oder lehnt ab.
-- Ältere **Bearbeitungslinks** (ohne Konto) funktionieren weiter und lassen sich unter „Mehr →
-  Bearbeitungslinks“ sperren; neue werden nicht mehr vergeben.
+- Bearbeitungslinks (Pflege ohne Konto) gibt es nicht mehr (Issue #355) – Kirmesgesellschaften
+  pflegen ihren Ort mit eigenem Konto und Passkey.
 
 ## Betrieb
 

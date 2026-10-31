@@ -258,7 +258,7 @@ import DesignSchalter from '../components/DesignSchalter.astro';
           return 0;
         }
       })();
-      if (!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/verwalten')) {
+      if (!location.pathname.startsWith('/admin')) {
         fetch('/mitteilung.json')
           .then((r) => (r.status === 200 ? r.json() : null))
           .then((m: { id: string; titel: string; text: string; link: string | null } | null) => {

@@ -5,7 +5,6 @@ import {
   PgKontoAnlage,
   PgMitglieder,
   PgMitteilungen,
-  PgLinkVerwaltung,
   PgOrtVerwaltung,
 } from '../src/infrastructure/postgres/admin-repository.js';
 import { PgPasskeys } from '../src/infrastructure/postgres/passkey-repository.js';
@@ -110,7 +109,6 @@ it('meldet fehlende Mitteilungen und Links statt Erfolg ohne Ergebnis', async ()
   expect(await m.setzeVeroeffentlicht('1', true)).toBe(false);
   expect(await m.aendere('1', { titel: 'T', text: 'x', link: null })).toBeNull();
   expect(await m.loesche('1')).toBe(false);
-  expect(await new PgLinkVerwaltung(leer as never).sperre('1')).toBe(false);
 });
 
 it.each(['UPDATE', 'DELETE'])(
