@@ -1,0 +1,239 @@
+---
+/**
+ * Ein Terminformular für alles (Issue #353): Anlegen, Kirmes-Assistent, Bearbeiten und
+ * Bearbeitungslink zeigen dieselben Felder in derselben Reihenfolge und mit denselben Namen auf dem
+ * Bildschirm. Nur die Feldnamen im Formular unterscheiden sich (`name`), damit jede Seite ihre
+ * bisherige Auswertung behält. Slot „wo“ für Zusätze am Platz, Standard-Slot am Ende (z. B. Plakat).
+ */
+import { KATEGORIEN, musikFeld } from '../../lib/anzeige';
+import Endzeit from './Endzeit.astro';
+
+export interface TerminWerte {
+  datum?: string;
+  beginn?: string | null;
+  ende?: string | null;
+  titel?: string;
+  kategorie?: string | null;
+  band?: string | null;
+  pfarrer?: string | null;
+  veranstaltungsort?: string | null;
+  standort?: string;
+  veranstalter?: string | null;
+  eintritt?: string | null;
+  info?: string | null;
+  muttizettel?: boolean;
+  essen?: boolean;
+  speisen?: { name: string; preis: string }[];
+  gerichte?: number;
+}
+interface Props {
+  w: TerminWerte;
+  /** Feldname im Formular; j = Nummer der Speise. Standard: Name wie im Bearbeiten-Formular. */
+  name?: (feld: string, j?: number) => string;
+  /** Endzeit-Haken: Zusatz für eindeutige Namen (siehe Endzeit.astro) */
+  zusatz?: string;
+  /** Datum, Uhrzeit, Veranstaltung und Art (im Assistenten schon in Schritt 2) */
+  mitWann?: boolean;
+  mitKarte?: boolean;
+  mitGeld?: boolean;
+  mitEssen?: boolean;
+  /** Wert des Knopfs „+ Weiterer Eintrag“; null = kein Knopf, dafür sechs Zeilen */
+  gerichtAktion?: string | null;
+  /** Art „automatisch erkennen“ anbieten (leer = aus dem Titel erkennen) */
+  artAutomatisch?: boolean;
+  kartenHinweis?: string;
+  veranstalterPlatzhalter?: string;
+  listen?: { titel?: string; bands?: string; plaetze?: string };
+}
+const {
+  w,
+  name = (feld: string) => feld,
+  zusatz = '',
+  mitWann = true,
+  mitKarte = true,
+  mitGeld = true,
+  mitEssen = true,
+  gerichtAktion = 'gericht',
+  artAutomatisch = false,
+  kartenHinweis,
+  veranstalterPlatzhalter = 'Kirmesgesellschaft',
+  listen = {},
+} = Astro.props;
+const gottesdienst = w.kategorie === 'tradition';
+const gerichte = Math.min(
+  20,
+  Math.max(w.gerichte ?? (gerichtAktion === null ? 6 : 3), (w.speisen?.length ?? 0) + 1),
+);
+---
+
+<div class="terminfelder" data-terminfelder>
+  {mitWann && (
+    <fieldset class="gruppe">
+      <legend>Wann & was</legend>
+      <div class="zwei">
+        <label>
+          Datum
+          <input type="date" name={name('datum')} required value={w.datum ?? ''} />
+        </label>
+        <label>
+          Uhrzeit
+          <input type="time" name={name('beginn')} value={w.beginn ?? ''} />
+        </label>
+      </div>
+      <Endzeit ende={w.ende ?? ''} zusatz={zusatz} />
+      <label>
+        Veranstaltung
+        <input
+          name={name('titel')}
+          required
+          maxlength="200"
+          list={listen.titel}
+          placeholder="z. B. Kirmestanz"
+          value={w.titel ?? ''}
+        />
+      </label>
+      <label>
+        Art
+        <select name={name('kategorie')} data-art>
+          {artAutomatisch && <option value="">automatisch erkennen</option>}
+          {Object.entries(KATEGORIEN).map(([k, info]) => (
+            <option value={k} selected={w.kategorie === k}>
+              {info.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </fieldset>
+  )}
+
+  <fieldset class="gruppe">
+    <legend>Wo</legend>
+    <label>
+      Wo genau?
+      <input
+        name={name('veranstaltungsort')}
+        maxlength="120"
+        list={listen.plaetze}
+        placeholder="z. B. Festzelt oder Kirche"
+        value={w.veranstaltungsort ?? ''}
+      />
+    </label>
+    {mitKarte && (
+      <label>
+        Google-Maps-Link (optional)
+        <input
+          name={name('standort')}
+          data-kartenlink-name={name('veranstaltungsort')}
+          maxlength="2000"
+          inputmode="url"
+          placeholder="In Google Maps „Teilen → Link kopieren“"
+          value={w.standort ?? ''}
+        />
+        {kartenHinweis && <span class="klein leise">{kartenHinweis}</span>}
+      </label>
+    )}
+    <slot name="wo" />
+  </fieldset>
+
+  <fieldset class="gruppe">
+    <legend>Musik</legend>
+    <div class="zwei">
+      <label>
+        <span data-musik-label>{musikFeld(w.kategorie)}</span>
+        <input
+          name={name('band')}
+          maxlength="120"
+          placeholder="mehrere mit Komma trennen"
+          list={listen.bands}
+          value={w.band ?? ''}
+        />
+      </label>
+      <label data-pfarrer hidden={!gottesdienst && !w.pfarrer}>
+        Pfarrer/in (optional)
+        <input name={name('pfarrer')} maxlength="120" value={w.pfarrer ?? ''} />
+      </label>
+    </div>
+  </fieldset>
+
+  {mitGeld && (
+    <fieldset class="gruppe">
+      <legend>Eintritt & Veranstalter</legend>
+      <div class="zwei">
+        <label>
+          Eintritt (optional)
+          <input
+            name={name('eintritt')}
+            maxlength="20"
+            inputmode="decimal"
+            placeholder="z. B. 8 oder frei"
+            value={w.eintritt ?? ''}
+          />
+          <span class="klein leise">Leer lassen, wenn noch unklar.</span>
+        </label>
+        <label>
+          Veranstalter (optional)
+          <input
+            name={name('veranstalter')}
+            maxlength="200"
+            placeholder={veranstalterPlatzhalter}
+            value={w.veranstalter ?? ''}
+          />
+          <span class="klein leise">Nur ausfüllen, wenn jemand anderes veranstaltet.</span>
+        </label>
+      </div>
+    </fieldset>
+  )}
+
+  <fieldset class="gruppe">
+    <legend>Hinweise</legend>
+    <label>
+      Hinweise (öffentlich)
+      <textarea name={name('info')} maxlength="500" rows="2" set:text={w.info ?? ''} />
+    </label>
+    <label class="haken">
+      <input type="checkbox" name={name('muttizettel')} value="ja" checked={w.muttizettel} />
+      Unter 18 nur mit Muttizettel
+    </label>
+  </fieldset>
+
+  {mitEssen && (
+    <fieldset class="gruppe essen-gruppe">
+      <legend>Essen & Getränke</legend>
+      <label class="haken">
+        <input type="checkbox" name={name('essen')} checked={w.essen} />
+        Essen & Getränke anbieten
+      </label>
+      <div class="speisen-felder">
+        <p class="klein leise">Leere Zeilen werden ignoriert.</p>
+        {Array.from({ length: gerichte }, (_, j) => (
+          <div class="zwei">
+            <label>
+              Essen/Getränk {j + 1}
+              <input name={name('speise', j)} maxlength="120" value={w.speisen?.[j]?.name ?? ''} />
+            </label>
+            <label>
+              Preis (€)
+              <input
+                name={name('preis', j)}
+                inputmode="decimal"
+                maxlength="20"
+                placeholder="z. B. 9,50"
+                value={w.speisen?.[j]?.preis ?? ''}
+              />
+            </label>
+          </div>
+        ))}
+        {gerichtAktion !== null && gerichte < 20 && (
+          <button class="knopf zweit" name="aktion" value={gerichtAktion} formnovalidate>
+            + Weiterer Eintrag
+          </button>
+        )}
+      </div>
+    </fieldset>
+  )}
+  <slot />
+</div>
+
+<script>
+  import '../../scripts/terminfelder';
+</script>

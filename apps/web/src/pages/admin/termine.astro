@@ -21,8 +21,11 @@ import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';
 import KirmesSammel from '../../components/admin/KirmesSammel.astro';
 import NeuerTermin from '../../components/admin/NeuerTermin.astro';
+import type { TerminWerte } from '../../components/admin/TerminFelder.astro';
 import OrtTerminliste from '../../components/admin/OrtTerminliste.astro';
-import { adminApi, feld } from '../../lib/admin';
+import { adminApi, adminPlakat, feld } from '../../lib/admin';
+
+const BILDTYPEN = ['image/jpeg', 'image/png', 'image/webp'];
 import { findeOrt, listeOrte, type TerminDto } from '../../lib/api';
 import { KATEGORIEN, datumLangJahr, kreisKurz, tagMonat, wochentag } from '../../lib/anzeige';
 import type { Kategorie, TerminHerkunft } from '@kirmes/core';
@@ -36,7 +39,7 @@ const ort = ortSlug ? await findeOrt(ortSlug) : null;
 const alleModus = p.get('modus') === 'alle';
 
 let meldung: string | null = null;
-let einzelEingabe: (Partial<TerminDto> & { eintritt?: string }) | null = null;
+let einzelEingabe: TerminWerte | null = null;
 let fehler: string[] = [];
 const sammelEingaben = new Map<string, Partial<TerminDto> & { loeschen?: boolean }>();
 if (Astro.request.method === 'POST' && ort) {
@@ -61,10 +64,70 @@ if (Astro.request.method === 'POST' && ort) {
     eintritt: feld(f, 'eintritt') || null,
     info: feld(f, 'info') || null,
     muttizettel: f.get('muttizettel') === 'ja',
+    // Gleiche Felder wie beim Bearbeiten (Issue #353)
+    pfarrer: feld(f, 'pfarrer') || null,
+    speisen: f.has('essen')
+      ? f
+          .getAll('speise')
+          .map((n, i) => ({
+            name: typeof n === 'string' ? n.trim() : '',
+            preis: String(f.getAll('preis')[i] ?? '').trim(),
+          }))
+          .filter((sp) => sp.name || sp.preis)
+          .slice(0, 20)
+      : [],
   };
+  const standort = feld(f, 'standort');
+  const plakat = f.get('plakat');
+  const neuesPlakat = plakat instanceof File && plakat.size > 0 ? plakat : null;
+  /** Platz mit Kartenpunkt, Termin, dann Plakat – wie beim Bearbeiten (Issue #353) */
+  async function neuerTermin() {
+    if (neuesPlakat && !BILDTYPEN.includes(neuesPlakat.type))
+      return {
+        status: 400,
+        daten: null,
+        fehler: ['Bitte als Plakat / Flyer ein Foto als JPEG, PNG oder WebP wählen.'],
+      };
+    if (standort && ort) {
+      const platz = await adminApi<{ name: string }>(
+        Astro.cookies,
+        'POST',
+        `orte/${encodeURIComponent(ort.slug)}/festplaetze`,
+        { name: formular.veranstaltungsort ?? '', standort, nameNoetig: true },
+      );
+      if (platz.status >= 300) return platz;
+      if (platz.daten?.name) formular.veranstaltungsort = platz.daten.name;
+    }
+    const r = await adminApi<{ termin: { id: string }; hinweise: { meldung: string }[] }>(
+      Astro.cookies,
+      'POST',
+      'termine',
+      formular,
+    );
+    if (r.status < 300 && neuesPlakat && r.daten?.termin.id) {
+      const bild = await adminPlakat(Astro.cookies, r.daten.termin.id, neuesPlakat);
+      if (bild.status >= 300)
+        return {
+          ...r,
+          daten: {
+            ...r.daten,
+            hinweise: [
+              ...r.daten.hinweise,
+              {
+                meldung:
+                  'Das Plakat konnte nicht gespeichert werden – bitte beim Termin erneut hochladen.',
+              },
+            ],
+          },
+        };
+    }
+    return r;
+  }
   if (aktion === 'speichern')
     einzelEingabe = {
       ...formular,
+      standort,
+      essen: f.has('essen'),
       eintritt: formular.eintritt ?? '',
       kategorie:
         formular.kategorie && istKategorie(formular.kategorie) ? formular.kategorie : undefined,
@@ -123,16 +186,13 @@ if (Astro.request.method === 'POST' && ort) {
     aktion === 'sammel'
       ? { status: 299, daten: null, fehler: fehler }
       : aktion === 'speichern'
-        ? await adminApi<{ hinweise: { meldung: string }[] }>(
-            Astro.cookies,
-            'POST',
-            'termine',
-            formular,
-          )
+        ? await neuerTermin()
         : { status: 400, daten: null, fehler: ['Unbekannte Aktion.'] };
   if (r.status === 299) {
     // Platz-Aktion: Meldung/Fehler oben schon gesetzt
   } else if (r.status < 300) {
+    // Gespeichert: Formular wieder leer für den nächsten Termin
+    einzelEingabe = null;
     const hinweise = (r.daten as { hinweise?: { meldung: string }[] } | null)?.hinweise ?? [];
     meldung = ['Termin gespeichert.', ...hinweise.map((h) => h.meldung)].join(' ');
   } else fehler = r.fehler;

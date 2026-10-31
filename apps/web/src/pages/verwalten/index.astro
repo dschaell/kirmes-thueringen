@@ -6,8 +6,7 @@
  */
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
-import Endzeit from '../../components/admin/Endzeit.astro';
-import { KATEGORIEN } from '../../lib/anzeige';
+import TerminFelder from '../../components/admin/TerminFelder.astro';
 ---
 
 <Base
@@ -39,59 +38,15 @@ import { KATEGORIEN } from '../../lib/anzeige';
 
       <h3 id="formular-titel">Termin hinzufügen</h3>
       <form class="melden" id="terminformular" method="post" data-ungespeichert>
-        <div class="zwei">
-          <label>
-            Datum *<input name="datum" type="date" required />
-          </label>
-          <label>
-            Beginn
-            <input name="beginn" type="time" />
-          </label>
-        </div>
-        <Endzeit ende="" />
-        <label>
-          Veranstaltung *
-          <input name="titel" required maxlength="200" placeholder="z. B. Kirmestanz" />
-        </label>
-        <div class="zwei">
-          <label>
-            Wo genau?
-            <input
-              name="veranstaltungsort"
-              maxlength="120"
-              list="orte-liste"
-              placeholder="z. B. Festzelt, Kulturhaus"
-            />
-          </label>
-          <label>
-            Art
-            <select name="kategorie">
-              <option value="">automatisch erkennen</option>
-              {Object.entries(KATEGORIEN).map(([k, v]) => (
-                <option value={k}>{v.label}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div class="zwei">
-          <label>
-            Band / DJ
-            <input name="band" maxlength="120" placeholder="z. B. Band, DJ – mehrere mit Komma" />
-          </label>
-          <label>
-            Hinweise
-            <textarea
-              name="info"
-              maxlength="500"
-              rows="2"
-              placeholder="z. B. Eintritt 8 €, Einlass ab 16"
-            ></textarea>
-          </label>
-        </div>
-        <label class="klein">
-          <input type="checkbox" name="muttizettel" value="ja" /> Unter 18 nur mit Muttizettel – wir
-          bieten am Termin eine Vorlage zum Drucken an
-        </label>
+        {/* Gleiche Felder wie in der Redaktion (Issue #353) */}
+        <TerminFelder
+          w={{}}
+          artAutomatisch
+          mitKarte={false}
+          mitEssen={false}
+          veranstalterPlatzhalter="eure Kirmesgesellschaft"
+          listen={{ plaetze: 'orte-liste' }}
+        />
         <datalist id="orte-liste"></datalist>
         <div class="knopfreihe">
           <button class="knopf" type="submit" id="termin-speichern">

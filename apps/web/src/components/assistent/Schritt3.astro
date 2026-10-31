@@ -2,14 +2,28 @@
 /** Schritt 3: Details – aus KirmesAssistent.astro (Issue #199). */
 import type { AssistentStand } from '../../lib/assistent';
 import { mitEssen } from '../../lib/assistent';
-import { anzahl, datumLangJahr, musikFeld, uhrzeitText } from '../../lib/anzeige';
+import TerminFelder from '../admin/TerminFelder.astro';
 import { erkenneKategorie } from '@kirmes/core';
+import { anzahl, datumLangJahr, uhrzeitText } from '../../lib/anzeige';
 interface Props {
   s: AssistentStand;
   redaktion: boolean;
   ortName: string;
 }
 const { s, redaktion, ortName } = Astro.props;
+const aktive = s.zeilen.filter((z) => z.aktiv).length;
+/** Bisherige Feldnamen des Assistenten (programm.ts liest sie so ein) */
+const NAMEN: Record<string, string> = {
+  veranstaltungsort: 'wo',
+  standort: 'karte',
+  muttizettel: 'mutti',
+};
+const namen = (feld: string, i: number, j?: number) =>
+  feld === 'speise'
+    ? `gericht-${i}-${j}`
+    : feld === 'preis'
+      ? `preis-${i}-${j}`
+      : `${NAMEN[feld] ?? feld}-${i}`;
 ---
 
 <h2>Programm prüfen und Details ergänzen</h2>
@@ -38,128 +52,66 @@ const { s, redaktion, ortName } = Astro.props;
     : redaktion
       ? 'werden veröffentlicht'
       : 'werden vorgeschlagen'}
-  . Band, Ort oder Essen & Getränke? Tippe auf eine Veranstaltung – alles freiwillig.
+  . Ort, Musik, Eintritt, Essen & Getränke – alles freiwillig.
 </p>
 <p class="klein leise">Titel, Tag oder Uhrzeit ändern: „Zurück zum Programm“.</p>
 {s.zeilen.map(
   (z, i) =>
     z.aktiv && (
-      <details class="veranstaltung">
+      // Wenige Veranstaltungen: Details gleich offen; viele: zugeklappt, aber deutlich (Issue #353)
+      <details class="veranstaltung" open={aktive <= 3}>
         <summary>
           <strong>{z.titel}</strong>
           <span class="leise klein">
             {datumLangJahr(z.datum)}
             {uhrzeitText(z) && ` · ${uhrzeitText(z)} Uhr`}
           </span>
+          <span class="details-hinweis">Details: Ort, Musik, Eintritt, Essen …</span>
         </summary>
         <div class="details-inhalt">
-          <label>
-            {musikFeld(z.kategorie || erkenneKategorie(z.titel))}
-            <input
-              name={`band-${i}`}
-              maxlength="120"
-              placeholder="mehrere mit Komma trennen"
-              list="bands-assistent"
-              value={z.band ?? ''}
-            />
-          </label>
-          {((z.kategorie || erkenneKategorie(z.titel)) === 'tradition' || z.pfarrer) && (
-            <label>
-              Pfarrer/in (optional)
-              <input name={`pfarrer-${i}`} maxlength="120" value={z.pfarrer ?? ''} />
-            </label>
-          )}
-          <label>
-            Wo genau?
-            <input
-              name={`wo-${i}`}
-              maxlength="120"
-              list="plaetze-assistent"
-              placeholder="z. B. Festzelt oder Kirche"
-              value={z.veranstaltungsort ?? ''}
-            />
-          </label>
-          {(!redaktion || !s.vorschlag) && (
-            <label>
-              Google-Maps-Link zum Ort (optional)
-              <input
-                name={`karte-${i}`}
-                data-kartenlink-name={`wo-${i}`}
-                maxlength="2000"
-                inputmode="url"
-                placeholder="In Google Maps „Teilen → Link kopieren“"
-                value={z.karte ?? ''}
-              />
-              <span class="klein leise">
-                {redaktion
-                  ? 'Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“.'
-                  : 'Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die Redaktion prüft ihn.'}
-              </span>
-            </label>
-          )}
-          {redaktion && z.platz && (
-            <div class="kasten kartenpunkt">
-              <p class="klein">
-                Kartenpunkt vom Einsender:{' '}
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${z.platz.lat},${z.platz.lon}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  auf der Karte ansehen
-                </a>
-              </p>
-              <label class="klein">
-                <input type="checkbox" name={`platz-${i}`} checked={z.platzUebernehmen === true} />{' '}
-                Als Platz „{z.veranstaltungsort || '–'}“ in {ortName} übernehmen (gilt dann für alle
-                Termine mit diesem „Wo genau?“)
-              </label>
-            </div>
-          )}
-          <label>
-            Hinweise (öffentlich)
-            <textarea name={`info-${i}`} rows="2" maxlength="500" set:text={z.info ?? ''} />
-          </label>
-          <label class="klein">
-            <input name={`mutti-${i}`} type="checkbox" checked={z.muttizettel ?? false} /> Unter 18
-            nur mit Muttizettel
-          </label>
-          <label class="klein">
-            <input name={`essen-${i}`} type="checkbox" checked={mitEssen(z)} /> Essen & Getränke
-            anbieten
-          </label>
-          <div class="speisen-felder">
-            {Array.from(
-              {
-                length: Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1)),
-              },
-              (_, j) => (
-                <div class="zwei">
-                  <label>
-                    Essen/Getränk {j + 1}
-                    <input
-                      name={`gericht-${i}-${j}`}
-                      maxlength="120"
-                      value={z.speisen?.[j]?.name ?? ''}
-                    />
-                  </label>
-                  <label>
-                    Preis (€)
-                    <input
-                      name={`preis-${i}-${j}`}
-                      inputmode="decimal"
-                      maxlength="20"
-                      placeholder="z. B. 9,50"
-                      value={z.speisen?.[j]?.preis ?? ''}
-                    />
-                  </label>
-                </div>
-              ),
+          <TerminFelder
+            w={{
+              ...z,
+              kategorie: z.kategorie || erkenneKategorie(z.titel),
+              standort: z.karte ?? '',
+              essen: mitEssen(z),
+            }}
+            name={(feld, j) => namen(feld, i, j)}
+            mitWann={false}
+            mitKarte={!redaktion || !s.vorschlag}
+            gerichtAktion={`gerichte-${i}`}
+            kartenHinweis={
+              redaktion
+                ? 'Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“.'
+                : 'Nur Links von Google Maps. Wir speichern nur den Kartenpunkt, die Redaktion prüft ihn.'
+            }
+            veranstalterPlatzhalter={`Kirmesgesellschaft ${ortName}`}
+            listen={{ bands: 'bands-assistent', plaetze: 'plaetze-assistent' }}
+          >
+            {redaktion && z.platz && (
+              <div class="kasten kartenpunkt" slot="wo">
+                <p class="klein">
+                  Kartenpunkt vom Einsender:{' '}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${z.platz.lat},${z.platz.lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    auf der Karte ansehen
+                  </a>
+                </p>
+                <label class="klein">
+                  <input
+                    type="checkbox"
+                    name={`platz-${i}`}
+                    checked={z.platzUebernehmen === true}
+                  />{' '}
+                  Als Platz „{z.veranstaltungsort || '–'}“ in {ortName} übernehmen (gilt dann für
+                  alle Termine mit diesem „Wo genau?“)
+                </label>
+              </div>
             )}
-            <button class="knopf zweit" name="aktion" value={`gerichte-${i}`} formnovalidate>
-              + Weiterer Eintrag
-            </button>
-          </div>
+          </TerminFelder>
         </div>
       </details>
     ),

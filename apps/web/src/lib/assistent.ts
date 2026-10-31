@@ -128,6 +128,13 @@ export async function assistent(
       zeilen: sortiereProgramm(v.daten.termine).map((z) => ({
         ...z,
         aktiv: true,
+        // Eintritt als Text wie im Formular (Issue #353)
+        eintritt:
+          z.eintrittCent == null
+            ? ''
+            : z.eintrittCent === 0
+              ? 'frei'
+              : (z.eintrittCent / 100).toFixed(2).replace('.', ','),
         speisen: z.speisen.map((sp) => ({
           name: sp.name,
           preis: sp.preisCent === null ? '' : (sp.preisCent / 100).toFixed(2).replace('.', ','),
@@ -304,6 +311,8 @@ export async function assistent(
         kategorie: z.kategorie && istKategorie(z.kategorie) ? z.kategorie : null,
         band: z.band || null,
         pfarrer: z.pfarrer,
+        veranstalter: z.veranstalter || null,
+        eintritt: z.eintritt || null,
         veranstaltungsort: z.veranstaltungsort || null,
         info: z.info || null,
         muttizettel: z.muttizettel ?? false,

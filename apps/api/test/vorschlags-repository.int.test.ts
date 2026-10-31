@@ -58,12 +58,24 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     expect(
       await repo.lege({
         ...eingabe(),
-        termine: [{ ...termin, titel: 'Vorverkauf', ende: '12:00' }],
+        termine: [
+          {
+            ...termin,
+            titel: 'Vorverkauf',
+            ende: '12:00',
+            veranstalter: 'Feuerwehr',
+            eintrittCent: 500,
+          },
+        ],
       }),
     ).toMatch(/^[0-9a-f-]{36}$/);
-    // Endzeit bleibt im Vorschlag erhalten (Issue #288)
+    // Endzeit, Veranstalter und Eintritt bleiben im Vorschlag erhalten (Issue #288, #353)
     const mitEnde = (await repo.liste()).find((v) => v.termine[0]?.titel === 'Vorverkauf');
-    expect(mitEnde?.termine[0]?.ende).toBe('12:00');
+    expect(mitEnde?.termine[0]).toMatchObject({
+      ende: '12:00',
+      veranstalter: 'Feuerwehr',
+      eintrittCent: 500,
+    });
     await db.query('DELETE FROM vorschlag WHERE id = $1::uuid', [mitEnde?.id]);
     expect(await repo.lege(eingabe())).toMatch(/^[0-9a-f-]{36}$/);
     const v = (await repo.liste()).find((v) => v.ortSlug === 'it-vorschlag');
@@ -87,7 +99,19 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     const v = (await repo.liste()).find((v) => v.ortSlug === 'it-vorschlag');
     const id = v?.id ?? '';
     expect(
-      await repo.uebernehme(id, [{ ...termin, bestaetigt: true, ende: '02:00' }], adminId),
+      await repo.uebernehme(
+        id,
+        [
+          {
+            ...termin,
+            bestaetigt: true,
+            ende: '02:00',
+            veranstalter: 'Feuerwehr',
+            eintrittCent: 0,
+          },
+        ],
+        adminId,
+      ),
     ).toBe(true);
     expect(await repo.finde(id)).toBeNull();
     const status = (
@@ -106,10 +130,10 @@ describe.runIf(url)('Vorschläge (PostgreSQL)', () => {
     expect(
       (
         await db.query(
-          "SELECT bestaetigt, to_char(ende, 'HH24:MI') AS ende FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug = 'it-vorschlag')",
+          "SELECT bestaetigt, to_char(ende, 'HH24:MI') AS ende, veranstalter, eintritt_cent FROM termin WHERE ort_id IN (SELECT id FROM ort WHERE slug = 'it-vorschlag')",
         )
       ).rows,
-    ).toEqual([{ bestaetigt: true, ende: '02:00' }]);
+    ).toEqual([{ bestaetigt: true, ende: '02:00', veranstalter: 'Feuerwehr', eintritt_cent: 0 }]);
     expect(
       (
         await db.query(

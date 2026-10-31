@@ -2,11 +2,9 @@
 import { nameAusKartenlink } from '@kirmes/core';
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
-import Endzeit from '../../../components/admin/Endzeit.astro';
 import { adminApi, adminPlakat, feld } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
 import {
-  KATEGORIEN,
   datumLangJahr,
   eintrittText,
   uhrzeitText,
@@ -165,6 +163,7 @@ const plaetze = t
 const hinterlegt =
   !!werte.veranstaltungsort.trim() &&
   (plaetze?.daten?.festplaetze ?? []).some((p) => p.name === werte.veranstaltungsort.trim());
+import TerminFelder from '../../../components/admin/TerminFelder.astro';
 ---
 
 <AdminLayout
@@ -241,184 +240,54 @@ const hinterlegt =
       >
         <CsrfFeld />
         <input type="hidden" name="version" value={version} />
-        <div class="zwei">
-          <>
-            <label>
-              Datum
-              <input type="date" name="datum" required value={werte.datum} />
-            </label>
-            <label>
-              Uhrzeit
-              <input type="time" name="beginn" value={werte.beginn} />
-            </label>
-          </>
-        </div>
-        <Endzeit ende={werte.ende} />
-        <label>
-          Veranstaltung
-          <input
-            name="titel"
-            required
-            maxlength="200"
-            list="titel-bearbeiten"
-            value={werte.titel}
-          />
-        </label>
-        <div class="zwei">
-          <>
-            <label>
-              {musikFeld(werte.kategorie)}
-              <input
-                name="band"
-                maxlength="120"
-                placeholder="mehrere mit Komma trennen"
-                list="bands-bearbeiten"
-                value={werte.band}
+        <TerminFelder
+          w={{ ...werte, standort, essen, speisen, gerichte }}
+          veranstalterPlatzhalter={t.ort.kgName ?? `Kirmesgesellschaft ${t.ort.name}`}
+          kartenHinweis={`Gilt für alle Termine in ${t.ort.name} mit gleichem „Wo genau?“.`}
+          listen={{
+            titel: 'titel-bearbeiten',
+            bands: 'bands-bearbeiten',
+            plaetze: 'plaetze-bearbeiten',
+          }}
+        >
+          <Fragment slot="wo">
+            {hinterlegt && (
+              <p class="klein leise">
+                „{werte.veranstaltungsort}“ ist auf der Karte hinterlegt – die Route führt genau
+                dorthin. Ein neuer Link ersetzt die Position.
+              </p>
+            )}
+            <p class="klein leise">
+              Alle Plätze umbenennen oder ändern:{' '}
+              <a href={`/admin/orte/${t.ort.slug}`}>Ort & Plätze in {t.ort.name}</a>
+            </p>
+          </Fragment>
+          <fieldset class="kasten plakat-hochladen">
+            <legend>Plakat / Flyer</legend>
+            {t.plakat && (
+              <img
+                class="plakat-vorschau"
+                src={plakatPfad(t.id, t.plakat, 'klein')}
+                alt="Aktuelles Plakat / Flyer"
+                loading="lazy"
               />
+            )}
+            <label>
+              {t.plakat ? 'Anderes Bild hochladen' : 'Plakat, Flyer oder Foto hochladen'}
+              <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" />
+              <span class="klein leise">
+                JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder hochladen, an denen ihr die Rechte
+                habt (z. B. euer eigenes Plakat oder euren Flyer). Wir speichern eine verkleinerte
+                Kopie ohne Metadaten. Gespeichert wird mit „Alle Änderungen speichern“.
+              </span>
             </label>
-            {(werte.kategorie === 'tradition' || werte.pfarrer) && (
+            {t.plakat && (
               <label>
-                Pfarrer/in (optional)
-                <input name="pfarrer" maxlength="120" value={werte.pfarrer} />
+                <input type="checkbox" name="plakat-weg" value="ja" /> Plakat / Flyer entfernen
               </label>
             )}
-            <label>
-              Wo genau?
-              <input
-                name="veranstaltungsort"
-                maxlength="120"
-                list="plaetze-bearbeiten"
-                value={werte.veranstaltungsort}
-              />
-            </label>
-          </>
-        </div>
-        <label>
-          Google-Maps-Link zu „Wo genau?“ (optional)
-          <input
-            name="standort"
-            data-kartenlink-name="veranstaltungsort"
-            maxlength="2000"
-            inputmode="url"
-            placeholder="Link aus Google Maps „Teilen“ oder „50.87, 10.82“"
-            value={standort}
-          />
-        </label>
-        {hinterlegt && (
-          <p class="klein leise">
-            „{werte.veranstaltungsort}“ ist auf der Karte hinterlegt – die Route führt genau
-            dorthin. Ein neuer Link ersetzt die Position.
-          </p>
-        )}
-        <p class="klein leise">
-          Der Link gilt für alle Termine in {t.ort.name} mit gleichem „Wo genau?“. Alle Plätze
-          umbenennen oder ändern:{' '}
-          <a href={`/admin/orte/${t.ort.slug}`}>Ort & Plätze in {t.ort.name}</a>
-        </p>
-        <label>
-          Art
-          <select name="kategorie">
-            {Object.entries(KATEGORIEN).map(([k, info]) => (
-              <option value={k} selected={werte.kategorie === k}>
-                {info.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div class="zwei">
-          <>
-            <label>
-              Veranstalter (optional)
-              <input
-                name="veranstalter"
-                maxlength="200"
-                placeholder={t.ort.kgName ?? `Kirmesgesellschaft ${t.ort.name}`}
-                value={werte.veranstalter}
-              />
-              <span class="klein leise">Nur ausfüllen, wenn jemand anderes veranstaltet.</span>
-            </label>
-            <label>
-              Eintritt (optional)
-              <input
-                name="eintritt"
-                maxlength="20"
-                inputmode="decimal"
-                placeholder="z. B. 8 oder frei"
-                value={werte.eintritt}
-              />
-              <span class="klein leise">Leer lassen, wenn noch unklar.</span>
-            </label>
-          </>
-        </div>
-        <label>
-          Hinweise (öffentlich)
-          <textarea name="info" maxlength="500" rows="3" set:text={werte.info} />
-        </label>
-        <label>
-          <input type="checkbox" name="muttizettel" checked={werte.muttizettel} /> Unter 18 nur mit
-          Muttizettel
-        </label>
-        <fieldset class="mittagstisch">
-          <>
-            <legend>Essen & Getränke (freiwillig)</legend>
-            <label>
-              <input type="checkbox" name="essen" checked={essen} /> Essen & Getränke anbieten
-            </label>
-          </>
-          <div class="speisen-felder">
-            <p class="klein leise">
-              Leere Zeilen werden ignoriert. Zum Entfernen Name und Preis leeren oder den Haken
-              entfernen.
-            </p>
-            {Array.from({ length: gerichte }, (_, i) => (
-              <div class="zwei">
-                <label>
-                  Essen/Getränk {i + 1}
-                  <input name="speise" maxlength="120" value={speisen[i]?.name ?? ''} />
-                </label>
-                <label>
-                  Preis (€)
-                  <input
-                    name="preis"
-                    inputmode="decimal"
-                    maxlength="20"
-                    value={speisen[i]?.preis ?? ''}
-                  />
-                </label>
-              </div>
-            ))}
-            {gerichte < 20 && (
-              <button class="knopf zweit" name="aktion" value="gericht" formnovalidate>
-                + Weiterer Eintrag
-              </button>
-            )}
-          </div>
-        </fieldset>
-        <fieldset class="kasten plakat-hochladen">
-          <legend>Plakat / Flyer</legend>
-          {t.plakat && (
-            <img
-              class="plakat-vorschau"
-              src={plakatPfad(t.id, t.plakat, 'klein')}
-              alt="Aktuelles Plakat / Flyer"
-              loading="lazy"
-            />
-          )}
-          <label>
-            {t.plakat ? 'Anderes Bild hochladen' : 'Plakat, Flyer oder Foto hochladen'}
-            <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" />
-            <span class="klein leise">
-              JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder hochladen, an denen ihr die Rechte
-              habt (z. B. euer eigenes Plakat oder euren Flyer). Wir speichern eine verkleinerte
-              Kopie ohne Metadaten. Gespeichert wird mit „Alle Änderungen speichern“.
-            </span>
-          </label>
-          {t.plakat && (
-            <label>
-              <input type="checkbox" name="plakat-weg" value="ja" /> Plakat / Flyer entfernen
-            </label>
-          )}
-        </fieldset>
+          </fieldset>
+        </TerminFelder>
         <div class="knopfreihe">
           <>
             <button class="knopf" name="aktion" value="speichern">
@@ -452,22 +321,6 @@ const hinterlegt =
   )}
 </AdminLayout>
 <style>
-  .mittagstisch {
-    min-width: 0;
-    border: 1px solid var(--linie);
-    border-radius: var(--r);
-    padding: 16px;
-    display: grid;
-    gap: 12px;
-  }
-  .speisen-felder {
-    display: grid;
-    gap: 12px;
-  }
-  /* ohne Haken keine Felder – auch ohne JavaScript (Issue #155) */
-  .mittagstisch:not(:has(input[name='essen']:checked)) .speisen-felder {
-    display: none;
-  }
   .knopfreihe {
     display: flex;
     flex-wrap: wrap;

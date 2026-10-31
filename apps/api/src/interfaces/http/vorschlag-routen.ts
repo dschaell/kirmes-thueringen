@@ -14,6 +14,9 @@ export const vorschlagsZeileSchema = {
     veranstaltungsort: { type: ['string', 'null'], maxLength: 120 },
     band: { type: ['string', 'null'], maxLength: 120 },
     pfarrer: { type: ['string', 'null'], maxLength: 120 },
+    // Wie beim Bearbeiten (Issue #353)
+    veranstalter: { type: ['string', 'null'], maxLength: 200 },
+    eintritt: { type: ['string', 'null'], maxLength: 20 },
     info: { type: ['string', 'null'], maxLength: 500 },
     muttizettel: { type: 'boolean' },
     kategorie: {
