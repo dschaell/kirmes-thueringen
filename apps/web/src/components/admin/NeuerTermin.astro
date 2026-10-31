@@ -1,12 +1,10 @@
 ---
 /** Neuer Einzeltermin mit Recherche-Assistent – aus admin/termine.astro (Issue #199). */
 import CsrfFeld from './CsrfFeld.astro';
-import Endzeit from './Endzeit.astro';
+import TerminFelder, { type TerminWerte } from './TerminFelder.astro';
 import Icon from '../Icon.astro';
-import type { TerminDto } from '../../lib/api';
-import { KATEGORIEN } from '../../lib/anzeige';
 interface Props {
-  einzelWerte: (Partial<TerminDto> & { eintritt?: string }) | null;
+  einzelWerte: TerminWerte | null;
   /** Platzhalter für „Veranstalter“ */
   ortName: string;
   veranstaltungsorte: string[];
@@ -32,110 +30,34 @@ const { einzelWerte, ortName, veranstaltungsorte } = Astro.props;
   </div>
 </details>
 
-<form class="melden" method="post" id="terminformular">
+<form class="melden" method="post" id="terminformular" enctype="multipart/form-data">
   <CsrfFeld />
   <input type="hidden" name="aktion" value="speichern" />
-  <div class="zwei">
-    <label>
-      Datum *<input name="datum" type="date" required value={einzelWerte?.datum ?? ''} />
-    </label>
-    <label>
-      Beginn
-      <input name="beginn" type="time" value={einzelWerte?.beginn ?? ''} />
-    </label>
-  </div>
-  <Endzeit ende={einzelWerte?.ende ?? ''} />
-  <label>
-    Veranstaltung *
-    <input
-      name="titel"
-      required
-      maxlength="200"
-      list="titel-liste"
-      value={einzelWerte?.titel ?? ''}
-    />
-  </label>
-  <div class="zwei">
-    <label>
-      Wo genau?
-      <input
-        name="veranstaltungsort"
-        maxlength="120"
-        list="vo-liste"
-        value={einzelWerte?.veranstaltungsort ?? ''}
-      />
-    </label>
-    <label>
-      Art
-      <select name="kategorie">
-        <option value="">automatisch erkennen</option>
-        {Object.entries(KATEGORIEN).map(([k, v]) => (
-          <option value={k} selected={einzelWerte?.kategorie === k}>
-            {v.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  </div>
-  <div class="zwei">
-    <label>
-      Band / DJ
-      <input
-        name="band"
-        maxlength="120"
-        placeholder="mehrere mit Komma trennen"
-        list="band-liste"
-        value={einzelWerte?.band ?? ''}
-      />
-    </label>
-    <label>
-      Hinweise (öffentlich)
-      <textarea
-        name="info"
-        maxlength="500"
-        rows="2"
-        placeholder="z. B. Einlass ab 18, Shuttlebus"
-        set:text={einzelWerte?.info ?? ''}
-      />
-    </label>
-  </div>
-  <div class="zwei">
-    <label>
-      Veranstalter (optional)
-      <input
-        name="veranstalter"
-        maxlength="200"
-        placeholder={ortName}
-        value={einzelWerte?.veranstalter ?? ''}
-      />
-      <span class="klein leise">Nur ausfüllen, wenn jemand anderes veranstaltet.</span>
-    </label>
-    <label>
-      Eintritt (optional)
-      <input
-        name="eintritt"
-        maxlength="20"
-        inputmode="decimal"
-        placeholder="z. B. 8 oder frei"
-        value={einzelWerte?.eintritt ?? ''}
-      />
-      <span class="klein leise">Leer lassen, wenn noch unklar.</span>
-    </label>
-  </div>
+  <TerminFelder
+    w={einzelWerte ?? {}}
+    artAutomatisch
+    gerichtAktion={null}
+    veranstalterPlatzhalter={ortName}
+    kartenHinweis="Wird als Platz im Ort gespeichert – gilt für alle Termine mit gleichem „Wo genau?“."
+    listen={{ titel: 'titel-liste', bands: 'band-liste', plaetze: 'vo-liste' }}
+  >
+    <fieldset class="gruppe plakat-hochladen">
+      <legend>Plakat / Flyer</legend>
+      <label>
+        Plakat, Flyer oder Foto hochladen (optional)
+        <input type="file" name="plakat" accept="image/jpeg,image/png,image/webp" />
+        <span class="klein leise">
+          JPEG, PNG oder WebP, höchstens 8 MB. Nur Bilder, an denen ihr die Rechte habt. Wir
+          speichern eine verkleinerte Kopie ohne Metadaten.
+        </span>
+      </label>
+    </fieldset>
+  </TerminFelder>
   <datalist id="vo-liste">
     {veranstaltungsorte.map((v) => (
       <option value={v!} />
     ))}
   </datalist>
-  <label class="klein">
-    <input
-      type="checkbox"
-      name="muttizettel"
-      value="ja"
-      checked={einzelWerte?.muttizettel ?? false}
-    />{' '}
-    Unter 18 nur mit Muttizettel (Vorlage wird am Termin angeboten)
-  </label>
   <div class="knopfreihe">
     <button class="knopf" type="submit">
       Speichern

@@ -1848,3 +1848,36 @@ input[aria-invalid='true'],
     transform: translateY(-0.2em) scale(1.03);
   }
 }
+/* Ein Terminformular für alles (Issue #353): feste Gruppen mit Überschrift */
+.terminfelder {
+  display: grid;
+  gap: 16px;
+}
+.terminfelder .gruppe {
+  min-width: 0;
+  margin: 0;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  display: grid;
+  gap: 12px;
+}
+.terminfelder legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+.terminfelder .haken {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.terminfelder .speisen-felder {
+  display: grid;
+  gap: 12px;
+}
+/* Speisen erst nach Haken – auch ohne JavaScript (Issue #155) */
+.essen-gruppe:not(:has(.haken input:checked)) .speisen-felder {
+  display: none;
+}

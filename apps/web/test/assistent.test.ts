@@ -71,6 +71,8 @@ describe('Kirmes-Assistent', () => {
     f.set('mutti-5', 'on');
     f.set('gericht-5-1', 'Klöße');
     f.set('preis-5-1', '9,50');
+    f.set('eintritt-5', '8');
+    f.set('veranstalter-5', 'Feuerwehr');
     expect(leseProgramm(f, alt, true)[5]).toMatchObject({
       titel: 'Frühschoppen',
       band: 'Band',
@@ -78,6 +80,8 @@ describe('Kirmes-Assistent', () => {
       info: 'Eintritt frei',
       muttizettel: true,
       speisen: [{ name: 'Klöße', preis: '9,50' }],
+      eintritt: '8',
+      veranstalter: 'Feuerwehr',
     });
   });
 });

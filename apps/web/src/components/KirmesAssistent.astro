@@ -167,6 +167,14 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       display: block;
       margin-top: 4px;
     }
+    .veranstaltung .details-hinweis {
+      color: var(--rot);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .veranstaltung[open] .details-hinweis {
+      display: none;
+    }
     .details-inhalt {
       display: grid;
       gap: 16px;

@@ -111,6 +111,9 @@ export function leseProgramm(
             ? {
                 band: feld(f, `band-${i}`),
                 pfarrer: feld(f, `pfarrer-${i}`),
+                // Gleiche Felder wie beim Bearbeiten (Issue #353)
+                veranstalter: feld(f, `veranstalter-${i}`),
+                eintritt: feld(f, `eintritt-${i}`),
                 veranstaltungsort: feld(f, `wo-${i}`),
                 info: feld(f, `info-${i}`),
                 muttizettel: f.has(`mutti-${i}`),

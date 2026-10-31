@@ -22,6 +22,9 @@ type Termin = {
   kategorie: string;
   bestaetigt: boolean;
   band: string | null;
+  pfarrer?: string | null;
+  veranstalter?: string | null;
+  eintrittCent?: number | null;
   info: string | null;
   muttizettel: boolean;
 };
@@ -164,9 +167,18 @@ function bearbeiten(t: Termin) {
   feld('ende').value = t.ende ?? '';
   feld('titel').value = t.titel;
   feld('veranstaltungsort').value = t.veranstaltungsort ?? '';
-  feld('kategorie').value = t.kategorie;
-  feld('kategorie').dispatchEvent(new Event('change'));
   feld('band').value = t.band ?? '';
+  feld('pfarrer').value = t.pfarrer ?? '';
+  feld('veranstalter').value = t.veranstalter ?? '';
+  feld('eintritt').value =
+    t.eintrittCent == null
+      ? ''
+      : t.eintrittCent === 0
+        ? 'frei'
+        : (t.eintrittCent / 100).toFixed(2).replace('.', ',');
+  feld('kategorie').value = t.kategorie;
+  // erst nach Pfarrer/in: das Formular blendet das Feld passend zur Art ein (Issue #353)
+  feld('kategorie').dispatchEvent(new Event('change'));
   feld('info').value = t.info ?? '';
   (feld('muttizettel') as HTMLInputElement).checked = t.muttizettel;
   $('formular-titel').textContent = 'Termin ändern';
@@ -195,6 +207,9 @@ formular.addEventListener('submit', async (e) => {
     veranstaltungsort: feld('veranstaltungsort').value || null,
     kategorie: feld('kategorie').value || null,
     band: feld('band').value || null,
+    pfarrer: feld('pfarrer').value || null,
+    veranstalter: feld('veranstalter').value || null,
+    eintritt: feld('eintritt').value || null,
     info: feld('info').value || null,
     muttizettel: (feld('muttizettel') as HTMLInputElement).checked,
   });
