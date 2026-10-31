@@ -8,11 +8,15 @@
   --papier: #faf6ef;
   --flaeche: #ffffff;
   --tinte: #1f1b16;
-  --grau: #675e54;
+  --grau: #554d45;
   --linie: #e4dacb;
   --fokus: #1d5fd1;
   /* Rahmen von Bedienelementen: ≥ 3:1 zum Hintergrund (WCAG 1.4.11, Issue #347) */
   --rand: #877b6c;
+  /* Knöpfe und Marken: weiße Schrift auf Kirmesrot, 7,75:1 in beiden Modi (Issue #356) */
+  --knopf: #a4161a;
+  --knopf-tief: #7a0f12;
+  --auf-knopf: #ffffff;
   /* Gold als Schrift: ≥ 4,5:1 (Issue #347) */
   --gold-text: #8a5d00;
   /* Arial: auf allen Geräten vorhanden, gut lesbar, keine Webfonts (Issue #347) */
@@ -25,22 +29,47 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --rot: #e8685c;
-    --rot-tief: #f19287;
-    --rot-zart: #3a1a17;
+  /* Neutral wie iOS statt Braun; Schrift und Links ≥ 7:1 (Issue #356). Gilt, solange kein
+     Design „hell“ gewählt ist */
+  :root:not([data-modus='hell']) {
+    --rot: #ff8a80;
+    --rot-tief: #ffb4ab;
+    --rot-zart: #3a1514;
     --gold: #e0ad4a;
     --gruen: #7cc391;
-    --papier: #16130f;
-    --flaeche: #1f1b17;
-    --tinte: #eee7dc;
-    --grau: #a99f92;
-    --linie: #383028;
+    --papier: #121212;
+    --flaeche: #1c1c1e;
+    --tinte: #f2f2f2;
+    --grau: #b0b0b5;
+    --linie: #2c2c2e;
     --fokus: #8ab4ff;
-    --rand: #7a6f62;
+    --rand: #76767c;
     --gold-text: #e0ad4a;
+    --knopf: #a4161a;
+    --knopf-tief: #c0262d;
+    --auf-knopf: #ffffff;
     color-scheme: dark;
   }
+}
+/* Design mit festem dunklem Modus (Issue #356) – unabhängig von der Systemeinstellung */
+:root[data-modus='dunkel'] {
+  --rot: #ff8a80;
+  --rot-tief: #ffb4ab;
+  --rot-zart: #3a1514;
+  --gold: #e0ad4a;
+  --gruen: #7cc391;
+  --papier: #121212;
+  --flaeche: #1c1c1e;
+  --tinte: #f2f2f2;
+  --grau: #b0b0b5;
+  --linie: #2c2c2e;
+  --fokus: #8ab4ff;
+  --rand: #76767c;
+  --gold-text: #e0ad4a;
+  --knopf: #a4161a;
+  --knopf-tief: #c0262d;
+  --auf-knopf: #ffffff;
+  color-scheme: dark;
 }
 
 *,
@@ -631,8 +660,8 @@ select {
   border-color: var(--rot);
 }
 .kalender-tage [aria-pressed='true'] {
-  background: var(--rot);
-  color: var(--papier);
+  background: var(--knopf);
+  color: var(--auf-knopf);
 }
 .kalender-aktionen {
   display: flex;
@@ -658,23 +687,17 @@ textarea:focus {
   font: 600 1rem/1 var(--text);
   padding: 12px 18px;
   border-radius: var(--r);
-  border: 1px solid var(--rot);
-  background: var(--rot);
-  color: #fff;
+  border: 1px solid var(--knopf);
+  background: var(--knopf);
+  color: var(--auf-knopf);
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
 }
 .knopf:hover {
-  background: var(--rot-tief);
-  border-color: var(--rot-tief);
-  color: #fff;
-}
-@media (prefers-color-scheme: dark) {
-  .knopf,
-  .knopf:hover {
-    color: #1a0907;
-  }
+  background: var(--knopf-tief);
+  border-color: var(--knopf-tief);
+  color: var(--auf-knopf);
 }
 .knopf.zweit {
   background: transparent;
@@ -708,8 +731,8 @@ textarea:focus {
   display: none;
 }
 .filter > summary .zahl {
-  background: var(--rot);
-  color: #fff;
+  background: var(--knopf);
+  color: var(--auf-knopf);
   border-radius: 999px;
   font-size: 0.8rem;
   padding: 1px 8px;
@@ -789,8 +812,8 @@ legend {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   /* Hintergrundfarbe als Schrift: im hellen wie im dunklen Modus ≥ 6:1 (Issue #123) */
-  color: var(--papier);
-  background: var(--rot);
+  color: var(--auf-knopf);
+  background: var(--knopf);
   border-radius: 4px;
   padding: 4px 6px;
 }
@@ -999,55 +1022,7 @@ ul.bands li + li::before {
   margin-left: 6px;
   vertical-align: 2px;
 }
-.kat.kat-familie {
-  color: #1f6a8a;
-  border-color: #b9d6e2;
-}
-.kat.kat-tradition {
-  color: var(--gruen);
-  border-color: #bfd8c5;
-}
-.kat.kat-party {
-  color: #6b3fa0;
-  border-color: #d5c6e8;
-}
-.kat.kat-tanz {
-  color: #a3195b;
-  border-color: #e9bfd2;
-}
-.kat.kat-staendchen {
-  color: #8a5a00;
-  border-color: #e6cf9a;
-}
-.kat.kat-fruehschoppen {
-  color: #9a3d12;
-  border-color: #ecc7b2;
-}
-@media (prefers-color-scheme: dark) {
-  .kat.kat-familie {
-    color: #8cc8e3;
-    border-color: #2b4a57;
-  }
-  .kat.kat-tradition {
-    border-color: #2f4a37;
-  }
-  .kat.kat-party {
-    color: #c3a6ea;
-    border-color: #45365a;
-  }
-  .kat.kat-tanz {
-    color: #f08cbc;
-    border-color: #5a2a40;
-  }
-  .kat.kat-fruehschoppen {
-    color: #f0a679;
-    border-color: #5c3420;
-  }
-  .kat.kat-staendchen {
-    color: #e3b85c;
-    border-color: #5a4720;
-  }
-}
+/* Arten einfarbig – Farbe nur für Wichtiges wie „Heute“ (Issue #356) */
 .bestaetigt {
   display: inline-flex;
   align-items: center;
@@ -1416,10 +1391,14 @@ form.melden label > input[type='checkbox'] {
   color: #1d4f2b;
 }
 @media (prefers-color-scheme: dark) {
-  .meldung.gut {
+  :root:not([data-modus='hell']) .meldung.gut {
     background: #1d3324;
     color: #b9e3c4;
   }
+}
+:root[data-modus='dunkel'] .meldung.gut {
+  background: #1d3324;
+  color: #b9e3c4;
 }
 
 /* ── Fuß ──────────────────────────────────────────────────────────────────────────────── */
