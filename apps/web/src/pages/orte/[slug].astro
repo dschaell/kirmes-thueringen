@@ -42,6 +42,7 @@ const nachbarn = orte
 const einbettCode = `<iframe src="${new URL(`/einbetten/${ort.slug}`, Astro.site).href}" title="Kirmes-Termine ${ort.name}" width="100%" height="420" style="border:0" loading="lazy"></iframe>`;
 const route = routenLinks(naechster ?? { festplatz: null, veranstaltungsort: null, ort });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+import PushSchalter from '../../components/PushSchalter.astro';
 ---
 
 <Base
@@ -65,6 +66,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   </p>
   <section class="einstieg">
     <h1>Kirmes in {ort.name}</h1>
+    <PushSchalter art="ort" ortSlug={ort.slug} ortName={ort.name} />
     <p class="unterzeile">
       {naechster ? (
         <>

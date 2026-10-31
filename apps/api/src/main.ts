@@ -5,8 +5,14 @@ import {
   Vorschlaege,
   Zugriffe,
   ZUGRIFFE_AUFBEWAHRUNG_TAGE,
+  Benachrichtigungen,
+  plusTage,
+  PUSH_AUFBEWAHRUNG_TAGE,
+  TerminVerwaltungMitPush,
 } from '@kirmes/core';
 import { PgZugriffe } from './infrastructure/postgres/zugriffe-repository.js';
+import { PgPush } from './infrastructure/postgres/push-repository.js';
+import { WebPushVersand } from './infrastructure/push-versand.js';
 import { PgPlakate } from './infrastructure/postgres/plakat-repository.js';
 import { SharpBildwandler } from './infrastructure/bildwandler.js';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
@@ -84,7 +90,16 @@ const uhr = new SystemUhr();
 const orte = new PgOrtRepository(pool);
 const termine = new PgTerminRepository(pool);
 const links = new PgBearbeitungslinks(pool);
-const terminVerwaltung = new PgTerminVerwaltung(pool);
+const pushRepo = new PgPush(pool);
+// Push nur mit VAPID-Schlüsseln (Issue #348) – sonst ist alles wie bisher
+const benachrichtigungen = k.vapid
+  ? new Benachrichtigungen(pushRepo, new WebPushVersand(k.vapid))
+  : null;
+const terminVerwaltung = benachrichtigungen
+  ? new TerminVerwaltungMitPush(new PgTerminVerwaltung(pool), termine, benachrichtigungen, () =>
+      uhr.heute(),
+    )
+  : new PgTerminVerwaltung(pool);
 const mitteilungen = new PgMitteilungen(pool);
 const krypto = new NodeKryptografie();
 const konten = new PgAdminKonten(pool);
@@ -141,6 +156,7 @@ const raeumeAuf = () =>
     korrekturRepo.raeumeAuf(),
     anfragenRepo.raeumeAuf(ANFRAGE_AUFBEWAHRUNG_TAGE, ANFRAGE_OFFEN_TAGE),
     zugriffsRepo.raeumeAuf(ZUGRIFFE_AUFBEWAHRUNG_TAGE),
+    pushRepo.raeumeAuf(PUSH_AUFBEWAHRUNG_TAGE),
   ]);
 const mitglieder = new Mitgliederverwaltung(new PgMitglieder(pool), einladungen, krypto);
 // Aufräumen darf den Start nie verhindern (Issue #94) – Fehler wird nach dem Start geloggt
@@ -152,8 +168,23 @@ const aufraeumen = setInterval(() => {
   void raeumeAuf().catch(() => app.log.error('Vorschläge konnten nicht aufgeräumt werden'));
 }, 24 * 3600_000);
 aufraeumen.unref();
+// Erinnerung am Vortag ab 18 Uhr Ortszeit (Issue #348); jedes Gerät höchstens einmal je Tag
+const stunde = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
+  hour: 'numeric',
+  hourCycle: 'h23',
+});
+const erinnern = setInterval(() => {
+  if (!benachrichtigungen || Number(stunde.format(new Date())) < 18) return;
+  void benachrichtigungen
+    .erinnere(plusTage(uhr.heute(), 1))
+    .catch(() => app.log.error('Erinnerungen konnten nicht verschickt werden'));
+}, 10 * 60_000);
+erinnern.unref();
 const app = await baueApp({
   plakate,
+  ...(benachrichtigungen &&
+    k.vapid && { push: { benachrichtigungen, oeffentlich: k.vapid.oeffentlich } }),
   zugriffe,
   korrekturen:
     postausgang && k.websiteUrl
@@ -244,6 +275,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info({ signal }, 'Fahre herunter');
     clearInterval(aufraeumen);
+    clearInterval(erinnern);
     await app.close();
     await pool.end();
     process.exit(0);

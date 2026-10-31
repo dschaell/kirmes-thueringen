@@ -1,3 +1,4 @@
+import type { PushAbhaengigkeiten } from '../src/interfaces/http/push-routen.js';
 import {
   FindeOrt,
   ListeOrte,
@@ -143,6 +144,7 @@ let anfragenAktiv: MitmachAnfragen | undefined;
 let plakateAktiv: Plakate | undefined;
 let ortsprofileAktiv: Ortsprofile | undefined;
 let zugriffeAktiv: Zugriffe | undefined;
+let pushAktiv: PushAbhaengigkeiten | undefined;
 let vorschlaegeAktiv: (() => Promise<{ bands: string[]; titel: string[] }>) | undefined;
 const REDAKTION_SITZUNG = 'R'.repeat(43);
 const KG_SITZUNG = 'K'.repeat(43);
@@ -266,6 +268,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     aktuelleMitteilung: async () => mitteilung,
     plakate: plakateAktiv,
     zugriffe: zugriffeAktiv,
+    push: pushAktiv,
     meldungen: meldungenAktiv,
     terminVorschlaege: terminVorschlaegeAktiv,
     admin: {
@@ -2394,5 +2397,19 @@ describe('Zugriffszahlen (Issue #311)', () => {
         })
       ).statusCode,
     ).toBe(404);
+  });
+});
+
+describe('Push-Routen nur mit Schlüsseln (Issue #348)', () => {
+  it('ohne Abhängigkeit 404, mit Abhängigkeit der Schlüssel', async () => {
+    await setup();
+    expect((await app.inject({ method: 'GET', url: '/api/v1/push/schluessel' })).statusCode).toBe(
+      404,
+    );
+    pushAktiv = { oeffentlich: 'BPub', benachrichtigungen: {} as never };
+    await setup();
+    pushAktiv = undefined;
+    const r = await app.inject({ method: 'GET', url: '/api/v1/push/schluessel' });
+    expect([r.statusCode, r.json()]).toEqual([200, { oeffentlich: 'BPub' }]);
   });
 });

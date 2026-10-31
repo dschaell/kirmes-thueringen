@@ -16,6 +16,7 @@ describe('ladeKonfiguration', () => {
       websiteUrl: null,
       smtp: null,
       sicherungen: null,
+      vapid: null,
     });
     expect(
       ladeKonfiguration({ DATABASE_URL: 'x', SICHERUNGEN_VERZEICHNIS: '/sicherungen' }).sicherungen,

@@ -1,4 +1,5 @@
 import type { SmtpKonfiguration } from './infrastructure/post.js';
+import type { VapidKonfiguration } from './infrastructure/push-versand.js';
 
 /** Konfiguration ausschließlich aus Umgebungsvariablen (12-Factor). Fehlt etwas, bricht der Start ab. */
 export interface Konfiguration {
@@ -13,6 +14,8 @@ export interface Konfiguration {
   smtp: SmtpKonfiguration | null;
   /** Nur lesend eingebundenes Sicherungsverzeichnis – Anzeige in der Redaktion (Issue #45) */
   sicherungen: string | null;
+  /** Schlüssel für Push-Benachrichtigungen (Issue #348); null = Push ausgeschaltet */
+  vapid: VapidKonfiguration | null;
 }
 
 export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfiguration {
@@ -27,6 +30,7 @@ export function ladeKonfiguration(env: NodeJS.ProcessEnv = process.env): Konfigu
     websiteUrl: env.WEBSITE_URL || null,
     smtp: ladeSmtp(env),
     sicherungen: env.SICHERUNGEN_VERZEICHNIS || null,
+    vapid: ladeVapid(env),
   };
 }
 
@@ -51,5 +55,21 @@ function ladeSmtp(env: NodeJS.ProcessEnv): SmtpKonfiguration | null {
     passwort: env.SMTP_PASS ?? '',
     von: env.MAIL_FROM ?? '',
     an: env.MAIL_AN ?? '',
+  };
+}
+
+/** Push nur mit vollständigem Schlüsselpaar – halbe Konfiguration ist ein Fehler. */
+function ladeVapid(env: NodeJS.ProcessEnv): VapidKonfiguration | null {
+  const pflicht = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_KONTAKT'] as const;
+  const fehlt = pflicht.filter((k) => !env[k]);
+  if (fehlt.length === pflicht.length) return null;
+  if (fehlt.length > 0) throw new Error(`Push unvollständig, es fehlt: ${fehlt.join(', ')}`);
+  const kontakt = String(env.VAPID_KONTAKT);
+  if (!/^(mailto:|https:\/\/)/.test(kontakt))
+    throw new Error('VAPID_KONTAKT muss mit mailto: oder https:// beginnen');
+  return {
+    oeffentlich: String(env.VAPID_PUBLIC_KEY),
+    privat: String(env.VAPID_PRIVATE_KEY),
+    kontakt,
   };
 }

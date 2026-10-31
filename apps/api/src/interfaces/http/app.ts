@@ -1,3 +1,4 @@
+import { pushRouten } from './push-routen.js';
 import { vorschlagRouten } from './vorschlag-routen.js';
 import { korrekturRouten } from './korrektur-routen.js';
 import helmet from '@fastify/helmet';
@@ -374,6 +375,7 @@ export async function baueApp(d: AppAbhaengigkeiten) {
     istInternesNetz(ip) && typeof weiter === 'string' ? weiter.slice(0, 64) : fallback;
   if (d.terminVorschlaege) await vorschlagRouten(app, d.terminVorschlaege, herkunft);
   if (d.korrekturen) await korrekturRouten(app, d.korrekturen, herkunft);
+  if (d.push) await pushRouten(app, d.push);
 
   if (d.admin) await adminRouten(app, { ...d.admin, terminDto });
 

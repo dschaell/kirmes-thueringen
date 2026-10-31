@@ -163,6 +163,8 @@ describe('Nachrichten (Issue #348)', () => {
       titel: 'Geändert: Kirmestanz in Mühlberg',
       text: 'Jetzt Sa., 7.11. – Mühlberg',
     });
+    expect(await push.empfaengerFuer('ulla', ['t9'])).toHaveLength(2);
+    expect(empfaengerAufrufe.at(-1)).toEqual(['ulla', ['t9']]);
     expect(await push.abgesagt([ziel('a')], pt())).toBe(1);
     expect(gesendet.at(-1)?.n).toMatchObject({
       titel: 'Abgesagt: Kirmestanz in Mühlberg',
@@ -267,6 +269,18 @@ describe('Auslöser an der Terminverwaltung (Issue #348)', () => {
       await v.aendere('t1', neu(x), durch);
     await v.fertig();
     expect(meldungen).toHaveLength(4);
+  });
+
+  it('Termin inzwischen weg: keine Änderungsnachricht', async () => {
+    const { v, meldungen } = rahmen();
+    let aufrufe = 0;
+    // erst vorhanden (vor dem Ändern), danach weg (beim Melden)
+    (v as unknown as { termine: { finde: () => Promise<Termin | null> } }).termine = {
+      finde: async () => (aufrufe++ === 0 ? termin() : null),
+    };
+    await v.aendere('t1', neu({ beginn: '23:00' }), durch);
+    await v.fertig();
+    expect(meldungen).toEqual([]);
   });
 
   it('Sammeländerung: Absagen an vorab gelesene Empfänger, Änderungen wie einzeln', async () => {

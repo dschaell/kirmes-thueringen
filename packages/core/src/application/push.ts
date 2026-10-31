@@ -83,8 +83,8 @@ export type PushFehler = 'ENDPUNKT' | 'SCHLUESSEL' | 'LISTE';
 const WOCHENTAGE = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
 /** „Sa., 7.11.“ – aus dem Kalenderdatum, ohne Zeitzone */
 export const datumKurzText = (d: string) => {
-  const [j, m, t] = d.split('-').map(Number);
-  const tag = new Date(Date.UTC(j ?? 0, (m ?? 1) - 1, t ?? 1)).getUTCDay();
+  const [j, m, t] = d.split('-').map(Number) as [number, number, number];
+  const tag = new Date(Date.UTC(j, m - 1, t)).getUTCDay();
   return `${WOCHENTAGE[tag]}, ${t}.${m}.`;
 };
 const uhr = (b: string | null) => (b ? ` um ${b} Uhr` : '');
@@ -249,9 +249,9 @@ const kurz = (t: Termin): PushTermin => ({
 /** Nur was Besucher wirklich betrifft – Tippfehler in Hinweisen lösen keine Nachricht aus */
 const wichtig = (alt: Termin, neu: NeuerTermin) =>
   alt.datum !== neu.datum ||
-  (alt.beginn ?? null) !== (neu.beginn ?? null) ||
+  alt.beginn !== neu.beginn ||
   alt.titel !== neu.titel ||
-  (alt.veranstaltungsort ?? null) !== (neu.veranstaltungsort ?? null);
+  alt.veranstaltungsort !== neu.veranstaltungsort;
 
 /**
  * Legt sich um die Terminverwaltung und meldet nach erfolgreichem Schreiben – ohne die Antwort an

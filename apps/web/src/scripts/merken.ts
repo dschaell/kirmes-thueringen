@@ -2,28 +2,9 @@
  * Termine merken (Issue #295): nur in diesem Browser (localStorage) – kein Konto, kein Server,
  * kein Tracking. Knöpfe mit data-merken="<Termin-ID>" sind ohne JavaScript ausgeblendet.
  */
-export const SCHLUESSEL = 'kirmes-gemerkt';
-const MAX = 100;
-const ID = /^[0-9a-f-]{36}$/;
+import { gemerkte, ID, speichere } from './merkliste';
 
-export function gemerkte(): string[] {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(SCHLUESSEL) ?? '[]');
-    return Array.isArray(v)
-      ? v.filter((x): x is string => typeof x === 'string' && ID.test(x))
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-export function speichere(ids: string[]): void {
-  try {
-    localStorage.setItem(SCHLUESSEL, JSON.stringify([...new Set(ids)].slice(-MAX)));
-  } catch {
-    /* privater Modus – Merken klappt dann nicht dauerhaft */
-  }
-}
+export { gemerkte, speichere, SCHLUESSEL } from './merkliste';
 
 function zeige(k: HTMLButtonElement, an: boolean) {
   k.setAttribute('aria-pressed', String(an));
@@ -41,5 +22,11 @@ for (const k of document.querySelectorAll<HTMLButtonElement>('button[data-merken
     const an = !alle.includes(id);
     speichere(an ? [...alle, id] : alle.filter((x) => x !== id));
     zeige(k, an);
+    // Push (Issue #348): angemeldete Geräte gleichen die Merkliste mit dem Server ab
+    void navigator.serviceWorker
+      ?.getRegistration('/')
+      .then((r) => r?.pushManager.getSubscription())
+      .then((sub) => sub && import('./push').then((m) => m.abgleichen(sub)))
+      .catch(() => undefined);
   });
 }

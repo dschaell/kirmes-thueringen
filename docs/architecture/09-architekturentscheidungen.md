@@ -25,3 +25,4 @@ umgeschrieben, sondern über ihren **Status** abgelöst. Die Nummern 010–013 s
 | [021](adr/021-api-datenbankrolle-ohne-ddl-kein-tls-im-internen-docker-netz.md) | API-Datenbankrolle ohne DDL, kein TLS im internen Docker-Netz     | angenommen    |
 | [022](adr/022-rate-limit-in-der-website-statt-caddy-modul.md)                  | Rate-Limit in der Website statt Caddy-Modul                       | angenommen    |
 | [023](adr/023-redaktion-nur-mit-passkey-rollen-und-einladungen.md)             | Redaktion nur mit Passkey, Rollen und Einladungen                 | angenommen    |
+| [024](adr/024-push-mit-web-push-und-vapid.md)                                  | Push-Benachrichtigungen mit Web Push (VAPID) und `web-push`       | angenommen    |
