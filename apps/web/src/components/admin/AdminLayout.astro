@@ -77,11 +77,13 @@ const mehr = kg
     </p>
     <h1>{titel}</h1>
     <nav class="admin-nav" aria-label="Redaktion">
-      {nav.map(([href, label]) => (
-        <a href={href} aria-current={pfad === href ? 'page' : undefined}>
-          {label}
-        </a>
-      ))}
+      <div class="admin-nav-links">
+        {nav.map(([href, label]) => (
+          <a href={href} aria-current={pfad === href ? 'page' : undefined}>
+            {label}
+          </a>
+        ))}
+      </div>
       <details class="mehr-nav">
         <summary>Mehr</summary>
         <div>
@@ -199,6 +201,12 @@ const mehr = kg
     border-bottom: 1px solid var(--linie);
     padding-bottom: 10px;
   }
+  .admin-nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
+  }
   .admin-nav a {
     padding: 6px 10px;
     border-radius: 6px;
@@ -214,24 +222,34 @@ const mehr = kg
     margin-left: auto;
   }
   /*
-   * Am Handy eine Zeile zum Wischen statt Kachelraster (Issue #328) – das Raster belegte die halbe
-   * erste Bildschirmseite. „Mehr“ bleibt rechts fest sichtbar.
+   * Am Handy eine Zeile zum Wischen statt Kachelraster (Issue #328). Nur die Menüpunkte wischen,
+   * „Mehr“ steht daneben und verdeckt nichts (Issue #343).
    */
   @media (max-width: 600px) {
     .admin-nav {
       flex-wrap: nowrap;
+      gap: 8px;
+      position: relative;
+      margin-right: -16px;
+      padding-right: 16px;
+    }
+    .admin-nav-links {
+      flex: 1;
+      min-width: 0;
+      flex-wrap: nowrap;
       overflow-x: auto;
       overscroll-behavior-x: contain;
       scrollbar-width: none;
-      margin: 0 -16px;
-      padding: 0 16px 8px;
       gap: 6px;
-      position: relative;
+      margin-left: -16px;
+      padding: 2px 0 2px 16px;
+      /* rechts weich ausblenden – zeigt, dass es weitergeht */
+      mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
     }
-    .admin-nav::-webkit-scrollbar {
+    .admin-nav-links::-webkit-scrollbar {
       display: none;
     }
-    .admin-nav > a,
+    .admin-nav-links > a,
     .admin-nav .mehr-nav > summary {
       flex: none;
       white-space: nowrap;
@@ -240,20 +258,18 @@ const mehr = kg
       border: 1px solid var(--linie);
       border-radius: 999px;
     }
+    .admin-nav-links > a:last-child {
+      margin-right: 24px;
+    }
     .admin-nav .mehr-nav {
       margin-left: 0;
-      position: sticky;
-      right: 0;
+      position: static;
       flex: none;
-      background: var(--papier);
-      box-shadow: -10px 0 10px -4px var(--papier);
     }
-    /* Aufklappmenü fest unter der Leiste, volle Breite */
+    /* Aufklappmenü volle Breite unter der Leiste */
     .admin-nav .mehr-nav > div {
-      position: fixed;
-      left: 16px;
+      left: 0;
       right: 16px;
-      top: auto;
       min-width: 0;
       max-width: none;
     }
