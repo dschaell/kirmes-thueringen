@@ -14,7 +14,6 @@ API-Routen, Use Cases und Web-Middleware fragen nur dort nach – keine eigenen 
 | Orte anlegen                                                                                           |   ✓   |     ✓     |         –          |
 | Orte bearbeiten (Ortsmitte; Name/Landkreis nur selbst angelegter Orte)                                 |   ✓   |     ✓     |         –          |
 | Mitteilungen                                                                                           |   ✓   |     ✓     |         –          |
-| Bearbeitungslinks                                                                                      |   ✓   |     ✓     |         –          |
 | Import                                                                                                 |   ✓   |     ✓     |         –          |
 | Orte löschen                                                                                           |   ✓   |     –     |         –          |
 | Mitglieder                                                                                             |   ✓   |     –     |         –          |

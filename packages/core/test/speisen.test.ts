@@ -66,8 +66,6 @@ describe('Redaktion.setzeSpeisen', () => {
       {
         setzeSpeisen: async (id, speisen) => (gesetzt.push([id, speisen]), id === 'da'),
       } as Partial<TerminVerwaltung> as TerminVerwaltung,
-      {} as never,
-      { neuesToken: () => 'x' },
     );
     return { r, gesetzt };
   }

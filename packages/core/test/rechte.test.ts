@@ -17,7 +17,6 @@ describe('Rechte zentral (Issue #198)', () => {
     ['orte.anlegen', true, true, false],
     ['orte.bearbeiten', true, true, false],
     ['mitteilungen', true, true, false],
-    ['links', true, true, false],
     ['import', true, true, false],
     ['orte.loeschen', true, false, false],
     ['mitglieder', true, false, false],

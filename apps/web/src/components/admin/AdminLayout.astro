@@ -57,7 +57,6 @@ const mehr = kg
   ? [['/admin/passkeys', 'Mein Konto']]
   : [
       ['/admin/import', 'Termine importieren'],
-      ['/admin/links', 'Bearbeitungslinks'],
       // Zugriffszahlen ohne Tracking (Issue #311) – nur Admins
       ...(darf(Astro.locals, 'statistik') ? [['/admin/zugriffe', 'Zugriffe']] : []),
       ['/admin/passkeys', 'Mein Konto'],

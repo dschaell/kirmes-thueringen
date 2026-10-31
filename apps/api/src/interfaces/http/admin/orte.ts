@@ -1,7 +1,7 @@
-/** Orte und Bearbeitungslinks – aus admin-routen.ts ausgelagert (Issue #199), Verhalten unverändert. */
+/** Orte – aus admin-routen.ts ausgelagert (Issue #199). Bearbeitungslinks entfernt (Issue #355). */
 import type { OrtEingabe, RedaktionsFilter } from '@kirmes/core';
 import { darf } from '@kirmes/core';
-import { problem, sitzungsToken, ungueltig, nichtGefunden, ID, objekt, TEXT } from './gemeinsam.js';
+import { problem, sitzungsToken, ungueltig, nichtGefunden, objekt, TEXT } from './gemeinsam.js';
 import type { FastifyInstance } from 'fastify';
 import type { AdminAbhaengigkeiten } from './gemeinsam.js';
 import type { Kontext } from './kontext.js';
@@ -101,27 +101,4 @@ export function orteRouten(r: FastifyInstance, d: AdminAbhaengigkeiten, k: Konte
       },
     );
   }
-
-  // Bearbeitungslinks
-  r.get('/api/v1/admin/links', () => d.redaktion.listeLinks());
-  r.post<{ Body: { ortSlug: string; bezeichnung: string } }>(
-    '/api/v1/admin/links',
-    {
-      schema: {
-        body: objekt(['ortSlug', 'bezeichnung'], { ortSlug: TEXT(120), bezeichnung: TEXT(300) }),
-      },
-    },
-    async (req, reply) => {
-      const l = await d.redaktion.erstelleLink(req.body.ortSlug, req.body.bezeichnung);
-      return l.ok ? reply.status(201).send(l.value) : ungueltig(reply, l.error);
-    },
-  );
-  r.post<{ Params: { id: string } }>(
-    '/api/v1/admin/links/:id/sperren',
-    { schema: { params: ID } },
-    async (req, reply) =>
-      (await d.redaktion.sperreLink(req.params.id))
-        ? reply.status(204).send()
-        : nichtGefunden(reply),
-  );
 }

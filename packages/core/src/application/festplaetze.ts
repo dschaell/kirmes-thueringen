@@ -3,20 +3,15 @@ import { err, ok, type Result, type Validierungsfehler } from '../domain/result.
 import { istKartenKurzlink, koordinateAusText, nameAusKartenlink } from '../domain/redaktion.js';
 import type { Ort } from '../domain/termin.js';
 
-/** Wer darf bearbeiten? Ergebnis einer erfolgreichen Link-Prüfung – gilt immer nur für einen Ort. */
+/** Wer ändert? Gilt immer nur für einen Ort (Redaktion bzw. Kirmesgesellschaft mit Konto). */
 export interface Berechtigung {
-  /** Bearbeitungslink der Kirmesgesellschaft; null bei Änderungen der Redaktion */
+  /** Früherer Bearbeitungslink (entfernt, Issue #355) – heute immer null */
   readonly linkId: string | null;
   /** gesetzt, wenn die Redaktion (Admin) handelt */
   readonly adminId?: string;
   readonly ortSlug: string;
   readonly landkreis: string;
   readonly bezeichnung: string;
-}
-
-/** Driven Port: prüft einen Bearbeitungslink (Hashing/Speicherung liegt in der Infrastruktur). */
-export interface Bearbeitungslinks {
-  pruefe(token: string): Promise<Berechtigung | null>;
 }
 
 export interface FestplatzUebersicht {
@@ -52,47 +47,6 @@ export interface FestplatzRepository {
   benenneUm(ortSlug: string, alt: string, neu: string, durch: Berechtigung): Promise<Umbenennung>;
   /** Ortsmitte (Ziel der Route ohne eigenen Platz) setzen; false = Ort unbekannt. */
   setzeOrtsmitte(ortSlug: string, k: Koordinate, durch: Berechtigung): Promise<boolean>;
-}
-
-export type Verweigert = { code: 'NICHT_BERECHTIGT' };
-const VERWEIGERT: Verweigert = { code: 'NICHT_BERECHTIGT' };
-
-/**
- * Use Cases der Kirmesgesellschaft. Jede Aktion beginnt mit der Link-Prüfung;
- * ein Link berechtigt ausschließlich für seinen eigenen Ort.
- */
-export class VerwalteFestplaetze {
-  constructor(
-    private readonly links: Bearbeitungslinks,
-    private readonly repo: FestplatzRepository,
-  ) {}
-
-  async uebersicht(
-    token: string,
-  ): Promise<Result<FestplatzUebersicht & { bezeichnung: string }, Verweigert>> {
-    const b = await this.links.pruefe(token);
-    if (!b) return err(VERWEIGERT);
-    const u = await this.repo.uebersicht(b.ortSlug);
-    return u ? ok({ ...u, bezeichnung: b.bezeichnung }) : err(VERWEIGERT);
-  }
-
-  async speichere(
-    token: string,
-    e: { name: string; lat: unknown; lon: unknown },
-  ): Promise<Result<Festplatz, Verweigert | Validierungsfehler[]>> {
-    const b = await this.links.pruefe(token);
-    if (!b) return err(VERWEIGERT);
-    const v = validiereFestplatz(e);
-    if (!v.ok) return v;
-    await this.repo.speichere(b.ortSlug, v.value, b);
-    return ok(v.value);
-  }
-
-  async loesche(token: string, name: string): Promise<Result<boolean, Verweigert>> {
-    const b = await this.links.pruefe(token);
-    if (!b) return err(VERWEIGERT);
-    return ok(await this.repo.loesche(b.ortSlug, name.trim(), b));
-  }
 }
 
 // ── Plätze durch die Redaktion (Issue #62) ─────────────────────────────────────────────

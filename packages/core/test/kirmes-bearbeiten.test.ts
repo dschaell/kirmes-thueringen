@@ -18,8 +18,6 @@ function aufbau(vorhanden = [ID1, ID2]) {
     {} as never,
     async (slug) => (slug === 'alkersleben' ? 'IK' : null),
     termine,
-    {} as never,
-    { neuesToken: () => 'x' },
   );
   return { r, aufrufe };
 }

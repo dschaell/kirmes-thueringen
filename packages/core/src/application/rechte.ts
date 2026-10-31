@@ -20,7 +20,6 @@ export type Aktion =
   | 'orte.bearbeiten'
   | 'orte.loeschen'
   | 'mitteilungen'
-  | 'links'
   | 'import'
   | 'mitglieder'
   | 'sicherungen'
@@ -42,7 +41,6 @@ export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
   'orte.anlegen': MODERATION,
   'orte.bearbeiten': MODERATION,
   mitteilungen: MODERATION,
-  links: MODERATION,
   import: MODERATION,
   'orte.loeschen': NUR_ADMIN,
   mitglieder: NUR_ADMIN,

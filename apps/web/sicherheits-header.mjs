@@ -30,16 +30,6 @@ export const SICHERHEITS_HEADER = {
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
-/**
- * Bearbeitungsseite und Karte: Kacheln und Adresssuche kommen über den eigenen Server (Issue #103),
- * daher dieselbe strenge CSP samt COEP; zusätzlich darf die Seite nach Klick den Standort nutzen.
- */
-export const SICHERHEITS_HEADER_VERWALTUNG = {
-  ...SICHERHEITS_HEADER,
-  'Permissions-Policy': 'geolocation=(self), camera=(), microphone=()',
-  'Cache-Control': 'no-store',
-};
-
 export const SICHERHEITS_HEADER_KARTE = {
   ...SICHERHEITS_HEADER,
   'Permissions-Policy': 'geolocation=(self), camera=(), microphone=()',
@@ -76,16 +66,14 @@ export const SICHERHEITS_HEADER_EINBETTEN = {
 export const headerFuer = (pfad) =>
   pfad.startsWith('/einbetten/')
     ? SICHERHEITS_HEADER_EINBETTEN
-    : pfad.startsWith('/verwalten')
-      ? SICHERHEITS_HEADER_VERWALTUNG
-      : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
-        pfad === '/karte' ||
-          pfad.startsWith('/karte?') ||
-          pfad === '/termine' ||
-          pfad.startsWith('/termine?')
-        ? SICHERHEITS_HEADER_KARTE
-        : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
-            pfad === '/admin/termine' ||
-            pfad.startsWith('/admin/termine?')
-          ? SICHERHEITS_HEADER_GOOGLE_KARTE
-          : SICHERHEITS_HEADER;
+    : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
+      pfad === '/karte' ||
+        pfad.startsWith('/karte?') ||
+        pfad === '/termine' ||
+        pfad.startsWith('/termine?')
+      ? SICHERHEITS_HEADER_KARTE
+      : /^\/termin\/[0-9a-f-]+(\?|$)/.test(pfad) ||
+          pfad === '/admin/termine' ||
+          pfad.startsWith('/admin/termine?')
+        ? SICHERHEITS_HEADER_GOOGLE_KARTE
+        : SICHERHEITS_HEADER;

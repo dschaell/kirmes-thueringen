@@ -6,7 +6,7 @@
 const BOT =
   /bot|crawl|spider|slurp|preview|fetch|monitor|uptime|curl|wget|python|headless|lighthouse|facebookexternalhit|whatsapp|telegram|zap/i;
 const NICHT =
-  /^\/(admin|verwalten|api|_astro|fonts|kacheln)(\/|$)|\.(css|js|mjs|map|png|jpe?g|webp|avif|svg|ico|woff2?|txt|webmanifest|xml|json|ics|csv)$/i;
+  /^\/(admin|api|_astro|fonts|kacheln)(\/|$)|\.(css|js|mjs|map|png|jpe?g|webp|avif|svg|ico|woff2?|txt|webmanifest|xml|json|ics|csv)$/i;
 const MAX = 2000;
 
 /** Zählbarer Pfad ohne Abfrage und Fragment, sonst null */

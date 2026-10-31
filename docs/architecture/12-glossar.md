@@ -15,7 +15,7 @@
 | **Composition Root**        | Einziger Ort, an dem konkrete Implementierungen verdrahtet werden (`apps/api/src/main.ts`).                                          |
 | **Problem Details**         | Standardisiertes Fehlerformat für HTTP-APIs (RFC 9457).                                                                              |
 | **SAST / SCA / DAST**       | Statische Code-Analyse / Analyse von Drittbibliotheken / dynamischer Test der laufenden Anwendung.                                   |
-| **Bearbeitungslink**        | Persönlicher Link einer Kirmesgesellschaft, berechtigt zum Pflegen von Terminen und Festplätzen des eigenen Ortes.                   |
+| **Bearbeitungslink**        | Früherer Link einer Kirmesgesellschaft zum Pflegen ohne Konto – entfernt (Issue #355), ersetzt durch Konten mit Passkey.             |
 | **Recherche-Tabelle**       | CSV-Datei der Redaktion mit Terminen und Quellen, eingespielt per `npm run termine:import`.                                          |
 | **Passkey**                 | Anmeldeschlüssel nach WebAuthn (Face ID, Touch ID, Windows Hello, Sicherheitsschlüssel); an die Domain gebunden, phishing-resistent. |
 | **Erziehungsbeauftragung**  | „Muttizettel“ nach § 1 Abs. 1 Nr. 4 JuSchG; Vorlage zum Drucken am Termin.                                                           |

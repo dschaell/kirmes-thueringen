@@ -6,13 +6,6 @@ const RISIKO = ['Informational', 'Low', 'Medium', 'High'];
 // Gezielte, begründete Ausnahmen – nur für genau diese Regel an genau diesen Adressen.
 const AUSNAHMEN = [
   {
-    plugin: '10202', // Absence of Anti-CSRF Tokens
-    url: /\/verwalten$/,
-    grund:
-      'Formulare auf /verwalten senden per fetch mit dem Bearbeitungslink im Authorization-Header ' +
-      '(Bearer) – den setzt keine fremde Seite, CSRF ist ausgeschlossen (gefunden über robots.txt, #182)',
-  },
-  {
     plugin: '10055', // CSP: Failure to Define Directive with No Fallback
     url: /\/einbetten\/[a-z0-9-]+$/,
     grund:

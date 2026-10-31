@@ -14,7 +14,6 @@ import {
 } from '@kirmes/core';
 import { adminRouten } from './admin-routen.js';
 import { liste, problem, terminDto } from './antworten.js';
-import { verwaltungRouten } from './verwaltung-routen.js';
 import type { AppAbhaengigkeiten } from './abhaengigkeiten.js';
 import Fastify, { type FastifyError } from 'fastify';
 
@@ -322,8 +321,6 @@ export async function baueApp(d: AppAbhaengigkeiten) {
       return ort;
     },
   );
-
-  verwaltungRouten(app, d);
 
   // Zugriffszahlen (Issue #311): Summen der Website, nur aus dem internen Netz (Docker/localhost)
   if (d.zugriffe) {
