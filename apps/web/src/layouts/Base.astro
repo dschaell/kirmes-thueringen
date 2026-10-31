@@ -1,9 +1,6 @@
 ---
-import '../styles/schriften.css';
 import '../styles/global.css';
 // Schriften vorladen: kein Springen des Layouts beim Nachladen (Issue #123)
-import bitterUrl from '@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2?url';
-import sourceSansUrl from '@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2?url';
 import Icon from '../components/Icon.astro';
 import { ohneSchraegstrich, UNTERSTUETZEN_URL } from '../lib/anzeige';
 
@@ -54,14 +51,14 @@ const mehr = [
 const aktiv = (href: string) => (href === '/' ? pfad === '/' : pfad.startsWith(href));
 /** JSON sicher in <script> einbetten: „<“ maskieren, damit kein Titel das Script-Tag beenden kann. */
 const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
+import SchriftSchalter from '../components/SchriftSchalter.astro';
 ---
 
 <!doctype html>
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <link rel="preload" href={bitterUrl} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={sourceSansUrl} as="font" type="font/woff2" crossorigin />
+    <script is:inline src="/schrift.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -145,6 +142,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
                 {label}
               </a>
             ))}
+            <SchriftSchalter id="schrift-leiste" />
           </div>
         </details>
       </nav>
@@ -218,6 +216,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
             </li>
           </ul>
         </div>
+        <SchriftSchalter id="schrift-fuss" />
         <div class="recht">
           <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
           <span>
@@ -230,6 +229,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
     </footer>
     <script>
       import '../scripts/formularfelder';
+      import '../scripts/schrift';
       import '../scripts/ungespeichert';
       import '../scripts/entwuerfe';
 

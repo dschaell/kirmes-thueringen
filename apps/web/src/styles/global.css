@@ -11,8 +11,15 @@
   --grau: #675e54;
   --linie: #e4dacb;
   --fokus: #1d5fd1;
-  --kopf: 'Bitter Variable', Georgia, serif;
-  --text: 'Source Sans 3 Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Rahmen von Bedienelementen: ≥ 3:1 zum Hintergrund (WCAG 1.4.11, Issue #347) */
+  --rand: #877b6c;
+  /* Gold als Schrift: ≥ 4,5:1 (Issue #347) */
+  --gold-text: #8a5d00;
+  /* Arial: auf allen Geräten vorhanden, gut lesbar, keine Webfonts (Issue #347) */
+  --kopf: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --text: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  /* Grundgröße; auf Apple-Geräten folgt sie der Systemschriftgröße (siehe unten) */
+  --grund: 1.0625rem;
   --breite: 1040px;
   --r: 10px;
   color-scheme: light;
@@ -30,6 +37,8 @@
     --grau: #a99f92;
     --linie: #383028;
     --fokus: #8ab4ff;
+    --rand: #7a6f62;
+    --gold-text: #e0ad4a;
     color-scheme: dark;
   }
 }
@@ -46,11 +55,27 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* iPhone/iPad: Grundschrift folgt „Dynamische Schrift“ in den Einstellungen (Issue #347) */
+@supports (font: -apple-system-body) {
+  html {
+    font: -apple-system-body;
+  }
+  :root {
+    --grund: 1rem;
+  }
+}
+/* Schalter „Schrift größer“ (Issue #347) */
+html[data-schrift='gross'] {
+  font-size: 112.5%;
+}
+html[data-schrift='sehr-gross'] {
+  font-size: 130%;
+}
 body {
   margin: 0;
   background: var(--papier);
   color: var(--tinte);
-  font: 400 1.0625rem/1.55 var(--text);
+  font: 400 var(--grund) / 1.55 var(--text);
   font-feature-settings: 'kern', 'liga';
 }
 h1,
@@ -386,7 +411,7 @@ textarea {
   font: inherit;
   color: var(--tinte);
   background: var(--flaeche);
-  border: 1px solid var(--linie);
+  border: 1px solid var(--rand);
   border-radius: var(--r);
   padding: 11px 14px;
   min-width: 0;
@@ -436,7 +461,7 @@ select {
   width: 100%;
   min-height: 52px;
   padding: 11px 14px;
-  border: 1px solid var(--linie);
+  border: 1px solid var(--rand);
   border-radius: var(--r);
   background: var(--flaeche);
   color: var(--tinte);
@@ -654,7 +679,7 @@ textarea:focus {
 .knopf.zweit {
   background: transparent;
   color: var(--tinte);
-  border-color: var(--linie);
+  border-color: var(--rand);
 }
 .knopf.zweit:hover {
   background: var(--flaeche);
@@ -718,7 +743,7 @@ legend {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--linie);
+  border: 1px solid var(--rand);
   background: var(--flaeche);
   border-radius: 999px;
   padding: 5px 12px;
@@ -760,7 +785,7 @@ legend {
   font-size: 1.25rem;
 }
 .tag-kopf .relativ {
-  font: 600 0.8rem/1 var(--text);
+  font: 600 0.875rem/1 var(--text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   /* Hintergrundfarbe als Schrift: im hellen wie im dunklen Modus ≥ 6:1 (Issue #123) */
@@ -886,7 +911,7 @@ legend {
 }
 .merken[aria-pressed='true'],
 .eintrag .merken[aria-pressed='true'] {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 .merken[aria-pressed='true'] .icon path {
   fill: currentColor;
@@ -899,7 +924,7 @@ legend {
 }
 .mutti {
   display: inline-block;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--grau);
   margin-left: 6px;
 }
@@ -966,7 +991,7 @@ ul.bands li + li::before {
 }
 .kat {
   display: inline-block;
-  font: 600 0.82rem/1.1 var(--text);
+  font: 600 0.875rem/1.1 var(--text);
   color: var(--grau);
   border: 1px solid var(--linie);
   border-radius: 4px;
@@ -1169,7 +1194,7 @@ ul.bands li + li::before {
 }
 .ortliste .kz {
   color: var(--grau);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   margin-left: 4px;
 }
 .buchstabe {
@@ -1424,10 +1449,13 @@ form.melden label > input[type='checkbox'] {
   padding: 0;
 }
 .fuss li {
-  margin: 6px 0;
+  margin: 4px 0;
 }
 .fuss a {
   color: var(--tinte);
+  /* Zielgröße ≥ 24 px (WCAG 2.5.8) */
+  display: inline-block;
+  padding: 4px 0;
 }
 .fuss .recht {
   grid-column: 1 / -1;
@@ -1720,4 +1748,40 @@ input[aria-invalid='true'],
   padding: 12px;
   border: 1px solid var(--linie);
   border-radius: var(--r);
+}
+/* Schalter „Schrift größer“ (Issue #347) */
+.schrift-schalter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0;
+}
+.schrift-schalter span {
+  font-weight: 600;
+  margin-right: 4px;
+}
+.schrift-schalter button {
+  min-width: 44px;
+  min-height: 44px;
+  font: 700 1rem/1 var(--text);
+  color: var(--tinte);
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.schrift-schalter button[data-schrift='gross'] {
+  font-size: 1.15rem;
+}
+.schrift-schalter button[data-schrift='sehr-gross'] {
+  font-size: 1.3rem;
+}
+.schrift-schalter button[aria-pressed='true'] {
+  background: var(--tinte);
+  color: var(--papier);
+  border-color: var(--tinte);
+}
+.fuss .schrift-schalter {
+  grid-column: 1 / -1;
 }

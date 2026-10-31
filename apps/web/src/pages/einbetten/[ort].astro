@@ -61,7 +61,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
     --leise: #6b6155;
     --rot: #a4161a;
     --linie: #e6dccd;
-    --grund: transparent;
+    /* Eigener Hintergrund: die einbettende Seite kennt unser Farbschema nicht (Issue #347) */
+    --grund: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -69,6 +70,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
       --leise: #b9ad9d;
       --rot: #e8685c;
       --linie: #3a332b;
+      --grund: #1f1b17;
     }
   }
   body {
@@ -76,9 +78,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
     background: var(--grund);
     color: var(--text);
     font:
-      16px/1.4 system-ui,
-      -apple-system,
-      'Segoe UI',
+      16px/1.4 Arial,
+      'Helvetica Neue',
+      Helvetica,
       sans-serif;
   }
   main {
