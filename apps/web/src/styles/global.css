@@ -1567,6 +1567,27 @@ dialog.mitteilung h2 {
   cursor: pointer;
   font-weight: 600;
 }
+/* Zweite Zeile im Vorschlag, z. B. „3 Termine“ (Issue #370) */
+.ortssuche-liste li:has(.zusatz) {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-block: 6px;
+}
+.ortssuche-liste .zusatz {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--grau);
+}
+/* Suchzeile: Feld nimmt den Platz neben dem Knopf, die Liste die ganze Zeilenbreite */
+.suchzeile {
+  position: relative;
+}
+.suchzeile .ortssuche {
+  position: static;
+  flex: 1;
+  min-width: 0;
+}
 .ortssuche-liste li:hover,
 .ortssuche-liste li[aria-selected='true'] {
   background: var(--flaeche);
@@ -1822,6 +1843,10 @@ input[aria-invalid='true'],
   /* Text unter der Überschrift bleibt immer über den Bändern lesbar */
   position: relative;
   z-index: 2;
+}
+/* Vorschlagsliste der Suche liegt über den Kacheln darunter (Issue #370) */
+.mit-ornament ~ .suchzeile {
+  z-index: 3;
 }
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) {
