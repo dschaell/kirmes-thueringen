@@ -295,6 +295,10 @@ a:hover {
 /* Kompakter Kopf (Redaktion) am Handy mit Abstand oben – sonst sitzt das Logo im
    Unschärfestreifen unter der iOS-Statusleiste (Issue #269) */
 @media (max-width: 760px) {
+  /* Am Handy steht „Redaktion verlassen“ unter Mehr – nicht doppelt im Kopf (Issue #387) */
+  .kopf.kompakt .nav-kompakt {
+    display: none;
+  }
   .kopf.kompakt .wrap {
     padding-top: 10px;
     padding-bottom: 4px;
