@@ -304,7 +304,8 @@ a:hover {
  * durchscheint; der Kopf rückt etwas tiefer, damit das Logo nicht im Übergang liegt.
  */
 @media (display-mode: standalone) {
-  body::before {
+  /* ::after, weil ::before das Hintergrundbild der Designs trägt (Issue #360) */
+  body::after {
     content: '';
     position: fixed;
     inset: 0 0 auto;
@@ -1776,11 +1777,12 @@ input[aria-invalid='true'],
   position: relative;
   display: inline-block;
   isolation: isolate;
-  padding-right: 0.15em;
+  /* Baum steht neben dem Wort und verdeckt keinen Buchstaben (Issue #360) */
+  padding-right: 2.35em;
 }
 .ornament {
   position: absolute;
-  right: -1.15em;
+  right: -0.1em;
   top: -0.42em;
   width: 2.5em;
   pointer-events: none;
@@ -1798,8 +1800,7 @@ input[aria-invalid='true'],
   filter: drop-shadow(0 0.04em 0.05em rgb(0 0 0 / 0.28));
 }
 .mit-ornament {
-  /* Platz für den Baum rechts und für die Bänder darunter, ohne seitliches Scrollen */
-  padding-right: 1.1em;
+  /* Platz für die Bänder darunter, ohne seitliches Scrollen */
   margin-bottom: 0.85em;
 }
 .mit-ornament ~ * {
