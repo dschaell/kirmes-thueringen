@@ -41,7 +41,6 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
 const jahr = h.slice(0, 4);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
-import Ornament from '../components/Ornament.astro';
 ---
 
 <Base
@@ -65,13 +64,7 @@ import Ornament from '../components/Ornament.astro';
   ]}
 >
   <section class="einstieg">
-    <h1 class="mit-ornament">
-      Kirmes in{' '}
-      <span class="mit-baum">
-        Thüringen
-        <Ornament />
-      </span>
-    </h1>
+    <h1>Kirmes in Thüringen</h1>
     <p class="unterzeile">
       Wann ist wo Kirmes? Die Termine der Kirmesgesellschaften aus ganz Thüringen – vom Kirmestanz
       bis zur Kirmesbeerdigung.
