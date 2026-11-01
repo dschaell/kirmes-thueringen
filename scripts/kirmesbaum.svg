@@ -1,13 +1,5 @@
----
-/**
- * Kirmesbaum mit Tiefenwirkung (Issue #349), angelehnt an die iPhone-Hintergründe: zwei Ebenen
- * (hinten/vorn), die beim Scrollen verschieden wandern. Steht neben dem Wort (Issue #360).
- * Gehört in ein <span class="mit-baum"> in der Überschrift. Rein dekorativ, ohne Klickfläche.
- */
----
-
-<span class="ornament ornament-hinten" aria-hidden="true">
-  <svg viewBox="0 0 300 310" focusable="false">
+<!-- Kirmesbaum fürs Vorschaubild (og.png), Issue #349/#376 – hintere und vordere Ebene -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 310">
     <defs>
       <radialGradient id="ornament-schein">
         <stop offset="0" stop-color="#e0ad4a" stop-opacity=".4" />
@@ -80,10 +72,7 @@
     <circle cx="242.3" cy="131.3" r="6" fill="#3f8a54" />
     <circle cx="256.3" cy="137.0" r="4" fill="#3f8a54" />
     <circle cx="265.0" cy="143.3" r="6" fill="#3f8a54" />
-  </svg>
-</span>
-<span class="ornament ornament-vorn" aria-hidden="true">
-  <svg viewBox="0 0 300 310" focusable="false">
+  
     <path
       d="M267.0 153.9C259.0 187.1 275.0 215.6 262.2 248.9"
       stroke="#a4161a"
@@ -148,4 +137,3 @@
     <circle cx="35.0" cy="156.7" r="6" fill="#3f8a54" />
     <circle cx="32.0" cy="150.0" r="4" fill="#3f8a54" />
   </svg>
-</span>

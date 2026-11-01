@@ -22,14 +22,9 @@ const wimpel = Array.from({ length: 10 }, (_, i) => {
     <path d="M3 3.2 L15 3.9 L9 17z" fill="#a4161a"/><path d="M21 4.1 L33 3.1 L27 18z" fill="#ffffff"/>
     <path d="M39 3.1 L51 4.1 L45 18z" fill="#d9a12b"/><path d="M57 3.9 L69 3.2 L63 17z" fill="#ffffff"/></g>`;
 }).join('');
-// Kirmesbaum wie auf der Startseite (Issue #349): beide Ebenen aus Ornament.astro übereinander
-const ornament = readFileSync(
-  new URL('../apps/web/src/components/Ornament.astro', import.meta.url),
-  'utf8',
-);
-const ebenen = [...ornament.matchAll(/<svg viewBox="0 0 300 310"[^>]*>([\s\S]*?)<\/svg>/g)].map(
-  (m) => m[1],
-);
+// Kirmesbaum (Issue #349/#376) aus der SVG-Vorlage neben diesem Skript
+const baum = readFileSync(new URL('kirmesbaum.svg', import.meta.url), 'utf8');
+const ebenen = [/<svg[^>]*>([\s\S]*)<\/svg>/.exec(baum)?.[1] ?? ''];
 // Arial wie die Website (Issue #368)
 const SCHRIFT = 'Arial, Helvetica, sans-serif';
 const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
