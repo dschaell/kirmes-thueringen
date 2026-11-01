@@ -136,7 +136,7 @@ if (Astro.request.method === 'POST' && ort) {
     const werte = (n: string) => f.getAll(n).map((v) => (typeof v === 'string' ? v.trim() : ''));
     // Checkboxen senden nur angehakte Werte – jede trägt ihre Zeilennummer
     const angehakt = (n: string) => new Set(werte(n));
-    const [ids, datum, beginn, titel, kat, band, vo, info] = [
+    const [ids, datum, beginn, titel, kat, band, vo, info, pfarrer, eintritt, veranstalter] = [
       's-id',
       's-datum',
       's-beginn',
@@ -145,6 +145,9 @@ if (Astro.request.method === 'POST' && ort) {
       's-band',
       's-vo',
       's-info',
+      's-pfarrer',
+      's-eintritt',
+      's-veranstalter',
     ].map(werte);
     const [mutti, best, weg] = ['s-mutti', 's-best', 's-loeschen'].map(angehakt);
     const zeilenSammel = ids!.map((id, i) => ({
@@ -154,7 +157,12 @@ if (Astro.request.method === 'POST' && ort) {
       beginn: beginn![i] || null,
       titel: titel![i] ?? '',
       kategorie: istKategorie(kat![i] ?? '') ? kat![i] : null,
+      // Endzeit nur mit Haken (wie Endzeit.astro); Felder hier immer mitgeschickt (Issue #378)
+      ende: (beginn![i] && f.get(`mitende-s${i}`) === 'ja' && feld(f, `ende-s${i}`)) || null,
       band: band![i] || null,
+      pfarrer: pfarrer![i] ?? '',
+      eintritt: eintritt![i] ?? '',
+      veranstalter: veranstalter![i] ?? '',
       veranstaltungsort: vo![i] || null,
       info: info![i] || null,
       muttizettel: mutti!.has(String(i)),

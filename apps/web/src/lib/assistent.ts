@@ -4,7 +4,8 @@ import type { Vorschlag } from '@kirmes/core';
 import { koordinateAusText, nurEigenerOrt, parseDatum, type Rolle } from '@kirmes/core';
 import { findeOrtEindeutig } from './ortssuche';
 import { nachAktion } from './terminliste';
-import { adminApi, feld } from './admin';
+import { adminApi, adminPlakat, feld } from './admin';
+import { lesePlakate } from './assistent/plakate';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
 import { ApiNichtErreichbar, alleTermine, listeOrte, sucheTermine } from './api';
@@ -154,8 +155,11 @@ export async function assistent(
       return new Response('Ungültige Formularherkunft.', { status: 403 });
     }
   }
-  if (Number(ctx.request.headers.get('content-length') ?? 0) > 256_000)
-    return new Response('Formular zu groß.', { status: 413 });
+  // Redaktion: Plakate im Formular (Issue #353), sonst nur Text
+  if (Number(ctx.request.headers.get('content-length') ?? 0) > (redaktion ? 64_000_000 : 256_000))
+    return new Response('Formular zu groß – bitte weniger oder kleinere Bilder wählen.', {
+      status: 413,
+    });
   const f = await ctx.request.formData();
   // Die Admin-Middleware schützt sämtliche Admin-POSTs; öffentlich eigener CSRF-Cookie.
   if (!redaktion && !csrfGueltig(ctx.cookies.get(FORMULAR_COOKIE)?.value, f.get(CSRF_FELD))) {
@@ -270,6 +274,13 @@ export async function assistent(
       s.schritt = 2;
       return s;
     }
+    // Plakate nur beim Neuanlegen in der Redaktion (Issue #353)
+    const plakate = redaktion && !s.vorschlag ? lesePlakate(f, s.zeilen) : null;
+    if (plakate?.fehler.length) {
+      s.fehler.push(...plakate.fehler);
+      ctx.response.status = 400;
+      return s;
+    }
     // Doppelungen prüfen (Issue #178) – nur Redaktion, bis ausdrücklich bestätigt
     if (redaktion && !f.has('doppeltOk')) {
       const aktive = s.zeilen.filter((z) => z.aktiv);
@@ -347,12 +358,24 @@ export async function assistent(
         if (s.vorschlag) return ctx.redirect('/admin/vorschlaege?gespeichert=1', 303);
         // Liste genau auf diese Kirmes filtern – auch wenn sie schon vorbei ist (Issue #90)
         const ids = (r.daten as { termine?: { id: string }[] } | null)?.termine?.map((t) => t.id);
+        // Termine kommen in der Reihenfolge der aktiven Zeilen zurück
+        const bilder = plakate?.je.filter((_, i) => s.zeilen[i]?.aktiv) ?? [];
+        let plakatOk = 0;
+        let plakatFehler = 0;
+        for (const [k, id] of (ids ?? []).entries()) {
+          const bild = bilder[k];
+          if (!bild) continue;
+          if ((await adminPlakat(ctx.cookies, id, bild)).status < 300) plakatOk++;
+          else plakatFehler++;
+        }
         const erster = zeilen.map((z) => z.datum).sort()[0] ?? '';
         return ctx.redirect(
           nachAktion(null, 'gespeichert', ids ?? [], {
             ort: s.ortSlug,
             von: erster,
             zeitraum: 'alle',
+            ...(plakatOk > 0 && { plakate: String(plakatOk) }),
+            ...(plakatFehler > 0 && { plakatfehler: String(plakatFehler) }),
           }),
           303,
         );

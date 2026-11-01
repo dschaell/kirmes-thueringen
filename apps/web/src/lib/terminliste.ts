@@ -65,7 +65,9 @@ export function listenMeldung(p: URLSearchParams, ortName?: string): string | nu
   const wo = ortName ? ` für ${ortName}` : '';
   if (p.has('gespeichert')) {
     const n = zahl('gespeichert');
-    return n === 1 ? `Termin${wo} gespeichert.` : `${n} Termine${wo} gespeichert.`;
+    return (
+      (n === 1 ? `Termin${wo} gespeichert.` : `${n} Termine${wo} gespeichert.`) + plakatText(p)
+    );
   }
   if (p.has('bestaetigt')) {
     const n = zahl('bestaetigt');
@@ -73,6 +75,22 @@ export function listenMeldung(p: URLSearchParams, ortName?: string): string | nu
   }
   if (p.has('geloescht')) return 'Termin gelöscht.';
   return null;
+}
+
+/** Plakate aus dem Kirmes-Assistenten (Issue #353) */
+function plakatText(p: URLSearchParams): string {
+  const n = (k: string) => {
+    const z = Number(p.get(k));
+    return Number.isInteger(z) && z > 0 ? Math.min(z, 100) : 0;
+  };
+  const ok = n('plakate');
+  const weg = n('plakatfehler');
+  return (
+    (ok ? ` Plakat / Flyer bei ${ok === 1 ? 'einem Termin' : `${ok} Terminen`} gespeichert.` : '') +
+    (weg
+      ? ` ${weg === 1 ? 'Ein Plakat konnte' : `${weg} Plakate konnten`} nicht gespeichert werden – bitte beim Termin erneut hochladen.`
+      : '')
+  );
 }
 
 /** Termine einer Kirmes: gleicher Ort, höchstens `tage` Tage nach dem ersten Termin (Issue #91). */
