@@ -349,8 +349,7 @@ a:hover {
     box-shadow: 0 -4px 16px rgb(0 0 0 / 0.06);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .leiste > a,
-  .leiste-mehr > summary {
+  .leiste > a {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -361,59 +360,22 @@ a:hover {
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 600;
-    cursor: pointer;
-    list-style: none;
   }
-  .leiste-mehr > summary::-webkit-details-marker {
-    display: none;
-  }
-  .leiste > a[aria-current],
-  .leiste-mehr:has([aria-current]) > summary,
-  .leiste-mehr[open] > summary {
+  .leiste > a[aria-current] {
     color: var(--rot);
-  }
-  .leiste-menue {
-    position: absolute;
-    right: 8px;
-    bottom: calc(100% + 8px);
-    display: grid;
-    /* Schrift- und Design-Auswahl passen auch auf kleine Handys (Issue #356) */
-    max-height: min(70vh, 560px);
-    max-width: calc(100vw - 16px);
-    overflow-y: auto;
-    min-width: 220px;
-    padding: 6px;
-    background: var(--papier);
-    border: 1px solid var(--linie);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
-  }
-  .leiste-menue a {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 12px;
-    border-radius: 8px;
-    color: var(--tinte);
-    text-decoration: none;
-    font-weight: 550;
-  }
-  .leiste-menue a[aria-current] {
-    color: var(--rot);
-  }
-  .leiste-menue a:hover {
-    background: var(--flaeche);
   }
 }
 @media (max-width: 760px) {
+  /* Am Handy steht das alles unter „Mehr“ (Issue #374) – der Fuß wiederholt es nicht */
+  body:has(.leiste) .fuss .wrap > div:has(> ul),
+  body:has(.leiste) .fuss .schrift-schalter,
+  body:has(.leiste) .fuss .design-schalter {
+    display: none;
+  }
   /* Beim Tippen verdeckt die Leiste sonst Inhalt über der Tastatur (Issue #363) */
   body:has(:is(input:not([type='checkbox'], [type='radio'], [type='file']), textarea):focus)
     .leiste {
     display: none;
-  }
-  /* Letzte Reihe nicht bündig am Rand – man sieht, dass es weitergeht */
-  .leiste-menue {
-    padding-bottom: 16px;
   }
   /* Mitteilung über der Leiste, nicht dahinter */
   body:has(.leiste) dialog.mitteilung {
