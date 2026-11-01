@@ -256,6 +256,18 @@ a:hover {
   margin: 0 0 0 auto;
   padding: 0;
 }
+/* „Redaktion verlassen“ (Issue #385) darf auf kleinen Handys zweizeilig werden statt überzustehen */
+.kopf.kompakt .nav {
+  min-width: 0;
+}
+.kopf.kompakt .nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  white-space: normal;
+  text-align: right;
+  line-height: 1.15;
+}
 .wimpel {
   height: 22px;
   background: url('/wimpel.svg') repeat-x 0 0 / 72px 22px;
