@@ -2,14 +2,19 @@
 import { darf, nurEigenerOrt } from '@kirmes/core';
 import { adminApi } from '../../lib/admin';
 import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
 import CsrfFeld from './CsrfFeld.astro';
 
 interface Props {
   titel: string;
   meldung?: string | null;
   fehler?: string[];
+  /** Mehr-Seite der Redaktion am Handy (Issue #383): alle Ziele statt Seiteninhalt */
+  mehrSeite?: boolean;
 }
-const { titel, meldung = null, fehler = [] } = Astro.props;
+const { titel, meldung = null, fehler = [], mehrSeite = false } = Astro.props;
+type IconName = Parameters<typeof Icon>[0]['name'];
+type Ziel = [href: string, label: string, icon: IconName];
 const pfad = Astro.url.pathname;
 const [vorschlaege, korrekturen, anfragen] = Astro.locals.adminId
   ? await Promise.all([
@@ -31,39 +36,61 @@ const offen =
     : null;
 // Kirmesgesellschaft: nur ihr Ort (Issue #180)
 const kg = nurEigenerOrt(Astro.locals);
-const nav = kg
+const nav: Ziel[] = kg
   ? [
-      ['/admin', 'Termine'],
-      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
-      [`/admin/orte/${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
+      ['/admin', 'Termine', 'kalender'],
+      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`, 'glocke'],
+      [`/admin/orte/${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`, 'ort'],
       // Beiträge mit Fotos (Issue #352)
-      ['/admin/beitraege', 'Beiträge & Fotos'],
-      ['/admin/unsere-leute', 'Eure Leute'],
+      ['/admin/beitraege', 'Beiträge & Fotos', 'foto'],
+      ['/admin/unsere-leute', 'Eure Leute', 'stern'],
     ]
   : [
-      ['/admin', 'Termine'],
-      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
-      ['/admin/orte', 'Orte & Plätze'],
-      ['/admin/beitraege', 'Beiträge & Fotos'],
+      ['/admin', 'Termine', 'kalender'],
+      ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`, 'glocke'],
+      ['/admin/orte', 'Orte & Plätze', 'ort'],
+      ['/admin/beitraege', 'Beiträge & Fotos', 'foto'],
       // Wochenbild zum Posten (Issue #335)
-      ['/admin/social-media', 'Social Media'],
+      ['/admin/social-media', 'Social Media', 'teilen'],
       // Aus „Mehr“ geholt, damit die angezeigte Mitteilung leicht zu finden ist (Issue #261)
-      ...(darf(Astro.locals, 'mitteilungen') ? [['/admin/mitteilungen', 'Mitteilungen']] : []),
+      ...(darf(Astro.locals, 'mitteilungen')
+        ? ([['/admin/mitteilungen', 'Mitteilungen', 'info']] satisfies Ziel[])
+        : []),
       ...(darf(Astro.locals, 'mitglieder')
-        ? [
-            ['/admin/anfragen', offeneAnfragen ? `Anfragen (${offeneAnfragen})` : 'Anfragen'],
-            ['/admin/mitglieder', 'Redaktion & Einladungen'],
-          ]
+        ? ([
+            [
+              '/admin/anfragen',
+              offeneAnfragen ? `Anfragen (${offeneAnfragen})` : 'Anfragen',
+              'dokument',
+            ],
+            ['/admin/mitglieder', 'Redaktion & Einladungen', 'stern'],
+          ] satisfies Ziel[])
         : []),
     ];
-const mehr = kg
-  ? [['/admin/passkeys', 'Mein Konto']]
+const mehr: Ziel[] = kg
+  ? [['/admin/passkeys', 'Mein Konto', 'haken']]
   : [
-      ['/admin/import', 'Termine importieren'],
+      ['/admin/import', 'Termine importieren', 'dokument'],
       // Zugriffszahlen ohne Tracking (Issue #311) – nur Admins
-      ...(darf(Astro.locals, 'statistik') ? [['/admin/zugriffe', 'Zugriffe']] : []),
-      ['/admin/passkeys', 'Mein Konto'],
+      ...(darf(Astro.locals, 'statistik')
+        ? ([['/admin/zugriffe', 'Zugriffe', 'filter']] satisfies Ziel[])
+        : []),
+      ['/admin/passkeys', 'Mein Konto', 'haken'],
     ];
+// Leiste unten am Handy (Issue #383): die häufigsten Ziele, der Rest unter „Mehr“
+const unten: Ziel[] = [
+  ['/admin', 'Termine', 'kalender'],
+  ['/admin/kirmes-eintragen', 'Eintragen', 'stift'],
+  ['/admin/vorschlaege', 'Vorschläge', 'glocke'],
+];
+const untenAktiv = (href: string) =>
+  href === '/admin' ? pfad === '/admin' || pfad.startsWith('/admin/termine') : pfad === href;
+const mehrAktiv = !unten.some(([href]) => untenAktiv(href));
+// Ohne „Termine“ und „Vorschläge“ – die liegen in der Leiste
+const mehrZiele = [
+  ...nav.filter(([href]) => href !== '/admin' && href !== '/admin/vorschlaege'),
+  ...mehr,
+];
 ---
 
 <Base title={`${titel} – Redaktion`} description="Redaktionsbereich" noindex kompakt>
@@ -114,7 +141,67 @@ const mehr = kg
       {fehler.join(' ')}
     </p>
   )}
-  <slot />
+  {mehrSeite ? (
+    <>
+      <section class="mehr-gruppe" aria-labelledby="admin-mehr-bereiche">
+        <h2 id="admin-mehr-bereiche">Bereiche</h2>
+        <ul>
+          {mehrZiele.map(([href, label, icon]) => (
+            <li>
+              <a href={href}>
+                <span class="mehr-icon" aria-hidden="true">
+                  <Icon name={icon} groesse={20} />
+                </span>
+                <span class="mehr-text">{label}</span>
+                <Icon name="pfeil" groesse={18} />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section class="mehr-gruppe" aria-labelledby="admin-mehr-website">
+        <h2 id="admin-mehr-website">Website</h2>
+        <ul>
+          <li>
+            <a href="/">
+              <span class="mehr-icon" aria-hidden="true">
+                <Icon name="karte" groesse={20} />
+              </span>
+              <span class="mehr-text">Zur Website</span>
+              <Icon name="pfeil" groesse={18} />
+            </a>
+          </li>
+        </ul>
+      </section>
+      <form class="admin-mehr-abmelden" method="post" action="/admin/abmelden">
+        <CsrfFeld />
+        <button class="knopf zweit" type="submit">
+          Abmelden
+        </button>
+      </form>
+    </>
+  ) : (
+    <slot />
+  )}
+  <nav slot="leiste" class="leiste admin-leiste" aria-label="Redaktion – Schnellnavigation">
+    {unten.map(([href, label, icon]) => (
+      <a href={href} aria-current={untenAktiv(href) ? 'page' : undefined}>
+        <span class="leiste-icon">
+          <Icon name={icon} groesse={22} />
+          {href === '/admin/vorschlaege' && offen ? (
+            <span class="leiste-zahl" aria-label={`${offen} offen`}>
+              {offen > 99 ? '99+' : offen}
+            </span>
+          ) : null}
+        </span>
+        {label}
+      </a>
+    ))}
+    <a href="/admin/mehr" aria-current={mehrAktiv ? 'page' : undefined}>
+      <Icon name="menue" groesse={22} />
+      Mehr
+    </a>
+  </nav>
 </Base>
 
 <script>
@@ -123,6 +210,32 @@ const mehr = kg
 </script>
 
 <style is:global>
+  .leiste-icon {
+    position: relative;
+    display: inline-flex;
+  }
+  .leiste-zahl {
+    position: absolute;
+    top: -6px;
+    left: 14px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--rot);
+    color: #fff;
+    font-size: 0.7rem;
+    line-height: 18px;
+    text-align: center;
+  }
+  .admin-mehr-abmelden {
+    margin: 24px 0 8px;
+  }
+  .admin-mehr-abmelden .knopf {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
   /* „Mehr“ als Aufklapp-Menü rechts (Issue #161) */
   .mehr-nav {
     margin-left: auto;
@@ -439,6 +552,12 @@ const mehr = kg
   @media (max-width: 560px) {
     .we-zeit::before {
       flex-basis: 100%;
+    }
+  }
+  /* Handy (Issue #383): Ziele unten in der Leiste und unter „Mehr“ statt Wischleiste oben – am Ende, damit es gewinnt */
+  @media (max-width: 760px) {
+    .admin-nav {
+      display: none;
     }
   }
 </style>
