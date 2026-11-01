@@ -2,7 +2,8 @@
 /**
  * Druckvorlage „Erziehungsbeauftragung“ (Muttizettel) nach § 1 Abs. 1 Nr. 4 JuSchG.
  * Mit Termin vorausgefüllt, sonst leer. Was man in die Felder tippt, bleibt im Browser –
- * es gibt kein Absenden, nur Drucken bzw. „Als PDF sichern“.
+ * es gibt kein Absenden, nur Drucken bzw. „Als PDF sichern“. In der iPhone-App vom
+ * Home-Bildschirm gibt es kein Drucken: dort entsteht das PDF auf dem Gerät (Issue #396).
  */
 import Icon from './Icon.astro';
 import { datumLangJahr } from '../lib/anzeige';
@@ -18,7 +19,7 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
 <div class="knopfreihe nicht-drucken">
   <button class="knopf" type="button" id="drucken">
     <Icon name="drucken" />
-    Drucken oder als PDF sichern
+    <span id="drucken-text">Drucken oder als PDF sichern</span>
   </button>
   {termin && (
     <a class="knopf zweit" href={`/termin/${termin.id}`}>
@@ -134,8 +135,88 @@ const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).
   </aside>
 </article>
 
+<p class="klein nicht-drucken" id="drucken-status" role="status"></p>
+
 <script>
-  document.getElementById('drucken')?.addEventListener('click', () => window.print());
+  import { bauePdf, type PdfBlock } from '../lib/pdf';
+
+  const alsApp =
+    matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const knopf = document.getElementById('drucken');
+  const status = document.getElementById('drucken-status');
+  if (alsApp) {
+    const t = document.getElementById('drucken-text');
+    if (t) t.textContent = 'Als PDF drucken oder sichern';
+  }
+
+  const text = (e: Element | null) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+  /** Zettel aus der Seite lesen – mit allem, was eingetippt wurde */
+  function bloecke(): PdfBlock[] {
+    const zettel = document.querySelector('.muttizettel');
+    const b: PdfBlock[] = [];
+    for (const e of zettel?.querySelectorAll(':scope > header > *, :scope > :not(header)') ?? []) {
+      if (e.tagName === 'H1') b.push({ art: 'titel', text: text(e) });
+      else if (e.parentElement?.tagName === 'HEADER') b.push({ art: 'untertitel', text: text(e) });
+      else if (e.tagName === 'H2') b.push({ art: 'abschnitt', text: text(e) });
+      else if (e.classList.contains('mz-raster'))
+        b.push({
+          art: 'felder',
+          felder: [...e.querySelectorAll('label')].map((l) => ({
+            // nur der Text des Labels, ohne den Wert im Feld
+            label: [...l.childNodes]
+              .filter((k) => k.nodeType === Node.TEXT_NODE)
+              .map((k) => k.textContent)
+              .join(' ')
+              .replace(/\s+/g, ' ')
+              .trim(),
+            wert: l.querySelector('input')?.value.trim() ?? '',
+            breit: l.classList.contains('breit'),
+          })),
+        });
+      else if (e.classList.contains('mz-unterschriften'))
+        b.push({ art: 'unterschriften', texte: [...e.children].map((k) => text(k)) });
+      else if (e.tagName === 'P') {
+        // Lücken im Text: eingetippter Wert oder eine Linie zum Ausfüllen
+        const kopie = e.cloneNode(true) as HTMLElement;
+        const echte = e.querySelectorAll('input');
+        kopie.querySelectorAll('input').forEach((i, n) => {
+          i.replaceWith(echte[n]?.value.trim() || '________');
+        });
+        b.push({ art: 'absatz', text: text(kopie) });
+      } else if (e.tagName === 'ASIDE') b.push({ art: 'klein', text: text(e) });
+    }
+    return b;
+  }
+
+  async function alsPdf() {
+    const datei = new File([bauePdf(bloecke())], 'Muttizettel.pdf', { type: 'application/pdf' });
+    // Teilen-Menü: Drucken, In Dateien sichern, AirDrop …
+    if (navigator.canShare?.({ files: [datei] })) {
+      try {
+        await navigator.share({ files: [datei], title: 'Muttizettel' });
+        return;
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') return;
+      }
+    }
+    const url = URL.createObjectURL(datei);
+    const a = Object.assign(document.createElement('a'), { href: url, download: datei.name });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  knopf?.addEventListener('click', async () => {
+    if (!alsApp) return window.print();
+    if (status) status.textContent = '';
+    try {
+      await alsPdf();
+    } catch {
+      if (status)
+        status.textContent =
+          'Das PDF ließ sich nicht erstellen – bitte in Safari öffnen und dort drucken.';
+    }
+  });
 </script>
 
 <style is:global>
