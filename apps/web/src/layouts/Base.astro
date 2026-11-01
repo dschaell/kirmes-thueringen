@@ -146,6 +146,9 @@ import DesignSchalter from '../components/DesignSchalter.astro';
         </a>
       </nav>
     )}
+    {/* Eigene Leiste, z. B. in der Redaktion (Issue #383) – außerhalb von main, sonst klebt sie am
+        Glas-Kasten statt am Bildschirm */}
+    <slot name="leiste" />
     <main id="inhalt" class="wrap">
       <slot />
     </main>

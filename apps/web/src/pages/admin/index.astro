@@ -109,7 +109,9 @@ const meldung = listenMeldung(p, ortName);
       {von && <input type="hidden" name="von" value={von} />}
       <div class="knopfreihe">
         <button class="knopf zweit">Suchen</button>
-        <a href="/admin">Suche zurücksetzen</a>
+        <a class="knopf zweit" href="/admin">
+          Suche zurücksetzen
+        </a>
       </div>
     </form>
     {fehlt && (

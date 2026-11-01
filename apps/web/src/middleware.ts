@@ -126,6 +126,7 @@ const redaktion = defineMiddleware(async (ctx, next) => {
         pfad === `/admin/orte/${eigen}` ||
         pfad === '/admin/unsere-leute' ||
         pfad === '/admin/beitraege' ||
+        pfad === '/admin/mehr' ||
         pfad === '/admin/bestaetigen' ||
         pfad.startsWith('/admin/passkeys') ||
         pfad === '/admin/abmelden';

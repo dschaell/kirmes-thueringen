@@ -389,6 +389,66 @@ a:hover {
   }
 }
 
+/* ── Mehr-Seiten (Issues #374, #383): Gruppen mit Zeilen wie die iPhone-Einstellungen ──── */
+.mehr-gruppe {
+  margin: 20px 0 0;
+}
+.mehr-gruppe h2 {
+  margin: 0 0 8px 4px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grau);
+}
+.mehr-gruppe ul,
+.mehr-karte {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--linie);
+  border-radius: 16px;
+  background: var(--flaeche);
+  overflow: hidden;
+}
+.mehr-gruppe li + li {
+  border-top: 1px solid var(--linie);
+}
+.mehr-gruppe a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  color: var(--tinte);
+  text-decoration: none;
+  font-weight: 600;
+}
+.mehr-gruppe a:hover {
+  background: var(--papier);
+}
+.mehr-text {
+  flex: 1;
+}
+.mehr-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--knopf);
+  color: var(--auf-knopf);
+}
+.mehr-gruppe a > .icon:last-child {
+  color: var(--grau);
+}
+.mehr-karte {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+}
+
 /* ── Einstieg ─────────────────────────────────────────────────────────────────────────── */
 .einstieg {
   padding: 40px 0 8px;
