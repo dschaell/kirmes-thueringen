@@ -13,5 +13,13 @@ export default defineConfig({
   security: { checkOrigin: false },
   // Kein Inline-CSS/-JS: erlaubt strenge CSP ohne 'unsafe-inline' (siehe src/middleware.ts)
   build: { inlineStylesheets: 'never' },
-  vite: { build: { assetsInlineLimit: 0 } },
+  vite: {
+    build: {
+      assetsInlineLimit: 0,
+      // Ältere iPhones (ab iOS 15, iPhone 6s): keine Media-Range-Syntax, -webkit-backdrop-filter
+      // behalten (Issue #366). Neuere Browser lesen beides weiter.
+      cssTarget: ['safari15', 'ios15', 'chrome100', 'edge100', 'firefox100'],
+      target: ['safari15', 'ios15', 'chrome100', 'edge100', 'firefox100'],
+    },
+  },
 });

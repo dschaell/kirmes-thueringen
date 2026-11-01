@@ -103,7 +103,8 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                   )}
                   <a class="titel" href={`/termin/${t.id}`}>
                     {t.titel}
-                  </a>
+                  </a>{' '}
+                  {/* Leerzeichen: sonst darf iOS-Safari nicht vor dem Etikett umbrechen (Issue #366) */}
                   <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
                   {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
                   {t.bestaetigt && (
