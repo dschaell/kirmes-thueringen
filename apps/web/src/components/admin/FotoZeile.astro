@@ -1,0 +1,20 @@
+---
+/** Eine Zeile „Foto + Beschreibung“ im Beitragsformular (Issue #352). */
+import { FOTO_ALT_MAX } from '@kirmes/core';
+const { n } = Astro.props as { n: number };
+---
+
+<div class="foto-zeile">
+  <label>
+    Foto {n}
+    <input type="file" name={`foto-${n}`} accept="image/jpeg,image/png,image/webp" />
+  </label>
+  <label>
+    Was ist zu sehen? (optional)
+    <input
+      name={`alt-${n}`}
+      maxlength={FOTO_ALT_MAX}
+      placeholder={n === 1 ? 'z. B. Kirmesbaum vor der Kirche' : undefined}
+    />
+  </label>
+</div>

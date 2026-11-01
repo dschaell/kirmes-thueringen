@@ -134,7 +134,7 @@ export async function baueApp(d: AppAbhaengigkeiten) {
           additionalProperties: false,
           required: ['art', 'ort', 'absender', 'email'],
           properties: {
-            art: { type: 'string', enum: ['termin', 'link', 'mitmachen'] },
+            art: { type: 'string', enum: ['termin', 'link', 'mitmachen', 'beitrag'] },
             ort: T(200),
             landkreis: T(100),
             datum: T(20),
@@ -266,6 +266,58 @@ export async function baueApp(d: AppAbhaengigkeiten) {
             .status(404)
             .type('application/problem+json')
             .send(problem(404, 'Kein Plakat'));
+        return reply
+          .type('image/webp')
+          .header('Cache-Control', 'public, max-age=86400')
+          .send(Buffer.from(bild));
+      },
+    );
+  }
+
+  // Beiträge mit Fotos (Issue #352): nur veröffentlichte; Fotos haben feste Kennungen, daher cachebar
+  if (d.beitraege) {
+    const beitraege = d.beitraege;
+    app.get<{ Querystring: { ort?: string; vor?: string; limit?: number } }>(
+      '/api/v1/beitraege',
+      {
+        schema: {
+          querystring: {
+            type: 'object',
+            properties: {
+              ort: { type: 'string', maxLength: 120 },
+              vor: { type: 'string', maxLength: 40 },
+              limit: { type: 'integer', minimum: 1, maximum: 50 },
+            },
+          },
+        },
+      },
+      async (req, reply) => {
+        reply.header('Cache-Control', 'public, max-age=60');
+        return beitraege.liste({
+          ortSlug: req.query.ort,
+          vor: req.query.vor,
+          limit: req.query.limit,
+        });
+      },
+    );
+    app.get<{ Params: { id: string; groesse: 'gross' | 'klein' } }>(
+      '/api/v1/beitraege/fotos/:id/:groesse',
+      {
+        schema: {
+          params: {
+            type: 'object',
+            required: ['id', 'groesse'],
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              groesse: { type: 'string', enum: ['gross', 'klein'] },
+            },
+          },
+        },
+      },
+      async (req, reply) => {
+        const bild = await beitraege.foto(req.params.id, req.params.groesse);
+        if (!bild)
+          return reply.status(404).type('application/problem+json').send(problem(404, 'Kein Foto'));
         return reply
           .type('image/webp')
           .header('Cache-Control', 'public, max-age=86400')

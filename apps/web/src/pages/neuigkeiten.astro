@@ -1,0 +1,69 @@
+---
+/**
+ * Neuigkeiten (Issue #352): Beiträge der Kirmesgesellschaften aus ganz Thüringen, neueste zuerst.
+ * Mit ?ort= nur ein Ort, mit ?vor= ältere Beiträge.
+ */
+import Base from '../layouts/Base.astro';
+import BeitragListe from '../components/BeitragListe.astro';
+import Icon from '../components/Icon.astro';
+import { findeOrt, holeBeitraege } from '../lib/api';
+
+const JE_SEITE = 20;
+const ortParam = Astro.url.searchParams.get('ort') ?? '';
+const ort = ortParam ? await findeOrt(ortParam) : null;
+if (ortParam && !ort) return Astro.rewrite('/404');
+const vor = Astro.url.searchParams.get('vor') ?? undefined;
+const beitraege = await holeBeitraege({ ort: ort?.slug, vor, limit: JE_SEITE });
+const letzter = beitraege.at(-1)?.veroeffentlichtAm;
+const weiter =
+  beitraege.length === JE_SEITE && letzter
+    ? `/neuigkeiten?${new URLSearchParams({ ...(ort && { ort: ort.slug }), vor: letzter })}`
+    : null;
+Astro.response.headers.set('Cache-Control', 'public, max-age=120');
+---
+
+<Base
+  title={
+    ort
+      ? `Neuigkeiten aus ${ort.name} – Kirmeskalender Thüringen`
+      : 'Neuigkeiten von den Kirmesgesellschaften – Kirmeskalender Thüringen'
+  }
+  description={
+    ort
+      ? `Fotos und Neuigkeiten der Kirmes in ${ort.name}.`
+      : 'Fotos und Neuigkeiten der Kirmesgesellschaften aus ganz Thüringen: Kirmesbaum, Umzug, Kirmestanz.'
+  }
+  noindex={!!vor || beitraege.length === 0}
+>
+  <section class="einstieg">
+    <h1>{ort ? `Neuigkeiten aus ${ort.name}` : 'Neuigkeiten'}</h1>
+    <p class="unterzeile">
+      {ort ? (
+        <>
+          Fotos und Neues von der Kirmes. <a href={`/orte/${ort.slug}`}>Zu den Terminen</a>
+        </>
+      ) : (
+        'Fotos und Neues direkt von den Kirmesgesellschaften aus ganz Thüringen.'
+      )}
+    </p>
+  </section>
+
+  {beitraege.length > 0 ? (
+    <BeitragListe beitraege={beitraege} mitOrt={!ort} />
+  ) : (
+    <p class="leer">
+      {vor
+        ? 'Keine älteren Beiträge.'
+        : 'Noch keine Beiträge. Kirmesgesellschaften mit eigenem Zugang können hier Fotos und Neuigkeiten zeigen.'}
+    </p>
+  )}
+  {weiter && (
+    <a class="knopf zweit" href={weiter}>
+      Ältere Beiträge <Icon name="pfeil" />
+    </a>
+  )}
+  <p class="klein leise abstand">
+    Ihr seid Kirmesgesellschaft und wollt hier eure Fotos zeigen?{' '}
+    <a href="/redaktion-mitmachen">Eigenen Zugang anfragen</a>
+  </p>
+</Base>

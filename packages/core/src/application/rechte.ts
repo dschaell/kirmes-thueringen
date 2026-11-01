@@ -24,7 +24,9 @@ export type Aktion =
   | 'mitglieder'
   | 'sicherungen'
   /** Zugriffszahlen (Issue #311) */
-  | 'statistik';
+  | 'statistik'
+  /** Beiträge mit Fotos (Issue #352) */
+  | 'beitraege';
 
 const ALLE: readonly Rolle[] = ['admin', 'redaktion', 'kirmesgesellschaft'];
 const MODERATION: readonly Rolle[] = ['admin', 'redaktion'];
@@ -46,6 +48,7 @@ export const RECHTE: Readonly<Record<Aktion, readonly Rolle[]>> = {
   mitglieder: NUR_ADMIN,
   sicherungen: NUR_ADMIN,
   statistik: NUR_ADMIN,
+  beitraege: ALLE,
 };
 
 /** Bereiche, die an einen Ort gebunden sind – die Kirmesgesellschaft nur am eigenen (Issue #180). */
@@ -55,6 +58,7 @@ const ORTSGEBUNDEN: ReadonlySet<Aktion> = new Set([
   'plaetze',
   'vorschlaege',
   'korrekturen',
+  'beitraege',
 ]);
 
 type Person = { rolle?: Rolle | null; ortSlug?: string | null } | null | undefined;

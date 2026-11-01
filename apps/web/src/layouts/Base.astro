@@ -42,6 +42,8 @@ const unten = [
 // „Start“ nicht hier: das Logo führt zur Startseite, sonst wäre „Mehr“ dort markiert
 const mehr = [
   ['/gemerkt', 'Gemerkte Termine'],
+  // Beiträge mit Fotos (Issue #352)
+  ['/neuigkeiten', 'Neuigkeiten'],
   ['/orte', 'Orte A–Z'],
   ['/kreise', 'Landkreise'],
   ['/kalender-abonnieren', 'Kalender abonnieren'],
@@ -176,6 +178,9 @@ import DesignSchalter from '../components/DesignSchalter.astro';
             </li>
             <li>
               <a href="/gemerkt">Gemerkte Termine</a>
+            </li>
+            <li>
+              <a href="/neuigkeiten">Neuigkeiten</a>
             </li>
             <li>
               <a href="/orte">Orte A–Z</a>

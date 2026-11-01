@@ -7,6 +7,7 @@
 import { err, ok, type Result } from '../domain/result.js';
 import type { NeuerTermin, Termin } from '../domain/termin.js';
 import { istOrtSlug } from '../domain/termin.js';
+import type { Beitrag } from './beitraege.js';
 import type { Berechtigung } from './festplaetze.js';
 import type { TerminRepository } from './ports.js';
 import type { TerminVerwaltung } from './termine-verwalten.js';
@@ -120,6 +121,22 @@ export const pushText = {
     url: `/orte/${t.ortSlug}`,
     tag: `termin-${t.id}`,
   }),
+  /** Neuer Beitrag mit Fotos (Issue #352) */
+  beitrag: (b: Beitrag): PushNachricht => {
+    const text = b.text.replace(/\s+/g, ' ');
+    return {
+      titel: `Neu aus ${b.ortName}${b.kgName ? ` – ${b.kgName}` : ''}`,
+      text: text
+        ? text.length > 120
+          ? `${text.slice(0, 119)}…`
+          : text
+        : b.fotos.length === 1
+          ? 'Ein neues Foto'
+          : `${b.fotos.length} neue Fotos`,
+      url: `/orte/${b.ortSlug}#beitrag-${b.id}`,
+      tag: `beitrag-${b.id}`,
+    };
+  },
   erinnerung: (ts: PushTermin[]): PushNachricht =>
     ts.length === 1 && ts[0]
       ? {
@@ -220,6 +237,11 @@ export class Benachrichtigungen {
 
   abgesagt(ziele: PushZiel[], t: PushTermin): Promise<number> {
     return this.verteile(ziele, pushText.abgesagt(t));
+  }
+
+  /** Neuer Beitrag (Issue #352): an alle, die dem Ort folgen */
+  async beitrag(b: Beitrag): Promise<number> {
+    return this.verteile(await this.ablage.empfaenger(b.ortSlug, []), pushText.beitrag(b));
   }
 
   /** Erinnerung für die Termine von `morgen`; jedes Gerät höchstens einmal je Tag. */

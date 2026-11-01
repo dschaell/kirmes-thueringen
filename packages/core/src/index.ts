@@ -22,6 +22,7 @@ export * from './application/einrichtung.js';
 export * from './application/mitglieder.js';
 export * from './application/mitmach-anfragen.js';
 export * from './application/plakate.js';
+export * from './application/beitraege.js';
 export * from './application/ortsprofile.js';
 export * from './domain/ortsprofil.js';
 export * from './application/zugriffe.js';

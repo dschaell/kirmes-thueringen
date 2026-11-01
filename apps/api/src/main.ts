@@ -2,6 +2,7 @@ import {
   Korrekturen,
   Ortsprofile,
   Plakate,
+  Beitraege,
   Vorschlaege,
   Zugriffe,
   ZUGRIFFE_AUFBEWAHRUNG_TAGE,
@@ -14,6 +15,7 @@ import { PgZugriffe } from './infrastructure/postgres/zugriffe-repository.js';
 import { PgPush } from './infrastructure/postgres/push-repository.js';
 import { WebPushVersand } from './infrastructure/push-versand.js';
 import { PgPlakate } from './infrastructure/postgres/plakat-repository.js';
+import { PgBeitraege } from './infrastructure/postgres/beitrag-repository.js';
 import { SharpBildwandler } from './infrastructure/bildwandler.js';
 import { terminHerkunft } from './infrastructure/postgres/termin-herkunft.js';
 import { PgVorschlaege } from './infrastructure/postgres/vorschlags-repository.js';
@@ -141,6 +143,12 @@ const vorschlagsRepo = new PgVorschlaege(pool);
 const korrekturRepo = new PgKorrekturen(pool);
 const anfragenRepo = new PgAnfragen(pool);
 const plakate = new Plakate(new PgPlakate(pool), new SharpBildwandler());
+// Beiträge mit Fotos (Issue #352): neue Beiträge melden sich bei allen, die dem Ort folgen
+const beitraege = new Beitraege(
+  new PgBeitraege(pool),
+  new SharpBildwandler(),
+  benachrichtigungen ? (b) => benachrichtigungen.beitrag(b) : undefined,
+);
 const zugriffsRepo = new PgZugriffe(pool);
 const zugriffe = new Zugriffe(zugriffsRepo);
 const raeumeAuf = () =>
@@ -176,6 +184,7 @@ const erinnern = setInterval(() => {
 erinnern.unref();
 const app = await baueApp({
   plakate,
+  beitraege,
   ...(benachrichtigungen &&
     k.vapid && { push: { benachrichtigungen, oeffentlich: k.vapid.oeffentlich } }),
   zugriffe,
@@ -227,6 +236,7 @@ const app = await baueApp({
     beitritt: registrierung ? new Beitritt(einladungen, registrierung) : undefined,
     mitglieder,
     plakate,
+    beitraege,
     ortsprofile: new Ortsprofile(orte),
     zugriffe,
     anfragen:

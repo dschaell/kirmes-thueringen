@@ -1,6 +1,7 @@
 /** Gemeinsame Bausteine der Redaktions-API (Issue #199). */
 import type {
   AdminAnmeldung,
+  Beitraege,
   Beitritt,
   Ersteinrichtung,
   Mitgliederverwaltung,
@@ -45,6 +46,8 @@ export interface AdminAbhaengigkeiten {
   zugriffe?: Zugriffe;
   /** Plakat je Termin (Issue #297) */
   plakate?: Plakate;
+  /** Beiträge mit Fotos (Issue #352) */
+  beitraege?: Beitraege;
   /** Plätze eines Ortes (Kirche, Festzelt …) mit Standort – Issue #62 */
   festplaetze?: RedaktionsFestplaetze;
   /** Eingabe-Vorschläge (Bands, Titel) aus allen Terminen */

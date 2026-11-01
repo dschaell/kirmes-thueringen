@@ -1,0 +1,115 @@
+---
+/**
+ * Beiträge mit Fotos (Issue #352) als Verlauf. Fotos klein in der Liste, groß per Antippen.
+ * `verwalten`: Löschen-Knopf statt „Melden“ (Redaktionsbereich, braucht CSRF).
+ */
+import type { Beitrag } from '@kirmes/core';
+import { datumKurz } from '../lib/anzeige';
+import CsrfFeld from './admin/CsrfFeld.astro';
+import Icon from './Icon.astro';
+
+interface Props {
+  beitraege: Beitrag[];
+  /** Ort zeigen (ganz Thüringen); auf der Ortsseite überflüssig */
+  mitOrt?: boolean;
+  verwalten?: boolean;
+  /** Erste Überschriftenebene der Beiträge – folgt der Seite */
+  ebene?: 'h2' | 'h3';
+}
+const { beitraege, mitOrt = true, verwalten = false, ebene = 'h2' } = Astro.props;
+const Ueberschrift = ebene;
+const zeit = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
+  day: 'numeric',
+  month: 'long',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const foto = (id: string, groesse: 'gross' | 'klein') =>
+  `/beitraege/foto/${encodeURIComponent(id)}/${groesse}.webp`;
+---
+
+<ol class="beitraege">
+  {beitraege.map((b) => {
+    const wer = b.kgName ?? `Kirmes ${b.ortName}`;
+    return (
+      <li class="beitrag" id={`beitrag-${b.id}`}>
+        <article aria-labelledby={`beitrag-${b.id}-wer`}>
+          <header class="beitrag-kopf">
+            <span class="beitrag-zeichen" aria-hidden="true">
+              <Icon name="foto" />
+            </span>
+            <div>
+              <Ueberschrift class="beitrag-wer" id={`beitrag-${b.id}-wer`}>
+                {mitOrt ? <a href={`/orte/${b.ortSlug}`}>{wer}</a> : wer}
+              </Ueberschrift>
+              <p class="klein leise">
+                {mitOrt && b.kgName && <>{b.ortName} · </>}
+                {b.veroeffentlichtAm && (
+                  <time datetime={b.veroeffentlichtAm}>
+                    {zeit.format(new Date(b.veroeffentlichtAm))} Uhr
+                  </time>
+                )}
+              </p>
+            </div>
+          </header>
+          {b.text && <p class="beitrag-text">{b.text}</p>}
+          {b.fotos.length > 0 && (
+            <ul class:list={['beitrag-fotos', { einzeln: b.fotos.length === 1 }]}>
+              {b.fotos.map((f, i) => (
+                <li>
+                  <a href={foto(f.id, 'gross')} target="_blank" rel="noopener">
+                    <img
+                      src={foto(f.id, b.fotos.length === 1 ? 'gross' : 'klein')}
+                      width={f.breite}
+                      height={f.hoehe}
+                      alt={
+                        f.alt ||
+                        `Foto ${b.fotos.length > 1 ? `${i + 1} von ${b.fotos.length} ` : ''}aus ${b.ortName}`
+                      }
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {b.termin && (
+            <a class="beitrag-termin" href={`/termin/${b.termin.id}`}>
+              <Icon name="kalender" />
+              {b.termin.titel} · {datumKurz(b.termin.datum)}
+            </a>
+          )}
+          <footer class="beitrag-fuss">
+            {verwalten ? (
+              <details class="sicherheitsfrage">
+                <summary>Löschen …</summary>
+                <form method="post">
+                  <CsrfFeld />
+                  <input type="hidden" name="aktion" value="loeschen" />
+                  <input type="hidden" name="id" value={b.id} />
+                  <label>
+                    <input type="checkbox" name="rueckfrage" value="ja" required /> Ja, Beitrag mit
+                    allen Fotos endgültig löschen.
+                  </label>
+                  <button class="knopf gefahr" type="submit">
+                    Jetzt löschen
+                  </button>
+                </form>
+              </details>
+            ) : (
+              <a
+                class="klein leise"
+                href={`/beitrag-melden?ort=${encodeURIComponent(b.ortSlug)}&id=${encodeURIComponent(b.id)}`}
+                rel="nofollow"
+              >
+                Beitrag melden
+              </a>
+            )}
+          </footer>
+        </article>
+      </li>
+    );
+  })}
+</ol>

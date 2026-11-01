@@ -13,6 +13,9 @@ import {
   Mitgliederverwaltung,
   MitmachAnfragen,
   Plakate,
+  Beitraege,
+  type Beitrag,
+  type BeitragAblage,
   Ortsprofile,
   Zugriffe,
   type Anfrage,
@@ -130,6 +133,7 @@ let festplaetzeAktiv: RedaktionsFestplaetze | undefined;
 let sicherungenAktiv: (() => Promise<unknown>) | undefined;
 let anfragenAktiv: MitmachAnfragen | undefined;
 let plakateAktiv: Plakate | undefined;
+let beitraegeAktiv: Beitraege | undefined;
 let ortsprofileAktiv: Ortsprofile | undefined;
 let zugriffeAktiv: Zugriffe | undefined;
 let pushAktiv: PushAbhaengigkeiten | undefined;
@@ -243,6 +247,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
     findeTermin: new FindeTermin(repo),
     aktuelleMitteilung: async () => mitteilung,
     plakate: plakateAktiv,
+    beitraege: beitraegeAktiv,
     zugriffe: zugriffeAktiv,
     push: pushAktiv,
     meldungen: meldungenAktiv,
@@ -279,6 +284,7 @@ async function setup(repo = new FakeRepo(), dbOk = true) {
       sicherungen: sicherungenAktiv,
       anfragen: anfragenAktiv,
       plakate: plakateAktiv,
+      beitraege: beitraegeAktiv,
       ortsprofile: ortsprofileAktiv,
       zugriffe: zugriffeAktiv,
       passkeys: passkeysAktiv,
@@ -2034,6 +2040,193 @@ describe('Plakate (Issue #297)', () => {
     expect(
       (await app.inject({ method: 'GET', url: `/api/v1/termine/${T1}/plakat/gross` })).statusCode,
     ).toBe(404);
+  });
+});
+
+describe('Beiträge mit Fotos (Issue #352)', () => {
+  const T1 = '11111111-1111-4111-8111-111111111111';
+  const fotos = new Map<string, Uint8Array>();
+  const eintraege = new Map<string, Beitrag & { fertig: boolean }>();
+  let n = 0;
+  const ablage: BeitragAblage = {
+    lege: async (b) => {
+      if (b.ortSlug === 'nirgends') return null;
+      const id = `0000000${++n}-0000-4000-8000-000000000000`;
+      eintraege.set(id, {
+        id,
+        ortSlug: b.ortSlug,
+        ortName: 'Mühlberg',
+        kgName: null,
+        text: b.text,
+        termin: null,
+        veroeffentlichtAm: null,
+        fotos: [],
+        fertig: false,
+      });
+      return id;
+    },
+    terminImOrt: async (t) => t === T1,
+    stand: async (id) => {
+      const e = eintraege.get(id);
+      return e
+        ? { ortSlug: e.ortSlug, veroeffentlicht: e.fertig, fotos: e.fotos.length, text: e.text }
+        : null;
+    },
+    fotosImOrt: async () => 0,
+    legeFoto: async (id, nr, b, alt) => {
+      const f = `${id.slice(0, 30)}00000${nr}`;
+      fotos.set(f, b.gross);
+      eintraege.get(id)?.fotos.push({ id: f, breite: b.breite, hoehe: b.hoehe, alt });
+      return f;
+    },
+    veroeffentliche: async (id) => {
+      const e = eintraege.get(id);
+      if (!e) return null;
+      e.fertig = true;
+      e.veroeffentlichtAm = '2026-11-01T10:00:00.000Z';
+      return e;
+    },
+    loesche: async (id) => eintraege.delete(id),
+    liste: async (f) =>
+      [...eintraege.values()].filter((e) => e.fertig && (!f.ortSlug || e.ortSlug === f.ortSlug)),
+    foto: async (id) => fotos.get(id) ?? null,
+  };
+  const mit = async (mitPlakaten = false) => {
+    beitraegeAktiv = new Beitraege(ablage, {
+      wandle: async (d) => (d[0] === 0xff ? { gross: d, klein: d, breite: 10, hoehe: 20 } : null),
+    });
+    if (mitPlakaten)
+      plakateAktiv = new Plakate(
+        {
+          ortVon: async () => null,
+          speichere: async () => {},
+          loesche: async () => false,
+          lade: async () => null,
+        },
+        { wandle: async () => null },
+      );
+    await setup();
+    beitraegeAktiv = undefined;
+    plakateAktiv = undefined;
+  };
+  const rufe = (
+    sitzung: string | null,
+    method: 'POST' | 'DELETE',
+    url: string,
+    payload?: object | Buffer,
+    typ?: string,
+  ) =>
+    app.inject({
+      method,
+      url: `/api/v1/admin/beitraege${url}`,
+      headers: {
+        ...(sitzung && { authorization: `Sitzung ${sitzung}` }),
+        ...(typ && { 'content-type': typ }),
+      },
+      payload,
+    });
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff]);
+
+  it('Entwurf, Foto, veröffentlichen, öffentlich lesen, löschen', async () => {
+    await mit();
+    const neu = await rufe(KG_SITZUNG, 'POST', '', {
+      ortSlug: 'muehlberg',
+      text: 'Baum steht!',
+      terminId: T1,
+      einverstanden: true,
+    });
+    expect(neu.statusCode).toBe(201);
+    const id = neu.json().id as string;
+    const foto = await rufe(KG_SITZUNG, 'POST', `/${id}/fotos?alt=Der%20Baum`, jpeg, 'image/jpeg');
+    expect(foto.statusCode).toBe(201);
+    const fotoId = foto.json().id as string;
+    expect((await app.inject({ method: 'GET', url: '/api/v1/beitraege' })).json()).toEqual([]);
+    const v = await rufe(KG_SITZUNG, 'POST', `/${id}/veroeffentlichen`);
+    expect([v.statusCode, v.json().fotos[0].alt]).toEqual([200, 'Der Baum']);
+    expect((await rufe(KG_SITZUNG, 'POST', `/${id}/veroeffentlichen`)).statusCode).toBe(409);
+    const liste = await app.inject({
+      method: 'GET',
+      url: '/api/v1/beitraege?ort=muehlberg&limit=5',
+    });
+    expect([liste.statusCode, liste.headers['cache-control'], liste.json().length]).toEqual([
+      200,
+      'public, max-age=60',
+      1,
+    ]);
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/beitraege?limit=500' })).statusCode,
+    ).toBe(400);
+    const bild = await app.inject({
+      method: 'GET',
+      url: `/api/v1/beitraege/fotos/${fotoId}/gross`,
+    });
+    expect([bild.statusCode, bild.headers['content-type'], bild.rawPayload]).toEqual([
+      200,
+      'image/webp',
+      jpeg,
+    ]);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/beitraege/fotos/${T1}/klein` })).statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/v1/beitraege/fotos/${fotoId}/riesig` }))
+        .statusCode,
+    ).toBe(400);
+    expect((await rufe(KG_SITZUNG, 'DELETE', `/${id}`)).statusCode).toBe(204);
+    expect((await rufe(KG_SITZUNG, 'DELETE', `/${id}`)).statusCode).toBe(404);
+  });
+
+  it('Fehler: Einwilligung, fremder Ort, falsches Bild, ohne Anmeldung', async () => {
+    await mit(true);
+    expect(
+      (
+        await rufe(KG_SITZUNG, 'POST', '', {
+          ortSlug: 'muehlberg',
+          text: 'x',
+          einverstanden: false,
+        })
+      ).statusCode,
+    ).toBe(400);
+    // Fremder Ort: schon der Filter der Kirmesgesellschaft lehnt ab
+    expect(
+      (await rufe(KG_SITZUNG, 'POST', '', { ortSlug: 'ulla', text: 'x', einverstanden: true }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await rufe(SITZUNG, 'POST', '', { ortSlug: 'nirgends', text: 'x', einverstanden: true }))
+        .statusCode,
+    ).toBe(404);
+    const id = (
+      await rufe(SITZUNG, 'POST', '', { ortSlug: 'muehlberg', text: '', einverstanden: true })
+    ).json().id as string;
+    expect((await rufe(SITZUNG, 'POST', `/${id}/veroeffentlichen`)).statusCode).toBe(400);
+    expect(
+      (await rufe(SITZUNG, 'POST', `/${id}/fotos`, Buffer.from('xx'), 'image/png')).statusCode,
+    ).toBe(400);
+    expect(
+      (await rufe(SITZUNG, 'POST', `/${id}/fotos`, Buffer.from('{}'), 'application/json'))
+        .statusCode,
+    ).toBe(415);
+    expect(
+      (
+        await rufe(
+          SITZUNG,
+          'POST',
+          `/${id}/fotos`,
+          Buffer.alloc(8 * 1024 * 1024 + 1, 0xff),
+          'image/jpeg',
+        )
+      ).statusCode,
+    ).toBe(413);
+    expect(
+      (await rufe(null, 'POST', '', { ortSlug: 'muehlberg', text: 'x', einverstanden: true }))
+        .statusCode,
+    ).toBe(401);
+  });
+
+  it('ohne Beiträge nicht vorhanden', async () => {
+    await setup();
+    expect((await app.inject({ method: 'GET', url: '/api/v1/beitraege' })).statusCode).toBe(404);
   });
 });
 

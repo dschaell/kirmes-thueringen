@@ -3,7 +3,8 @@ import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import KeineTreffer from '../components/KeineTreffer.astro';
 import TerminListe from '../components/TerminListe.astro';
-import { listeOrte, sucheTermine } from '../lib/api';
+import { holeBeitraege, listeOrte, sucheTermine } from '../lib/api';
+import BeitragListe from '../components/BeitragListe.astro';
 import {
   LANDKREISE,
   eventJsonLd,
@@ -21,9 +22,11 @@ const we = wochenende(h);
 // Tag. Alles Weitere steht nur unter „Termine“, nicht doppelt.
 const tag = new Date(h).getUTCDay(); // 0 = So
 const wochenendeSchon = tag === 0 || tag >= 5;
-const [jetzt, orte] = await Promise.all([
+const [jetzt, orte, beitraege] = await Promise.all([
   sucheTermine({ von: h, bis: we.bis, limit: 200 }),
   listeOrte(),
+  // Neueste Beiträge mit Fotos (Issue #352)
+  holeBeitraege({ limit: 3 }),
 ]);
 // Nichts bis Sonntag? Dann die nächsten Termine überhaupt (#104)
 const spaeter =
@@ -131,6 +134,15 @@ import Ornament from '../components/Ornament.astro';
       <a class="knopf alle-termine" href="/termine">
         Alle Termine <Icon name="pfeil" />
       </a>
+      {beitraege.length > 0 && (
+        <section class="start-neuigkeiten" aria-labelledby="neu-titel">
+          <h2 id="neu-titel">Neu von den Kirmesgesellschaften</h2>
+          <BeitragListe beitraege={beitraege} ebene="h3" />
+          <a class="mehr" href="/neuigkeiten">
+            Alle Neuigkeiten <Icon name="pfeil" />
+          </a>
+        </section>
+      )}
     </div>
 
     <aside class="seitenleiste">
