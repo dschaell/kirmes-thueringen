@@ -7,9 +7,19 @@ describe.runIf(url)('Mitmach-Anfragen (PostgreSQL, #279)', () => {
   const db = new pg.Pool({ connectionString: url });
   const repo = new PgAnfragen(db);
   const loesche = () => db.query("DELETE FROM mitmach_anfrage WHERE name LIKE 'IT %'");
-  beforeAll(loesche);
+  // Eigener Admin: fremde Admins löschen parallel laufende Tests (Issue #389)
+  let adminId = '';
+  beforeAll(async () => {
+    await loesche();
+    await db.query("DELETE FROM admin WHERE name = 'IT Anfragen-Admin'");
+    const a = await db.query<{ id: string }>(
+      "INSERT INTO admin (name, rolle) VALUES ('IT Anfragen-Admin', 'admin') RETURNING id::text",
+    );
+    adminId = a.rows[0]!.id;
+  });
   afterAll(async () => {
     await loesche();
+    await db.query('DELETE FROM admin WHERE id = $1', [adminId]);
     await db.end();
   });
   it('legt an, listet offene zuerst, erledigt nur einmal und löscht die E-Mail', async () => {
@@ -24,12 +34,10 @@ describe.runIf(url)('Mitmach-Anfragen (PostgreSQL, #279)', () => {
     const erste = eigene[0]!;
     expect(await repo.finde(erste.id)).toMatchObject({ status: 'offen', email: 'it@example.org' });
     expect(await repo.finde('kaputt')).toBeNull();
-    const admin = await db.query<{ id: string }>('SELECT id::text FROM admin ORDER BY id LIMIT 1');
-    const adminId = admin.rows[0]?.id ?? null;
-    expect(await repo.erledige(erste.id, 'angenommen', adminId as string)).toBe(true);
-    expect(await repo.erledige(erste.id, 'abgelehnt', adminId as string)).toBe(false);
+    expect(await repo.erledige(erste.id, 'angenommen', adminId)).toBe(true);
+    expect(await repo.erledige(erste.id, 'abgelehnt', adminId)).toBe(false);
     const zweite = eigene[1]!;
-    expect(await repo.erledige(zweite.id, 'abgelehnt', adminId as string, 'IT Grund')).toBe(true);
+    expect(await repo.erledige(zweite.id, 'abgelehnt', adminId, 'IT Grund')).toBe(true);
     expect(await repo.finde(zweite.id)).toMatchObject({ status: 'abgelehnt', grund: 'IT Grund' });
     expect(await repo.finde(erste.id)).toMatchObject({ status: 'angenommen', email: null });
     const danach = (await repo.liste()).filter((a) => a.name.startsWith('IT '));
