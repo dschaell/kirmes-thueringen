@@ -73,7 +73,7 @@ Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=60
           maxlength="100"
           autocomplete="off"
           placeholder="Ort eingeben"
-          data-ortssuche
+          data-suchvorschlaege="orte"
           value={q}
         />
       </span>
@@ -125,7 +125,7 @@ Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=60
   ))}
 </Base>
 <script>
-  import '../../scripts/ortssuche';
+  import '../../scripts/suchvorschlaege';
 </script>
 <style>
   .jetzt-los {
