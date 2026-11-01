@@ -136,21 +136,14 @@ import DesignSchalter from '../components/DesignSchalter.astro';
             {label}
           </a>
         ))}
-        <details class="leiste-mehr">
-          <summary>
-            <Icon name="menue" groesse={22} />
-            Mehr
-          </summary>
-          <div class="leiste-menue">
-            {mehr.map(([href, label]) => (
-              <a href={href} aria-current={aktiv(href!) ? 'page' : undefined}>
-                {label}
-              </a>
-            ))}
-            <SchriftSchalter id="schrift-leiste" />
-            <DesignSchalter id="design-leiste" />
-          </div>
-        </details>
+        {/* Eigene Seite statt Aufklapp-Menü (Issue #374) */}
+        <a
+          href="/mehr"
+          aria-current={aktiv('/mehr') || mehr.some(([href]) => aktiv(href!)) ? 'page' : undefined}
+        >
+          <Icon name="menue" groesse={22} />
+          Mehr
+        </a>
       </nav>
     )}
     <main id="inhalt" class="wrap">
@@ -242,18 +235,6 @@ import DesignSchalter from '../components/DesignSchalter.astro';
       import '../scripts/schrift';
       import '../scripts/ungespeichert';
       import '../scripts/entwuerfe';
-
-      // „Mehr“ der Leiste unten (Issue #294): schließt bei Tipp daneben und mit Esc
-      const leisteMehr = document.querySelector<HTMLDetailsElement>('.leiste-mehr');
-      document.addEventListener('click', (e) => {
-        if (leisteMehr?.open && !leisteMehr.contains(e.target as Node)) leisteMehr.open = false;
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && leisteMehr?.open) {
-          leisteMehr.open = false;
-          leisteMehr.querySelector('summary')?.focus();
-        }
-      });
 
       // Mitteilung der Redaktion: die neueste einmal anzeigen; nach dem Schließen erst die nächste neue.
       // Inhalte nur als Text (textContent) – nie als HTML.
