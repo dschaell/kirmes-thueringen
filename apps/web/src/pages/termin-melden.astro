@@ -94,6 +94,13 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     border-left: 4px solid var(--rot);
     margin: 0 0 24px;
   }
+  /* Frage und Link als eigene Bausteine: kein Riss mitten im Satz (Issue #363) */
+  .mitmachen-hinweis p {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 8px;
+  }
   .mitmachen-hinweis .mehr {
     display: inline-flex;
     gap: 6px;

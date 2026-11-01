@@ -275,7 +275,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
             bestätigte Termine
           </label>
           {aktiveFilter > 0 && (
-            <a class="klein" href="/termine">
+            <a class="klein filter-zurueck" href="/termine">
               Alle Filter zurücksetzen
             </a>
           )}
@@ -419,6 +419,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   }
 </script>
 <style>
+  /* Tippziel ≥ 24 px (Issue #363) */
+  .filter-zurueck {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
   #nahe-info:empty {
     display: none;
   }
