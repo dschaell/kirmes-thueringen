@@ -36,12 +36,15 @@ const nav = kg
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       [`/admin/orte/${Astro.locals.ortSlug}`, `Plätze in ${Astro.locals.ortName}`],
+      // Beiträge mit Fotos (Issue #352)
+      ['/admin/beitraege', 'Beiträge & Fotos'],
       ['/admin/unsere-leute', 'Eure Leute'],
     ]
   : [
       ['/admin', 'Termine'],
       ['/admin/vorschlaege', offen === null ? 'Vorschläge' : `Vorschläge (${offen})`],
       ['/admin/orte', 'Orte & Plätze'],
+      ['/admin/beitraege', 'Beiträge & Fotos'],
       // Wochenbild zum Posten (Issue #335)
       ['/admin/social-media', 'Social Media'],
       // Aus „Mehr“ geholt, damit die angezeigte Mitteilung leicht zu finden ist (Issue #261)

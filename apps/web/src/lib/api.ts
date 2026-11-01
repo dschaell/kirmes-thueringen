@@ -2,7 +2,7 @@
  * Datenzugriff des Client-Tiers: ausschließlich über die HTTP-API des Server-Tiers.
  * Läuft nur serverseitig (SSR) – der Browser spricht nie direkt mit der API.
  */
-import type { Kategorie, LandkreisKuerzel } from '@kirmes/core';
+import type { Beitrag, Kategorie, LandkreisKuerzel } from '@kirmes/core';
 
 /** Interne Adresse der API: lokal http://127.0.0.1:3100, im Container-Netz http://api:3100 */
 const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3100';
@@ -97,17 +97,11 @@ export class UngueltigeAnfrage extends Error {
   }
 }
 
-/** Plakat als WebP (Issue #297); null = keins. Rohbytes, daher eigener Abruf. */
-export async function holePlakat(
-  id: string,
-  groesse: 'gross' | 'klein',
-): Promise<ArrayBuffer | null> {
+/** Bild als Rohbytes (Plakat, Beitragsfoto); null = keins. */
+async function holeBild(pfad: string): Promise<ArrayBuffer | null> {
   let res: Response;
   try {
-    res = await fetch(
-      new URL(`/api/v1/termine/${encodeURIComponent(id)}/plakat/${groesse}`, API_URL),
-      { signal: AbortSignal.timeout(TIMEOUT_MS) },
-    );
+    res = await fetch(new URL(pfad, API_URL), { signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (e) {
     throw new ApiNichtErreichbar({ cause: e });
   }
@@ -115,6 +109,14 @@ export async function holePlakat(
   if (!res.ok) throw new ApiNichtErreichbar();
   return res.arrayBuffer();
 }
+
+/** Plakat als WebP (Issue #297); null = keins. */
+export const holePlakat = (id: string, groesse: 'gross' | 'klein') =>
+  holeBild(`/api/v1/termine/${encodeURIComponent(id)}/plakat/${groesse}`);
+
+/** Foto eines veröffentlichten Beitrags als WebP (Issue #352); null = keins. */
+export const holeBeitragFoto = (id: string, groesse: 'gross' | 'klein') =>
+  holeBild(`/api/v1/beitraege/fotos/${encodeURIComponent(id)}/${groesse}`);
 
 async function hole<T>(pfad: string, params?: URLSearchParams): Promise<T | null> {
   const url = new URL(pfad, API_URL);
@@ -168,6 +170,17 @@ export const findeOrt = (slug: string): Promise<OrtDto | null> =>
   hole<OrtDto>(`/api/v1/orte/${encodeURIComponent(slug)}`);
 
 /** JSON-Body der Bearbeitungsseite lesen (max. 4 KB). */
+/** Veröffentlichte Beiträge (Issue #352), neueste zuerst; `vor` blättert weiter. */
+export async function holeBeitraege(
+  f: { ort?: string; vor?: string; limit?: number } = {},
+): Promise<Beitrag[]> {
+  const p = new URLSearchParams();
+  if (f.ort) p.set('ort', f.ort);
+  if (f.vor) p.set('vor', f.vor);
+  if (f.limit) p.set('limit', String(f.limit));
+  return (await hole<Beitrag[]>('/api/v1/beitraege', p)) ?? [];
+}
+
 export async function leseJson(
   request: Request,
   max = 4_096,

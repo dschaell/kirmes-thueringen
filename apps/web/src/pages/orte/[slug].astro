@@ -2,7 +2,8 @@
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import TerminListe from '../../components/TerminListe.astro';
-import { alleTermine, findeOrt, listeOrte } from '../../lib/api';
+import { alleTermine, findeOrt, holeBeitraege, listeOrte } from '../../lib/api';
+import BeitragListe from '../../components/BeitragListe.astro';
 import { nachKirmes } from '../../lib/terminliste';
 import { voraussichtlich } from '../../lib/vorjahr';
 import {
@@ -27,10 +28,12 @@ const h = heute();
 const jahr = h.slice(0, 4);
 // Zwei Abfragen, weil die API Zeiträume auf 366 Tage begrenzt: kommende und vergangene 12 Monate.
 // Auch nach Neujahr bleibt so die letzte Kirmes sichtbar (Issue #106).
-const [kommend, bisher, orte] = await Promise.all([
+const [kommend, bisher, orte, beitraege] = await Promise.all([
   alleTermine({ ort: ort.slug, von: h, bis: plusTage(h, 365) }),
   alleTermine({ ort: ort.slug, von: plusTage(h, -365), bis: plusTage(h, -1) }),
   listeOrte(),
+  // Neueste Beiträge mit Fotos (Issue #352) – einer mehr, um „Alle“ anzubieten
+  holeBeitraege({ ort: ort.slug, limit: 4 }),
 ]);
 const vergangen = [...bisher].reverse();
 const letzte = nachKirmes(bisher).at(-1);
@@ -46,7 +49,7 @@ import PushSchalter from '../../components/PushSchalter.astro';
 ---
 
 <Base
-  noindex={kommend.length === 0 && vergangen.length === 0}
+  noindex={kommend.length === 0 && vergangen.length === 0 && beitraege.length === 0}
   title={`Kirmes ${ort.name} ${jahr} – Termine & Anfahrt`}
   description={`Kirmes in ${ort.name} ${imKreis(ort.landkreis)}: ${naechster ? `nächster Termin ${datumLang(naechster.datum)} – ${naechster.titel}` : `alle Termine ${jahr}`}. Mit Anfahrt und Kalender.`}
   jsonLd={[
@@ -123,6 +126,17 @@ import PushSchalter from '../../components/PushSchalter.astro';
       <h2>Kommende Termine</h2>
       <TerminListe termine={kommend} ortLinks={false} />
     </>
+  )}
+  {beitraege.length > 0 && (
+    <section aria-labelledby="neuigkeiten-titel">
+      <h2 id="neuigkeiten-titel">Neuigkeiten</h2>
+      <BeitragListe beitraege={beitraege.slice(0, 3)} mitOrt={false} ebene="h3" />
+      {beitraege.length > 3 && (
+        <a class="mehr" href={`/neuigkeiten?ort=${ort.slug}`}>
+          Alle Neuigkeiten aus {ort.name} <Icon name="pfeil" />
+        </a>
+      )}
+    </section>
   )}
   {vergangen.length > 0 && (
     <>

@@ -37,8 +37,12 @@ export interface Drosselung {
 }
 
 // ── Eingabe ─────────────────────────────────────────────────────────────────────────────
-/** termin = Terminmeldung, link = Festplatz-Link anfordern, mitmachen = Anfrage für die Redaktion */
-export type MeldungsArt = 'termin' | 'link' | 'mitmachen';
+/**
+ * termin = Terminmeldung, link = Festplatz-Link anfordern, mitmachen = Anfrage für die Redaktion,
+ * beitrag = Beitrag mit Fotos melden (Issue #352; titel = Adresse des Beitrags, info = Grund)
+ */
+export type MeldungsArt = 'termin' | 'link' | 'mitmachen' | 'beitrag';
+const BEITRAG_ADRESSE = /^\/orte\/[a-z0-9-]{1,120}#beitrag-[0-9a-f-]{36}$/;
 export interface MeldungEingabe {
   art: MeldungsArt;
   ort: string;
@@ -103,6 +107,12 @@ function pruefe(e: MeldungEingabe): Validierungsfehler[] {
     const d = parseDatum(zeile(e.datum));
     if (!d.ok) f.push(d.error);
   }
+  if (e.art === 'beitrag') {
+    if (!BEITRAG_ADRESSE.test(zeile(e.titel)))
+      f.push({ feld: 'titel', code: 'BEITRAG', meldung: 'Unbekannter Beitrag.' });
+    if (!mehrzeilig(e.info))
+      f.push({ feld: 'info', code: 'PFLICHT', meldung: 'Bitte kurz schreiben, was nicht stimmt.' });
+  }
   if (zeile(e.zeit) && !ZEIT.test(zeile(e.zeit))) {
     f.push({ feld: 'zeit', code: 'ZEIT', meldung: 'Uhrzeit bitte als HH:MM.' });
   }
@@ -128,6 +138,13 @@ function nachricht(e: MeldungEingabe): Nachricht {
       text: `Anfrage, in der Redaktion mitzumachen.\n\n${zeilen([['Region / Ort', e.ort]])}${
         info ? `\n\n${info}\n` : '\n'
       }\n${absender}\n\nAnnehmen oder ablehnen im Redaktionsbereich unter „Anfragen“ – beim Annehmen geht der Einladungslink automatisch an die angegebene Adresse.\n`,
+      antwortAn: zeile(e.email),
+    };
+  }
+  if (e.art === 'beitrag') {
+    return {
+      betreff: zeile(`Beitrag gemeldet: ${ort}`).slice(0, 150),
+      text: `Ein Besucher hat einen Beitrag gemeldet.\n\nBeitrag: ${zeile(e.titel)}\n\nGrund:\n${info}\n\n${absender}\n\nBei Verstoß bitte im Redaktionsbereich unter „Beiträge“ löschen.\n`,
       antwortAn: zeile(e.email),
     };
   }

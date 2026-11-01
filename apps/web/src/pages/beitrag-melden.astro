@@ -1,0 +1,138 @@
+---
+/**
+ * Beitrag melden (Issue #352): Besucher melden Fotos oder Texte, die nicht in Ordnung sind (z. B.
+ * eigenes Foto ohne Einverständnis). Geht per E-Mail an die Redaktion, gespeichert wird nichts.
+ * Schutz wie bei „Mitmachen“: CSRF-Token, unsichtbare Falle, Mindestzeit, Drosselung je IP.
+ */
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import { findeOrt } from '../lib/api';
+import { besucherIp, sendeMeldung, type MeldungsErgebnis } from '../lib/meldung';
+import { CSRF_FELD, FORMULAR_COOKIE, csrfGueltig, csrfToken } from '../lib/csrf';
+
+const PFAD = '/beitrag-melden';
+const ort = await findeOrt(Astro.url.searchParams.get('ort') ?? '');
+const id = Astro.url.searchParams.get('id') ?? '';
+if (!ort || !/^[0-9a-f-]{36}$/.test(id)) return Astro.rewrite('/404');
+const adresse = `/orte/${ort.slug}#beitrag-${id}`;
+
+const FELDER = ['absender', 'email', 'info'] as const;
+let werte: Partial<Record<(typeof FELDER)[number], string>> = {};
+let ergebnis: MeldungsErgebnis | { status: 'abgelaufen' } | null = null;
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const text = (n: string) => {
+    const v = f.get(n);
+    return typeof v === 'string' ? v : '';
+  };
+  werte = Object.fromEntries(FELDER.map((n) => [n, text(n)]));
+  const geladen = Number(text('geladen'));
+  ergebnis = !csrfGueltig(Astro.cookies.get(FORMULAR_COOKIE)?.value, f.get(CSRF_FELD))
+    ? { status: 'abgelaufen' }
+    : await sendeMeldung(
+        {
+          ...Object.fromEntries(Object.entries(werte).filter(([, v]) => v !== '')),
+          art: 'beitrag',
+          ort: ort.name,
+          titel: adresse,
+          falle: text('webseite'),
+          dauerMs: Number.isFinite(geladen) ? Math.max(0, Date.now() - geladen) : 0,
+        },
+        besucherIp(Astro.request, Astro.clientAddress),
+      );
+  if (ergebnis.status === 'gesendet') werte = {};
+  else
+    Astro.response.status =
+      ergebnis.status === 'fehler' ? 400 : ergebnis.status === 'abgelaufen' ? 403 : 503;
+}
+Astro.response.headers.set('Cache-Control', 'no-store');
+const fehlerZu = (feld: string) =>
+  ergebnis?.status === 'fehler' ? ergebnis.fehler.find((x) => x.feld === feld)?.meldung : undefined;
+const aktion = `${PFAD}?${new URLSearchParams({ ort: ort.slug, id })}`;
+const csrf = csrfToken(Astro.cookies, { cookie: FORMULAR_COOKIE, pfad: PFAD });
+const geladen = Date.now();
+---
+
+<Base title="Beitrag melden – Kirmeskalender Thüringen" description="Beitrag melden" noindex>
+  <section class="einstieg">
+    <h1>Beitrag melden</h1>
+    <p class="unterzeile">
+      Ist auf einem Foto jemand, der das nicht möchte, oder stimmt etwas nicht? Schreib uns – die
+      Redaktion schaut es sich schnell an und entfernt den Beitrag, wenn nötig.
+    </p>
+    <p>
+      <a href={adresse}>Zum Beitrag aus {ort.name}</a>
+    </p>
+  </section>
+
+  <div id="rueckmeldung" class="rueckmeldung">
+    {ergebnis?.status === 'gesendet' && (
+      <p class="meldung erfolg" role="status">
+        <Icon name="haken" />
+        Danke! Deine Meldung ist angekommen. Wir melden uns per E-Mail.
+      </p>
+    )}
+    {ergebnis?.status === 'fehler' && (
+      <p class="meldung" role="alert">
+        Bitte die markierten Angaben prüfen.
+      </p>
+    )}
+    {ergebnis?.status === 'abgelaufen' && (
+      <p class="meldung" role="alert">
+        Das Formular war zu lange geöffnet. Bitte noch einmal auf „Senden“ klicken.
+      </p>
+    )}
+    {(ergebnis?.status === 'zu-viele' || ergebnis?.status === 'nicht-moeglich') && (
+      <p class="meldung" role="alert">
+        Das Senden klappt gerade nicht. Bitte später noch einmal versuchen.
+      </p>
+    )}
+  </div>
+
+  {ergebnis?.status !== 'gesendet' && (
+    <form class="melden" method="post" action={`${aktion}#rueckmeldung`}>
+      <input type="hidden" name={CSRF_FELD} value={csrf} />
+      <input type="hidden" name="geladen" value={geladen} />
+      <label class="falle" aria-hidden="true">
+        Webseite <input name="webseite" tabindex="-1" autocomplete="off" />
+      </label>
+      <label>
+        Was stimmt nicht? *
+        <textarea name="info" rows="4" maxlength="2000" required set:text={werte.info ?? ''} />
+        {fehlerZu('info') && <span class="feldfehler">{fehlerZu('info')}</span>}
+      </label>
+      <label>
+        Dein Name *
+        <input
+          name="absender"
+          required
+          maxlength="120"
+          autocomplete="name"
+          value={werte.absender}
+        />
+        {fehlerZu('absender') && <span class="feldfehler">{fehlerZu('absender')}</span>}
+      </label>
+      <label>
+        E-Mail für Rückfragen *
+        <input
+          name="email"
+          type="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+          value={werte.email}
+        />
+        {fehlerZu('email') && <span class="feldfehler">{fehlerZu('email')}</span>}
+      </label>
+      <p class="leise klein">
+        Deine Meldung geht per E-Mail an die Redaktion und wird nicht gespeichert. Mehr dazu im{' '}
+        <a href="/datenschutz">Datenschutz</a>.
+      </p>
+      <div>
+        <button class="knopf" type="submit">
+          Senden
+        </button>
+      </div>
+    </form>
+  )}
+</Base>

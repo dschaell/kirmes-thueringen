@@ -1,0 +1,199 @@
+---
+/**
+ * Beiträge mit Fotos (Issue #352): Kirmesgesellschaft (eigener Ort) und Redaktion (jeder Ort)
+ * schreiben kurze Beiträge mit bis zu sechs Fotos. Ablauf auf dem Server: Entwurf anlegen, Fotos
+ * einzeln hochladen, veröffentlichen. Klappt ein Foto nicht, wird der Entwurf verworfen.
+ * Gelöscht wird nur hier von Hand – nie automatisch.
+ */
+import { BEITRAG_MAX_FOTOS, BEITRAG_MAX_TEXT, nurEigenerOrt } from '@kirmes/core';
+import AdminLayout from '../../components/admin/AdminLayout.astro';
+import BeitragListe from '../../components/BeitragListe.astro';
+import CsrfFeld from '../../components/admin/CsrfFeld.astro';
+import FotoZeile from '../../components/admin/FotoZeile.astro';
+import { adminApi, adminBeitragFoto, feld } from '../../lib/admin';
+import { alleTermine, findeOrt, holeBeitraege, listeOrte } from '../../lib/api';
+import { datumKurz, heute, plusTage } from '../../lib/anzeige';
+
+const BILDTYPEN = ['image/jpeg', 'image/png', 'image/webp'];
+const kg = nurEigenerOrt(Astro.locals);
+const ortSlug = kg ? (Astro.locals.ortSlug ?? '') : (Astro.url.searchParams.get('ort') ?? '');
+const ort = ortSlug ? await findeOrt(ortSlug) : null;
+
+let fehler: string[] = [];
+let werte = { text: '', termin: '' };
+if (Astro.request.method === 'POST' && ort) {
+  const f = await Astro.request.formData();
+  const zurueck = `/admin/beitraege${kg ? '' : `?ort=${encodeURIComponent(ort.slug)}`}`;
+  if (feld(f, 'aktion') === 'loeschen') {
+    const r = await adminApi(
+      Astro.cookies,
+      'DELETE',
+      `beitraege/${encodeURIComponent(feld(f, 'id'))}`,
+    );
+    if (r.status === 204) return Astro.redirect(`${zurueck}${kg ? '?' : '&'}geloescht=1`, 303);
+    fehler = r.fehler;
+  } else {
+    werte = { text: feld(f, 'text'), termin: feld(f, 'termin') };
+    const fotos = Array.from({ length: BEITRAG_MAX_FOTOS }, (_, i) => ({
+      datei: f.get(`foto-${i + 1}`),
+      alt: feld(f, `alt-${i + 1}`),
+    })).filter(
+      (x): x is { datei: File; alt: string } => x.datei instanceof File && x.datei.size > 0,
+    );
+    if (fotos.some((x) => !BILDTYPEN.includes(x.datei.type)))
+      fehler = ['Bitte nur Fotos als JPEG, PNG oder WebP wählen.'];
+    else if (!werte.text && fotos.length === 0)
+      fehler = ['Bitte einen Text schreiben oder ein Foto hinzufügen.'];
+    else {
+      const neu = await adminApi<{ id: string }>(Astro.cookies, 'POST', 'beitraege', {
+        ortSlug: ort.slug,
+        text: werte.text,
+        terminId: werte.termin || null,
+        einverstanden: f.get('einverstanden') === 'ja',
+      });
+      fehler = neu.fehler;
+      const id = neu.daten?.id;
+      if (id) {
+        for (const [i, x] of fotos.entries()) {
+          const r = await adminBeitragFoto(Astro.cookies, id, x.datei, x.alt);
+          if (r.fehler.length) {
+            fehler = r.fehler.map((m) => `Foto ${i + 1}: ${m}`);
+            break;
+          }
+        }
+        const fertig = fehler.length
+          ? null
+          : await adminApi(
+              Astro.cookies,
+              'POST',
+              `beitraege/${encodeURIComponent(id)}/veroeffentlichen`,
+            );
+        if (fertig && !fertig.fehler.length)
+          return Astro.redirect(`${zurueck}${kg ? '?' : '&'}veroeffentlicht=1`, 303);
+        if (fertig) fehler = fertig.fehler;
+        // Halb fertiger Entwurf: verwerfen, damit nichts Unvollständiges liegen bleibt
+        await adminApi(Astro.cookies, 'DELETE', `beitraege/${encodeURIComponent(id)}`);
+      }
+    }
+  }
+  if (fehler.length) Astro.response.status = 400;
+}
+
+const h = heute();
+const [termine, beitraege, orte] = await Promise.all([
+  ort ? alleTermine({ ort: ort.slug, von: plusTage(h, -30), bis: plusTage(h, 365) }) : [],
+  ort ? holeBeitraege({ ort: ort.slug, limit: 50 }) : holeBeitraege({ limit: 20 }),
+  kg ? [] : listeOrte(),
+]);
+const aktiveOrte = orte.filter((o) => o.anzahlKommend > 0);
+const jahr = h.slice(0, 4);
+---
+
+<AdminLayout
+  titel="Beiträge & Fotos"
+  fehler={fehler}
+  meldung={
+    Astro.url.searchParams.has('veroeffentlicht')
+      ? 'Veröffentlicht. Wer eurem Ort folgt, bekommt eine Benachrichtigung.'
+      : Astro.url.searchParams.has('geloescht')
+        ? 'Beitrag mit allen Fotos gelöscht.'
+        : null
+  }
+>
+  <p>
+    Zeigt euren Gästen, was los ist: Kirmesbaum steht, Umzug, Kirmestanz. Beiträge erscheinen auf
+    eurer Ortsseite und unter <a href="/neuigkeiten">Neuigkeiten</a>. Sie bleiben, bis ihr sie
+    löscht.
+  </p>
+
+  {!kg && (
+    <form class="melden kasten" method="get">
+      <label>
+        Für welchen Ort?
+        <input
+          name="ort"
+          list="beitrag-orte"
+          required
+          value={ort?.slug ?? ''}
+          placeholder="Ort wählen"
+          autocomplete="off"
+        />
+      </label>
+      <datalist id="beitrag-orte">
+        {aktiveOrte.map((o) => (
+          <option value={o.slug}>{o.name}</option>
+        ))}
+      </datalist>
+      <button class="knopf zweit" type="submit">
+        Ort wählen
+      </button>
+    </form>
+  )}
+
+  {ort && (
+    <form class="melden beitrag-formular" method="post" enctype="multipart/form-data">
+      <CsrfFeld />
+      <input type="hidden" name="aktion" value="schreiben" />
+      <h2>Neuer Beitrag für {ort.name}</h2>
+      <label>
+        Text
+        <textarea
+          name="text"
+          rows="4"
+          maxlength={BEITRAG_MAX_TEXT}
+          placeholder="z. B. Der Kirmesbaum steht! Danke an alle Helfer."
+          set:text={werte.text}
+        />
+      </label>
+      {termine.length > 0 && (
+        <label>
+          Zu einem Termin (optional)
+          <select name="termin">
+            <option value="">– kein Termin –</option>
+            {termine.map((t) => (
+              <option value={t.id} selected={werte.termin === t.id}>
+                {datumKurz(t.datum, jahr)} · {t.titel}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <fieldset class="gruppe">
+        <legend>Fotos (bis zu {BEITRAG_MAX_FOTOS})</legend>
+        <p class="klein leise">
+          JPEG, PNG oder WebP, je höchstens 8 MB. Wir speichern verkleinerte Kopien ohne Standort-
+          und Kameradaten. Die Beschreibung hilft Menschen, die nicht gut sehen.
+        </p>
+        {[1, 2].map((n) => (
+          <FotoZeile n={n} />
+        ))}
+        <details class="weitere-fotos">
+          <summary>Weitere Fotos</summary>
+          {Array.from({ length: BEITRAG_MAX_FOTOS - 2 }, (_, j) => j + 3).map((n) => (
+            <FotoZeile n={n} />
+          ))}
+        </details>
+      </fieldset>
+      <label class="haken">
+        <input type="checkbox" name="einverstanden" value="ja" required />
+        <span>
+          Die Fotos sind von uns (oder wir dürfen sie zeigen), und alle gut erkennbaren Personen
+          sind einverstanden – bei Kindern die Eltern.
+        </span>
+      </label>
+      <div>
+        <button class="knopf" type="submit">
+          Veröffentlichen
+        </button>
+      </div>
+    </form>
+  )}
+
+  <h2>{ort ? `Beiträge aus ${ort.name}` : 'Neueste Beiträge'}</h2>
+  {beitraege.length > 0 ? (
+    <BeitragListe beitraege={beitraege} mitOrt={!ort} verwalten={!!ort} ebene="h3" />
+  ) : (
+    <p class="leer">Noch keine Beiträge.</p>
+  )}
+  {!ort && beitraege.length > 0 && <p class="klein leise">Zum Löschen oben den Ort wählen.</p>}
+</AdminLayout>

@@ -58,27 +58,25 @@ export async function adminApi<T = unknown>(
   return { status: res.status, daten: res.ok ? (json as T) : null, fehler };
 }
 
-/** Plakat hochladen (Datei) oder löschen (ohne Datei) – Issue #297. Liefert Status und Fehler. */
-export async function adminPlakat(
+/** Rohbild an die Redaktions-API schicken (PUT/POST) oder löschen (DELETE ohne Datei). */
+async function adminBild(
   cookies: AstroCookies,
-  terminId: string,
+  pfad: string,
+  methode: 'PUT' | 'POST' | 'DELETE',
   datei?: File,
 ): Promise<AdminAntwort<unknown>> {
   const token = cookies.get(SITZUNGS_COOKIE)?.value ?? '';
   let res: Response;
   try {
-    res = await fetch(
-      new URL(`/api/v1/admin/termine/${encodeURIComponent(terminId)}/plakat`, API_URL),
-      {
-        method: datei ? 'PUT' : 'DELETE',
-        headers: {
-          authorization: `Sitzung ${token}`,
-          ...(datei && { 'content-type': datei.type }),
-        },
-        body: datei ? await datei.arrayBuffer() : undefined,
-        signal: AbortSignal.timeout(30_000),
+    res = await fetch(new URL(`/api/v1/admin/${pfad}`, API_URL), {
+      method: methode,
+      headers: {
+        authorization: `Sitzung ${token}`,
+        ...(datei && { 'content-type': datei.type }),
       },
-    );
+      body: datei ? await datei.arrayBuffer() : undefined,
+      signal: AbortSignal.timeout(30_000),
+    });
   } catch (e) {
     throw new ApiNichtErreichbar({ cause: e });
   }
@@ -89,6 +87,29 @@ export async function adminPlakat(
     fehler: res.ok ? [] : [json?.title ?? `Fehler ${res.status}`],
   };
 }
+
+/** Plakat hochladen (Datei) oder löschen (ohne Datei) – Issue #297. Liefert Status und Fehler. */
+export const adminPlakat = (cookies: AstroCookies, terminId: string, datei?: File) =>
+  adminBild(
+    cookies,
+    `termine/${encodeURIComponent(terminId)}/plakat`,
+    datei ? 'PUT' : 'DELETE',
+    datei,
+  );
+
+/** Foto an einen Beitrags-Entwurf hängen (Issue #352); Beschreibung in der Abfrage. */
+export const adminBeitragFoto = (
+  cookies: AstroCookies,
+  beitragId: string,
+  datei: File,
+  alt: string,
+) =>
+  adminBild(
+    cookies,
+    `beitraege/${encodeURIComponent(beitragId)}/fotos?${new URLSearchParams({ alt })}`,
+    'POST',
+    datei,
+  );
 
 /** Anmeldung (ohne Cookie) – liefert Token oder Fehlermeldung. */
 /** Formularfeld als Text (leer, wenn nicht vorhanden). */

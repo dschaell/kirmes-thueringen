@@ -15,6 +15,7 @@ import { anfragenRouten } from './admin/anfragen.js';
 import { mitteilungenRouten } from './admin/mitteilungen.js';
 import { orteRouten } from './admin/orte.js';
 import { termineRouten } from './admin/termine.js';
+import { beitraegeRouten } from './admin/beitraege.js';
 import { plakateRouten } from './admin/plakate.js';
 import { ortsprofilRouten } from './admin/ortsprofil.js';
 
@@ -54,6 +55,11 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     // Plakat (Issue #297) – eigener Ort prüft der Use Case
     'PUT /api/v1/admin/termine/:id/plakat',
     'DELETE /api/v1/admin/termine/:id/plakat',
+    // Beiträge mit Fotos (Issue #352) – Ort aus dem Body bzw. im Use Case geprüft
+    'POST /api/v1/admin/beitraege',
+    'POST /api/v1/admin/beitraege/:id/fotos',
+    'POST /api/v1/admin/beitraege/:id/veroeffentlichen',
+    'DELETE /api/v1/admin/beitraege/:id',
     // Vereinsprofil des eigenen Ortes (Issue #310) – Ort prüft der Filter über :slug
     'PUT /api/v1/admin/orte/:slug/profil',
     'GET /api/v1/admin/orte/:slug/festplaetze',
@@ -99,6 +105,7 @@ export async function adminRouten(app: FastifyInstance, d: AdminAbhaengigkeiten)
     orteRouten(r, d, k);
     termineRouten(r, d, k);
     plakateRouten(r, d, k);
+    beitraegeRouten(r, d, k);
     ortsprofilRouten(r, d, k);
   });
 }

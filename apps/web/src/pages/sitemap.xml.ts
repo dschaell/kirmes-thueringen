@@ -33,6 +33,7 @@ export const GET: APIRoute = async ({ site }) => {
       '/ueber-die-kirmes',
       '/muttizettel',
       '/kalender-abonnieren',
+      '/neuigkeiten',
     ].map((p): [string] => [p]),
     ...orte
       .filter((o) => o.anzahlKommend > 0)

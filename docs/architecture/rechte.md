@@ -11,6 +11,7 @@ API-Routen, Use Cases und Web-Middleware fragen nur dort nach – keine eigenen 
 | Plätze (inkl. umbenennen)                                                                              |   ✓   |     ✓     |    eigener Ort     |
 | Vorschläge                                                                                             |   ✓   |     ✓     |    eigener Ort     |
 | Korrekturen                                                                                            |   ✓   |     ✓     |    eigener Ort     |
+| Beiträge mit Fotos (schreiben, löschen)                                                                |   ✓   |     ✓     |    eigener Ort     |
 | Orte anlegen                                                                                           |   ✓   |     ✓     |         –          |
 | Orte bearbeiten (Ortsmitte; Name/Landkreis nur selbst angelegter Orte)                                 |   ✓   |     ✓     |         –          |
 | Mitteilungen                                                                                           |   ✓   |     ✓     |         –          |

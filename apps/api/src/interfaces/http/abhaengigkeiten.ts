@@ -1,5 +1,6 @@
 /** Abhängigkeiten der HTTP-App – eigene Datei, damit Routen-Module sie ohne Zyklus nutzen (#199). */
 import type {
+  Beitraege,
   FindeOrt,
   FindeTermin,
   Korrekturen,
@@ -32,6 +33,8 @@ export interface AppAbhaengigkeiten {
   zugriffe?: Zugriffe;
   /** Plakate je Termin (Issue #297), öffentlich lesbar */
   plakate?: Plakate;
+  /** Beiträge mit Fotos (Issue #352), veröffentlichte öffentlich lesbar */
+  beitraege?: Beitraege;
   /** Push-Benachrichtigungen (Issue #348); nur mit VAPID-Schlüsseln */
   push?: PushAbhaengigkeiten;
   datenbankErreichbar: () => Promise<boolean>;

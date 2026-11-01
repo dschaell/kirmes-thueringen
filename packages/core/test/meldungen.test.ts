@@ -115,6 +115,28 @@ describe('Meldung an die Redaktion', () => {
     ]);
   });
 
+  it('Beitrag melden (Issue #352): Adresse und Grund nötig, Mail an die Redaktion', async () => {
+    const { m, gesendet } = aufbau();
+    const basis: MeldungEingabe = {
+      art: 'beitrag',
+      ort: 'Mühlberg',
+      titel: '/orte/muehlberg#beitrag-11111111-1111-4111-8111-111111111111',
+      info: 'Ich bin auf dem Foto und will das nicht.',
+      absender: 'Erika',
+      email: 'erika@example.org',
+      dauerMs: 20_000,
+    };
+    expect(await m.melde(basis, 'ip')).toEqual({ ok: true, value: { gesendet: true } });
+    expect(gesendet[0]?.betreff).toBe('Beitrag gemeldet: Mühlberg');
+    expect(gesendet[0]?.text).toContain('/orte/muehlberg#beitrag-11111111');
+    expect(gesendet[0]?.antwortAn).toBe('erika@example.org');
+    const r = await m.melde({ ...basis, titel: 'https://boese.example', info: ' ' }, 'ip2');
+    expect(!r.ok && Array.isArray(r.error) && r.error.map((f) => f.code)).toEqual([
+      'BEITRAG',
+      'PFLICHT',
+    ]);
+  });
+
   it('prüft Pflichtfelder, Datum, Uhrzeit, E-Mail und Längen', async () => {
     const { m, gesendet } = aufbau();
     const r = await m.melde(

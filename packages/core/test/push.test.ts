@@ -153,6 +153,24 @@ describe('Nachrichten (Issue #348)', () => {
     expect(geloescht).toEqual([gesendet[1]?.an, gesendet[3]?.an]);
   });
 
+  it('neuer Beitrag (Issue #352) an alle, die dem Ort folgen', async () => {
+    const { push, gesendet, empfaengerAufrufe } = aufbau();
+    expect(
+      await push.beitrag({
+        id: 'b1',
+        ortSlug: 'muehlberg',
+        ortName: 'Mühlberg',
+        kgName: null,
+        text: 'Baum steht',
+        termin: null,
+        veroeffentlichtAm: null,
+        fotos: [],
+      }),
+    ).toBe(2);
+    expect(empfaengerAufrufe).toEqual([['muehlberg', []]]);
+    expect(gesendet[0]?.n).toMatchObject({ titel: 'Neu aus Mühlberg', text: 'Baum steht' });
+  });
+
   it('geändert an Folgende und Merkende; abgesagt an vorab gelesene Empfänger', async () => {
     const { push, gesendet, empfaengerAufrufe } = aufbau((z) =>
       z.endpoint.endsWith('weg') ? 'fehler' : 'zugestellt',
