@@ -388,6 +388,23 @@ a:hover {
   body:has(.leiste) .fuss .design-schalter {
     display: none;
   }
+  /* Am Handy und in der App nur noch eine schmale Zeile mit Quellenhinweis (OpenStreetMap),
+     Impressum und Datenschutz – Beschreibung und Einstellungen stehen unter „Mehr“ (Issue #391) */
+  body:has(.leiste) .fuss .wrap > div:not(.recht) {
+    display: none;
+  }
+  body:has(.leiste) .fuss {
+    margin-top: 32px;
+    padding: 4px 0 8px;
+    font-size: 0.85rem;
+  }
+  body:has(.leiste) .fuss .recht {
+    border-top: 0;
+    padding-top: 0;
+    justify-content: center;
+    text-align: center;
+    gap: 0 12px;
+  }
   /* Beim Tippen verdeckt die Leiste sonst Inhalt über der Tastatur (Issue #363) */
   body:has(:is(input:not([type='checkbox'], [type='radio'], [type='file']), textarea):focus)
     .leiste {
@@ -487,8 +504,19 @@ a:hover {
 /* ── Formulare ────────────────────────────────────────────────────────────────────────── */
 .suchzeile {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   max-width: 640px;
+}
+/* Feld und Knopf nebeneinander, bis das Feld schmaler als 12rem würde – dann darunter und
+   der Knopf volle Breite (Issue #391) */
+.suchzeile > .ortssuche,
+.suchzeile > input[type='search'] {
+  flex: 999 1 12rem;
+  min-width: 0;
+}
+.suchzeile:is(:has(> .ortssuche), :has(> input[type='search'])) > .knopf {
+  flex: 1 0 auto;
 }
 input,
 select,
@@ -1623,8 +1651,6 @@ dialog.mitteilung h2 {
 }
 .suchzeile .ortssuche {
   position: static;
-  flex: 1;
-  min-width: 0;
 }
 .ortssuche-liste li:hover,
 .ortssuche-liste li[aria-selected='true'] {
@@ -1657,6 +1683,9 @@ dialog.mitteilung h2 {
   .filter > summary,
   .marken label,
   .filterfelder label.klein,
+  .seitenleiste li > a,
+  .fuss li > a,
+  .fuss .recht a,
   .knopf {
     min-height: 44px;
     display: inline-flex;
@@ -1998,6 +2027,10 @@ html[data-hintergrund] main#inhalt {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* Link füllt die ganze Zelle – Kacheln einer Reihe gleich hoch (Issue #391) */
+.app-kacheln li {
+  display: grid;
+}
 .app-kacheln a {
   display: grid;
   align-content: space-between;
@@ -2239,4 +2272,20 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
 }
 .start-neuigkeiten {
   margin-top: 32px;
+}
+
+/* Kleine Handys (Issue #391): lange Knopftexte und Überschriften brechen um statt überzustehen – am Dateiende, damit es die Grundregeln schlägt */
+@media (max-width: 420px) {
+  .knopf {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
 }

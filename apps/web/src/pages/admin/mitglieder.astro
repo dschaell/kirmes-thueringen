@@ -419,7 +419,8 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   }
   .mitgliedergruppe > summary {
     cursor: pointer;
-    padding: 0.3rem 0;
+    /* Tippfläche ≥ 44 px, Aufklapp-Dreieck bleibt (Issue #391) */
+    padding: 0.7rem 0;
   }
   .mitgliedergruppe[open] > summary {
     margin-bottom: 0.5rem;
