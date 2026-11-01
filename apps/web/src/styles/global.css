@@ -1969,21 +1969,16 @@ html[data-hintergrund] main#inhalt {
     margin: 12px 8px 0;
     padding-inline: 14px;
   }
-  /* Untere Leiste schwebt als Glas-Kachel wie in einer App */
+  /* Untere Leiste bündig am Rand wie eine App-Leiste, aus Milchglas (Issue #372) */
   html[data-hintergrund] .leiste {
-    left: 10px;
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: 0;
-    border: 1px solid var(--glas-rand);
-    border-radius: 24px;
+    border-top: 1px solid var(--glas-rand);
     background: var(--glas);
     -webkit-backdrop-filter: blur(24px) saturate(1.5);
     backdrop-filter: blur(24px) saturate(1.5);
-    box-shadow: 0 8px 28px rgb(0 0 0 / 0.18);
+    box-shadow: 0 -4px 20px rgb(0 0 0 / 0.12);
   }
   html[data-hintergrund] body:has(.leiste) {
-    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 }
 /* Wer weniger Transparenz will, bekommt volle Flächen */
