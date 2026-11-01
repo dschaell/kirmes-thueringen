@@ -42,10 +42,16 @@ import PushSchalter from '../components/PushSchalter.astro';
     {termine.length > 0 ? (
       <TerminListe termine={termine} hinweis={false} />
     ) : (
-      <p class="leer" id="gemerkt-leer">
-        Noch nichts gemerkt. Unter <a href="/termine">Termine</a> bei einer Veranstaltung auf
-        „Merken“ tippen.
-      </p>
+      <div id="gemerkt-leer">
+        <p class="leer">
+          Noch nichts gemerkt. Unter <a href="/termine">Termine</a> bei einer Veranstaltung auf
+          „Merken“ tippen.
+        </p>
+        <p class="klein leise" id="gemerkt-app" hidden>
+          Die App vom Home-Bildschirm hat eine eigene Merkliste – was du in Safari gemerkt hast,
+          bitte hier noch einmal merken.
+        </p>
+      </div>
     )}
   </div>
   <noscript>
@@ -57,17 +63,34 @@ import PushSchalter from '../components/PushSchalter.astro';
   import { gemerkte, speichere } from '../scripts/merken';
 
   const box = document.getElementById('gemerkt');
+  const angefragt = () => new Set(new URLSearchParams(location.search).get('t')?.split(',') ?? []);
+  const ziel = (ids: string[]) => (ids.length ? `/gemerkt?t=${ids.join(',')}` : '/gemerkt');
   const ids = gemerkte();
   if (box?.dataset.abgefragt !== 'true') {
     // Erster Aufruf: gemerkte IDs an die Adresse hängen, damit der Server sie anzeigt
-    if (ids.length) location.replace(`/gemerkt?t=${ids.join(',')}`);
+    if (ids.length) location.replace(ziel(ids));
   } else {
-    // Vergangene oder gelöschte Termine aus der Liste nehmen; neu Gemerktes nachladen
+    // Vergangene oder gelöschte Termine aus der Liste nehmen
     const gueltig = new Set((box.dataset.gueltig ?? '').split(',').filter(Boolean));
-    const angefragt = new Set(new URLSearchParams(location.search).get('t')?.split(',') ?? []);
-    speichere(ids.filter((id) => gueltig.has(id) || !angefragt.has(id)));
+    const frage = angefragt();
+    speichere(ids.filter((id) => gueltig.has(id) || !frage.has(id)));
     const neu = gemerkte();
-    if (neu.some((id) => !angefragt.has(id)) || neu.length !== gueltig.size)
-      history.replaceState(null, '', `/gemerkt?t=${neu.join(',')}`);
+    // Neu Gemerktes laden – nur die Adresse zu ändern zeigte es nicht an (Issue #393)
+    if (neu.some((id) => !frage.has(id))) location.replace(ziel(neu));
+    else if (neu.length !== gueltig.size) history.replaceState(null, '', ziel(neu));
   }
+  // Zurück-Wischen zeigt die Seite aus dem Zwischenspeicher – mit der aktuellen Liste neu laden
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    const frage = angefragt();
+    const jetzt = gemerkte();
+    if (jetzt.length !== frage.size || jetzt.some((id) => !frage.has(id)))
+      location.replace(ziel(jetzt));
+  });
+  // In der Home-Bildschirm-App: Hinweis auf die eigene Merkliste (getrennt von Safari)
+  const alsApp =
+    matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const appHinweis = document.getElementById('gemerkt-app');
+  if (appHinweis && alsApp && !gemerkte().length) appHinweis.hidden = false;
 </script>

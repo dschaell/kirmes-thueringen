@@ -81,21 +81,29 @@ async function anmelden(): Promise<PushSubscription | 'verweigert' | null> {
   );
 }
 
-/** Listen mit dem Server abgleichen; ohne Orte und Termine meldet sich das Gerät ab */
-export async function abgleichen(sub?: PushSubscription | null): Promise<boolean> {
+/**
+ * Ergebnis des Abgleichs: „an“ = Server kennt das Gerät; „leer“ = noch nichts gemerkt oder gefolgt –
+ * das Gerät bleibt angemeldet, der Server hat nichts zu melden (Issue #393); „ohne“ = keine
+ * Anmeldung im Browser; sonst „fehler-<HTTP-Status>“.
+ */
+export type Abgleich = 'an' | 'leer' | 'ohne' | `fehler-${number}`;
+
+/** Listen mit dem Server abgleichen; ohne Orte und Termine löscht der Server das Abo */
+export async function abgleichen(sub?: PushSubscription | null): Promise<Abgleich> {
   const s = sub ?? (unterstuetzt() ? await anmeldung() : null);
-  if (!s) return false;
+  if (!s) return 'ohne';
   const j = s.toJSON();
   const orte = gefolgte();
   const termine = lies(GEMERKT) === 'aus' ? [] : gemerkte();
   if (!orte.length && !termine.length) {
-    await fetch('/push/abo', {
+    // Nicht abmelden: in der App ist die Merkliste anfangs leer (eigener Speicher, getrennt von
+    // Safari). Beim ersten Merken meldet merken.ts das Gerät wieder an.
+    const r = await fetch('/push/abo', {
       method: 'DELETE',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ endpoint: s.endpoint }),
     });
-    await s.unsubscribe();
-    return false;
+    return r.ok ? 'leer' : `fehler-${r.status}`;
   }
   const r = await fetch('/push/abo', {
     method: 'PUT',
@@ -108,7 +116,7 @@ export async function abgleichen(sub?: PushSubscription | null): Promise<boolean
       erinnerung: erinnerung(),
     }),
   });
-  return r.ok;
+  return r.ok ? 'an' : `fehler-${r.status}`;
 }
 
 async function einrichten(box: HTMLElement) {
@@ -167,11 +175,21 @@ async function einrichten(box: HTMLElement) {
         if (s === 'verweigert')
           status.textContent =
             'Benachrichtigungen sind blockiert – bitte in den Einstellungen des Geräts erlauben.';
-        else if (!(await abgleichen(s)))
-          status.textContent = aktiv ? '' : 'Das hat nicht geklappt.';
+        else if (!s) {
+          if (!aktiv) status.textContent = 'Benachrichtigungen sind gerade nicht verfügbar.';
+        } else {
+          const e = await abgleichen(s);
+          if (e.startsWith('fehler'))
+            status.textContent = `Das hat nicht geklappt – der Server antwortet gerade nicht (${e.slice(7)}). Bitte später noch einmal versuchen.`;
+          else if (e === 'leer' && !aktiv && box.dataset.push !== 'ort')
+            status.textContent =
+              'Eingeschaltet. Sobald du einen Termin merkst, melden wir uns dazu.';
+        }
       }
-    } catch {
-      status.textContent = 'Das hat nicht geklappt – bitte später noch einmal versuchen.';
+    } catch (e) {
+      // Grund mit angeben – sonst lässt sich vor Ort nicht klären, was schiefging (Issue #393)
+      const grund = e instanceof Error && e.name && e.name !== 'Error' ? ` (${e.name})` : '';
+      status.textContent = `Das hat nicht geklappt – bitte später noch einmal versuchen.${grund}`;
     } finally {
       knopf.disabled = false;
       await zeige();
