@@ -312,6 +312,9 @@ a:hover {
     height: env(safe-area-inset-top, 0px);
     background: var(--papier);
     z-index: 100;
+    /* Eigene Ebene: sonst malt WebKit Milchglas-Flächen (backdrop-filter) darüber (Issue #363) */
+    transform: translateZ(0);
+    pointer-events: none;
   }
   .kopf {
     padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
@@ -402,6 +405,15 @@ a:hover {
   }
 }
 @media (max-width: 760px) {
+  /* Beim Tippen verdeckt die Leiste sonst Inhalt über der Tastatur (Issue #363) */
+  body:has(:is(input:not([type='checkbox'], [type='radio'], [type='file']), textarea):focus)
+    .leiste {
+    display: none;
+  }
+  /* Letzte Reihe nicht bündig am Rand – man sieht, dass es weitergeht */
+  .leiste-menue {
+    padding-bottom: 16px;
+  }
   /* Mitteilung über der Leiste, nicht dahinter */
   body:has(.leiste) dialog.mitteilung {
     margin-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
