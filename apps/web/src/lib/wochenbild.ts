@@ -24,8 +24,8 @@ const xml = (s: string) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? '&apos;',
   );
-const SANS = 'DejaVu Sans, Helvetica, Arial, sans-serif';
-const SERIF = 'DejaVu Serif, Georgia, serif';
+/** Arial wie die Website; im Container die maßgleiche Liberation Sans (Issue #368) */
+const SANS = 'Arial, Liberation Sans, DejaVu Sans, sans-serif';
 
 export function wochenbildSvg(
   zeitraum: string,
@@ -42,7 +42,7 @@ export function wochenbildSvg(
       const titel = umbrechen(t.titel, 30, 1)[0] ?? '';
       const ort = umbrechen(t.ort, 34, 1)[0] ?? '';
       return `<text x="80" y="${y}" font-family="${SANS}" font-size="30" font-weight="700" fill="#a4161a">${xml(t.wann)}</text>
-  <text x="300" y="${y}" font-family="${SERIF}" font-size="38" font-weight="700" fill="#211a14">${xml(titel)}</text>
+  <text x="300" y="${y}" font-family="${SANS}" font-size="38" font-weight="700" fill="#211a14">${xml(titel)}</text>
   <text x="300" y="${y + 44}" font-family="${SANS}" font-size="30" fill="#5c5249">${xml(ort)}</text>`;
     })
     .join('\n  ');
@@ -51,8 +51,8 @@ export function wochenbildSvg(
   <rect width="1080" height="${hoehe}" fill="#faf6ef"/>
   <rect y="${oben - 120}" width="1080" height="12" fill="#d4a017"/>
   <text x="80" y="${oben}" font-family="${SANS}" font-size="36" font-weight="700" fill="#a4161a">KIRMESKALENDER THÜRINGEN</text>
-  <text x="80" y="${oben + 110}" font-family="${SERIF}" font-size="84" font-weight="700" fill="#211a14">Kirmes am</text>
-  <text x="80" y="${oben + 200}" font-family="${SERIF}" font-size="84" font-weight="700" fill="#211a14">Wochenende</text>
+  <text x="80" y="${oben + 110}" font-family="${SANS}" font-size="84" font-weight="700" fill="#211a14">Kirmes am</text>
+  <text x="80" y="${oben + 200}" font-family="${SANS}" font-size="84" font-weight="700" fill="#211a14">Wochenende</text>
   <text x="80" y="${oben + 260}" font-family="${SANS}" font-size="38" fill="#5c5249">${xml(zeitraum)} · in Thüringen</text>
   ${
     sichtbar.length
@@ -76,7 +76,7 @@ export function wochenbildPng(
 ): ArrayBuffer {
   const png = new Resvg(wochenbildSvg(zeitraum, termine, format), {
     fitTo: { mode: 'width', value: 1080 },
-    font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans' },
+    font: { loadSystemFonts: true, defaultFontFamily: 'Liberation Sans' },
   })
     .render()
     .asPng();

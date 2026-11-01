@@ -11,6 +11,8 @@ const MASKE: Record<string, string> = {
   '"': '&quot;',
   "'": '&apos;',
 };
+/** Arial wie die Website; im Container die maßgleiche Liberation Sans (Issue #368) */
+const SCHRIFT = 'Arial, Liberation Sans, DejaVu Sans, sans-serif';
 const xml = (s: string) => s.replace(/[&<>"']/g, (c) => MASKE[c] ?? c);
 
 /** Zeilen umbrechen nach ungefährer Zeichenzahl; zu Langes wird mit „…“ gekürzt. */
@@ -47,16 +49,16 @@ export function vorschauSvg(d: BildDaten): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#faf6ef"/>
   <rect width="1200" height="110" fill="#a4161a"/>
-  <text x="70" y="72" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="38" font-weight="700" fill="#ffffff">Kirmeskalender Thüringen</text>
-  <text x="70" y="${titelY - 100}" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#a4161a">${xml(d.art.toUpperCase())}</text>
+  <text x="70" y="72" font-family="${SCHRIFT}" font-size="38" font-weight="700" fill="#ffffff">Kirmeskalender Thüringen</text>
+  <text x="70" y="${titelY - 100}" font-family="${SCHRIFT}" font-size="30" font-weight="700" fill="#a4161a">${xml(d.art.toUpperCase())}</text>
   ${titel
     .map(
       (z, i) =>
-        `<text x="70" y="${titelY + i * 86}" font-family="DejaVu Serif, Georgia, serif" font-size="76" font-weight="700" fill="#211a14">${xml(z)}</text>`,
+        `<text x="70" y="${titelY + i * 86}" font-family="${SCHRIFT}" font-size="76" font-weight="700" fill="#211a14">${xml(z)}</text>`,
     )
     .join('\n  ')}
-  <text x="70" y="${titelY + titel.length * 86 + 40}" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="40" fill="#211a14">${xml(d.wann)}</text>
-  <text x="70" y="${titelY + titel.length * 86 + 100}" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="40" font-weight="700" fill="#5c5249">${xml(d.wo)}</text>
+  <text x="70" y="${titelY + titel.length * 86 + 40}" font-family="${SCHRIFT}" font-size="40" fill="#211a14">${xml(d.wann)}</text>
+  <text x="70" y="${titelY + titel.length * 86 + 100}" font-family="${SCHRIFT}" font-size="40" font-weight="700" fill="#5c5249">${xml(d.wo)}</text>
   <rect y="600" width="1200" height="30" fill="#d4a017"/>
 </svg>`;
 }
@@ -64,7 +66,7 @@ export function vorschauSvg(d: BildDaten): string {
 export function vorschauPng(d: BildDaten): ArrayBuffer {
   const png = new Resvg(vorschauSvg(d), {
     fitTo: { mode: 'width', value: 1200 },
-    font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans' },
+    font: { loadSystemFonts: true, defaultFontFamily: 'Liberation Sans' },
   })
     .render()
     .asPng();
