@@ -77,12 +77,15 @@ import Ornament from '../components/Ornament.astro';
       bis zur Kirmesbeerdigung.
     </p>
     <form class="suchzeile" action="/termine" method="get" role="search">
-      <input
-        name="q"
-        type="search"
-        aria-label="Ort, Band oder Veranstaltung"
-        placeholder="Ort oder Band"
-      />
+      <span class="ortssuche">
+        <input
+          name="q"
+          type="search"
+          aria-label="Ort, Band oder Veranstaltung"
+          placeholder="Ort oder Band"
+          data-suchvorschlaege
+        />
+      </span>
       <button class="knopf" type="submit">
         <Icon name="suche" />
         Suchen
@@ -205,3 +208,7 @@ import Ornament from '../components/Ornament.astro';
     }
   }
 </style>
+
+<script>
+  import '../scripts/suchvorschlaege';
+</script>

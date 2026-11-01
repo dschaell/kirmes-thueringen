@@ -184,14 +184,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     <h1>{ueberschrift}</h1>
     <form id="filter" method="get" role="search">
       <div class="suchzeile">
-        <input
-          name="q"
-          type="search"
-          value={q}
-          maxlength="100"
-          placeholder="Ort oder Band"
-          aria-label="Ort, Band oder Veranstaltung"
-        />
+        <span class="ortssuche">
+          <input
+            name="q"
+            type="search"
+            value={q}
+            maxlength="100"
+            placeholder="Ort oder Band"
+            aria-label="Ort, Band oder Veranstaltung"
+            data-suchvorschlaege
+          />
+        </span>
         <button class="knopf" type="submit">
           <Icon name="suche" />
           Suchen
@@ -349,6 +352,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 </Base>
 <script>
   import '../scripts/ortssuche';
+  import '../scripts/suchvorschlaege';
   // In meiner Nähe (Issue #296): Standort nur auf Knopfdruck, gerundet (~1 km), nie gespeichert
   const naheKnopf = document.querySelector<HTMLButtonElement>('#nahe-knopf');
   const naheInfo = document.querySelector('#nahe-info');
