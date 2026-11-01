@@ -188,8 +188,12 @@ async function einrichten(box: HTMLElement) {
       }
     } catch (e) {
       // Grund mit angeben – sonst lässt sich vor Ort nicht klären, was schiefging (Issue #393)
-      const grund = e instanceof Error && e.name && e.name !== 'Error' ? ` (${e.name})` : '';
-      status.textContent = `Das hat nicht geklappt – bitte später noch einmal versuchen.${grund}`;
+      const name = e instanceof Error ? e.name : '';
+      // NotAllowedError: Mitteilungen für die App in den iPhone-Einstellungen aus
+      status.textContent =
+        name === 'NotAllowedError'
+          ? 'Mitteilungen sind für den Kirmeskalender aus – bitte in den Einstellungen unter Mitteilungen erlauben.'
+          : `Das hat nicht geklappt – bitte später noch einmal versuchen.${name && name !== 'Error' ? ` (${name})` : ''}`;
     } finally {
       knopf.disabled = false;
       await zeige();
