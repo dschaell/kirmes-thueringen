@@ -43,7 +43,6 @@ const gruppen: { titel: string; eintraege: Eintrag[] }[] = [
         text: 'Mitmachen (Kirmesgesellschaften & Redaktion)',
         icon: 'glocke',
       },
-      { href: '/admin/anmelden', text: 'Anmelden (Redaktion)', icon: 'haken' },
     ],
   },
   {
@@ -65,6 +64,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
 >
   <section class="einstieg">
     <h1>Mehr</h1>
+  </section>
+
+  <section class="mehr-anmelden" aria-labelledby="mehr-anmelden">
+    <h2 id="mehr-anmelden">Kirmesgesellschaft oder Redaktion?</h2>
+    <p>Termine, Beiträge und Fotos für euren Ort pflegen.</p>
+    <a class="knopf" href="/admin/anmelden" rel="nofollow">
+      Anmelden
+    </a>
   </section>
 
   {gruppen.slice(0, 3).map((g) => (
@@ -127,6 +134,28 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
   }
   .mehr-gruppe {
     margin: 20px 0 0;
+  }
+  /* Anmelden gut sichtbar (Issue #381) */
+  .mehr-anmelden {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0 0;
+    padding: 14px;
+    border: 1px solid var(--linie);
+    border-radius: 16px;
+    background: var(--flaeche);
+  }
+  .mehr-anmelden h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .mehr-anmelden p {
+    margin: 0;
+    color: var(--grau);
+  }
+  .mehr-anmelden .knopf {
+    justify-content: center;
+    min-height: 48px;
   }
   .mehr-gruppe h2 {
     margin: 0 0 8px 4px;
