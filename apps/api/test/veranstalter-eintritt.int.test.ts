@@ -79,4 +79,36 @@ describe.runIf(url)('Veranstalter und Eintritt (#278)', () => {
     expect((await repo.finde(r.id))?.ende).toBe('02:00');
     expect((await repo.speichere(t({ titel: 'IT Ohne' }))).ende).toBeNull();
   });
+  it('Pfarrer/in (#378): Sammeländerung ohne Feld behält, leeres Feld löscht', async () => {
+    const a = await v.lege(
+      t({ titel: 'IT Gottesdienst', kategorie: 'tradition', pfarrer: 'Pfarrerin Muster' }),
+      durch,
+    );
+    const v1 = (await repo.finde(a.id))?.version;
+    expect(
+      await v.aendereAlle(
+        [
+          {
+            id: a.id,
+            termin: t({ titel: 'IT Festgottesdienst', kategorie: 'tradition', version: v1 }),
+          },
+        ],
+        [],
+        durch,
+      ),
+    ).toBe(true);
+    expect(await repo.finde(a.id)).toMatchObject({
+      titel: 'IT Festgottesdienst',
+      pfarrer: 'Pfarrerin Muster',
+    });
+    const v2 = (await repo.finde(a.id))?.version;
+    expect(
+      await v.aendere(
+        a.id,
+        t({ titel: 'IT Festgottesdienst', kategorie: 'tradition', pfarrer: null, version: v2 }),
+        durch,
+      ),
+    ).toBe(true);
+    expect((await repo.finde(a.id))?.pfarrer).toBeNull();
+  });
 });

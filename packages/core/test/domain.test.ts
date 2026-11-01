@@ -205,6 +205,9 @@ describe('Pfarrer/in beim Gottesdienst (Issue #175)', () => {
     expect(r.ok && r.value.termin.pfarrer).toBe('Pfarrerin Anna Muster');
     const leer = validiereTermin({ ...basis, pfarrer: '   ' });
     expect(leer.ok && leer.value.termin.pfarrer).toBeNull();
+    // nicht mitgeschickt = gespeicherten Wert behalten (Issue #378)
+    const ohne = validiereTermin({ ...basis, pfarrer: undefined });
+    expect(ohne.ok && ohne.value.termin.pfarrer).toBeUndefined();
     const lang = validiereTermin({ ...basis, pfarrer: 'x'.repeat(121) });
     expect(!lang.ok && lang.error.map((f) => f.code)).toEqual(['PFARRER_LAENGE']);
   });

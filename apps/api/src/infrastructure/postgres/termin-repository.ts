@@ -213,7 +213,7 @@ export class PgTerminRepository implements TerminRepository {
       t.band,
       t.info,
       t.muttizettel ?? false,
-      t.pfarrer,
+      t.pfarrer ?? null,
       t.veranstalter ?? null,
       t.eintrittCent ?? null,
       t.ende ?? null,
