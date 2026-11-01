@@ -310,9 +310,10 @@ a:hover {
     position: fixed;
     inset: 0 0 auto;
     height: env(safe-area-inset-top, 0px);
-    background: var(--papier);
+    /* Kirmesrot wie Logo und App-Farbe – die Uhr ist hier weiß (black-translucent, Issue #363) */
+    background: #a4161a;
     z-index: 100;
-    /* Eigene Ebene: sonst malt WebKit Milchglas-Flächen (backdrop-filter) darüber (Issue #363) */
+    /* Eigene Ebene: sonst malt WebKit Milchglas-Flächen (backdrop-filter) darüber */
     transform: translateZ(0);
     pointer-events: none;
   }
