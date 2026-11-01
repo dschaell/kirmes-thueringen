@@ -192,7 +192,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
                       name="standort"
                       required
                       maxlength="2000"
-                      placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+                      placeholder="Link oder 50.8475, 11.0412"
                     />
                   </label>
                   <p class="leise klein">
@@ -247,7 +247,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
             data-kartenlink-name="platzname"
             required
             maxlength="2000"
-            placeholder="https://maps.app.goo.gl/… oder 50.8475, 11.0412"
+            placeholder="Link oder 50.8475, 11.0412"
           />
         </label>
       </div>
@@ -354,12 +354,8 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
         <input type="hidden" name="aktion" value="mitte" />
         <label>
           Ortsmitte ändern: Link aus Google Maps
-          <input
-            name="standort"
-            required
-            maxlength="2000"
-            placeholder="z. B. Kirche oder Dorfplatz antippen → Teilen → Link kopieren"
-          />
+          <input name="standort" required maxlength="2000" placeholder="Teilen → Link kopieren" />
+          <span class="klein leise">In Google Maps z. B. Kirche oder Dorfplatz antippen.</span>
         </label>
         <div>
           <button class="knopf" type="submit">
