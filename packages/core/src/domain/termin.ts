@@ -226,7 +226,9 @@ export function validiereTermin(
   if (band && band.length > BAND_MAX) {
     fehler.push({ feld: 'band', code: 'BAND_LAENGE', meldung: `Band: max. ${BAND_MAX} Zeichen.` });
   }
-  const pfarrer = e.pfarrer?.replace(/\s+/g, ' ').trim() || null;
+  // undefined = Formular ohne dieses Feld → gespeicherter Wert bleibt (Issue #378)
+  const pfarrer =
+    e.pfarrer === undefined ? undefined : e.pfarrer?.replace(/\s+/g, ' ').trim() || null;
   if (pfarrer && pfarrer.length > BAND_MAX) {
     fehler.push({
       feld: 'pfarrer',

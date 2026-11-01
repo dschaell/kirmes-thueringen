@@ -21,7 +21,9 @@ RETURNING id, version::text AS version, ort_id, (SELECT name FROM ort WHERE id =
 const SQL_AENDERN = `
 UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltungsort = $6,
        kategorie = $7, bestaetigt = $9, eingetragen_durch = $8, eingetragen_von_admin = $10,
-       band = $11, info = $12, muttizettel = $13, pfarrer = $14,
+       band = $11, info = $12, muttizettel = $13,
+       -- Issue #378: nicht mitgeschickt ($21 false) = gespeicherten Wert behalten
+       pfarrer = CASE WHEN $21::boolean THEN $14 ELSE t.pfarrer END,
        -- Issue #278: nicht mitgeschickt ($16/$18 false) = gespeicherten Wert behalten
        veranstalter = CASE WHEN $16::boolean THEN $15 ELSE t.veranstalter END,
        eintritt_cent = CASE WHEN $18::boolean THEN $17::integer ELSE t.eintritt_cent END,
@@ -32,7 +34,7 @@ UPDATE termin t SET datum = $3::date, beginn = $4::time, titel = $5, veranstaltu
  WHERE t.id = $1::uuid AND t.ort_id = o.id AND o.slug = $2
 RETURNING t.ort_id`;
 
-/** Parameter $15–$20 von SQL_AENDERN: Wert und „mitgeschickt“ je Feld (Issues #278, #286). */
+/** Parameter $15–$21 von SQL_AENDERN: Wert und „mitgeschickt“ je Feld (Issues #278, #286, #378). */
 const neueFelder = (t: NeuerTermin) => [
   t.veranstalter ?? null,
   t.veranstalter !== undefined,
@@ -40,6 +42,7 @@ const neueFelder = (t: NeuerTermin) => [
   t.eintrittCent !== undefined,
   t.ende ?? null,
   t.ende !== undefined,
+  t.pfarrer !== undefined,
 ];
 
 const SQL_BESTAETIGEN = `
@@ -256,7 +259,7 @@ export class PgTerminVerwaltung implements TerminVerwaltung {
         t.band,
         t.info,
         t.muttizettel ?? false,
-        t.pfarrer,
+        t.pfarrer ?? null,
         t.veranstalter ?? null,
         t.eintrittCent ?? null,
         t.ende ?? null,
