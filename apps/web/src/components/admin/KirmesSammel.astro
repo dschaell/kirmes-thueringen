@@ -4,7 +4,8 @@ import type { TerminHerkunft } from '@kirmes/core';
 import CsrfFeld from './CsrfFeld.astro';
 import Herkunft from './TerminHerkunft.astro';
 import type { TerminDto } from '../../lib/api';
-import { KATEGORIEN, tagMonat, wochentag } from '../../lib/anzeige';
+import Endzeit from './Endzeit.astro';
+import { KATEGORIEN, eintrittText, musikFeld, tagMonat, wochentag } from '../../lib/anzeige';
 interface Props {
   ort: { name: string; slug: string };
   termine: TerminDto[];
@@ -12,6 +13,9 @@ interface Props {
   sammelEingaben: Map<string, Partial<TerminDto> & { loeschen?: boolean }>;
 }
 const { ort, termine, herkunft, sammelEingaben } = Astro.props;
+/** Nach einem Fehler steht die Eingabe als Text im Termin (siehe admin/termine.astro) */
+const eintrittWert = (t: TerminDto & { eintritt?: string }) =>
+  t.eintritt ?? (t.eintrittCent == null ? '' : eintrittText(t.eintrittCent));
 ---
 
 <section aria-labelledby="alle-kopf">
@@ -28,23 +32,25 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
       </p>
       <ol class="we-zeilen">
         {termine.map((t, i) => (
-          <li class="we-zeile">
+          <li class="we-zeile" data-terminfelder>
             <input type="hidden" name="s-id" value={t.id} />
             <input type="hidden" name="s-version" value={t.version} />
             <Herkunft herkunft={herkunft[t.id]} />
+            {/* Gleiche Reihenfolge und Beschriftungen wie TerminFelder (Issue #353) */}
             <div class="we-zeit">
               <label>
                 Datum
                 <input name="s-datum" type="date" required value={t.datum} />
               </label>
               <label>
-                Beginn
+                Uhrzeit
                 <input name="s-beginn" type="time" value={t.beginn ?? ''} />
               </label>
               <span class="we-tag leise klein" aria-hidden="true">
                 {wochentag(t.datum)}, {tagMonat(t.datum)}
               </span>
             </div>
+            <Endzeit ende={t.ende ?? ''} zusatz={`-s${i}`} />
             <div class="zwei">
               <label>
                 Veranstaltung
@@ -52,7 +58,7 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
               </label>
               <label>
                 Art
-                <select name="s-kat">
+                <select name="s-kat" data-art>
                   {Object.entries(KATEGORIEN).map(([k, v]) => (
                     <option value={k} selected={t.kategorie === k}>
                       {v.label}
@@ -61,9 +67,18 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
                 </select>
               </label>
             </div>
+            <label>
+              Wo genau?
+              <input
+                name="s-vo"
+                maxlength="120"
+                list="vo-liste"
+                value={t.veranstaltungsort ?? ''}
+              />
+            </label>
             <div class="zwei">
               <label>
-                Band / DJ
+                <span data-musik-label>{musikFeld(t.kategorie)}</span>
                 <input
                   name="s-band"
                   maxlength="120"
@@ -72,13 +87,29 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
                   value={t.band ?? ''}
                 />
               </label>
+              <label data-pfarrer hidden={t.kategorie !== 'tradition' && !t.pfarrer}>
+                Pfarrer/in (optional)
+                <input name="s-pfarrer" maxlength="120" value={t.pfarrer ?? ''} />
+              </label>
+            </div>
+            <div class="zwei">
               <label>
-                Wo genau?
+                Eintritt (optional)
                 <input
-                  name="s-vo"
-                  maxlength="120"
-                  list="vo-liste"
-                  value={t.veranstaltungsort ?? ''}
+                  name="s-eintritt"
+                  maxlength="20"
+                  inputmode="decimal"
+                  placeholder="z. B. 8 oder frei"
+                  value={eintrittWert(t)}
+                />
+              </label>
+              <label>
+                Veranstalter (optional)
+                <input
+                  name="s-veranstalter"
+                  maxlength="200"
+                  placeholder={`Kirmesgesellschaft ${ort.name}`}
+                  value={t.veranstalter ?? ''}
                 />
               </label>
             </div>
@@ -89,7 +120,7 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
             <div class="haekchen">
               <label class="klein">
                 <input type="checkbox" name="s-mutti" value={String(i)} checked={t.muttizettel} />{' '}
-                Muttizettel
+                Unter 18 nur mit Muttizettel
               </label>
               <a class="klein" href={`/admin/termine/${t.id}`}>
                 Essen & Getränke
@@ -118,3 +149,7 @@ const { ort, termine, herkunft, sammelEingaben } = Astro.props;
     </form>
   )}
 </section>
+
+<script>
+  import '../../scripts/terminfelder';
+</script>

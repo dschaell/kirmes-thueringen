@@ -697,3 +697,102 @@ describe('Stand mit Vorjahr-Hinweis (Issue #218)', () => {
     expect(leseStand(JSON.stringify({ ...basis, vorjahrVon: 7 }))).toBeNull();
   });
 });
+
+describe('Plakat / Flyer im Assistenten (Issue #353)', () => {
+  const bild = (name: string, typ = 'image/png') =>
+    new File([new Uint8Array(10)], name, { type: typ });
+  const senden = async (dateien: Record<string, File>, vorschlag = '') => {
+    const aufrufe: { url: string; methode: string; body: unknown }[] = [];
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const u = String(url);
+      aufrufe.push({ url: u, methode: init?.method ?? 'GET', body: init?.body });
+      if (u.includes('/plakat'))
+        return u.includes('/t2/')
+          ? Response.json({ title: 'kaputt' }, { status: 400 })
+          : new Response(null, { status: 204 });
+      if (u.includes('/termine?') || u.includes('termine?'))
+        return Response.json({ termine: [], gesamt: 0 });
+      return Response.json({ termine: [{ id: 't1' }, { id: 't2' }] }, { status: 201 });
+    });
+    const z = vorlage('2027-09-17', '1')[0]!;
+    const zeilen = [
+      { ...z, titel: 'Kirmestanz', aktiv: true },
+      { ...z, titel: 'Frühschoppen', aktiv: false },
+      { ...z, titel: 'Umzug', aktiv: true },
+    ];
+    const form = new FormData();
+    form.set(
+      'stand',
+      JSON.stringify({
+        schritt: 3,
+        ortSlug: 'muehlberg',
+        ab: '2027-09-17',
+        tage: '1',
+        zeilen,
+        kontaktName: '',
+        kontaktEmail: '',
+        nachricht: '',
+        bestaetigt: true,
+        geladen: 0,
+        vorschlag,
+        fehler: [],
+      }),
+    );
+    form.set('doppeltOk', 'on');
+    for (const [k, v] of Object.entries(dateien)) form.set(k, v);
+    try {
+      const s = await assistent(
+        {
+          request: new Request('http://example.org/admin/kirmes-eintragen', {
+            method: 'POST',
+            body: form,
+          }),
+          url: new URL('http://example.org/admin/kirmes-eintragen'),
+          response: { status: 200, headers: new Headers() },
+          cookies: { get: () => ({ value: 'token' }) } as never,
+          redirect: (ziel: string) =>
+            new Response(null, { status: 303, headers: { location: ziel } }),
+          clientAddress: '127.0.0.1',
+        },
+        true,
+      );
+      return { s, aufrufe };
+    } finally {
+      fetch.mockRestore();
+    }
+  };
+  it('ein Plakat für alle, eigenes Bild geht vor; Fehler stehen in der Meldung', async () => {
+    const alle = bild('alle.png');
+    const eigenes = bild('umzug.webp', 'image/webp');
+    const { s, aufrufe } = await senden({
+      plakat: alle,
+      'plakat-2': eigenes,
+      'plakat-1': bild('x.png'),
+    });
+    const plakate = aufrufe.filter((a) => a.url.includes('/plakat'));
+    expect(plakate.map((a) => [a.url.split('/termine/')[1], a.methode])).toEqual([
+      ['t1/plakat', 'PUT'],
+      ['t2/plakat', 'PUT'],
+    ]);
+    expect((plakate[1]?.body as ArrayBuffer).byteLength).toBe(10);
+    const ziel = (s as Response).headers.get('location') ?? '';
+    expect(ziel).toContain('plakate=1');
+    expect(ziel).toContain('plakatfehler=1');
+  });
+  it('falscher Dateityp: Meldung, nichts gespeichert', async () => {
+    const { s, aufrufe } = await senden({ 'plakat-0': bild('a.gif', 'image/gif') });
+    expect((s as { fehler: string[] }).fehler).toEqual([
+      'Plakat „Kirmestanz“: bitte ein Bild als JPEG, PNG oder WebP.',
+    ]);
+    expect(aufrufe.some((a) => a.methode === 'POST')).toBe(false);
+  });
+  it('ohne Bilder kein Hochladen; zu großes Bild wird gemeldet', async () => {
+    const { aufrufe } = await senden({});
+    expect(aufrufe.some((a) => a.url.includes('/plakat'))).toBe(false);
+    const gross = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'g.jpg', { type: 'image/jpeg' });
+    const { s } = await senden({ plakat: gross });
+    expect((s as { fehler: string[] }).fehler).toEqual([
+      'Plakat für die ganze Kirmes: das Bild ist größer als 8 MB.',
+    ]);
+  });
+});

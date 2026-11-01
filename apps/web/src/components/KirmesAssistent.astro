@@ -71,7 +71,13 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       )}
     </div>
   )}
-  <form method="post" action="#assistent" class="melden" data-ungespeichert>
+  <form
+    method="post"
+    action="#assistent"
+    class="melden"
+    data-ungespeichert
+    enctype={redaktion && s.schritt === 3 && !s.vorschlag ? 'multipart/form-data' : undefined}
+  >
     <input type="hidden" name="csrf_token" value={csrf} />
     <input type="hidden" name="stand" value={JSON.stringify(s)} />
     <label class="falle" aria-hidden="true">

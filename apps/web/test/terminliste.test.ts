@@ -84,6 +84,16 @@ describe('Rücksprung in die Redaktionsliste (Issue #90)', () => {
     expect(listenMeldung(new URLSearchParams('bestaetigt=4'))).toBe('4 Termine bestätigt.');
     expect(listenMeldung(new URLSearchParams('geloescht=1'))).toBe('Termin gelöscht.');
     expect(listenMeldung(new URLSearchParams())).toBeNull();
+    // Plakate aus dem Kirmes-Assistenten (Issue #353)
+    expect(listenMeldung(new URLSearchParams('gespeichert=3&plakate=3'))).toBe(
+      '3 Termine gespeichert. Plakat / Flyer bei 3 Terminen gespeichert.',
+    );
+    expect(listenMeldung(new URLSearchParams('gespeichert=2&plakate=1&plakatfehler=1'))).toBe(
+      '2 Termine gespeichert. Plakat / Flyer bei einem Termin gespeichert. Ein Plakat konnte nicht gespeichert werden – bitte beim Termin erneut hochladen.',
+    );
+    expect(listenMeldung(new URLSearchParams('gespeichert=1&plakatfehler=2&plakate=x'))).toBe(
+      'Termin gespeichert. 2 Plakate konnten nicht gespeichert werden – bitte beim Termin erneut hochladen.',
+    );
   });
 });
 

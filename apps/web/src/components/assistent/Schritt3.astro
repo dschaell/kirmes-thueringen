@@ -12,6 +12,11 @@ interface Props {
 }
 const { s, redaktion, ortName } = Astro.props;
 const aktive = s.zeilen.filter((z) => z.aktiv).length;
+// Plakat / Flyer (Issue #353): nur beim Neuanlegen in der Redaktion
+const mitPlakat = redaktion && !s.vorschlag;
+const BILDER = 'image/jpeg,image/png,image/webp';
+// Dateien überstehen kein erneutes Anzeigen des Formulars
+const plakatErneut = s.fehler.length > 0 || (s.doppelt?.length ?? 0) > 0;
 /** Bisherige Feldnamen des Assistenten (programm.ts liest sie so ein) */
 const NAMEN: Record<string, string> = {
   veranstaltungsort: 'wo',
@@ -55,6 +60,25 @@ const namen = (feld: string, i: number, j?: number) =>
   . Ort, Musik, Eintritt, Essen & Getränke – alles freiwillig.
 </p>
 <p class="klein leise">Titel, Tag oder Uhrzeit ändern: „Zurück zum Programm“.</p>
+{mitPlakat && (
+  <fieldset class="gruppe plakat-hochladen">
+    <legend>Plakat / Flyer für die ganze Kirmes</legend>
+    <label>
+      Plakat, Flyer oder Foto hochladen (optional)
+      <input type="file" name="plakat" accept={BILDER} />
+      <span class="klein leise">
+        Erscheint bei allen Veranstaltungen ohne eigenes Bild. JPEG, PNG oder WebP, höchstens 8 MB.
+        Nur Bilder, an denen ihr die Rechte habt. Wir speichern eine verkleinerte Kopie ohne
+        Metadaten.
+      </span>
+    </label>
+    {plakatErneut && (
+      <p class="klein">
+        <strong>Bilder bitte noch einmal auswählen</strong> – sie wurden nicht behalten.
+      </p>
+    )}
+  </fieldset>
+)}
 {s.zeilen.map(
   (z, i) =>
     z.aktiv && (
@@ -66,7 +90,9 @@ const namen = (feld: string, i: number, j?: number) =>
             {datumLangJahr(z.datum)}
             {uhrzeitText(z) && ` · ${uhrzeitText(z)} Uhr`}
           </span>
-          <span class="details-hinweis">Details: Ort, Musik, Eintritt, Essen …</span>
+          <span class="details-hinweis">
+            Details: Ort, Musik, Eintritt, Essen{mitPlakat && ', Plakat'} …
+          </span>
         </summary>
         <div class="details-inhalt">
           <TerminFelder
@@ -110,6 +136,16 @@ const namen = (feld: string, i: number, j?: number) =>
                   alle Termine mit diesem „Wo genau?“)
                 </label>
               </div>
+            )}
+            {mitPlakat && (
+              <fieldset class="gruppe plakat-hochladen">
+                <legend>Plakat / Flyer</legend>
+                <label>
+                  Eigenes Bild nur für diese Veranstaltung (optional)
+                  <input type="file" name={`plakat-${i}`} accept={BILDER} />
+                  <span class="klein leise">Sonst gilt das Plakat für die ganze Kirmes.</span>
+                </label>
+              </fieldset>
             )}
           </TerminFelder>
         </div>
