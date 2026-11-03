@@ -383,9 +383,7 @@ a:hover {
 }
 @media (max-width: 760px) {
   /* Am Handy steht das alles unter „Mehr“ (Issue #374) – der Fuß wiederholt es nicht */
-  body:has(.leiste) .fuss .wrap > div:has(> ul),
-  body:has(.leiste) .fuss .schrift-schalter,
-  body:has(.leiste) .fuss .design-schalter {
+  body:has(.leiste) .fuss .wrap > div:has(> ul) {
     display: none;
   }
   /* Am Handy und in der App nur noch eine schmale Zeile mit Quellenhinweis (OpenStreetMap),
@@ -1869,9 +1867,6 @@ input[aria-invalid='true'],
   color: var(--papier);
   border-color: var(--tinte);
 }
-.fuss .schrift-schalter {
-  grid-column: 1 / -1;
-}
 /* Ein Terminformular für alles (Issue #353): feste Gruppen mit Überschrift */
 .terminfelder {
   display: grid;
@@ -2104,9 +2099,6 @@ html[data-hintergrund] main#inhalt {
 }
 .design-schalter [data-design='auto'] .muster {
   background: linear-gradient(135deg, #f3e1d3 50%, #160a0c 50%);
-}
-.fuss .design-schalter {
-  grid-column: 1 / -1;
 }
 /* Startseite: einzelne Glas-Kacheln statt einer großen Fläche – dazwischen das Bild (Issue #356) */
 html[data-hintergrund] main#inhalt:has(.app-kacheln) {

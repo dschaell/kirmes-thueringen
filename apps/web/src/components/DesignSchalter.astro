@@ -5,12 +5,13 @@ interface Props {
 }
 const { id } = Astro.props;
 const designs = [
-  ['auto', 'Automatisch'],
+  // „Schlicht“ ist Standard (Issue #399)
+  ['schlicht', 'Schlicht (Standard)'],
+  ['auto', 'Relief automatisch'],
   ['relief-hell', 'Relief hell'],
   ['relief-dunkel', 'Relief dunkel'],
   ['band-hell', 'Band hell'],
   ['band-dunkel', 'Band dunkel'],
-  ['schlicht', 'Schlicht'],
 ] as const;
 ---
 
