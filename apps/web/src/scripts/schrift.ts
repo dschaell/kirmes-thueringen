@@ -37,10 +37,11 @@ const DESIGNS: Record<string, [string, string]> = {
 };
 const aktuellesDesign = () => {
   try {
-    const d = localStorage.getItem('kirmes-design') ?? 'auto';
-    return d in DESIGNS ? d : 'auto';
+    // Standard „schlicht“ (Issue #399), wie in public/einstellungen.js
+    const d = localStorage.getItem('kirmes-design') ?? 'schlicht';
+    return d in DESIGNS ? d : 'schlicht';
   } catch {
-    return 'auto';
+    return 'schlicht';
   }
 };
 const zeigeDesign = () => {
