@@ -442,6 +442,33 @@ const mehrZiele = [
       padding: 2px 0;
     }
   }
+  /* Tabellen mit vielen Spalten (Mitglieder) passen auf dem Tablet nicht – dort schon als Karten
+     (Issue #403) */
+  @media (max-width: 900px) {
+    .admin-tabelle.viele-spalten thead {
+      display: none;
+    }
+    .admin-tabelle.viele-spalten,
+    .admin-tabelle.viele-spalten tbody,
+    .admin-tabelle.viele-spalten tr,
+    .admin-tabelle.viele-spalten td {
+      display: block;
+    }
+    .admin-tabelle.viele-spalten tr {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--linie);
+    }
+    .admin-tabelle.viele-spalten td {
+      border: 0;
+      padding: 2px 0;
+    }
+    .admin-tabelle.viele-spalten .tabellen-label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--grau);
+      margin-top: 8px;
+    }
+  }
   .admin-tabelle .knopf {
     padding: 6px 10px;
     font-size: 0.85rem;

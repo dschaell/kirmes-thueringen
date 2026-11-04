@@ -162,4 +162,8 @@ Astro.response.headers.set('Cache-Control', q ? 'no-store' : 'public, max-age=60
   .ortsuche-form label {
     flex: 1 1 260px;
   }
+  /* Knopf so hoch wie das Feld daneben (Issue #403) */
+  .ortsuche-form > .knopf {
+    min-height: 52px;
+  }
 </style>

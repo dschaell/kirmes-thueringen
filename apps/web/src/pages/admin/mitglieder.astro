@@ -303,7 +303,7 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
           </div>
         </form>
       )}
-      <table class="admin-tabelle">
+      <table class="admin-tabelle viele-spalten">
         <thead>
           <tr>
             <th>Name</th>
@@ -424,6 +424,18 @@ const einladungstext = `Mach beim Kirmeskalender Thüringen mit! Hier ist deine 
   }
   .mitgliedergruppe[open] > summary {
     margin-bottom: 0.5rem;
+  }
+  /* Feld und Knopf in einer Reihe, gleich hoch (Issue #403) */
+  form.inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  form.inline > input,
+  form.inline > select,
+  form.inline > .auswahlfeld {
+    flex: 1 1 10rem;
   }
   .kg-ort {
     display: none;

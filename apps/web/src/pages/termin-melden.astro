@@ -101,9 +101,11 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     align-items: center;
     column-gap: 8px;
   }
+  /* ohne den globalen Abstand nach oben – sonst sitzt der Link tiefer als die Frage (Issue #403) */
   .mitmachen-hinweis .mehr {
     display: inline-flex;
     gap: 6px;
+    margin-top: 0;
   }
   @media (max-width: 400px) {
     .mitmachen-hinweis {

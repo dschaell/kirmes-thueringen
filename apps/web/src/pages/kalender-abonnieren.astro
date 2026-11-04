@@ -150,6 +150,10 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   .abo-wahl label {
     flex: 1 1 240px;
   }
+  /* Knopf so hoch wie das Auswahlfeld daneben (Issue #403) */
+  .abo-wahl > .knopf {
+    min-height: 52px;
+  }
   .abo-name {
     font-size: 1.15rem;
     margin: 0 0 8px;
