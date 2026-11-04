@@ -150,21 +150,18 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
     <main id="inhalt" class="wrap">
       <slot />
     </main>
+    {/* Drei ruhige Spalten, Kleinkram in der Rechtszeile (Issue #401) */}
     <footer class="fuss">
       <div class="wrap">
-        <div>
+        <div class="fuss-marke">
           <h2>Kirmeskalender Thüringen</h2>
-          <p>
-            Wann ist wo Kirmes? Hier stehen die Termine der Kirmesgesellschaften aus ganz Thüringen
-            – vom Kirmestanz über den Kindertanz bis zur Kirmesbeerdigung.
-          </p>
+          <p>Alle Kirmestermine in Thüringen – vom Kirmestanz bis zur Kirmesbeerdigung.</p>
           <p class="leise klein">
-            Kostenlos, werbefrei und ohne Tracking. Alle Angaben ohne Gewähr – im Zweifel beim
-            Veranstalter nachfragen.
+            Kostenlos, werbefrei und ohne Tracking. Alle Angaben ohne Gewähr.
           </p>
         </div>
-        <div>
-          <h2>Termine</h2>
+        <nav aria-labelledby="fuss-entdecken">
+          <h2 id="fuss-entdecken">Entdecken</h2>
           <ul>
             <li>
               <a href="/termine?zeit=wochenende">Dieses Wochenende</a>
@@ -173,13 +170,10 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
               <a href="/termine">Alle Termine</a>
             </li>
             <li>
-              <a href="/gemerkt">Gemerkte Termine</a>
+              <a href="/orte">Orte A–Z</a>
             </li>
             <li>
               <a href="/neuigkeiten">Neuigkeiten</a>
-            </li>
-            <li>
-              <a href="/orte">Orte A–Z</a>
             </li>
             <li>
               <a href="/kalender-abonnieren">Kalender abonnieren</a>
@@ -188,47 +182,43 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
               <a href="/muttizettel">Muttizettel-Vorlage</a>
             </li>
           </ul>
-        </div>
-        <div>
-          <h2>Für Kirmesgesellschaften</h2>
+        </nav>
+        <nav aria-labelledby="fuss-mitmachen">
+          <h2 id="fuss-mitmachen">Mitmachen</h2>
           <ul>
             <li>
               <a href="/termin-melden">Termin melden</a>
             </li>
-          </ul>
-        </div>
-        <div>
-          <h2>Mitmachen</h2>
-          <ul>
+            <li>
+              <a href="/redaktion-mitmachen">Für Kirmesgesellschaften</a>
+            </li>
             <li>
               <a href="/ueber-die-kirmes#ueber-diesen-kalender">Über diesen Kalender</a>
             </li>
             <li>
-              <a href="/redaktion-mitmachen">Mitmachen (Kirmesgesellschaften &amp; Redaktion)</a>
-            </li>
-            <li>
               <a href={UNTERSTUETZEN_URL} target="_blank" rel="noopener">
-                Mit PayPal unterstützen <span aria-hidden="true">↗</span>
+                Unterstützen <span aria-hidden="true">↗</span>
                 <span class="sr-only">(öffnet PayPal)</span>
               </a>
             </li>
-            <li>
-              <a href="/admin/anmelden" rel="nofollow">
-                Anmelden (Redaktion)
-              </a>
-            </li>
-            <li>
-              {/* Auswahl auf der Mehr-Seite statt im Fuß (Issue #399) */}
-              <a href="/mehr#mehr-darstellung">Schrift &amp; Design</a>
-            </li>
           </ul>
-        </div>
+        </nav>
         <div class="recht">
           <span>© {new Date().getFullYear()} Kirmeskalender Thüringen</span>
+          <span class="recht-links">
+            <a href="/impressum">Impressum</a>
+            <a href="/datenschutz">Datenschutz</a>
+            {/* am Handy unter „Mehr“ */}
+            <a class="nur-gross" href="/mehr#mehr-darstellung">
+              Schrift &amp; Design
+            </a>
+            <a class="nur-gross" href="/admin/anmelden" rel="nofollow">
+              Anmelden
+            </a>
+          </span>
           <span>
             Ortsdaten © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
-            -Mitwirkende · <a href="/impressum">Impressum</a> ·{' '}
-            <a href="/datenschutz">Datenschutz</a>
+            -Mitwirkende
           </span>
         </div>
       </div>

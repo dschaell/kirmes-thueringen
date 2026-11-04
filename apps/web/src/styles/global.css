@@ -383,7 +383,8 @@ a:hover {
 }
 @media (max-width: 760px) {
   /* Am Handy steht das alles unter „Mehr“ (Issue #374) – der Fuß wiederholt es nicht */
-  body:has(.leiste) .fuss .wrap > div:has(> ul) {
+  body:has(.leiste) .fuss .wrap > nav,
+  body:has(.leiste) .fuss .nur-gross {
     display: none;
   }
   /* Am Handy und in der App nur noch eine schmale Zeile mit Quellenhinweis (OpenStreetMap),
@@ -1495,9 +1496,13 @@ form.melden label > input[type='checkbox'] {
 }
 .fuss .wrap {
   display: grid;
-  /* Vier ruhige Spalten: Kurzbeschreibung + drei Linklisten (Issue #144) */
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 32px;
+  /* Drei ruhige Spalten: Kurzbeschreibung + zwei Linklisten (Issues #144, #401) */
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 32px 48px;
+}
+.fuss-marke p {
+  max-width: 28em;
+  margin: 0 0 8px;
 }
 .fuss h2 {
   font: 700 0.8rem/1 var(--text);
@@ -1519,22 +1524,39 @@ form.melden label > input[type='checkbox'] {
   /* Zielgröße ≥ 24 px (WCAG 2.5.8) */
   display: inline-block;
   padding: 4px 0;
+  /* ruhige Listen: Unterstrich erst beim Zeigen (Issue #401) */
+  text-decoration: none;
+}
+.fuss a:hover,
+.fuss a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .fuss .recht {
   grid-column: 1 / -1;
   border-top: 1px solid var(--linie);
   padding-top: 18px;
   color: var(--grau);
+  font-size: 0.875rem;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
   gap: 8px 24px;
+}
+.fuss .recht a {
+  color: var(--grau);
+}
+.fuss .recht-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 20px;
 }
 @media (max-width: 1000px) {
   .fuss .wrap {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr;
   }
-  .fuss .wrap > div:first-child {
+  .fuss .wrap > .fuss-marke {
     grid-column: 1 / -1;
   }
 }
