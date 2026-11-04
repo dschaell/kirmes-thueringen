@@ -1409,6 +1409,9 @@ ul.bands li + li::before {
 /* ── Formulare (Melden, Verwaltung) ───────────────────────────────────────────────────── */
 form.melden {
   display: grid;
+  /* minmax(0, 1fr) statt auto: sonst wird die Spalte so breit wie der längste Inhalt und das
+     Formular ragt auf 280–320 px über den Rand (Issue #403) */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   max-width: 640px;
 }
