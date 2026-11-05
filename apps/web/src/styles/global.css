@@ -1026,8 +1026,29 @@ legend {
 .merken[hidden] {
   display: none !important;
 }
-.eintrag:has(.titel:hover) {
+/* Hover als weiche Karte mit Luft zum Rand und zu den Trennlinien statt eckiger Fläche (Issue #412) */
+.eintrag {
+  isolation: isolate;
+}
+.eintrag::before {
+  content: '';
+  position: absolute;
+  inset: 3px -10px;
+  z-index: -1;
+  border-radius: var(--r);
   background: var(--flaeche);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.eintrag:has(.titel:hover)::before,
+.eintrag:has(.titel:focus-visible)::before {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .eintrag::before {
+    transition: none;
+  }
 }
 .mutti {
   display: inline-block;
