@@ -9,6 +9,8 @@ const orte = [
   { slug: 'berka-vor-dem-hainich', name: 'Berka vor dem Hainich', landkreis: 'WAK' },
   { slug: 'neudorf-a', name: 'Neudorf', landkreis: 'SHK' },
   { slug: 'neudorf-b', name: 'Neudorf', landkreis: 'SHK' },
+  { slug: 'nauendorf-wl', name: 'Nauendorf', landkreis: 'WL', zusatz: 'bei Kranichfeld' },
+  { slug: 'nauendorf-wl-2', name: 'Nauendorf', landkreis: 'WL', zusatz: 'bei Apolda' },
 ];
 
 describe('Ortssuche (Issue #89)', () => {
@@ -31,7 +33,17 @@ describe('Ortssuche (Issue #89)', () => {
     expect(sucheOrte(orte, 'Alkersleben (IK)')[0]?.slug).toBe('alkersleben');
   });
 
-  it('unterscheidet Namensvettern im selben Kreis per Slug', () => {
+  it('unterscheidet Namensvettern im selben Kreis per Zusatz (Issue #406)', () => {
+    expect(sucheOrte(orte, 'nauendorf').map((t) => t.wert)).toEqual([
+      'Nauendorf (WL, bei Apolda)',
+      'Nauendorf (WL, bei Kranichfeld)',
+    ]);
+    expect(findeOrtEindeutig(orte, 'Nauendorf (WL, bei Apolda)')?.slug).toBe('nauendorf-wl-2');
+    expect(findeOrtEindeutig(orte, 'Nauendorf (WL)')).toBeNull();
+    expect(findeOrtEindeutig(orte, 'Alkersleben (IK, egal)')?.slug).toBe('alkersleben');
+  });
+
+  it('unterscheidet Namensvettern ohne Zusatz notfalls per Slug', () => {
     expect(sucheOrte(orte, 'neudorf').map((t) => t.wert)).toEqual([
       'Neudorf (SHK) · neudorf-a',
       'Neudorf (SHK) · neudorf-b',

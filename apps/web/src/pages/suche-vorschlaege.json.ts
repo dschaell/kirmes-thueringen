@@ -14,10 +14,11 @@ async function daten() {
     alleTermine({ von: h, bis: plusTage(h, 365) }),
   ]);
   const neu = {
-    orte: orte.map(({ slug, name, landkreis, anzahlKommend }) => ({
+    orte: orte.map(({ slug, name, landkreis, zusatz, anzahlKommend }) => ({
       slug,
       name,
       landkreis,
+      zusatz,
       anzahlKommend,
     })),
     bands: zaehleBands(termine.map((t) => bandsAus(t.band))),

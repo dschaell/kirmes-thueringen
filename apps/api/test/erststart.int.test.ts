@@ -49,6 +49,20 @@ describe.runIf(url)('Erststart (PostgreSQL)', () => {
     });
   });
 
+  it('speichert den Zusatz für Namensvettern und nimmt ihn wieder weg (Issue #406)', async () => {
+    await inTransaktion(async (c) => {
+      await ladeOrte(c, [{ ...orte[0]!, zusatz: 'bei Gotha' }, orte[1]!]);
+      await ladeOrte(c, [orte[0]!, { ...orte[1]!, zusatz: 'bei Ilmenau' }]);
+      const { rows } = await c.query<{ slug: string; zusatz: string | null }>(
+        "SELECT slug, zusatz FROM ort WHERE slug LIKE 'it-erst-%' ORDER BY slug",
+      );
+      expect(rows).toEqual([
+        { slug: 'it-erst-a', zusatz: null },
+        { slug: 'it-erst-b', zusatz: 'bei Ilmenau' },
+      ]);
+    });
+  });
+
   it('lässt von der Redaktion angelegte Orte unverändert', async () => {
     await inTransaktion(async (c) => {
       await c.query(

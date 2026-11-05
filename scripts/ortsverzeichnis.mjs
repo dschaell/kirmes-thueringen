@@ -1,10 +1,11 @@
 // Erzeugt db/seed/orte.json: alle Orte und Ortsteile Thüringens aus OpenStreetMap
 // (Stadt, Kleinstadt, Dorf, Weiler, Stadtteil) mit Landkreis und Koordinaten.
 //
-//   node scripts/ortsverzeichnis.mjs
+//   node scripts/ortsverzeichnis.mjs            (neu aus Overpass)
+//   node scripts/ortsverzeichnis.mjs --bestand  (nur Doppelte/Zusätze im vorhandenen File neu)
 //
 // Daten © OpenStreetMap-Mitwirkende, Lizenz ODbL 1.0 – siehe db/seed/ORTE-LIZENZ.md.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 /** Amtlicher Kreisschlüssel (Thüringen = 16) → Kfz-Kennzeichen, wie im Core (LANDKREISE). */
 const KREIS = {
@@ -88,9 +89,11 @@ async function abfragen() {
   throw new Error('Kein Overpass-Server erreichbar – bitte später erneut versuchen.');
 }
 
-const { elements } = await abfragen();
+const ziel = new URL('../db/seed/orte.json', import.meta.url);
+const bestand = process.argv.includes('--bestand');
+const { elements } = bestand ? { elements: [] } : await abfragen();
 
-const orte = [];
+let orte = bestand ? JSON.parse(readFileSync(ziel, 'utf8')) : [];
 let kreis = null;
 const unbekannt = new Set();
 for (const e of elements) {
@@ -115,29 +118,66 @@ for (const e of elements) {
   });
 }
 
+const RANG = { city: 0, town: 1, village: 2, suburb: 3, hamlet: 4 };
+if (!bestand) vergibSlugs();
 // Eindeutige Slugs: Bei gleichen Namen bekommt der bedeutendste Ort (Stadt > Dorf > Weiler) die kurze
 // Adresse, sofern er eindeutig ist; alle anderen werden um das Kreiskennzeichen ergänzt.
-const RANG = { city: 0, town: 1, village: 2, suburb: 3, hamlet: 4 };
-const nachName = new Map();
-for (const o of orte) nachName.set(slug(o.name), [...(nachName.get(slug(o.name)) ?? []), o]);
-const vergeben = new Set();
-for (const [basis, gruppe] of nachName) {
-  gruppe.sort((a, b) => RANG[a.art] - RANG[b.art]);
-  const kurz = gruppe.length === 1 || RANG[gruppe[0].art] < RANG[gruppe[1].art] ? gruppe[0] : null;
-  for (const o of gruppe) {
-    let s = o === kurz ? basis : `${basis}-${slug(o.landkreis)}`;
-    for (let n = 2; vergeben.has(s); n++) s = `${basis}-${slug(o.landkreis)}-${n}`;
-    vergeben.add(s);
-    o.slug = s;
+function vergibSlugs() {
+  const nachName = new Map();
+  for (const o of orte) nachName.set(slug(o.name), [...(nachName.get(slug(o.name)) ?? []), o]);
+  const vergeben = new Set();
+  for (const [basis, gruppe] of nachName) {
+    gruppe.sort((a, b) => RANG[a.art] - RANG[b.art]);
+    const kurz =
+      gruppe.length === 1 || RANG[gruppe[0].art] < RANG[gruppe[1].art] ? gruppe[0] : null;
+    for (const o of gruppe) {
+      let s = o === kurz ? basis : `${basis}-${slug(o.landkreis)}`;
+      for (let n = 2; vergeben.has(s); n++) s = `${basis}-${slug(o.landkreis)}-${n}`;
+      vergeben.add(s);
+      o.slug = s;
+    }
   }
 }
+
+// Doppelte (Issue #406): OSM führt manche Orte zweimal (z. B. als village und hamlet). Gleicher Name
+// im selben Kreis, keine 1,5 km auseinander → nur der bedeutendere bleibt. Nach der Slug-Vergabe,
+// damit die Adresse des verbleibenden Ortes gleich bleibt.
+const km = (a, b) => {
+  const r = Math.PI / 180;
+  const x = (b.lon - a.lon) * r * Math.cos(((a.lat + b.lat) / 2) * r);
+  return 6371 * Math.hypot(x, (b.lat - a.lat) * r);
+};
+const gruppen = () => {
+  const g = new Map();
+  for (const o of orte)
+    g.set(`${o.name}|${o.landkreis}`, [...(g.get(`${o.name}|${o.landkreis}`) ?? []), o]);
+  return [...g.values()].filter((v) => v.length > 1);
+};
+const doppelt = new Set();
+for (const v of gruppen()) {
+  v.sort((a, b) => RANG[a.art] - RANG[b.art] || a.slug.length - b.slug.length);
+  v.forEach((o, i) => {
+    if (v.slice(0, i).some((x) => !doppelt.has(x) && km(x, o) < 1.5)) doppelt.add(o);
+  });
+}
+orte = orte.filter((o) => !doppelt.has(o));
+// Namensvettern im selben Kreis bekommen den nächsten größeren Ort als Zusatz: „bei Apolda“
+const staedte = orte.filter((o) => o.art === 'city' || o.art === 'town');
+for (const o of orte) delete o.zusatz;
+for (const v of gruppen())
+  for (const o of v) {
+    const naechste = staedte
+      .filter((s) => s.name !== o.name)
+      .reduce((best, s) => (km(o, s) < km(o, best) ? s : best));
+    o.zusatz = `bei ${naechste.name}`;
+  }
+
 orte.sort((a, b) => a.name.localeCompare(b.name, 'de') || a.landkreis.localeCompare(b.landkreis));
 
-const ziel = new URL('../db/seed/orte.json', import.meta.url);
 writeFileSync(ziel, JSON.stringify(orte, null, 1) + '\n');
 const jeKreis = Object.fromEntries(
   Object.values(KREIS).map((k) => [k, orte.filter((o) => o.landkreis === k).length]),
 );
-console.log(`✔ ${orte.length} Orte → db/seed/orte.json`);
+console.log(`✔ ${orte.length} Orte → db/seed/orte.json (${doppelt.size} Doppelte entfernt)`);
 console.log('je Kreis:', jeKreis);
 if (unbekannt.size) console.log('nicht zugeordnete Gebiete:', [...unbekannt]);

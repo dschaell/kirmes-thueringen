@@ -61,6 +61,8 @@ export interface Ort {
   readonly landkreis: LandkreisKuerzel;
   /** Ortsmitte (WGS84), null solange nicht geokodiert */
   readonly koordinate: Koordinate | null;
+  /** Unterscheidung für Namensvettern im selben Kreis, z. B. „bei Apolda“ (Issue #406) */
+  readonly zusatz?: string | null;
   /** Selbst eingetragener Name der Kirmesgesellschaft (Issue #246), sonst leer */
   readonly kgName?: string | null;
   /** Vereinsprofil (Issue #310) – nur in der Einzelansicht des Ortes geladen */

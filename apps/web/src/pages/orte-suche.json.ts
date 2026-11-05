@@ -6,7 +6,12 @@ import { sucheOrte, type OrtKurz } from '../lib/ortssuche';
 let cache: { orte: OrtKurz[]; bis: number } | null = null;
 async function orte(): Promise<OrtKurz[]> {
   if (cache && cache.bis > Date.now()) return cache.orte;
-  const liste = (await listeOrte()).map(({ slug, name, landkreis }) => ({ slug, name, landkreis }));
+  const liste = (await listeOrte()).map(({ slug, name, landkreis, zusatz }) => ({
+    slug,
+    name,
+    landkreis,
+    zusatz,
+  }));
   if (liste.length) cache = { orte: liste, bis: Date.now() + 10 * 60_000 };
   return liste;
 }

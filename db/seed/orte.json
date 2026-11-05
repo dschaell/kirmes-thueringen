@@ -1518,7 +1518,8 @@
   "lat": 51.400138,
   "lon": 10.476031,
   "osm": 240115091,
-  "slug": "bernterode-eic"
+  "slug": "bernterode-eic",
+  "zusatz": "bei Bleicherode"
  },
  {
   "name": "Bernterode",
@@ -1527,7 +1528,8 @@
   "lat": 51.303516,
   "lon": 10.151917,
   "osm": 2195357999,
-  "slug": "bernterode-eic-2"
+  "slug": "bernterode-eic-2",
+  "zusatz": "bei Heilbad Heiligenstadt"
  },
  {
   "name": "Bernterode Schacht",
@@ -2301,7 +2303,8 @@
   "lat": 50.670357,
   "lon": 11.557096,
   "osm": 1332705169,
-  "slug": "brandenstein-sok"
+  "slug": "brandenstein-sok",
+  "zusatz": "bei Ranis"
  },
  {
   "name": "Brandenstein",
@@ -2310,7 +2313,8 @@
   "lat": 50.57209,
   "lon": 11.795233,
   "osm": 2934568460,
-  "slug": "brandenstein"
+  "slug": "brandenstein",
+  "zusatz": "bei Schleiz"
  },
  {
   "name": "Branderode",
@@ -2877,7 +2881,8 @@
   "lat": 50.948719,
   "lon": 12.400683,
   "osm": 174005051,
-  "slug": "burkersdorf-abg-2"
+  "slug": "burkersdorf-abg-2",
+  "zusatz": "bei Altenburg"
  },
  {
   "name": "Burkersdorf",
@@ -2886,7 +2891,8 @@
   "lat": 50.887378,
   "lon": 12.305556,
   "osm": 311203627,
-  "slug": "burkersdorf-abg"
+  "slug": "burkersdorf-abg",
+  "zusatz": "bei Schmölln"
  },
  {
   "name": "Burkersdorf",
@@ -2913,7 +2919,8 @@
   "lat": 50.783988,
   "lon": 11.818842,
   "osm": 765815077,
-  "slug": "burkersdorf-sok"
+  "slug": "burkersdorf-sok",
+  "zusatz": "bei Triptis"
  },
  {
   "name": "Burkersdorf",
@@ -2922,7 +2929,8 @@
   "lat": 50.651982,
   "lon": 11.880876,
   "osm": 1502917952,
-  "slug": "burkersdorf-sok-2"
+  "slug": "burkersdorf-sok-2",
+  "zusatz": "bei Auma"
  },
  {
   "name": "Burkhardtroda",
@@ -6653,15 +6661,6 @@
  {
   "name": "Gleicherwiesen",
   "landkreis": "HBN",
-  "art": "hamlet",
-  "lat": 50.362987,
-  "lon": 10.634368,
-  "osm": 864660059,
-  "slug": "gleicherwiesen-hbn"
- },
- {
-  "name": "Gleicherwiesen",
-  "landkreis": "HBN",
   "art": "village",
   "lat": 50.362807,
   "lon": 10.63468,
@@ -8007,7 +8006,8 @@
   "lat": 50.653887,
   "lon": 12.024477,
   "osm": 197921916,
-  "slug": "gruena-grz"
+  "slug": "gruena-grz",
+  "zusatz": "bei Zeulenroda"
  },
  {
   "name": "Grüna",
@@ -8016,7 +8016,8 @@
   "lat": 50.908358,
   "lon": 11.979857,
   "osm": 2174999912,
-  "slug": "gruena"
+  "slug": "gruena",
+  "zusatz": "bei Gera"
  },
  {
   "name": "Grünau",
@@ -8835,7 +8836,8 @@
   "lat": 50.937632,
   "lon": 12.499507,
   "osm": 431075771,
-  "slug": "heiersdorf"
+  "slug": "heiersdorf",
+  "zusatz": "bei Altenburg"
  },
  {
   "name": "Heiersdorf",
@@ -8844,7 +8846,8 @@
   "lat": 50.907892,
   "lon": 12.570651,
   "osm": 905746824,
-  "slug": "heiersdorf-abg"
+  "slug": "heiersdorf-abg",
+  "zusatz": "bei Gößnitz"
  },
  {
   "name": "Heilbad Heiligenstadt",
@@ -10959,7 +10962,8 @@
   "lat": 50.844487,
   "lon": 12.144775,
   "osm": 2178099677,
-  "slug": "kauern-grz"
+  "slug": "kauern-grz",
+  "zusatz": "bei Ronneburg"
  },
  {
   "name": "Kauern",
@@ -10968,7 +10972,8 @@
   "lat": 50.71946,
   "lon": 12.078609,
   "osm": 2179671012,
-  "slug": "kauern-grz-2"
+  "slug": "kauern-grz-2",
+  "zusatz": "bei Triebes"
  },
  {
   "name": "Kauerndorf",
@@ -11463,7 +11468,8 @@
   "lat": 50.593483,
   "lon": 11.308658,
   "osm": 377184417,
-  "slug": "kleingeschwenda-slf"
+  "slug": "kleingeschwenda-slf",
+  "zusatz": "bei Saalfeld/Saale"
  },
  {
   "name": "Kleingeschwenda",
@@ -11472,7 +11478,8 @@
   "lat": 50.577804,
   "lon": 11.512345,
   "osm": 1502918029,
-  "slug": "kleingeschwenda-slf-2"
+  "slug": "kleingeschwenda-slf-2",
+  "zusatz": "bei Ranis"
  },
  {
   "name": "Kleingölitz",
@@ -13416,7 +13423,8 @@
   "lat": 50.591781,
   "lon": 11.126681,
   "osm": 240099215,
-  "slug": "lichtenhain-slf"
+  "slug": "lichtenhain-slf",
+  "zusatz": "bei Oberweißbach"
  },
  {
   "name": "Lichtenhain",
@@ -13425,7 +13433,8 @@
   "lat": 50.500078,
   "lon": 11.312612,
   "osm": 288483702,
-  "slug": "lichtenhain-slf-2"
+  "slug": "lichtenhain-slf-2",
+  "zusatz": "bei Gräfenthal"
  },
  {
   "name": "Lichtentanne",
@@ -13677,7 +13686,8 @@
   "lat": 50.710524,
   "lon": 10.150418,
   "osm": 253166651,
-  "slug": "lindigshof-wak"
+  "slug": "lindigshof-wak",
+  "zusatz": "bei Dermbach"
  },
  {
   "name": "Lindigshof",
@@ -13686,7 +13696,8 @@
   "lat": 50.890125,
   "lon": 10.21416,
   "osm": 538395294,
-  "slug": "lindigshof-wak-2"
+  "slug": "lindigshof-wak-2",
+  "zusatz": "bei Marksuhl"
  },
  {
   "name": "Linkenmühle",
@@ -13839,7 +13850,8 @@
   "lat": 50.956495,
   "lon": 12.54611,
   "osm": 213336785,
-  "slug": "lohma-abg"
+  "slug": "lohma-abg",
+  "zusatz": "bei Altenburg"
  },
  {
   "name": "Lohma",
@@ -13848,7 +13860,8 @@
   "lat": 50.884093,
   "lon": 12.289036,
   "osm": 271787473,
-  "slug": "lohma-abg-2"
+  "slug": "lohma-abg-2",
+  "zusatz": "bei Schmölln"
  },
  {
   "name": "Löhma",
@@ -14316,7 +14329,8 @@
   "lat": 50.749343,
   "lon": 12.176076,
   "osm": 310773522,
-  "slug": "markersdorf-grz"
+  "slug": "markersdorf-grz",
+  "zusatz": "bei Weida"
  },
  {
   "name": "Markersdorf",
@@ -14325,7 +14339,8 @@
   "lat": 50.836472,
   "lon": 11.999407,
   "osm": 369398480,
-  "slug": "markersdorf-grz-2"
+  "slug": "markersdorf-grz-2",
+  "zusatz": "bei Gera"
  },
  {
   "name": "Marksuhl",
@@ -14523,7 +14538,8 @@
   "lat": 50.85104,
   "lon": 11.437203,
   "osm": 412879572,
-  "slug": "meckfeld-wl"
+  "slug": "meckfeld-wl",
+  "zusatz": "bei Magdala"
  },
  {
   "name": "Meckfeld",
@@ -14532,7 +14548,8 @@
   "lat": 50.91556,
   "lon": 11.188786,
   "osm": 624658677,
-  "slug": "meckfeld-wl-2"
+  "slug": "meckfeld-wl-2",
+  "zusatz": "bei Bad Berka"
  },
  {
   "name": "Mehla",
@@ -14964,7 +14981,8 @@
   "lat": 50.693486,
   "lon": 11.138787,
   "osm": 73747864,
-  "slug": "milbitz-slf"
+  "slug": "milbitz-slf",
+  "zusatz": "bei Königsee"
  },
  {
   "name": "Milbitz",
@@ -14973,7 +14991,8 @@
   "lat": 50.775749,
   "lon": 11.290625,
   "osm": 411249369,
-  "slug": "milbitz-slf-2"
+  "slug": "milbitz-slf-2",
+  "zusatz": "bei Rudolstadt"
  },
  {
   "name": "Milda",
@@ -15711,7 +15730,8 @@
   "lat": 50.894277,
   "lon": 11.179894,
   "osm": 240044660,
-  "slug": "nauendorf-wl"
+  "slug": "nauendorf-wl",
+  "zusatz": "bei Kranichfeld"
  },
  {
   "name": "Nauendorf",
@@ -15720,7 +15740,8 @@
   "lat": 51.047791,
   "lon": 11.540586,
   "osm": 392229809,
-  "slug": "nauendorf-wl-2"
+  "slug": "nauendorf-wl-2",
+  "zusatz": "bei Apolda"
  },
  {
   "name": "Naulitz",
@@ -15738,7 +15759,8 @@
   "lat": 50.976682,
   "lon": 12.264717,
   "osm": 240102353,
-  "slug": "naundorf-abg"
+  "slug": "naundorf-abg",
+  "zusatz": "bei Meuselwitz"
  },
  {
   "name": "Naundorf",
@@ -15747,7 +15769,8 @@
   "lat": 50.892653,
   "lon": 12.459832,
   "osm": 260746922,
-  "slug": "naundorf-abg-2"
+  "slug": "naundorf-abg-2",
+  "zusatz": "bei Gößnitz"
  },
  {
   "name": "Naundorf",
@@ -16251,7 +16274,8 @@
   "lat": 50.437825,
   "lon": 11.599395,
   "osm": 240118832,
-  "slug": "neundorf-sok"
+  "slug": "neundorf-sok",
+  "zusatz": "bei Bad Lobenstein"
  },
  {
   "name": "Neundorf",
@@ -16260,7 +16284,8 @@
   "lat": 50.6014,
   "lon": 11.768496,
   "osm": 1502918105,
-  "slug": "neundorf-sok-2"
+  "slug": "neundorf-sok-2",
+  "zusatz": "bei Schleiz"
  },
  {
   "name": "Neundorf",
@@ -18051,7 +18076,8 @@
   "lat": 50.796356,
   "lon": 9.964161,
   "osm": 253206580,
-  "slug": "pferdsdorf-wak"
+  "slug": "pferdsdorf-wak",
+  "zusatz": "bei Unterbreizbach"
  },
  {
   "name": "Pferdsdorf",
@@ -18060,7 +18086,8 @@
   "lat": 51.023791,
   "lon": 10.222069,
   "osm": 281821869,
-  "slug": "pferdsdorf-wak-2"
+  "slug": "pferdsdorf-wak-2",
+  "zusatz": "bei Creuzburg"
  },
  {
   "name": "Pfersdorf",
@@ -18267,7 +18294,8 @@
   "lat": 50.665605,
   "lon": 12.222721,
   "osm": 325150494,
-  "slug": "pohlitz-grz"
+  "slug": "pohlitz-grz",
+  "zusatz": "bei Greiz"
  },
  {
   "name": "Pohlitz",
@@ -18276,7 +18304,8 @@
   "lat": 50.938486,
   "lon": 12.0249,
   "osm": 2174730645,
-  "slug": "pohlitz-grz-2"
+  "slug": "pohlitz-grz-2",
+  "zusatz": "bei Gera"
  },
  {
   "name": "Pöllwitz",
@@ -18933,7 +18962,8 @@
   "lat": 50.566665,
   "lon": 11.376426,
   "osm": 737534637,
-  "slug": "reichenbach-slf"
+  "slug": "reichenbach-slf",
+  "zusatz": "bei Gräfenthal"
  },
  {
   "name": "Reichenbach",
@@ -18942,7 +18972,8 @@
   "lat": 50.685271,
   "lon": 11.437019,
   "osm": 1586031859,
-  "slug": "reichenbach-slf-2"
+  "slug": "reichenbach-slf-2",
+  "zusatz": "bei Saalfeld/Saale"
  },
  {
   "name": "Reichenbach",
@@ -19419,7 +19450,8 @@
   "lat": 50.696414,
   "lon": 10.891957,
   "osm": 272336374,
-  "slug": "roda-ik"
+  "slug": "roda-ik",
+  "zusatz": "bei Ilmenau"
  },
  {
   "name": "Roda",
@@ -19428,7 +19460,8 @@
   "lat": 50.787009,
   "lon": 11.013867,
   "osm": 304770189,
-  "slug": "roda"
+  "slug": "roda",
+  "zusatz": "bei Stadtilm"
  },
  {
   "name": "Roda",
@@ -20466,15 +20499,6 @@
   "slug": "schaderthal-slf"
  },
  {
-  "name": "Schaderthal",
-  "landkreis": "SLF",
-  "art": "village",
-  "lat": 50.579816,
-  "lon": 11.36508,
-  "osm": 9884071955,
-  "slug": "schaderthal-slf-2"
- },
- {
   "name": "Schafau",
   "landkreis": "SÖM",
   "art": "hamlet",
@@ -21399,7 +21423,8 @@
   "lat": 50.990097,
   "lon": 11.427309,
   "osm": 305106466,
-  "slug": "schwabsdorf"
+  "slug": "schwabsdorf",
+  "zusatz": "bei Weimar"
  },
  {
   "name": "Schwabsdorf",
@@ -21408,7 +21433,8 @@
   "lat": 51.101773,
   "lon": 11.513789,
   "osm": 359024521,
-  "slug": "schwabsdorf-wl"
+  "slug": "schwabsdorf-wl",
+  "zusatz": "bei Bad Sulza"
  },
  {
   "name": "Schwallungen",
@@ -21471,7 +21497,8 @@
   "lat": 50.796554,
   "lon": 11.872785,
   "osm": 2188261119,
-  "slug": "schwarzbach-grz"
+  "slug": "schwarzbach-grz",
+  "zusatz": "bei Triptis"
  },
  {
   "name": "Schwarzbach",
@@ -21480,7 +21507,8 @@
   "lat": 50.648164,
   "lon": 12.017292,
   "osm": 2967551867,
-  "slug": "schwarzbach-grz-2"
+  "slug": "schwarzbach-grz-2",
+  "zusatz": "bei Zeulenroda"
  },
  {
   "name": "Schwarzbach",
@@ -23568,7 +23596,8 @@
   "lat": 50.946842,
   "lon": 12.461383,
   "osm": 2028608068,
-  "slug": "thomas-muentzer-siedlung-abg"
+  "slug": "thomas-muentzer-siedlung-abg",
+  "zusatz": "bei Altenburg"
  },
  {
   "name": "Thomas-Müntzer-Siedlung",
@@ -23577,7 +23606,8 @@
   "lat": 50.931349,
   "lon": 12.507823,
   "osm": 2969166962,
-  "slug": "thomas-muentzer-siedlung-abg-2"
+  "slug": "thomas-muentzer-siedlung-abg-2",
+  "zusatz": "bei Gößnitz"
  },
  {
   "name": "Thomas-Müntzer-Siedlung",
@@ -23586,7 +23616,8 @@
   "lat": 50.587844,
   "lon": 11.307315,
   "osm": 2956905260,
-  "slug": "thomas-muentzer-siedlung-slf"
+  "slug": "thomas-muentzer-siedlung-slf",
+  "zusatz": "bei Gräfenthal"
  },
  {
   "name": "Thomas-Müntzer-Siedlung",
@@ -23595,7 +23626,8 @@
   "lat": 50.485502,
   "lon": 11.461334,
   "osm": 2958784439,
-  "slug": "thomas-muentzer-siedlung-slf-2"
+  "slug": "thomas-muentzer-siedlung-slf-2",
+  "zusatz": "bei Lehesten"
  },
  {
   "name": "Thomas-Müntzer-Siedlung",
@@ -23866,15 +23898,6 @@
   "lon": 12.434522,
   "osm": 2973466396,
   "slug": "trebanz"
- },
- {
-  "name": "Trebanz",
-  "landkreis": "ABG",
-  "art": "hamlet",
-  "lat": 51.047548,
-  "lon": 12.442114,
-  "osm": 9464589326,
-  "slug": "trebanz-abg"
  },
  {
   "name": "Treben",
@@ -25350,7 +25373,8 @@
   "lat": 50.640303,
   "lon": 12.250268,
   "osm": 325150481,
-  "slug": "waltersdorf-grz"
+  "slug": "waltersdorf-grz",
+  "zusatz": "bei Greiz"
  },
  {
   "name": "Waltersdorf",
@@ -25359,7 +25383,8 @@
   "lat": 50.849234,
   "lon": 11.931484,
   "osm": 2188128372,
-  "slug": "waltersdorf-grz-2"
+  "slug": "waltersdorf-grz-2",
+  "zusatz": "bei Hermsdorf"
  },
  {
   "name": "Waltersdorf",
@@ -27258,7 +27283,8 @@
   "lat": 50.663008,
   "lon": 11.90902,
   "osm": 317709825,
-  "slug": "zickra-grz"
+  "slug": "zickra-grz",
+  "zusatz": "bei Auma"
  },
  {
   "name": "Zickra",
@@ -27267,7 +27293,8 @@
   "lat": 50.745723,
   "lon": 12.131884,
   "osm": 4905325596,
-  "slug": "zickra-grz-2"
+  "slug": "zickra-grz-2",
+  "zusatz": "bei Weida"
  },
  {
   "name": "Ziegelheim",
@@ -27519,7 +27546,8 @@
   "lat": 50.907607,
   "lon": 12.373621,
   "osm": 410296611,
-  "slug": "zschernitzsch"
+  "slug": "zschernitzsch",
+  "zusatz": "bei Schmölln"
  },
  {
   "name": "Zschernitzsch",
@@ -27528,7 +27556,8 @@
   "lat": 51.009055,
   "lon": 12.422636,
   "osm": 5538300881,
-  "slug": "zschernitzsch-abg"
+  "slug": "zschernitzsch-abg",
+  "zusatz": "bei Altenburg"
  },
  {
   "name": "Zschippach",
@@ -27556,15 +27585,6 @@
   "lon": 12.416174,
   "osm": 124294179,
   "slug": "zschoepel"
- },
- {
-  "name": "Zschöpel",
-  "landkreis": "ABG",
-  "art": "hamlet",
-  "lat": 50.86893,
-  "lon": 12.41229,
-  "osm": 9413960032,
-  "slug": "zschoepel-abg"
  },
  {
   "name": "Zschöpperitz",
