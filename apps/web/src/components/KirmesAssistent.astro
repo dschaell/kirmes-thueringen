@@ -146,6 +146,10 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       font-weight: 700;
       margin-bottom: 4px;
     }
+    /* Überschrift direkt unter den Schritten, ohne den großen Abstand von h2 (Issue #408) */
+    form.melden > h2:first-of-type {
+      margin-top: 4px;
+    }
     .programm {
       display: grid;
       gap: 16px;
@@ -245,6 +249,11 @@ const ortText = ort ? ortBezeichnung(ort) : (s.ortEingabe ?? s.ortSlug);
       list-style: none;
     }
     .programmzeile summary::-webkit-details-marker {
+      display: none;
+    }
+    /* Offen heißt der Knopf „fertig“ – „ändern“ verwirrt, wenn man schon dabei ist (Issue #408) */
+    .programmzeile details[open] > summary .zu,
+    .programmzeile details:not([open]) > summary .auf {
       display: none;
     }
     .zeilenfelder {
