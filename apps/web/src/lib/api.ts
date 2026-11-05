@@ -13,6 +13,8 @@ export interface OrtDto {
   name: string;
   landkreis: LandkreisKuerzel;
   koordinate: { lat: number; lon: number } | null;
+  /** Unterscheidung für Namensvettern im selben Kreis, z. B. „bei Apolda“ (Issue #406) */
+  zusatz?: string | null;
   /** Selbst eingetragener Name der Kirmesgesellschaft */
   kgName?: string | null;
   /** Vereinsprofil (Issue #310), nur in der Einzelansicht des Ortes */

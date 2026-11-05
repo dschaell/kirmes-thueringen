@@ -7,6 +7,8 @@ export interface OrtKurz {
   slug: string;
   name: string;
   landkreis: string;
+  /** z. B. „bei Apolda“ – nur bei Namensvettern im selben Kreis gesetzt (Issue #406) */
+  zusatz?: string | null;
 }
 export interface OrtTreffer {
   /** Text fürs Eingabefeld, z. B. „Alkersleben (IK)“ */
@@ -26,15 +28,22 @@ export const normalisiere = (s: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-/** Anzeigename; Namensvettern im selben Kreis bekommen den Slug dazu. */
+/**
+ * Anzeigename; Namensvettern im selben Kreis bekommen ihren Zusatz dazu („Nauendorf (WL, bei
+ * Apolda)“, Issue #406) – nur ohne Zusatz (von Hand angelegte Orte) als Notlösung den Slug.
+ */
 export function bezeichner(orte: OrtKurz[]): (o: OrtKurz) => string {
   const anzahl = new Map<string, number>();
   for (const o of orte) {
     const k = `${o.name}|${o.landkreis}`;
     anzahl.set(k, (anzahl.get(k) ?? 0) + 1);
   }
-  return (o) =>
-    `${o.name} (${o.landkreis})${(anzahl.get(`${o.name}|${o.landkreis}`) ?? 0) > 1 ? ` · ${o.slug}` : ''}`;
+  return (o) => {
+    if ((anzahl.get(`${o.name}|${o.landkreis}`) ?? 0) < 2) return `${o.name} (${o.landkreis})`;
+    return o.zusatz
+      ? `${o.name} (${o.landkreis}, ${o.zusatz})`
+      : `${o.name} (${o.landkreis}) · ${o.slug}`;
+  };
 }
 
 /** Bis zu `max` Treffer: erst Namensanfang, dann Wortanfang, dann irgendwo im Namen. */
@@ -68,7 +77,7 @@ export function findeOrtEindeutig(orte: OrtKurz[], text: string): OrtKurz | null
   if (exakt.length === 1) return exakt[0] ?? null;
   if (exakt.length > 1) return null;
   // Tolerant: „alkersleben“, „Muehlberg“, „Alkersleben (ik)“ – aber nur, wenn eindeutig
-  const kreis = /\(([^)]+)\)/.exec(text)?.[1]?.trim().toUpperCase();
+  const kreis = /\(([^),]+)/.exec(text)?.[1]?.trim().toUpperCase();
   const gleich = orte.filter(
     (o) =>
       normalisiere(o.name) === normalisiere(text.replace(/\s*\([^)]*\).*$/, '')) &&

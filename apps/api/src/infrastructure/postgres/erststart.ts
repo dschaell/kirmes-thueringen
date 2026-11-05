@@ -16,6 +16,8 @@ export interface OrtEintrag {
   landkreis: string;
   lat: number;
   lon: number;
+  /** Unterscheidung für Namensvettern im selben Kreis, z. B. „bei Apolda“ (Issue #406) */
+  zusatz?: string;
 }
 
 export const ORTE_DATEI = new URL('../../../../../db/seed/orte.json', import.meta.url);
@@ -30,11 +32,13 @@ export async function leseOrtsverzeichnis(
 }
 
 const SQL_ORTE = `
-INSERT INTO ort (slug, name, landkreis, lage)
-SELECT s, n, l, ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography
-  FROM unnest($1::text[], $2::text[], $3::text[], $4::float8[], $5::float8[]) AS t(s, n, l, lat, lon)
+INSERT INTO ort (slug, name, landkreis, lage, zusatz)
+SELECT s, n, l, ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography, z
+  FROM unnest($1::text[], $2::text[], $3::text[], $4::float8[], $5::float8[], $6::text[])
+       AS t(s, n, l, lat, lon, z)
 ON CONFLICT (slug) DO UPDATE
-  SET name = EXCLUDED.name, landkreis = EXCLUDED.landkreis, lage = EXCLUDED.lage
+  SET name = EXCLUDED.name, landkreis = EXCLUDED.landkreis, lage = EXCLUDED.lage,
+      zusatz = EXCLUDED.zusatz
   WHERE ort.herkunft = 'osm' -- von der Redaktion angelegte Orte bleiben unverändert`;
 
 /** Lädt bzw. aktualisiert Orte (nie löschen). Liefert die Zahl eingefügter/aktualisierter Zeilen. */
@@ -45,6 +49,7 @@ export async function ladeOrte(db: Db, orte: OrtEintrag[]): Promise<number> {
     orte.map((o) => o.landkreis),
     orte.map((o) => o.lat),
     orte.map((o) => o.lon),
+    orte.map((o) => o.zusatz ?? null),
   ]);
   return r.rowCount ?? 0;
 }

@@ -12,7 +12,7 @@ import type pg from 'pg';
 import { abfrage } from './pool.js';
 
 const SQL_LISTE = `
-SELECT o.slug, o.name, o.landkreis,
+SELECT o.slug, o.name, o.landkreis, o.zusatz,
        ST_Y(o.lage::geometry) AS lat, ST_X(o.lage::geometry) AS lon,
        count(t.id) FILTER (WHERE t.datum >= $1::date) AS kommend
   FROM ort o
@@ -23,7 +23,7 @@ SELECT o.slug, o.name, o.landkreis,
  ORDER BY o.name`;
 
 const SQL_FINDE = `
-SELECT slug, name, landkreis, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon,
+SELECT slug, name, landkreis, zusatz, ST_Y(lage::geometry) AS lat, ST_X(lage::geometry) AS lon,
        kg_name, kg_text, kg_website, kg_instagram, kg_facebook, kg_kontakt
   FROM ort WHERE slug = $1`;
 
@@ -49,6 +49,7 @@ interface Zeile {
   slug: string;
   name: string;
   landkreis: LandkreisKuerzel;
+  zusatz: string | null;
   lat: number | null;
   lon: number | null;
 }
@@ -58,6 +59,8 @@ const zuOrt = (z: Zeile): Ort => ({
   name: z.name,
   landkreis: z.landkreis,
   koordinate: z.lat != null && z.lon != null ? { lat: z.lat, lon: z.lon } : null,
+  // nur bei Namensvettern gesetzt – sonst weglassen, hält die Ortsliste klein
+  ...(z.zusatz ? { zusatz: z.zusatz } : {}),
 });
 
 export class PgOrtRepository implements OrtRepository, OrtsprofilAblage {
