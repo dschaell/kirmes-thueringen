@@ -56,7 +56,7 @@ export function parseCsv(text: string): string[][] {
 /**
  * Art aus dem Titel (Issues #64, #135, #147, #154): Familien & Kinder, Ständchen, Sonstiges (z. B.
  * Seniorennachmittag), Frühschoppen, Gottesdienst/Brauchtum (`tradition`), Kirmestanz (`tanz`, #223)
- * oder – sonst – Party/Disco.
+ * oder Party/Disco – nur bei eindeutigen Wörtern, alles Unbekannte ist Sonstiges (Issue #409).
  * Erkennt auch gängige Schreibweisen („Frühshoppen“, „Früh-Schoppen“).
  */
 export function erkenneKategorie(titel: string): Kategorie {
@@ -68,18 +68,25 @@ export function erkenneKategorie(titel: string): Kategorie {
   // Kirmesbeerdigung, Fußballspiel, Kater-Lunch, Dämmerschoppen ebenfalls (Issue #225)
   // Brauchtum ohne Gottesdienst: Kirmesbaum, Baum-/Tannensetzen, Umzug (Issue #238)
   if (
-    /senior|sonstig|beerdigung|fu(ß|ss)ball|kater|dämmer|daemmer|kirmesbaum|(baum|tannen)\s*-?\s*setzen|baum stellen|umzug/.test(
+    /senior|sonstig|beerdigung|fu(ß|ss)ball|kater|dämmer|daemmer|kirmesbaum|kirmesfichte|(baum|tannen)\s*-?\s*setzen|baum stellen|umzug/.test(
       t,
     )
   )
     return 'sonstiges';
   // Frühschoppen ist eine eigene Art (Issue #154)
   if (/fr(ü|ue|u)h\s*-?\s*sc?h?oppen/.test(t)) return 'fruehschoppen';
-  if (/gottesdienst|andacht|messe\b|kirchgang|kirmesspiele|ausklang|platzkonzert|oster/.test(t))
+  if (
+    /gottesdienst|andacht|messe\b|kirchgang|kirmesspiele|ausklang|platzkonzert|posaunen|oster/.test(
+      t,
+    )
+  )
     return 'tradition';
   // Kirmestanz eigene Art (Issue #223) – Kindertanz ist oben schon „familie“
   if (/tanz/.test(t)) return 'tanz';
-  return 'party';
+  // Früher fiel alles Unbekannte hierher – Mittagessen und Kartenvorverkauf als Party (Issue #409)
+  if (/disco|party|\bdj\b|ball\b|rock|schlager|nachkirmes|antrinken|kirmesnacht/.test(t))
+    return 'party';
+  return 'sonstiges';
 }
 
 /** Spaltennamen der Vorlage (Groß-/Kleinschreibung und Umlaute egal). */

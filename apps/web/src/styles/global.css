@@ -1060,13 +1060,14 @@ legend {
 }
 .eintrag .band {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 5px;
   margin-top: 2px;
   font-size: 0.92rem;
   color: var(--tinte);
 }
 /* Mehrere Bands/DJs einzeln (Issue #324) */
+/* Punkt vor jedem Namen; am Zeilenanfang liegt er links außerhalb und wird abgeschnitten (Issue #410) */
 ul.bands {
   display: flex;
   flex-wrap: wrap;
@@ -1074,13 +1075,24 @@ ul.bands {
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: hidden;
+  min-width: 0;
 }
-ul.bands li + li::before {
+ul.bands li {
+  margin: 0 1.2em 0 -1.2em;
+}
+ul.bands li::before {
   content: '·';
-  padding: 0 0.4em;
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
   color: var(--grau);
 }
+/* Symbol auf Höhe der ersten Zeile, nicht mittig zwischen zwei Zeilen (Issue #410) */
 .eintrag .band .icon {
+  flex-shrink: 0;
+  margin-top: 0.3em;
+  margin-top: calc((1lh - 14px) / 2);
   color: var(--rot);
 }
 .eintrag .wo a {
@@ -1924,6 +1936,25 @@ input[aria-invalid='true'],
 /* Speisen erst nach Haken – auch ohne JavaScript (Issue #155) */
 .essen-gruppe:not(:has(.haken input:checked)) .speisen-felder {
   display: none;
+}
+/* Seltene Angaben zugeklappt (Issue #408); ohne Zuklappen bleibt das Raster unverändert */
+.terminfelder .mehr-angaben-offen,
+.terminfelder .mehr-angaben-offen > .mehr-inhalt {
+  display: contents;
+}
+.terminfelder .mehr-angaben .mehr-inhalt {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+.terminfelder .mehr-angaben > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--rot);
+  font-weight: 600;
+  text-decoration: underline;
 }
 /* Benachrichtigungen (Issue #348) */
 .push {

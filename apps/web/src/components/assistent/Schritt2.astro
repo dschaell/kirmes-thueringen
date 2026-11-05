@@ -67,7 +67,10 @@ const NEU = 'Neue Veranstaltung';
         Löschen
       </button>
       <details open={!z.titel.trim()}>
-        <summary aria-label={`${z.titel.trim() || NEU} ändern`}>ändern</summary>
+        <summary aria-label={`${z.titel.trim() || NEU} bearbeiten`}>
+          <span class="zu">ändern</span>
+          <span class="auf">fertig</span>
+        </summary>
         <div class="zeilenfelder">
           <label>
             Veranstaltung

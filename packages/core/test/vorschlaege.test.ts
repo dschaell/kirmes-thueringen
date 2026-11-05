@@ -99,7 +99,11 @@ describe('Öffentliche Vorschläge', () => {
       { datum: '2027-09-19', titel: 'Mittagstisch' },
     ];
     const r = await pruefeVorschlag(e, orte);
-    expect(r.ok && r.value.termine.map((t) => t.kategorie)).toEqual(['party', 'familie', 'party']);
+    expect(r.ok && r.value.termine.map((t) => t.kategorie)).toEqual([
+      'party',
+      'familie',
+      'sonstiges',
+    ]);
   });
   it('optionaler Kontakt, Mindestzeit und Mail ohne Reply-To', async () => {
     const { v, post, repo } = setup();

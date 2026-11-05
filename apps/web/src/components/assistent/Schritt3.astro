@@ -113,6 +113,7 @@ const namen = (feld: string, i: number, j?: number) =>
             }
             veranstalterPlatzhalter={`Kirmesgesellschaft ${ortName}`}
             listen={{ bands: 'bands-assistent', plaetze: 'plaetze-assistent' }}
+            mehrZugeklappt={!redaktion}
           >
             {redaktion && z.platz && (
               <div class="kasten kartenpunkt" slot="wo">

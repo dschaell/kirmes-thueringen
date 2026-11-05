@@ -72,6 +72,20 @@ describe('erkenneKategorie (drei Arten, Issue #64)', () => {
     ['Discoparty mit DJ Holler', 'party'],
     ['Tanz in den Mai mit „Vincent“', 'tanz'],
     ['Herbstball', 'party'],
+    // Unbekanntes ist Sonstiges, nicht Party (Issue #409) – Titel wie live
+    ['Kirmesdisco', 'party'],
+    ['Kirmes-Disco', 'party'],
+    ['Nachkirmes', 'party'],
+    ['Antrinken mit Kartenvorverkauf', 'party'],
+    ['Großer Kirmestanz und Party', 'tanz'],
+    ['Posaunenblasen', 'tradition'],
+    ['Kartenvorverkauf', 'sonstiges'],
+    ['Thüringer Mittagessen', 'sonstiges'],
+    ['Gemeinsames Mittagessen mit Rauchlok BBQ', 'sonstiges'],
+    ['Traditioneller Heimatabend', 'sonstiges'],
+    ['Großer Kirmesabend mit Showprogramm', 'sonstiges'],
+    ['Buntes Kulturprogramm der Kirmesgesellschaft', 'sonstiges'],
+    ['Setzen der Kirmesfichte & Aufführung des Bänderbaumes', 'sonstiges'],
   ])('%s → %s', (titel, k) => expect(erkenneKategorie(titel)).toBe(k));
 });
 

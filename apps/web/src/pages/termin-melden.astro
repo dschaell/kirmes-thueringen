@@ -28,24 +28,6 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
     </p>
   </section>
 
-  {/* Hinweis aufs Mitmachen (Issue #252) – oben, nur vor dem Assistenten; alte Links auf #festplatz landen hier */}
-  {stand.schritt === 1 && !Astro.url.searchParams.has('gesendet') && (
-    <aside id="festplatz" class="kasten mitmachen-hinweis">
-      <p>
-        <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>{' '}
-        <a class="mehr" href="/redaktion-mitmachen">
-          Jetzt mitmachen <Icon name="pfeil" />
-        </a>
-      </p>
-      <p>
-        <strong>Du willst Teil der Redaktion werden?</strong>{' '}
-        <a class="mehr" href="/redaktion-mitmachen#redaktion">
-          Mithelfen <Icon name="pfeil" />
-        </a>
-      </p>
-    </aside>
-  )}
-
   {Astro.url.searchParams.has('gesendet') ? (
     <>
       <p class="meldung erfolg" role="status">
@@ -80,19 +62,39 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
       </div>
     </>
   ) : (
-    <KirmesAssistent
-      stand={stand}
-      csrf={csrf}
-      orte={orte}
-      bands={vorschlaege.bands}
-      titel={vorschlaege.titel}
-    />
+    <>
+      <KirmesAssistent
+        stand={stand}
+        csrf={csrf}
+        orte={orte}
+        bands={vorschlaege.bands}
+        titel={vorschlaege.titel}
+      />
+      {/* Hinweis aufs Mitmachen (Issue #252) – unter dem Formular, damit das Ortsfeld auf dem Handy
+        gleich sichtbar ist (Issue #408); nur in Schritt 1; alte Links auf #festplatz landen hier */}
+      {stand.schritt === 1 && (
+        <aside id="festplatz" class="kasten mitmachen-hinweis">
+          <p>
+            <strong>Noch nicht dabei mit eurer Kirmesgesellschaft?</strong>{' '}
+            <a class="mehr" href="/redaktion-mitmachen">
+              Jetzt mitmachen <Icon name="pfeil" />
+            </a>
+          </p>
+          <p>
+            <strong>Du willst Teil der Redaktion werden?</strong>{' '}
+            <a class="mehr" href="/redaktion-mitmachen#redaktion">
+              Mithelfen <Icon name="pfeil" />
+            </a>
+          </p>
+        </aside>
+      )}
+    </>
   )}
 </Base>
 <style>
   .mitmachen-hinweis {
     border-left: 4px solid var(--rot);
-    margin: 0 0 24px;
+    margin: 32px 0 24px;
   }
   /* Frage und Link als eigene Bausteine: kein Riss mitten im Satz (Issue #363) */
   .mitmachen-hinweis p {
@@ -110,7 +112,6 @@ const [orte, vorschlaege] = await Promise.all([listeOrte(), eingabeVorschlaege()
   @media (max-width: 400px) {
     .mitmachen-hinweis {
       padding: 12px 14px;
-      margin-bottom: 16px;
     }
   }
   .mitmachen-hinweis p {
