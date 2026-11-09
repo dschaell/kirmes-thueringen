@@ -244,12 +244,23 @@ export function eventJsonLd(t: TerminDto, site: URL) {
     ...(t.band && {
       performer: bandsAus(t.band).map((name) => ({ '@type': 'MusicGroup', name })),
     }),
-    ...(veranstalterVon(t) && { organizer: { '@type': 'Organization', name: veranstalterVon(t) } }),
+    // url, validFrom, availability: von Google empfohlen (Issue #416). Eine eigene Webseite des
+    // Veranstalters kennen wir nicht – die Ortsseite bündelt seine Kirmes.
+    ...(veranstalterVon(t) && {
+      organizer: {
+        '@type': 'Organization',
+        name: veranstalterVon(t),
+        url: new URL(`/orte/${t.ort.slug}`, site).href,
+      },
+    }),
     ...(t.eintrittCent != null && {
       offers: {
         '@type': 'Offer',
         price: (t.eintrittCent / 100).toFixed(2),
         priceCurrency: 'EUR',
+        // Karten gibt es an der Kasse bzw. seit der Eintrag bekannt ist
+        availability: 'https://schema.org/InStock',
+        validFrom: t.geaendertAm ?? t.datum,
         url,
       },
     }),

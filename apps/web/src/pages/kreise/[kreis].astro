@@ -32,6 +32,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <Base
   title={`Kirmes ${imKreis(k)} ${jahr} – alle Termine`}
   description={`Kirmes ${imKreis(k)}: ${zusammenfassung} Kirmestanz, Kindertanz und Brauchtum.`}
+  noindex={kommend.gesamt === 0}
   jsonLd={[
     brotkrumenJsonLd(
       [
