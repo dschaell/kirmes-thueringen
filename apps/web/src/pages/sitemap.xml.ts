@@ -1,10 +1,17 @@
 import type { APIRoute } from 'astro';
-import { alleTermine, listeOrte } from '../lib/api';
+import { alleTermine, holeBeitraege, listeOrte } from '../lib/api';
 import { LANDKREISE, heute, kreisSlug } from '../lib/anzeige';
 
 /** Sitemap aus der Datenbank – Ortsseiten mit Terminen und kommende Terminseiten (Issue #110). */
 export const GET: APIRoute = async ({ site }) => {
-  const [orte, termine] = await Promise.all([listeOrte(), alleTermine({ von: heute() })]);
+  const [orte, termine, beitraege] = await Promise.all([
+    listeOrte(),
+    alleTermine({ von: heute() }),
+    holeBeitraege({ limit: 1 }),
+  ]);
+  // Nur Seiten mit Inhalt (Issue #416): leere Landkreise und Neuigkeiten sind noindex –
+  // in der Sitemap meldet Google sie als „Soft 404“ bzw. „durch noindex ausgeschlossen“
+  const kreiseMitTerminen = new Set(termine.map((t) => kreisSlug(t.ort.landkreis)));
   // lastmod (Issue #182): Termin = letzte Änderung, Ort = jüngste Änderung seiner Termine
   // Issue #305: auch Landkreis- und Übersichtsseiten mit der jüngsten Änderung ihrer Termine
   const zuletzt = new Map<string, string>();
@@ -23,17 +30,19 @@ export const GET: APIRoute = async ({ site }) => {
       p,
       zuletzt.get('/'),
     ]),
-    ...Object.keys(LANDKREISE).map((k): [string, string?] => [
-      `/kreise/${kreisSlug(k)}`,
-      zuletzt.get(`/kreise/${kreisSlug(k)}`),
-    ]),
+    ...Object.keys(LANDKREISE)
+      .filter((k) => kreiseMitTerminen.has(kreisSlug(k)))
+      .map((k): [string, string?] => [
+        `/kreise/${kreisSlug(k)}`,
+        zuletzt.get(`/kreise/${kreisSlug(k)}`),
+      ]),
     ...[
       '/termin-melden',
       '/redaktion-mitmachen',
       '/ueber-die-kirmes',
       '/muttizettel',
       '/kalender-abonnieren',
-      '/neuigkeiten',
+      ...(beitraege.length > 0 ? ['/neuigkeiten'] : []),
     ].map((p): [string] => [p]),
     ...orte
       .filter((o) => o.anzahlKommend > 0)

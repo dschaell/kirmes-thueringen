@@ -265,8 +265,23 @@ describe('SEO: Event- und Brotkrumen-Daten (Issue #182)', () => {
       }),
       site,
     );
-    expect(kg.organizer).toEqual({ '@type': 'Organization', name: 'KV Elleben' });
-    expect(kg.offers).toMatchObject({ price: '0.00', priceCurrency: 'EUR' });
+    // url, validFrom, availability empfohlen (Issue #416)
+    expect(kg.organizer).toEqual({
+      '@type': 'Organization',
+      name: 'KV Elleben',
+      url: 'https://k.de/orte/elleben',
+    });
+    expect(kg.offers).toMatchObject({
+      price: '0.00',
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      validFrom: '2026-10-24',
+    });
+    const geaendert = eventJsonLd(
+      termin({ eintrittCent: 500, geaendertAm: '2026-09-01T10:00:00.000Z' }),
+      site,
+    );
+    expect(geaendert.offers?.validFrom).toBe('2026-09-01T10:00:00.000Z');
     const eigen = eventJsonLd(termin({ veranstalter: 'Feuerwehr', eintrittCent: 750 }), site);
     expect([eigen.organizer?.name, eigen.offers?.price]).toEqual(['Feuerwehr', '7.50']);
     expect([eintrittText(0), eintrittText(800), eintrittText(750)]).toEqual([
