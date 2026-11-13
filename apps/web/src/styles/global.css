@@ -2358,3 +2358,15 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
     hyphens: auto;
   }
 }
+
+/* Kirmespause auf der Startseite (Issue #420) */
+.kirmespause {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--linie, currentColor);
+  border-radius: var(--r);
+  background: var(--flaeche);
+}
+.kirmespause p {
+  margin: 0 0 10px;
+}

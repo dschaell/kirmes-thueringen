@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  istNebensaison,
   saisonJahr,
   bandText,
   berlinVersatz,
@@ -343,5 +344,16 @@ describe('Saisonjahr im Titel (Issue #419)', () => {
   });
   it('ohne Termin das heutige Jahr', () => {
     expect(saisonJahr('2026-12-05', undefined)).toBe('2026');
+  });
+});
+
+describe('Kirmespause (Issue #420)', () => {
+  it('Pause ab mehr als 45 Tagen bis zum nächsten Termin oder ohne Termin', () => {
+    expect(istNebensaison('2026-12-05', '2027-09-03')).toBe(true);
+    expect(istNebensaison('2026-12-05', undefined)).toBe(true);
+  });
+  it('in der Saison keine Pause', () => {
+    expect(istNebensaison('2026-11-13', '2026-11-13')).toBe(false);
+    expect(istNebensaison('2026-11-13', '2026-12-28')).toBe(false);
   });
 });
