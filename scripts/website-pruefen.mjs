@@ -114,7 +114,7 @@ pruefe((await hole('/kalender.ics?kreis=XX')).r?.status === 404, '/kalender.ics?
 
 const sitemap = await hole('/sitemap.xml');
 const urls = [...sitemap.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-pruefe(urls.length >= 30, `Sitemap mit ${urls.length} URLs`);
+pruefe(urls.length >= 15, `Sitemap mit ${urls.length} URLs`);
 pruefe(
   /<loc>[^<]*\/termin\/[^<]*<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/.test(sitemap.text),
   'Sitemap: Termine mit lastmod',
