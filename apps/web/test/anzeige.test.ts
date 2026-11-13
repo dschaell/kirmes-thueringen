@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  saisonJahr,
   bandText,
   berlinVersatz,
   dauerMinuten,
@@ -332,5 +333,15 @@ describe('zeitraumKurz (Issue #305)', () => {
   it('kurz für Titel', () => {
     expect(zeitraumKurz('2026-10-30', '2026-11-01')).toBe('30.10.–1.11.');
     expect(zeitraumKurz('2026-11-01', '2026-11-01')).toBe('1.11.');
+  });
+});
+
+describe('Saisonjahr im Titel (Issue #419)', () => {
+  it('nimmt das Jahr des ersten kommenden Termins', () => {
+    expect(saisonJahr('2026-12-05', '2027-09-03')).toBe('2027');
+    expect(saisonJahr('2026-11-13', '2026-11-13')).toBe('2026');
+  });
+  it('ohne Termin das heutige Jahr', () => {
+    expect(saisonJahr('2026-12-05', undefined)).toBe('2026');
   });
 });

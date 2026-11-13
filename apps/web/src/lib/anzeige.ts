@@ -409,3 +409,18 @@ export const artName = (k: string, kurz = false): string => {
 
 /** Freiwillige Unterstützung des Kirmeskalenders (Issue #141) – nur ein Link, nichts wird geladen. */
 export const UNTERSTUETZEN_URL = 'https://paypal.me/dustinschaellert';
+
+/**
+ * Jahr für Titel und Überschriften (Issue #419): das Jahr des ersten kommenden Termins, sonst das
+ * heutige. Im Dezember zeigt die Seite so schon die Saison 2027, nicht „2026“.
+ */
+export function saisonJahr(heuteIso: string, ersterTermin?: string | null): string {
+  return (ersterTermin && ersterTermin >= heuteIso ? ersterTermin : heuteIso).slice(0, 4);
+}
+
+/** Kirmespause (Issue #420): nächster Termin liegt mehr als 45 Tage entfernt oder fehlt. */
+export function istNebensaison(heuteIso: string, naechsterTermin?: string | null): boolean {
+  if (!naechsterTermin) return true;
+  const tage = (Date.parse(naechsterTermin) - Date.parse(heuteIso)) / 86_400_000;
+  return tage > 45;
+}
