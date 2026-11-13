@@ -12,6 +12,7 @@ import {
   kreisKurz,
   kreisSlug,
   plusTage,
+  saisonJahr,
   wochenende,
 } from '../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
@@ -39,7 +40,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     n: orte.filter((o) => o.landkreis === k).reduce((s, o) => s + o.anzahlKommend, 0),
   }))
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
-const jahr = h.slice(0, 4);
+const jahr = saisonJahr(h, (jetzt.termine[0] ?? spaeter[0])?.datum);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 

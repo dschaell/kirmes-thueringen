@@ -11,6 +11,7 @@ import {
   kreisName,
   kreisSlug,
   kreisZusammenfassung,
+  saisonJahr,
 } from '../../lib/anzeige';
 
 const k = kreisAusSlug(Astro.params.kreis ?? '');
@@ -18,11 +19,11 @@ if (!k) return Astro.rewrite('/404');
 
 const name = kreisName(k);
 const h = heute();
-const jahr = h.slice(0, 4);
 const [kommend, orte] = await Promise.all([
   sucheTermine({ landkreis: [k], von: h, limit: 120 }),
   listeOrte(),
 ]);
+const jahr = saisonJahr(h, kommend.termine[0]?.datum);
 const ortListe = orte.filter((o) => o.landkreis === k);
 const mitTerminen = ortListe.filter((o) => o.anzahlKommend > 0);
 const zusammenfassung = kreisZusammenfassung(kommend.gesamt, mitTerminen.length);
