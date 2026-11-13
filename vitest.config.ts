@@ -16,11 +16,31 @@ export default defineConfig({
     },
   },
   test: {
-    include: [
-      'packages/*/test/**/*.test.ts',
-      'apps/api/test/**/*.test.ts',
-      'apps/web/test/**/*.test.ts',
-      'scripts/test/**/*.test.ts',
+    // Zwei Projekte (Issue #196): DB-Tests teilen sich die Datenbank `kirmes_test` und laufen
+    // deshalb Datei für Datei nacheinander; alle anderen Tests weiter parallel.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: [
+            'packages/*/test/**/*.test.ts',
+            'apps/api/test/**/*.test.ts',
+            'apps/web/test/**/*.test.ts',
+            'scripts/test/**/*.test.ts',
+          ],
+          exclude: ['**/*.int.test.ts', '**/node_modules/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'int',
+          include: ['**/*.int.test.ts'],
+          exclude: ['**/node_modules/**'],
+          fileParallelism: false,
+        },
+      },
     ],
     coverage: {
       provider: 'v8',
