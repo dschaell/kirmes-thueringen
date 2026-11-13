@@ -12,6 +12,7 @@ import {
   kreisKurz,
   kreisSlug,
   plusTage,
+  istNebensaison,
   saisonJahr,
   wochenende,
 } from '../lib/anzeige';
@@ -40,6 +41,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     n: orte.filter((o) => o.landkreis === k).reduce((s, o) => s + o.anzahlKommend, 0),
   }))
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
+const pause = istNebensaison(h, (jetzt.termine[0] ?? spaeter[0])?.datum);
 const jahr = saisonJahr(h, (jetzt.termine[0] ?? spaeter[0])?.datum);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
@@ -116,6 +118,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
   <div class="zweispaltig">
     <div>
+      {pause && (
+        <aside class="kirmespause" aria-label="Kirmespause">
+          <p>
+            <strong>Kirmespause.</strong> Die nächste Saison fängt gerade erst an – viele
+            Kirmesgesellschaften haben ihre Termine noch nicht eingetragen.
+          </p>
+          <a class="knopf zweit" href="/termin-melden">
+            Kirmesgesellschaft? Termin melden
+          </a>
+        </aside>
+      )}
       <h2>{wochenendeSchon ? 'Dieses Wochenende' : 'Diese Woche & am Wochenende'}</h2>
       <TerminListe termine={jetzt.termine} monate={false} leer={false} />
       {jetzt.termine.length === 0 && (
