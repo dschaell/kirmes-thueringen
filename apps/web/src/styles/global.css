@@ -908,7 +908,7 @@ legend {
 .eintrag {
   display: grid;
   /* minmax(0, …): lange Titel dürfen die Spalte nie über den Rand schieben (Issue #366) */
-  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 5.25rem minmax(0, 1fr) auto;
   gap: 4px 16px;
   align-items: start;
   padding: 14px 0;
@@ -931,7 +931,8 @@ legend {
 .eintrag .zeit.offen {
   color: var(--grau);
   font-weight: 400;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
 }
 .eintrag {
   position: relative;
