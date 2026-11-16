@@ -40,14 +40,27 @@ const {
   entfernung,
 } = Astro.props;
 
-type Tag = { datum: string; termine: TerminDto[] };
+type Tag = { datum: string; termine: TerminDto[]; jahr?: string };
 const gruppen: { monat: string; tage: Tag[] }[] = [];
+// Jahres-Banner (Startseite ohne Monatsüberschriften): bei mehreren Jahren vor jedem neuen Jahr
+const mehrereJahre = !monate && new Set(termine.map((t) => t.datum.slice(0, 4))).size > 1;
+let letztesJahr = '';
 for (const t of termine) {
   const monat = monate ? monatName(t.datum) : '';
   let g = gruppen.at(-1);
   if (!g || g.monat !== monat) gruppen.push((g = { monat, tage: [] }));
   let tag = g.tage.at(-1);
-  if (!tag || tag.datum !== t.datum) g.tage.push((tag = { datum: t.datum, termine: [] }));
+  if (!tag || tag.datum !== t.datum) {
+    const jahr = t.datum.slice(0, 4);
+    g.tage.push(
+      (tag = {
+        datum: t.datum,
+        termine: [],
+        jahr: mehrereJahre && jahr !== letztesJahr ? jahr : undefined,
+      }),
+    );
+    letztesJahr = jahr;
+  }
   tag.termine.push(t);
 }
 const unbestaetigt = termine.some((t) => !t.bestaetigt);
@@ -70,108 +83,111 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
   <>
     {g.monat && gruppen.length > 1 && <h2 class="monat">{g.monat}</h2>}
     {g.tage.map((tag) => (
-      <section class="tag" aria-labelledby={`tag-${tag.datum}`}>
-        <h3 class="tag-kopf" id={`tag-${tag.datum}`}>
-          <span>
-            {wochentag(tag.datum)}, {tagMonat(tag.datum)}
-          </span>
-          {relativerTag(tag.datum) && <span class="relativ">{relativerTag(tag.datum)}</span>}
-        </h3>
-        <ul class="eintraege">
-          {tag.termine.map((t) => {
-            const route = routenLinks(t);
-            return (
-              <li class="eintrag">
-                <span class:list={['zeit', { offen: !t.beginn }]}>
-                  {t.beginn ?? 'keine Uhrzeit bekannt'}
-                  {t.beginn && t.ende && t.ende !== t.beginn && (
-                    <span class="bis">bis {t.ende}</span>
-                  )}
-                </span>
-                <div>
-                  {t.plakat && (
-                    // Vorschau (Issue #306): feste Größe, damit nichts springt
-                    <img
-                      class="liste-plakat"
-                      src={plakatPfad(t.id, t.plakat, 'klein')}
-                      alt=""
-                      width="56"
-                      height="80"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  )}
-                  <a class="titel" href={`/termin/${t.id}`}>
-                    {t.titel}
-                  </a>{' '}
-                  {/* Leerzeichen: sonst darf iOS-Safari nicht vor dem Etikett umbrechen (Issue #366) */}
-                  <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
-                  {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
-                  {t.bestaetigt && (
-                    <span class="bestaetigt" title="Vom Veranstalter bestätigt">
-                      <Icon name="haken" groesse={14} />
-                      bestätigt
-                    </span>
-                  )}
-                  <div class="wo">
-                    {ortLinks ? (
-                      <a class="ortname" href={`/orte/${t.ort.slug}`}>
-                        {t.ort.name}
-                      </a>
-                    ) : (
-                      <span class="ortname">{t.ort.name}</span>
+      <>
+        {tag.jahr && <h2 class="monat jahr">{tag.jahr}</h2>}
+        <section class="tag" aria-labelledby={`tag-${tag.datum}`}>
+          <h3 class="tag-kopf" id={`tag-${tag.datum}`}>
+            <span>
+              {wochentag(tag.datum)}, {tagMonat(tag.datum)}
+            </span>
+            {relativerTag(tag.datum) && <span class="relativ">{relativerTag(tag.datum)}</span>}
+          </h3>
+          <ul class="eintraege">
+            {tag.termine.map((t) => {
+              const route = routenLinks(t);
+              return (
+                <li class="eintrag">
+                  <span class:list={['zeit', { offen: !t.beginn }]}>
+                    {t.beginn ?? 'keine Uhrzeit bekannt'}
+                    {t.beginn && t.ende && t.ende !== t.beginn && (
+                      <span class="bis">bis {t.ende}</span>
                     )}
-                    {platzText(t) && <> · {platzText(t)}</>}
-                    {entfernung?.[t.id] !== undefined && (
-                      <span class="entfernung">
-                        {' '}
-                        · {Math.max(1, Math.round(entfernung[t.id]!))} km
+                  </span>
+                  <div>
+                    {t.plakat && (
+                      // Vorschau (Issue #306): feste Größe, damit nichts springt
+                      <img
+                        class="liste-plakat"
+                        src={plakatPfad(t.id, t.plakat, 'klein')}
+                        alt=""
+                        width="56"
+                        height="80"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
+                    <a class="titel" href={`/termin/${t.id}`}>
+                      {t.titel}
+                    </a>{' '}
+                    {/* Leerzeichen: sonst darf iOS-Safari nicht vor dem Etikett umbrechen (Issue #366) */}
+                    <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
+                    {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
+                    {t.bestaetigt && (
+                      <span class="bestaetigt" title="Vom Veranstalter bestätigt">
+                        <Icon name="haken" groesse={14} />
+                        bestätigt
                       </span>
                     )}
-                  </div>
-                  {t.band && (
-                    <div class="band">
-                      <Icon name="musik" groesse={14} />
-                      <span class="sr-only">Musik: </span>
-                      <ul class="bands">
-                        {bandsAus(t.band).map((b) => (
-                          <li>{b}</li>
-                        ))}
-                      </ul>
+                    <div class="wo">
+                      {ortLinks ? (
+                        <a class="ortname" href={`/orte/${t.ort.slug}`}>
+                          {t.ort.name}
+                        </a>
+                      ) : (
+                        <span class="ortname">{t.ort.name}</span>
+                      )}
+                      {platzText(t) && <> · {platzText(t)}</>}
+                      {entfernung?.[t.id] !== undefined && (
+                        <span class="entfernung">
+                          {' '}
+                          · {Math.max(1, Math.round(entfernung[t.id]!))} km
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div class="aktionen">
-                  {route && (
-                    <a
-                      class="route"
-                      href={route.google}
-                      data-apple={route.apple}
-                      rel="noopener"
-                      target="_blank"
-                      aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                    {t.band && (
+                      <div class="band">
+                        <Icon name="musik" groesse={14} />
+                        <span class="sr-only">Musik: </span>
+                        <ul class="bands">
+                          {bandsAus(t.band).map((b) => (
+                            <li>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  <div class="aktionen">
+                    {route && (
+                      <a
+                        class="route"
+                        href={route.google}
+                        data-apple={route.apple}
+                        rel="noopener"
+                        target="_blank"
+                        aria-label={`Route nach ${t.ort.name}${eigenerPlatz(t) ? `, ${eigenerPlatz(t)}` : ''}`}
+                      >
+                        <Icon name="route" groesse={16} />
+                        Route
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      class="merken"
+                      data-merken={t.id}
+                      aria-pressed="false"
+                      aria-label={`${t.titel} in ${t.ort.name} merken`}
+                      hidden
                     >
-                      <Icon name="route" groesse={16} />
-                      Route
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    class="merken"
-                    data-merken={t.id}
-                    aria-pressed="false"
-                    aria-label={`${t.titel} in ${t.ort.name} merken`}
-                    hidden
-                  >
-                    <Icon name="stern" groesse={16} />
-                    <span class="merken-text">Merken</span>
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+                      <Icon name="stern" groesse={16} />
+                      <span class="merken-text">Merken</span>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </>
     ))}
   </>
 ))}
