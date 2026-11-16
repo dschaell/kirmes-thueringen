@@ -3,11 +3,11 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@astrojs/node": "^11.1.7",
+    "@astrojs/node": "^11.1.12",
     "@kirmes/core": "^0.1.0",
     "@resvg/resvg-js": "2.6.2",
     "@simplewebauthn/browser": "^14.0.0",
-    "astro": "^7.3.8",
+    "astro": "^7.4.11",
     "leaflet": "^1.9.4"
   },
   "scripts": {
