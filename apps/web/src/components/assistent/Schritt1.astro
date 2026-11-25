@@ -35,6 +35,7 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, reda
           name="ort"
           required
           maxlength="200"
+          aria-describedby="ort-hilfe"
           placeholder="Ort suchen …"
           autocomplete="off"
           data-ortssuche
@@ -42,7 +43,7 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, reda
         />
       </span>
     </label>
-    <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+    <p id="ort-hilfe" class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
   </>
 )}
 {unbekannt && (
