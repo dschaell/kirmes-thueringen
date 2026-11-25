@@ -14,6 +14,7 @@ import {
   brotkrumenJsonLd,
   eventJsonLd,
   heute,
+  saisonJahr,
   imKreis,
   kreisName,
   kreisSlug,
@@ -50,7 +51,7 @@ import PushSchalter from '../../components/PushSchalter.astro';
 
 <Base
   noindex={kommend.length === 0 && vergangen.length === 0 && beitraege.length === 0}
-  title={`Kirmes ${ort.name} ${jahr} – Termine & Anfahrt`}
+  title={`Kirmes ${ort.name} ${saisonJahr(h, kommend[0]?.datum)} – Termine & Anfahrt`}
   description={`Kirmes in ${ort.name} ${imKreis(ort.landkreis)}: ${naechster ? `nächster Termin ${datumLang(naechster.datum)} – ${naechster.titel}` : `alle Termine ${jahr}`}. Mit Anfahrt und Kalender.`}
   jsonLd={[
     brotkrumenJsonLd(
