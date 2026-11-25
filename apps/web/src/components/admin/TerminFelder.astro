@@ -134,6 +134,23 @@ const gerichte = Math.min(
     </label>
     {mitKarte && (
       <div class="kartenpin" data-kartenpin>
+        <div class="kartenpin-suche" role="search">
+          <input
+            type="search"
+            class="kartenpin-suchfeld"
+            data-kartenpin-suche
+            maxlength="200"
+            autocomplete="off"
+            aria-label="Adresse oder Ort auf der Karte suchen"
+            placeholder="Adresse oder Ort suchen"
+          />
+          <button type="button" class="knopf zweit" data-kartenpin-los>
+            Suchen
+          </button>
+          <button type="button" class="knopf zweit" data-kartenpin-standort hidden>
+            Mein Standort
+          </button>
+        </div>
         <div
           class="kartenpin-karte"
           data-kartenpin-karte

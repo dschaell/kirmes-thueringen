@@ -81,6 +81,62 @@ function einrichten(box: HTMLElement) {
     if (details.open) starten();
   });
   anzeigen();
+
+  // Suche (über den eigenen Server, keine IP an Dritte) und Standort (erst nach Klick)
+  const suchfeld = box.querySelector<HTMLInputElement>('[data-kartenpin-suche]');
+  const los = box.querySelector<HTMLButtonElement>('[data-kartenpin-los]');
+  const standort = box.querySelector<HTMLButtonElement>('[data-kartenpin-standort]');
+  const zeigen = (ll: L.LatLngExpression) => {
+    // Karte erst bauen, falls der Termin noch zugeklappt war
+    if (!karte) starten();
+    karte?.setView(ll, 16);
+  };
+  const meldung = (t: string) => {
+    info.textContent = t;
+  };
+  const suchen = async () => {
+    const q = suchfeld?.value.trim() ?? '';
+    if (q.length < 3 || !los) return meldung('Bitte mindestens drei Zeichen eingeben.');
+    los.disabled = true;
+    meldung('Suche läuft …');
+    try {
+      const res = await fetch(`/adresssuche.json?q=${encodeURIComponent(q)}`);
+      const d = (await res.json()) as { lat: number; lon: number; fehler?: string } | null;
+      if (d && typeof d.lat === 'number') {
+        zeigen([d.lat, d.lon]);
+        meldung('Gefunden. Jetzt auf die Karte tippen, um den Pin zu setzen.');
+      } else meldung(d?.fehler ?? 'Nichts gefunden. Versuche Straße und Ort.');
+    } catch {
+      meldung('Suche gerade nicht erreichbar.');
+    } finally {
+      los.disabled = false;
+    }
+  };
+  los?.addEventListener('click', suchen);
+  suchfeld?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); // nicht das ganze Formular absenden
+    void suchen();
+  });
+  if (standort && 'geolocation' in navigator) {
+    standort.hidden = false;
+    standort.addEventListener('click', () => {
+      standort.disabled = true;
+      meldung('Standort wird ermittelt …');
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          standort.disabled = false;
+          zeigen([coords.latitude, coords.longitude]);
+          meldung('Standort gefunden. Jetzt auf die Karte tippen, um den Pin zu setzen.');
+        },
+        () => {
+          standort.disabled = false;
+          meldung('Standort nicht verfügbar. Suche stattdessen nach Adresse oder Ort.');
+        },
+        { enableHighAccuracy: true, timeout: 10_000 },
+      );
+    });
+  }
 }
 
 document.querySelectorAll<HTMLElement>('[data-kartenpin]').forEach(einrichten);

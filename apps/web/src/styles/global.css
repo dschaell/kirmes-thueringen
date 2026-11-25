@@ -2380,6 +2380,18 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
   display: grid;
   gap: 8px;
 }
+.kartenpin-suche {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kartenpin-suchfeld {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.kartenpin-suche [hidden] {
+  display: none;
+}
 .kartenpin-karte {
   height: 260px;
   border: 1px solid var(--linie, #e4dacb);
