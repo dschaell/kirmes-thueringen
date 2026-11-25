@@ -100,7 +100,11 @@ if (Astro.request.method === 'POST' && t) {
     .map((v) => (typeof v === 'string' ? v : ''));
   speisen = namen.map((name, i) => ({ name, preis: preise[i] ?? '' }));
   essen = f.has('essen');
-  standort = feld(f, 'standort');
+  // Kartenpin (Issue #446) hat Vorrang vor Link-Feld
+  const pinLat = feld(f, 'pinlat');
+  const pinLon = feld(f, 'pinlon');
+  const zahl = /^-?\d{1,3}\.\d{1,8}$/;
+  standort = zahl.test(pinLat) && zahl.test(pinLon) ? `${pinLat}, ${pinLon}` : feld(f, 'standort');
   // „Wo genau?“ leer? Namen aus dem Google-Maps-Link übernehmen (Issue #165)
   if (standort && !werte.veranstaltungsort.trim())
     werte.veranstaltungsort = nameAusKartenlink(standort) ?? '';

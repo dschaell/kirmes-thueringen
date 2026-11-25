@@ -5,6 +5,7 @@
  * Bildschirm. Nur die Feldnamen im Formular unterscheiden sich (`name`), damit jede Seite ihre
  * bisherige Auswertung behält. Slot „wo“ für Zusätze am Platz, Standard-Slot am Ende (z. B. Plakat).
  */
+import { koordinateAusText } from '@kirmes/core';
 import { KATEGORIEN, musikFeld } from '../../lib/anzeige';
 import Endzeit from './Endzeit.astro';
 
@@ -63,6 +64,8 @@ const {
   mehrZugeklappt = false,
 } = Astro.props;
 const gottesdienst = w.kategorie === 'tradition';
+// Vorhandener Pin: Koordinaten aus dem gespeicherten Kartenpunkt (oder einem eingefügten Link)
+const pin = w.standort ? koordinateAusText(w.standort) : null;
 // Zugeklappt nur, solange dort nichts eingetragen ist – sonst bliebe eine Angabe versteckt
 const Mehr = mehrZugeklappt ? 'details' : 'div';
 const mehrOffen = Boolean(
@@ -130,18 +133,36 @@ const gerichte = Math.min(
       />
     </label>
     {mitKarte && (
-      <label>
-        Google-Maps-Link (optional)
-        <input
-          name={name('standort')}
-          data-kartenlink-name={name('veranstaltungsort')}
-          maxlength="2000"
-          inputmode="url"
-          placeholder="Teilen → Link kopieren"
-          value={w.standort ?? ''}
+      <div class="kartenpin" data-kartenpin>
+        <div
+          class="kartenpin-karte"
+          data-kartenpin-karte
+          role="application"
+          aria-label="Karte: Ort markieren"
         />
+        <input type="hidden" name={name('pinlat')} value={pin?.lat ?? ''} data-kartenpin-lat />
+        <input type="hidden" name={name('pinlon')} value={pin?.lon ?? ''} data-kartenpin-lon />
+        <div class="kartenpin-zeile">
+          <span class="klein leise" data-kartenpin-info>
+            Auf die Karte tippen, um den Ort zu markieren. Der Pin lässt sich verschieben.
+          </span>
+          <button type="button" class="knopf zweit kartenpin-weg" data-kartenpin-weg hidden={!pin}>
+            Pin entfernen
+          </button>
+        </div>
         {kartenHinweis && <span class="klein leise">{kartenHinweis}</span>}
-      </label>
+        <label>
+          Alternativ: Google-Maps-Link (optional)
+          <input
+            name={name('standort')}
+            data-kartenlink-name={name('veranstaltungsort')}
+            maxlength="2000"
+            inputmode="url"
+            placeholder="Teilen → Link kopieren"
+            value={w.standort ?? ''}
+          />
+        </label>
+      </div>
     )}
     <slot name="wo" />
   </fieldset>

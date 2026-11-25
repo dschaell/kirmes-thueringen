@@ -5,6 +5,14 @@ import { datumKurz } from '../anzeige';
 import { feld } from '../admin';
 import { type TerminDto } from '../api';
 
+/** Kartenpin aus dem Formular als „Breite, Länge“ (Issue #446); ungültig = null → Link-Feld gilt */
+export function kartePin(f: FormData, i: number): string | null {
+  const lat = feld(f, `pinlat-${i}`);
+  const lon = feld(f, `pinlon-${i}`);
+  const zahl = /^-?\d{1,3}\.\d{1,8}$/;
+  return zahl.test(lat) && zahl.test(lon) ? `${lat}, ${lon}` : null;
+}
+
 export interface AssistentZeile extends VorschlagsZeile {
   gerichte?: number;
   /** Haken „Essen & Getränke anbieten“ (Issue #155); fehlt er, zählt, ob es Einträge gibt */
@@ -119,7 +127,8 @@ export function leseProgramm(
                 muttizettel: f.has(`mutti-${i}`),
                 essen: f.has(`essen-${i}`),
                 // Kartenlink (öffentlich) bzw. Haken „als Platz übernehmen“ (Redaktion) – Issue #169
-                karte: feld(f, `karte-${i}`).slice(0, 2000),
+                // Kartenpin (Issue #446) hat Vorrang; sonst Link oder Koordinaten aus dem Feld
+                karte: kartePin(f, i) ?? feld(f, `karte-${i}`).slice(0, 2000),
                 platzUebernehmen: f.has(`platz-${i}`),
                 speisen: Array.from(
                   { length: Math.min(20, Math.max(z.gerichte ?? 3, (z.speisen?.length ?? 0) + 1)) },

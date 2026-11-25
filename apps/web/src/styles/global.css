@@ -2371,3 +2371,25 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
 .kirmespause p {
   margin: 0 0 10px;
 }
+
+/* Kartenpin im Terminformular (Issue #446) */
+.kartenpin {
+  display: grid;
+  gap: 8px;
+}
+.kartenpin-karte {
+  height: 260px;
+  border: 1px solid var(--linie, #e4dacb);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.kartenpin-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kartenpin-weg[hidden] {
+  display: none;
+}
