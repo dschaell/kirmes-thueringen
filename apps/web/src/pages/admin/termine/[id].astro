@@ -2,7 +2,7 @@
 import { nameAusKartenlink } from '@kirmes/core';
 import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
-import { adminApi, adminPlakat, feld } from '../../../lib/admin';
+import { adminApi, adminPlakat, feld, pinOderLink } from '../../../lib/admin';
 import type { TerminDto } from '../../../lib/api';
 import {
   datumLangJahr,
@@ -101,10 +101,7 @@ if (Astro.request.method === 'POST' && t) {
   speisen = namen.map((name, i) => ({ name, preis: preise[i] ?? '' }));
   essen = f.has('essen');
   // Kartenpin (Issue #446) hat Vorrang vor Link-Feld
-  const pinLat = feld(f, 'pinlat');
-  const pinLon = feld(f, 'pinlon');
-  const zahl = /^-?\d{1,3}\.\d{1,8}$/;
-  standort = zahl.test(pinLat) && zahl.test(pinLon) ? `${pinLat}, ${pinLon}` : feld(f, 'standort');
+  standort = pinOderLink(f);
   // „Wo genau?“ leer? Namen aus dem Google-Maps-Link übernehmen (Issue #165)
   if (standort && !werte.veranstaltungsort.trim())
     werte.veranstaltungsort = nameAusKartenlink(standort) ?? '';

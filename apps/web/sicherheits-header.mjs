@@ -72,6 +72,7 @@ export const headerFuer = (pfad) =>
         pfad.startsWith('/termin-melden?') ||
         pfad === '/admin/kirmes-eintragen' ||
         /^\/admin\/termine\/[0-9a-f-]+(\?|$)/.test(pfad) ||
+        /^\/admin\/orte(\/[^/?]+)?(\?|$)/.test(pfad) ||
         pfad === '/karte' ||
         pfad.startsWith('/karte?') ||
         pfad === '/termine' ||

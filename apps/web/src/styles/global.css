@@ -2376,7 +2376,8 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
 }
 
 /* Kartenpin im Terminformular (Issue #446) */
-.kartenpin {
+.kartenpin,
+.kartenpin-gruppe {
   display: grid;
   gap: 8px;
 }

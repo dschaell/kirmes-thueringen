@@ -3,7 +3,8 @@ import AdminLayout from '../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../components/admin/CsrfFeld.astro';
 import Icon from '../../components/Icon.astro';
 import { koordinateAusText } from '@kirmes/core';
-import { adminApi, feld } from '../../lib/admin';
+import { adminApi, feld, pinOderLink } from '../../lib/admin';
+import Kartenpin from '../../components/admin/Kartenpin.astro';
 import { listeOrte } from '../../lib/api';
 import { LANDKREISE, kreisKurz } from '../../lib/anzeige';
 import type { LandkreisKuerzel } from '@kirmes/core';
@@ -27,8 +28,9 @@ if (Astro.request.method === 'POST') {
       else fehler = r.fehler;
     }
   } else {
-    const k = feld(f, 'koordinate') ? koordinateAusText(feld(f, 'koordinate')) : null;
-    if (feld(f, 'koordinate') && !k) {
+    const lage = pinOderLink(f, 'koordinate');
+    const k = lage ? koordinateAusText(lage) : null;
+    if (lage && !k) {
       fehler = [
         'Koordinate nicht erkannt – bitte „50.87, 10.82“ oder einen Google-Maps-Link einfügen.',
       ];
@@ -227,8 +229,8 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   <p class="kasten klein">
     <strong>Kirche, Festzelt oder Sportplatz?</strong> Das ist kein neuer Ort, sondern ein{' '}
     <strong>Platz</strong> im Ort: beim Ort „Plätze bearbeiten“ (oder den Ort suchen und „Plätze &
-    Ort“) wählen und dort den Platz mit Google-Maps-Link anlegen. Termine mit gleichem „Wo genau?“
-    führen dann dorthin.
+    Ort“) wählen und dort den Platz mit Kartenpin anlegen. Termine mit gleichem „Wo genau?“ führen
+    dann dorthin.
   </p>
   <form class="melden" method="post">
     <CsrfFeld />
@@ -247,9 +249,11 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
         </select>
       </label>
     </div>
+    <p>Lage (optional)</p>
+    <Kartenpin hinweis="Pin auf den Ort setzen. Alternativ unten Link oder Koordinaten einfügen." />
     <label>
-      Lage (optional)
-      <input name="koordinate" placeholder="Google-Maps-Link oder „50.87, 10.82“" />
+      Alternativ: Google-Maps-Link oder „50.87, 10.82“
+      <input name="koordinate" />
     </label>
     <div>
       <button class="knopf" type="submit">
