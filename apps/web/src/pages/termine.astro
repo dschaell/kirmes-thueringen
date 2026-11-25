@@ -21,6 +21,7 @@ import {
   LANDKREISE,
   anzahl,
   heute,
+  saisonJahr,
   wochenende,
   zeitraumKurz,
   imKreis,
@@ -168,7 +169,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 <Base
   title={
     ueberschrift === 'Kirmes-Termine'
-      ? `Kirmes-Termine in Thüringen ${heute().slice(0, 4)} – alle Kirmessen nach Datum`
+      ? `Kirmes-Termine in Thüringen ${saisonJahr(h, ergebnis.termine[0]?.datum)} – alle Kirmessen nach Datum`
       : ueberschrift === 'Kirmes am Wochenende'
         ? // Suchbegriff „Kirmes Wochenende Thüringen“ samt Datum im Titel (Issue #305)
           `Kirmes am Wochenende in Thüringen (${zeitraumKurz(wochenende().von, wochenende().bis)}) – Kirmeskalender`

@@ -4,7 +4,7 @@ import type { Vorschlag } from '@kirmes/core';
 import { koordinateAusText, nurEigenerOrt, parseDatum, type Rolle } from '@kirmes/core';
 import { findeOrtEindeutig } from './ortssuche';
 import { nachAktion } from './terminliste';
-import { adminApi, adminPlakat, feld } from './admin';
+import { adminApi, adminPlakat, feld, pinOderLink } from './admin';
 import { lesePlakate } from './assistent/plakate';
 import { csrfGueltig, FORMULAR_COOKIE, CSRF_FELD } from './csrf';
 import { besucherIp } from './meldung';
@@ -190,7 +190,7 @@ export async function assistent(
     if (!s.ortSlug && redaktion && neuerName && !kgOrt) {
       s.ortUnbekannt = true;
       if (f.has('ortAnlegen')) {
-        const lage = feld(f, 'ortLage');
+        const lage = pinOderLink(f, 'ortLage', 'ortLat', 'ortLon');
         const k = lage ? koordinateAusText(lage) : null;
         if (lage && !k)
           s.fehler.push(

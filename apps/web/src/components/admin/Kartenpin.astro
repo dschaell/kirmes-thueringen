@@ -1,0 +1,53 @@
+---
+/**
+ * Karte mit Pin (Issue #446/#448): Klick setzt den Pin, er lässt sich verschieben; Suche nach
+ * Adresse und „Mein Standort“. Lat/Lon landen in versteckten Feldern, die der Server mit
+ * `pinOderLink` liest (scripts/kartenpin.ts macht die Karte). Link-Feld liefert die Seite selbst.
+ */
+interface Props {
+  /** Feldnamen für Breite und Länge */
+  lat?: string;
+  lon?: string;
+  /** vorhandener Punkt (Start-Pin) */
+  pin?: { lat: number; lon: number } | null;
+  hinweis?: string;
+}
+const { lat = 'pinlat', lon = 'pinlon', pin = null, hinweis } = Astro.props;
+---
+
+<div class="kartenpin" data-kartenpin>
+  <div class="kartenpin-suche" role="search">
+    <input
+      type="search"
+      class="kartenpin-suchfeld"
+      data-kartenpin-suche
+      maxlength="200"
+      autocomplete="off"
+      aria-label="Adresse oder Ort auf der Karte suchen"
+      placeholder="Adresse oder Ort suchen"
+    />
+    <button type="button" class="knopf zweit" data-kartenpin-los>
+      Suchen
+    </button>
+    <button type="button" class="knopf zweit" data-kartenpin-standort hidden>
+      Mein Standort
+    </button>
+  </div>
+  <div
+    class="kartenpin-karte"
+    data-kartenpin-karte
+    role="application"
+    aria-label="Karte: Ort markieren"
+  ></div>
+  <input type="hidden" name={lat} value={pin?.lat ?? ''} data-kartenpin-lat />
+  <input type="hidden" name={lon} value={pin?.lon ?? ''} data-kartenpin-lon />
+  <div class="kartenpin-zeile">
+    <span class="klein leise" data-kartenpin-info>
+      Auf die Karte tippen, um den Ort zu markieren. Der Pin lässt sich verschieben.
+    </span>
+    <button type="button" class="knopf zweit kartenpin-weg" data-kartenpin-weg hidden={!pin}>
+      Pin entfernen
+    </button>
+  </div>
+  {hinweis && <span class="klein leise">{hinweis}</span>}
+</div>

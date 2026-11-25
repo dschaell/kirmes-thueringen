@@ -118,6 +118,17 @@ export const feld = (f: FormData, name: string) => {
   return typeof v === 'string' ? v.trim() : '';
 };
 
+/**
+ * Kartenpin (Issue #446/#448) als „Breite, Länge“; gültiger Pin hat Vorrang vor dem Link-/Koordinatenfeld.
+ * Namen mit Zusatz: `pinOderLink(f, 'standort', 'pinlat-2', 'pinlon-2')`.
+ */
+export const pinOderLink = (f: FormData, link = 'standort', lat = 'pinlat', lon = 'pinlon') => {
+  const la = feld(f, lat);
+  const lo = feld(f, lon);
+  const zahl = /^-?\d{1,3}\.\d{1,8}$/;
+  return zahl.test(la) && zahl.test(lo) ? `${la}, ${lo}` : feld(f, link);
+};
+
 /** JSON-Antwort der Redaktions-Endpunkte (nie gecacht). */
 export const jsonAntwort = (status: number, daten: unknown) =>
   new Response(JSON.stringify(daten), {

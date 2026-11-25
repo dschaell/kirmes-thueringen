@@ -1,0 +1,184 @@
+/* Gestaltung der Fehlerseiten aus der Middleware (503, 403) – eigene Datei wegen strenger CSP
+   (style-src 'self', kein Inline-Style). Farben wie in global.css, Hell und Dunkel. */
+:root {
+  color-scheme: light dark;
+  --papier: #faf6ef;
+  --flaeche: #ffffff;
+  --tinte: #1f1b16;
+  --grau: #554d45;
+  --rand: #877b6c;
+  --linie: #e4dacb;
+  --rot: #a4161a;
+  --rot-tief: #7a0f12;
+  --knopf: #a4161a;
+  --knopf-tief: #7a0f12;
+  --auf-knopf: #ffffff;
+  --gold-text: #8a5d00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --papier: #121212;
+    --flaeche: #1c1c1e;
+    --tinte: #f2f2f2;
+    --grau: #b0b0b5;
+    --rand: #6e6e73;
+    --linie: #2c2c2e;
+    --rot: #ff8a80;
+    --rot-tief: #ffb4ab;
+    --knopf-tief: #c0262d;
+    --gold-text: #e0b04a;
+  }
+}
+:root[data-theme='dark'] {
+  --papier: #121212;
+  --flaeche: #1c1c1e;
+  --tinte: #f2f2f2;
+  --grau: #b0b0b5;
+  --rand: #6e6e73;
+  --linie: #2c2c2e;
+  --rot: #ff8a80;
+  --rot-tief: #ffb4ab;
+  --knopf-tief: #c0262d;
+  --gold-text: #e0b04a;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--papier);
+  color: var(--tinte);
+  font:
+    1.05rem/1.55 Arial,
+    'Helvetica Neue',
+    Helvetica,
+    sans-serif;
+}
+.wimpel {
+  height: 22px;
+  background: url('/wimpel.svg') repeat-x 0 0 / 72px 22px;
+}
+header {
+  padding: 18px 16px 8px;
+}
+.marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tinte);
+  text-decoration: none;
+  font-weight: 750;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+.marke img {
+  width: 36px;
+  height: 36px;
+}
+.marke small {
+  display: block;
+  font:
+    600 0.72rem/1.2 Arial,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rot);
+}
+main {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 24px 16px 48px;
+}
+.karte {
+  width: 100%;
+  max-width: 540px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: 18px;
+  padding: 36px 28px 32px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgb(31 27 22 / 0.08);
+}
+.code {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--rot);
+  color: var(--auf-knopf);
+  font:
+    700 0.8rem/1.4 Arial,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0 0 12px;
+  font-size: 1.7rem;
+  line-height: 1.2;
+  font-weight: 750;
+}
+.text {
+  margin: 0 auto;
+  max-width: 28rem;
+  color: var(--grau);
+}
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 26px;
+}
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--knopf);
+  background: var(--knopf);
+  color: var(--auf-knopf);
+  font:
+    700 1rem/1 Arial,
+    sans-serif;
+  text-decoration: none;
+}
+.knopf:hover {
+  background: var(--knopf-tief);
+  border-color: var(--knopf-tief);
+  color: var(--auf-knopf);
+}
+.knopf.zweit {
+  background: transparent;
+  color: var(--tinte);
+  border-color: var(--rand);
+}
+.knopf.zweit:hover {
+  background: var(--papier);
+  color: var(--tinte);
+}
+.hinweis {
+  margin: 18px 0 0;
+  font-size: 0.9rem;
+  color: var(--grau);
+}
+.hinweis a {
+  color: var(--gold-text);
+  font-weight: 700;
+}
+footer {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--grau);
+}
+footer a {
+  color: var(--grau);
+}

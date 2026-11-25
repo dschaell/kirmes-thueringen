@@ -67,7 +67,13 @@ export const headerFuer = (pfad) =>
   pfad.startsWith('/einbetten/')
     ? SICHERHEITS_HEADER_EINBETTEN
     : // Karte und Terminsuche („In meiner Nähe“, Issue #296) dürfen nach Klick den Standort nutzen
-      pfad === '/karte' ||
+      // Kartenpin im Formular: Standort nach Klick (Termin melden, Redaktion)
+      pfad === '/termin-melden' ||
+        pfad.startsWith('/termin-melden?') ||
+        pfad === '/admin/kirmes-eintragen' ||
+        /^\/admin\/termine\/[0-9a-f-]+(\?|$)/.test(pfad) ||
+        /^\/admin\/orte(\/[^/?]+)?(\?|$)/.test(pfad) ||
+        pfad === '/karte' ||
         pfad.startsWith('/karte?') ||
         pfad === '/termine' ||
         pfad.startsWith('/termine?')

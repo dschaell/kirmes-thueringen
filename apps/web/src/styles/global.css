@@ -106,6 +106,15 @@ body {
   color: var(--tinte);
   font: 400 var(--grund) / 1.55 var(--text);
   font-feature-settings: 'kern', 'liga';
+  /* Fuß bleibt auch auf kurzen Seiten (404, leere Listen) am unteren Rand */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+body > main#inhalt {
+  box-sizing: border-box;
+  flex: 1 0 auto;
+  width: 100%;
 }
 h1,
 h2,
@@ -427,10 +436,8 @@ a:hover {
 }
 .mehr-gruppe h2 {
   margin: 0 0 8px 4px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--grau);
 }
 .mehr-gruppe ul,
@@ -870,8 +877,6 @@ legend {
   font-size: 1rem;
   font-family: var(--text);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--grau);
   margin: 2.4em 0 0;
 }
@@ -892,8 +897,6 @@ legend {
 }
 .tag-kopf .relativ {
   font: 600 0.875rem/1 var(--text);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   /* Hintergrundfarbe als Schrift: im hellen wie im dunklen Modus ≥ 6:1 (Issue #123) */
   color: var(--auf-knopf);
   background: var(--knopf);
@@ -1168,7 +1171,7 @@ ul.bands li::before {
   margin-right: 2px;
 }
 .leer {
-  padding: 32px 0;
+  padding: 8px 0 12px;
   color: var(--grau);
 }
 
@@ -1542,9 +1545,7 @@ form.melden label > input[type='checkbox'] {
   margin: 0 0 8px;
 }
 .fuss h2 {
-  font: 700 0.8rem/1 var(--text);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 600 0.95rem/1.2 var(--text);
   color: var(--grau);
   margin: 0 0 12px;
 }
@@ -1644,9 +1645,7 @@ dialog.mitteilung .knopfreihe {
   margin-top: 4px;
 }
 .mitteilung-art {
-  font: 700 0.75rem/1 var(--text);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 600 0.85rem/1 var(--text);
   color: var(--rot);
   margin: 0 0 8px;
 }
@@ -2105,20 +2104,24 @@ html[data-hintergrund] main#inhalt {
   display: grid;
 }
 .app-kacheln a {
-  display: grid;
-  align-content: space-between;
-  gap: 18px;
-  min-height: 92px;
-  padding: 14px 16px;
-  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid var(--glas-rand, var(--linie));
   background: var(--flaeche);
   color: var(--tinte);
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-decoration: none;
 }
 .app-kacheln a .icon {
-  color: var(--rot);
+  flex: none;
+  color: var(--grau);
 }
 .app-kacheln a:hover {
   border-color: var(--rand);
@@ -2370,4 +2373,39 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
 }
 .kirmespause p {
   margin: 0 0 10px;
+}
+
+/* Kartenpin im Terminformular (Issue #446) */
+.kartenpin,
+.kartenpin-gruppe {
+  display: grid;
+  gap: 8px;
+}
+.kartenpin-suche {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kartenpin-suchfeld {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.kartenpin-suche [hidden] {
+  display: none;
+}
+.kartenpin-karte {
+  height: 260px;
+  border: 1px solid var(--linie, #e4dacb);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.kartenpin-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kartenpin-weg[hidden] {
+  display: none;
 }

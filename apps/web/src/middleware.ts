@@ -6,21 +6,65 @@ import { ApiNichtErreichbar } from './lib/api';
 
 // Sicherheits-Header setzt server.mjs für jede Antwort (auch statische Dateien).
 
-const fehlerSeite = () =>
-  new Response(
-    '<!doctype html><html lang="de"><meta charset="utf-8"><title>Kurz nicht erreichbar – Kirmeskalender Thüringen</title>' +
-      '<h1>Die Termine sind gerade nicht erreichbar</h1><p>Bitte versuche es in ein paar Minuten noch einmal.</p></html>',
-    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '30' } },
-  );
+type Aktion = { href: string; text: string; primaer?: boolean };
+
+/**
+ * Fehlerseiten dieser Middleware: ohne Layout, weil die API gerade fehlen kann. Stil kommt aus
+ * /fehlerseite.css (die CSP erlaubt kein Inline-Style). Farben und Schrift wie auf der Website.
+ */
+const fehlerSeite = (
+  status: number,
+  o: { titel: string; meldung: string; aktionen: Aktion[] },
+  extra: Record<string, string> = {},
+) => {
+  const esc = (t: string) =>
+    t.replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+    );
+  const knoepfe = o.aktionen
+    .map(
+      (a) =>
+        `<a class="knopf${a.primaer ? '' : ' zweit'}" href="${esc(a.href)}">${esc(a.text)}</a>`,
+    )
+    .join('');
+  const html =
+    `<!doctype html><html lang="de"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">` +
+    `<title>${esc(o.titel)} – Kirmeskalender Thüringen</title>` +
+    `<link rel="stylesheet" href="/fehlerseite.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">` +
+    `</head><body><div class="wimpel" aria-hidden="true"></div>` +
+    `<header><a class="marke" href="/"><img src="/favicon.svg" alt="" width="36" height="36">` +
+    `<span>Kirmeskalender<small>Thüringen</small></span></a></header>` +
+    `<main><section class="karte"><p class="code">Fehler ${status}</p>` +
+    `<h1>${esc(o.titel)}</h1><p class="text">${esc(o.meldung)}</p>` +
+    `<div class="aktionen">${knoepfe}</div></section></main>` +
+    `<footer>© ${new Date().getFullYear()} Kirmeskalender Thüringen</footer></body></html>`;
+  return new Response(html, {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...extra },
+  });
+};
 
 /** Fällt die API (oder dahinter die Datenbank) aus, zeigt die Website eine freundliche 503-Seite. */
-const ausfall = defineMiddleware(async (_ctx, next) => {
+const ausfall = defineMiddleware(async (ctx, next) => {
   try {
     return await next();
   } catch (e) {
     if (!(e instanceof ApiNichtErreichbar)) throw e;
     console.error('API nicht erreichbar:', e.cause);
-    return fehlerSeite();
+    return fehlerSeite(
+      503,
+      {
+        titel: 'Die Termine sind gerade nicht erreichbar',
+        meldung: 'Bitte versuche es in ein paar Minuten noch einmal.',
+        aktionen: [
+          { href: ctx.url.pathname + ctx.url.search, text: 'Seite neu laden', primaer: true },
+          { href: '/', text: 'Zur Startseite' },
+        ],
+      },
+      { 'Retry-After': '30' },
+    );
   }
 });
 
@@ -64,13 +108,15 @@ const redaktion = defineMiddleware(async (ctx, next) => {
       !gleicheHerkunft(ctx.request) ||
       !csrfGueltig(ctx.cookies.get(CSRF_COOKIE)?.value, gesendet)
     ) {
-      return new Response(
-        'Sitzung abgelaufen oder ungültiges Formular. Bitte die Seite neu laden.',
-        {
-          status: 403,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
-        },
-      );
+      return fehlerSeite(403, {
+        titel: 'Sitzung abgelaufen',
+        meldung:
+          'Das Formular passt nicht mehr zur Sitzung. Bitte lade die Seite neu und versuche es noch einmal.',
+        aktionen: [
+          { href: ctx.url.pathname, text: 'Seite neu laden', primaer: true },
+          { href: '/', text: 'Zur Startseite' },
+        ],
+      });
     }
   }
   ctx.locals.csrf = csrfToken(ctx.cookies);

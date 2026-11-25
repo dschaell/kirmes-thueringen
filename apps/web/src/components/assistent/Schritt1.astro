@@ -5,6 +5,7 @@ import type { OrtUebersichtDto } from '../../lib/api';
 import type { OrtTreffer } from '../../lib/ortssuche';
 import type { LandkreisKuerzel } from '@kirmes/core';
 import { kreisKurz } from '../../lib/anzeige';
+import Kartenpin from '../admin/Kartenpin.astro';
 interface Props {
   redaktion: boolean;
   s: AssistentStand;
@@ -35,6 +36,7 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, reda
           name="ort"
           required
           maxlength="200"
+          aria-describedby="ort-hilfe"
           placeholder="Ort suchen …"
           autocomplete="off"
           data-ortssuche
@@ -42,7 +44,9 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, reda
         />
       </span>
     </label>
-    <p class="klein leise">Ort eintippen und einen passenden Vorschlag auswählen.</p>
+    <p id="ort-hilfe" class="klein leise">
+      Ort eintippen und einen passenden Vorschlag auswählen.
+    </p>
   </>
 )}
 {unbekannt && (
@@ -71,10 +75,14 @@ const { s, kgOrt, ort, unbekannt, aehnliche, neuerOrtName, kreise, ortText, reda
           ))}
         </select>
       </label>
-      <label>
-        Lage (optional)
-        <input name="ortLage" maxlength="2000" placeholder="Google-Maps-Link oder „50.87, 10.82“" />
-      </label>
+      <div class="kartenpin-gruppe">
+        <p>Lage (optional)</p>
+        <Kartenpin lat="ortLat" lon="ortLon" hinweis="Pin auf den Ort setzen." />
+        <label>
+          Alternativ: Google-Maps-Link oder „50.87, 10.82“
+          <input name="ortLage" maxlength="2000" />
+        </label>
+      </div>
     </div>
     <label class="klein">
       <input type="checkbox" name="ortAnlegen" /> Ja, „{neuerOrtName}“ als neuen Ort anlegen

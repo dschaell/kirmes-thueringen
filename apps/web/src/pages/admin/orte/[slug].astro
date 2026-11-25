@@ -9,7 +9,8 @@ import AdminLayout from '../../../components/admin/AdminLayout.astro';
 import CsrfFeld from '../../../components/admin/CsrfFeld.astro';
 import Icon from '../../../components/Icon.astro';
 import { darf, nurEigenerOrt, type LandkreisKuerzel } from '@kirmes/core';
-import { adminApi, feld } from '../../../lib/admin';
+import { adminApi, feld, pinOderLink } from '../../../lib/admin';
+import Kartenpin from '../../../components/admin/Kartenpin.astro';
 import { findeOrt } from '../../../lib/api';
 import { LANDKREISE, kreisKurz, kreisName } from '../../../lib/anzeige';
 
@@ -42,7 +43,7 @@ if (Astro.request.method === 'POST') {
       : aktion === 'kartenpunkt'
         ? await adminApi(Astro.cookies, 'POST', `${pfad}/festplaetze`, {
             name,
-            standort: feld(f, 'standort'),
+            standort: pinOderLink(f),
             nameNoetig: feld(f, 'neuerPlatz') === '1',
           })
         : aktion === 'kartenpunkt-loeschen'
@@ -53,7 +54,7 @@ if (Astro.request.method === 'POST') {
             )
           : aktion === 'mitte'
             ? await adminApi(Astro.cookies, 'PUT', `${pfad}/mitte`, {
-                standort: feld(f, 'standort'),
+                standort: pinOderLink(f),
               })
             : aktion === 'ort'
               ? await adminApi(Astro.cookies, 'PUT', pfad, {
@@ -185,19 +186,20 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
                   <CsrfFeld />
                   <input type="hidden" name="aktion" value="kartenpunkt" />
                   <input type="hidden" name="platzname" value={p.name} />
+                  <p>{p.koordinate ? 'Kartenpunkt ändern' : 'Kartenpunkt setzen'}</p>
+                  <Kartenpin
+                    pin={p.koordinate}
+                    hinweis="Pin setzen oder verschieben. Alternativ unten einen Link aus Google Maps einfügen."
+                  />
                   <label>
-                    {p.koordinate ? 'Kartenpunkt ändern' : 'Kartenpunkt setzen'}: Link aus Google
-                    Maps
+                    Alternativ: Link aus Google Maps (optional)
                     <input
                       name="standort"
-                      required
                       maxlength="2000"
                       placeholder="Link oder 50.8475, 11.0412"
                     />
                   </label>
                   <p class="leise klein">
-                    In Google Maps den Platz suchen oder antippen, „Teilen → Link kopieren“ und hier
-                    einfügen.{' '}
                     <a href={googleSuche} target="_blank" rel="noopener">
                       {ort.name} in Google Maps öffnen
                     </a>
@@ -240,17 +242,17 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
           Name des Platzes
           <input name="platzname" maxlength="120" placeholder="leer = Name aus dem Link" />
         </label>
-        <label>
-          Link aus Google Maps *
-          <input
-            name="standort"
-            data-kartenlink-name="platzname"
-            required
-            maxlength="2000"
-            placeholder="Link oder 50.8475, 11.0412"
-          />
-        </label>
       </div>
+      <Kartenpin hinweis="Pin auf den Platz setzen oder den Platz suchen." />
+      <label>
+        Alternativ: Link aus Google Maps (optional)
+        <input
+          name="standort"
+          data-kartenlink-name="platzname"
+          maxlength="2000"
+          placeholder="Link oder 50.8475, 11.0412"
+        />
+      </label>
       <p class="leise klein">
         Am besten so benennen, wie der Platz in Google Maps heißt (z. B. „St. Marien“). Termine,
         deren „Wo genau?“ genauso heißt, bekommen dann die Route.
@@ -352,10 +354,14 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
       <form method="post" class="melden">
         <CsrfFeld />
         <input type="hidden" name="aktion" value="mitte" />
+        <p>Ortsmitte ändern</p>
+        <Kartenpin
+          pin={ort.koordinate}
+          hinweis="Z. B. Kirche oder Dorfplatz. Alternativ unten einen Link aus Google Maps einfügen."
+        />
         <label>
-          Ortsmitte ändern: Link aus Google Maps
-          <input name="standort" required maxlength="2000" placeholder="Teilen → Link kopieren" />
-          <span class="klein leise">In Google Maps z. B. Kirche oder Dorfplatz antippen.</span>
+          Alternativ: Link aus Google Maps (optional)
+          <input name="standort" maxlength="2000" placeholder="Teilen → Link kopieren" />
         </label>
         <div>
           <button class="knopf" type="submit">

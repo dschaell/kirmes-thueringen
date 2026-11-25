@@ -5,8 +5,10 @@
  * Bildschirm. Nur die Feldnamen im Formular unterscheiden sich (`name`), damit jede Seite ihre
  * bisherige Auswertung behält. Slot „wo“ für Zusätze am Platz, Standard-Slot am Ende (z. B. Plakat).
  */
+import { koordinateAusText } from '@kirmes/core';
 import { KATEGORIEN, musikFeld } from '../../lib/anzeige';
 import Endzeit from './Endzeit.astro';
+import Kartenpin from './Kartenpin.astro';
 
 export interface TerminWerte {
   datum?: string;
@@ -63,6 +65,8 @@ const {
   mehrZugeklappt = false,
 } = Astro.props;
 const gottesdienst = w.kategorie === 'tradition';
+// Vorhandener Pin: Koordinaten aus dem gespeicherten Kartenpunkt (oder einem eingefügten Link)
+const pin = w.standort ? koordinateAusText(w.standort) : null;
 // Zugeklappt nur, solange dort nichts eingetragen ist – sonst bliebe eine Angabe versteckt
 const Mehr = mehrZugeklappt ? 'details' : 'div';
 const mehrOffen = Boolean(
@@ -130,18 +134,20 @@ const gerichte = Math.min(
       />
     </label>
     {mitKarte && (
-      <label>
-        Google-Maps-Link (optional)
-        <input
-          name={name('standort')}
-          data-kartenlink-name={name('veranstaltungsort')}
-          maxlength="2000"
-          inputmode="url"
-          placeholder="Teilen → Link kopieren"
-          value={w.standort ?? ''}
-        />
-        {kartenHinweis && <span class="klein leise">{kartenHinweis}</span>}
-      </label>
+      <div class="kartenpin-gruppe">
+        <Kartenpin lat={name('pinlat')} lon={name('pinlon')} pin={pin} hinweis={kartenHinweis} />
+        <label>
+          Alternativ: Google-Maps-Link (optional)
+          <input
+            name={name('standort')}
+            data-kartenlink-name={name('veranstaltungsort')}
+            maxlength="2000"
+            inputmode="url"
+            placeholder="Teilen → Link kopieren"
+            value={w.standort ?? ''}
+          />
+        </label>
+      </div>
     )}
     <slot name="wo" />
   </fieldset>
