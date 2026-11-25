@@ -1168,7 +1168,7 @@ ul.bands li::before {
   margin-right: 2px;
 }
 .leer {
-  padding: 32px 0;
+  padding: 8px 0 12px;
   color: var(--grau);
 }
 
@@ -2105,20 +2105,24 @@ html[data-hintergrund] main#inhalt {
   display: grid;
 }
 .app-kacheln a {
-  display: grid;
-  align-content: space-between;
-  gap: 18px;
-  min-height: 92px;
-  padding: 14px 16px;
-  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 16px;
   border: 1px solid var(--glas-rand, var(--linie));
   background: var(--flaeche);
   color: var(--tinte);
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-decoration: none;
 }
 .app-kacheln a .icon {
-  color: var(--rot);
+  flex: none;
+  color: var(--grau);
 }
 .app-kacheln a:hover {
   border-color: var(--rand);
