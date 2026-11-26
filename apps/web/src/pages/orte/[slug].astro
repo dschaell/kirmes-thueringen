@@ -70,7 +70,6 @@ import PushSchalter from '../../components/PushSchalter.astro';
   </p>
   <section class="einstieg">
     <h1>Kirmes in {ort.name}</h1>
-    <PushSchalter art="ort" ortSlug={ort.slug} ortName={ort.name} />
     <p class="unterzeile">
       {naechster ? (
         <>
@@ -120,6 +119,7 @@ import PushSchalter from '../../components/PushSchalter.astro';
         Termine von {ort.name} im eigenen Kalender abonnieren
       </a>
     </p>
+    <PushSchalter art="ort" ortSlug={ort.slug} ortName={ort.name} />
   </section>
 
   {kommend.length > 0 && (

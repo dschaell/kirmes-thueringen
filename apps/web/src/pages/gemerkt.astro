@@ -32,9 +32,8 @@ import PushSchalter from '../components/PushSchalter.astro';
   <section class="einstieg">
     <h1>Gemerkte Termine</h1>
     <p class="unterzeile">
-      Mit <strong>Merken</strong> bei einem Termin landet er hier. Die Liste bleibt nur in diesem
-      Browser – kein Konto, nichts wird bei uns gespeichert. Vorbei ist vorbei: Vergangene Termine
-      verschwinden von allein.
+      Mit <strong>Merken</strong> landet ein Termin hier. Die Liste bleibt in diesem Browser, ohne
+      Konto.
     </p>
     <PushSchalter art="gemerkt" />
   </section>
@@ -43,9 +42,11 @@ import PushSchalter from '../components/PushSchalter.astro';
       <TerminListe termine={termine} hinweis={false} />
     ) : (
       <div id="gemerkt-leer">
-        <p class="leer">
-          Noch nichts gemerkt. Unter <a href="/termine">Termine</a> bei einer Veranstaltung auf
-          „Merken“ tippen.
+        <p class="leer">Noch nichts gemerkt.</p>
+        <p>
+          <a class="knopf" href="/termine">
+            Termine ansehen
+          </a>
         </p>
         <p class="klein leise" id="gemerkt-app" hidden>
           Die App vom Home-Bildschirm hat eine eigene Merkliste – was du in Safari gemerkt hast,

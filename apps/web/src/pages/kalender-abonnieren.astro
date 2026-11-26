@@ -44,7 +44,9 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
         ))}
       </select>
     </label>
-    <button class="knopf zweit">Übernehmen</button>
+    <button class="knopf zweit" data-ohne-js>
+      Übernehmen
+    </button>
   </form>
   <section class="lesetext">
     <h2>iPhone, iPad und Mac</h2>
@@ -136,6 +138,7 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[]).sort((a, b) =>
   }
   // Auswahl sofort übernehmen (ohne JS bleibt der Knopf)
   const wahl = document.querySelector<HTMLFormElement>('.abo-wahl');
+  wahl?.querySelector('[data-ohne-js]')?.setAttribute('hidden', '');
   wahl?.querySelector('select')?.addEventListener('change', () => wahl.requestSubmit());
 </script>
 <style>

@@ -68,10 +68,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 >
   <section class="einstieg">
     <h1>Kirmes in Thüringen</h1>
-    <p class="unterzeile">
-      Wann ist wo Kirmes? Die Termine der Kirmesgesellschaften aus ganz Thüringen – vom Kirmestanz
-      bis zur Kirmesbeerdigung.
-    </p>
+    <p class="unterzeile">Wann ist wo Kirmes? Termine aus ganz Thüringen.</p>
     <form class="suchzeile" action="/termine" method="get" role="search">
       <span class="ortssuche">
         <input
@@ -87,7 +84,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         Suchen
       </button>
     </form>
-    {/* App-Kacheln (Issue #356) */}
+    {/* Schnellzugriffe (Issue #356/#450) – Karte und Melden stehen in der Navigation */}
     <ul class="app-kacheln">
       <li>
         <a href="/termine#nahe-knopf">
@@ -99,18 +96,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
         <a href="/gemerkt">
           <Icon name="stern" />
           Gemerkt
-        </a>
-      </li>
-      <li>
-        <a href="/karte">
-          <Icon name="karte" />
-          Karte
-        </a>
-      </li>
-      <li>
-        <a href="/termin-melden">
-          <Icon name="stift" />
-          Termin melden
         </a>
       </li>
     </ul>
@@ -158,14 +143,16 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     <aside class="seitenleiste">
       <h2>Nach Landkreis</h2>
       <ul class="kreisliste">
-        {kreise.map((x) => (
-          <li class:list={[{ 'ohne-termine': x.n === 0 }]}>
-            <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
-            {x.n > 0 && <span class="n">{x.n}</span>}
-          </li>
-        ))}
+        {kreise
+          .filter((x) => x.n > 0)
+          .map((x) => (
+            <li>
+              <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
+              <span class="n">{x.n}</span>
+            </li>
+          ))}
       </ul>
-      {/* Am Handy nur Kreise mit Terminen – alle 23 unter „Landkreise“ (Issue #265) */}
+      {/* Nur Kreise mit Terminen – alle 23 unter „Landkreise“ (Issue #265/#450) */}
       <a class="mehr alle-kreise" href="/kreise">
         Alle {kreise.length} Landkreise <Icon name="pfeil" />
       </a>
@@ -203,16 +190,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     margin-top: 24px;
   }
   .seitenleiste .alle-kreise {
-    display: none;
-  }
-  @media (max-width: 900px) {
-    .kreisliste .ohne-termine {
-      display: none;
-    }
-    .seitenleiste .alle-kreise {
-      display: inline-flex;
-      margin: 4px 0 16px;
-    }
+    display: inline-flex;
+    margin: 4px 0 16px;
   }
 </style>
 

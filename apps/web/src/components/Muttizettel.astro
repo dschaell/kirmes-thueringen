@@ -16,27 +16,27 @@ const { termin } = Astro.props;
 const wo = termin ? [termin.veranstaltungsort, termin.ort.name].filter(Boolean).join(', ') : '';
 ---
 
-<div class="knopfreihe nicht-drucken">
-  <button class="knopf" type="button" id="drucken">
-    <Icon name="drucken" />
-    <span id="drucken-text">Drucken oder als PDF sichern</span>
-  </button>
-  {termin && (
-    <a class="knopf zweit" href={`/termin/${termin.id}`}>
-      Zurück zum Termin
-    </a>
-  )}
-</div>
-<p class="leise klein nicht-drucken">
-  Ihr könnt die Felder hier ausfüllen und dann drucken – oder leer drucken und von Hand ausfüllen.
-  Eure Eingaben werden nirgendwohin gesendet.
-</p>
-
 <article class="muttizettel">
   <header>
     <h1>Erziehungs&shy;beauftragung</h1>
     <p>nach § 1 Abs. 1 Nr. 4 Jugendschutzgesetz (JuSchG) – „Muttizettel“</p>
   </header>
+
+  <div class="knopfreihe nicht-drucken">
+    <button class="knopf" type="button" id="drucken">
+      <Icon name="drucken" />
+      <span id="drucken-text">Drucken oder als PDF sichern</span>
+    </button>
+    {termin && (
+      <a class="knopf zweit" href={`/termin/${termin.id}`}>
+        Zurück zum Termin
+      </a>
+    )}
+  </div>
+  <p class="leise klein nicht-drucken">
+    Ihr könnt die Felder hier ausfüllen und dann drucken – oder leer drucken und von Hand ausfüllen.
+    Eure Eingaben werden nirgendwohin gesendet.
+  </p>
 
   <h2>Veranstaltung</h2>
   <div class="mz-raster">

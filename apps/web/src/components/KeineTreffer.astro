@@ -15,10 +15,13 @@ interface Props {
   /** Nächste kommende Termine (ohne Filter) */
   naechste?: TerminDto[];
   text?: string;
+  /** Knopf zurück zur Liste ohne Suchbegriff */
+  loeschen?: { href: string; text: string } | null;
 }
 const {
   orte = [],
   breiter = null,
+  loeschen = null,
   naechste = [],
   text = 'Für diesen Zeitraum sind keine Termine eingetragen.',
 } = Astro.props;
@@ -41,6 +44,11 @@ const ortName = (wert: string) => wert.replace(/\s*\(.*$/, '');
     </ul>
   )}
   <p class="auswege-knoepfe">
+    {loeschen && (
+      <a class="knopf" href={loeschen.href}>
+        {loeschen.text}
+      </a>
+    )}
     {breiter && (
       <a class="knopf zweit" href={breiter.href}>
         {breiter.text}

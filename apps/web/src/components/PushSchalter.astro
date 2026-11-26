@@ -28,10 +28,12 @@ const { art, ortSlug, ortName } = Astro.props;
       <input type="checkbox" class="push-erinnerung" checked /> Erinnerung am Vortag um 18 Uhr
     </label>
   )}
-  <p class="klein push-ios" hidden>
-    Auf dem iPhone: in Safari <strong>Teilen → Zum Home-Bildschirm</strong>, die App öffnen und hier
-    tippen.
-  </p>
+  <details class="klein push-ios" hidden>
+    <summary>Benachrichtigungen auf dem iPhone einschalten</summary>
+    <p>
+      In Safari <strong>Teilen → Zum Home-Bildschirm</strong>, die App öffnen und dort einschalten.
+    </p>
+  </details>
   <p class="klein push-status" role="status"></p>
 </div>
 

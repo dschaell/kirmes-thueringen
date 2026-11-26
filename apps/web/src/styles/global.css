@@ -1158,7 +1158,7 @@ ul.bands li::before {
 .hinweis-liste {
   font-size: 0.9rem;
   color: var(--grau);
-  margin: 6px 0 0;
+  margin: 6px 0 14px;
 }
 /* Im Fließtext auf der Textlinie statt am Symbol ausgerichtet, ohne Zusatzabstand (Issue #267) */
 .hinweis-liste .bestaetigt {
@@ -1987,6 +1987,12 @@ input[aria-invalid='true'],
 .push p {
   margin: 0;
 }
+.push-ios summary {
+  /* list-item behält das Aufklapp-Dreieck */
+  display: list-item;
+  padding: 12px 0;
+  cursor: pointer;
+}
 .push-knopf[aria-pressed='true'] {
   background: var(--rot-zart);
   border-color: var(--rot);
@@ -2085,33 +2091,22 @@ html[data-hintergrund] main#inhalt {
   }
 }
 
-/* App-Kacheln auf der Startseite (Issue #356) */
+/* Schnellzugriffe auf der Startseite (Issue #356/#450) */
 .app-kacheln {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 18px 0 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
-@media (min-width: 761px) {
-  .app-kacheln {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-/* Link füllt die ganze Zelle – Kacheln einer Reihe gleich hoch (Issue #391) */
-.app-kacheln li {
-  display: grid;
-}
 .app-kacheln a {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  min-height: 72px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
   border: 1px solid var(--glas-rand, var(--linie));
   background: var(--flaeche);
   color: var(--tinte);
@@ -2128,6 +2123,12 @@ html[data-hintergrund] main#inhalt {
 }
 
 /* Design-Auswahl (Issue #356) */
+.design-schalter summary {
+  /* list-item behält das Aufklapp-Dreieck */
+  display: list-item;
+  padding: 12px 0;
+  cursor: pointer;
+}
 .design-schalter {
   margin: 12px 0;
 }
@@ -2408,4 +2409,60 @@ html[data-hintergrund] main#inhalt:has(.app-kacheln) .einstieg .app-kacheln a {
 }
 .kartenpin-weg[hidden] {
   display: none;
+}
+
+/* ── UX-Audit (Issue #450) ────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .einstieg {
+    padding-top: 20px;
+  }
+  .einstieg p.unterzeile {
+    font-size: 1.05rem;
+    margin-bottom: 16px;
+  }
+  /* Fehlende Uhrzeit als eine Zeile über dem Titel statt dreizeilig in der Zeitspalte */
+  .eintrag > div {
+    grid-column: 2;
+  }
+  .eintrag .zeit.offen {
+    grid-column: 2;
+    white-space: nowrap;
+  }
+  /* Terminseite: Route über die volle Breite, die übrigen Aktionen zu zweit */
+  .termin-aktionen {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .termin-aktionen > .knopf {
+    justify-content: center;
+    text-align: center;
+  }
+  /* Route volle Breite; bleibt eine Aktion übrig, füllt auch sie die Zeile */
+  .termin-aktionen > .knopf:not(.zweit),
+  .termin-aktionen > .knopf:not(.zweit):first-child ~ .knopf:last-child:nth-child(even),
+  .termin-aktionen > .knopf.zweit:first-child ~ .knopf:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+/* Desktop: „Route“ und „Merken“ bleiben beim Eintrag */
+@media (min-width: 761px) {
+  .tag {
+    max-width: 48rem;
+  }
+}
+/* Hilfetext direkt am Feld darüber */
+.feld-hilfe {
+  margin: -10px 0 0;
+}
+.muttizettel .knopfreihe.nicht-drucken {
+  margin-top: 16px;
+}
+main:has(> .muttizettel) {
+  padding-top: 24px;
+}
+.weitere-kreise > summary {
+  display: list-item;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 600;
 }
