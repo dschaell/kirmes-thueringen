@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  brauchtJahre,
   listenFilter,
   listenMeldung,
   markierte,
@@ -117,5 +118,20 @@ describe('Termine nach Kirmes gruppieren (Issue #91)', () => {
   });
   it('leere Liste bleibt leer', () => {
     expect(nachKirmes([])).toEqual([]);
+  });
+});
+
+describe('Jahres-Überschriften (Issue #457)', () => {
+  const h = '2026-11-28';
+  it('bleiben weg, wenn alles aus dem laufenden Jahr ist', () => {
+    expect(brauchtJahre(['2026-11-28', '2026-12-05'], h)).toBe(false);
+    expect(brauchtJahre([], h)).toBe(false);
+  });
+  it('erscheinen auch, wenn alle Termine im selben Folgejahr liegen', () => {
+    expect(brauchtJahre(['2027-09-03', '2027-09-04'], h)).toBe(true);
+  });
+  it('erscheinen bei gemischten und vergangenen Jahren', () => {
+    expect(brauchtJahre(['2026-12-05', '2027-09-03'], h)).toBe(true);
+    expect(brauchtJahre(['2025-10-17'], h)).toBe(true);
   });
 });

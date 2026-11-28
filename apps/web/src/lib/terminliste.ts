@@ -121,3 +121,10 @@ export function nachKirmes<T extends { datum: string; ort: { slug: string } }>(
   }
   return gruppen;
 }
+
+/**
+ * Listen ohne Monatsüberschriften brauchen Jahres-Überschriften, sobald ein Termin nicht im
+ * laufenden Jahr liegt – sonst liest sich „3. September“ wie dieses Jahr (Issue #440/#457).
+ */
+export const brauchtJahre = (daten: string[], heuteIso: string) =>
+  daten.some((d) => d.slice(0, 4) !== heuteIso.slice(0, 4));
