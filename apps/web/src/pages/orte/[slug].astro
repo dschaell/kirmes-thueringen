@@ -47,6 +47,8 @@ const einbettCode = `<iframe src="${new URL(`/einbetten/${ort.slug}`, Astro.site
 const route = routenLinks(naechster ?? { festplatz: null, veranstaltungsort: null, ort });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 import PushSchalter from '../../components/PushSchalter.astro';
+// Spalten nur, wenn links etwas steht (Issue #454)
+const hatInhalt = kommend.length + beitraege.length + vergangen.length > 0 || Boolean(ort.profil);
 ---
 
 <Base
@@ -122,104 +124,111 @@ import PushSchalter from '../../components/PushSchalter.astro';
     <PushSchalter art="ort" ortSlug={ort.slug} ortName={ort.name} />
   </section>
 
-  {kommend.length > 0 && (
-    <>
-      <h2>Kommende Termine</h2>
-      <TerminListe termine={kommend} ortLinks={false} />
-    </>
-  )}
-  {beitraege.length > 0 && (
-    <section aria-labelledby="neuigkeiten-titel">
-      <h2 id="neuigkeiten-titel">Neuigkeiten</h2>
-      <BeitragListe beitraege={beitraege.slice(0, 3)} mitOrt={false} ebene="h3" />
-      {beitraege.length > 3 && (
-        <a class="mehr" href={`/neuigkeiten?ort=${ort.slug}`}>
-          Alle Neuigkeiten aus {ort.name} <Icon name="pfeil" />
-        </a>
-      )}
-    </section>
-  )}
-  {vergangen.length > 0 && (
-    <>
-      <h2>{naechster ? 'Bereits vorbei' : 'Letzte Kirmes'}</h2>
-      <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
-    </>
-  )}
+  <div class:list={{ spalten: hatInhalt }}>
+    {hatInhalt && (
+      <div class="spalte-haupt">
+        {kommend.length > 0 && (
+          <>
+            <h2>Kommende Termine</h2>
+            <TerminListe termine={kommend} ortLinks={false} />
+          </>
+        )}
+        {beitraege.length > 0 && (
+          <section aria-labelledby="neuigkeiten-titel">
+            <h2 id="neuigkeiten-titel">Neuigkeiten</h2>
+            <BeitragListe beitraege={beitraege.slice(0, 3)} mitOrt={false} ebene="h3" />
+            {beitraege.length > 3 && (
+              <a class="mehr" href={`/neuigkeiten?ort=${ort.slug}`}>
+                Alle Neuigkeiten aus {ort.name} <Icon name="pfeil" />
+              </a>
+            )}
+          </section>
+        )}
+        {vergangen.length > 0 && (
+          <>
+            <h2>{naechster ? 'Bereits vorbei' : 'Letzte Kirmes'}</h2>
+            <TerminListe termine={vergangen} ortLinks={false} hinweis={false} />
+          </>
+        )}
 
-  {ort.profil && (
-    // Vereinsprofil (Issue #310) – Text der Kirmesgesellschaft, Links ohne SEO-Empfehlung
-    <section class="vereinsprofil" aria-labelledby="profil-titel">
-      <h2 id="profil-titel">{ort.kgName ?? `Kirmesgesellschaft ${ort.name}`}</h2>
-      {ort.profil.text && <p class="profil-text">{ort.profil.text}</p>}
-      {(ort.profil.website || ort.profil.instagram || ort.profil.facebook) && (
-        <ul class="profil-links">
-          {ort.profil.website && (
-            <li>
-              <a href={ort.profil.website} rel="nofollow ugc noopener" target="_blank">
-                Website
-              </a>
-            </li>
-          )}
-          {ort.profil.instagram && (
-            <li>
-              <a href={ort.profil.instagram} rel="nofollow ugc noopener" target="_blank">
-                Instagram
-              </a>
-            </li>
-          )}
-          {ort.profil.facebook && (
-            <li>
-              <a href={ort.profil.facebook} rel="nofollow ugc noopener" target="_blank">
-                Facebook
-              </a>
-            </li>
-          )}
-        </ul>
-      )}
-      {ort.profil.kontakt && <p class="klein">Kontakt: {ort.profil.kontakt}</p>}
-    </section>
-  )}
-
-  <div class="kasten abstand">
-    <h2>Kirmesgesellschaft {ort.name}?</h2>
-    <p>
-      Schickt uns neue Termine – oder pflegt sie mit einem eigenen Zugang selbst, samt Festplatz auf
-      der Karte, damit „Route“ eure Gäste direkt dorthin führt.
-    </p>
-    <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}>
-      Termin melden <Icon name="pfeil" />
-    </a>{' '}
-    <a class="mehr" href="/redaktion-mitmachen">
-      Eigenen Zugang anfragen <Icon name="pfeil" />
-    </a>
-    <details class="einbetten">
-      <summary>Termine auf eurer Website zeigen</summary>
-      <p class="klein">
-        Diesen Code auf der Vereins- oder Gemeindeseite einfügen – die Termine aktualisieren sich
-        dort von selbst. Ohne Cookies und ohne Tracking.
-      </p>
-      <textarea readonly rows="4" aria-label="Code zum Einbetten" set:text={einbettCode} />
-      <p class="klein">
-        <a href={`/einbetten/${ort.slug}`} target="_blank" rel="noopener">
-          Vorschau ansehen
+        {ort.profil && (
+          // Vereinsprofil (Issue #310) – Text der Kirmesgesellschaft, Links ohne SEO-Empfehlung
+          <section class="vereinsprofil" aria-labelledby="profil-titel">
+            <h2 id="profil-titel">{ort.kgName ?? `Kirmesgesellschaft ${ort.name}`}</h2>
+            {ort.profil.text && <p class="profil-text">{ort.profil.text}</p>}
+            {(ort.profil.website || ort.profil.instagram || ort.profil.facebook) && (
+              <ul class="profil-links">
+                {ort.profil.website && (
+                  <li>
+                    <a href={ort.profil.website} rel="nofollow ugc noopener" target="_blank">
+                      Website
+                    </a>
+                  </li>
+                )}
+                {ort.profil.instagram && (
+                  <li>
+                    <a href={ort.profil.instagram} rel="nofollow ugc noopener" target="_blank">
+                      Instagram
+                    </a>
+                  </li>
+                )}
+                {ort.profil.facebook && (
+                  <li>
+                    <a href={ort.profil.facebook} rel="nofollow ugc noopener" target="_blank">
+                      Facebook
+                    </a>
+                  </li>
+                )}
+              </ul>
+            )}
+            {ort.profil.kontakt && <p class="klein">Kontakt: {ort.profil.kontakt}</p>}
+          </section>
+        )}
+      </div>
+    )}
+    <div class="spalte-seite">
+      <div class="kasten abstand">
+        <h2>Kirmesgesellschaft {ort.name}?</h2>
+        <p>
+          Schickt uns neue Termine – oder pflegt sie mit einem eigenen Zugang selbst, samt Festplatz
+          auf der Karte, damit „Route“ eure Gäste direkt dorthin führt.
+        </p>
+        <a class="mehr" href={`/termin-melden?ort=${ort.slug}`}>
+          Termin melden <Icon name="pfeil" />
+        </a>{' '}
+        <a class="mehr" href="/redaktion-mitmachen">
+          Eigenen Zugang anfragen <Icon name="pfeil" />
         </a>
-      </p>
-    </details>
+        <details class="einbetten">
+          <summary>Termine auf eurer Website zeigen</summary>
+          <p class="klein">
+            Diesen Code auf der Vereins- oder Gemeindeseite einfügen – die Termine aktualisieren
+            sich dort von selbst. Ohne Cookies und ohne Tracking.
+          </p>
+          <textarea readonly rows="4" aria-label="Code zum Einbetten" set:text={einbettCode} />
+          <p class="klein">
+            <a href={`/einbetten/${ort.slug}`} target="_blank" rel="noopener">
+              Vorschau ansehen
+            </a>
+          </p>
+        </details>
+      </div>
+
+      {nachbarn.length > 0 && (
+        <section>
+          <h2>Weitere Kirmesorte {imKreis(ort.landkreis)}</h2>
+          <ul class="ortliste">
+            {nachbarn.map((o) => (
+              <li>
+                <a href={`/orte/${o.slug}`}>{o.name}</a>
+                <span class="kz">{anzahl(o.anzahlKommend, 'Termin', 'Termine')}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   </div>
-
-  {nachbarn.length > 0 && (
-    <>
-      <h2>Weitere Kirmesorte {imKreis(ort.landkreis)}</h2>
-      <ul class="ortliste">
-        {nachbarn.map((o) => (
-          <li>
-            <a href={`/orte/${o.slug}`}>{o.name}</a>
-            <span class="kz">{anzahl(o.anzahlKommend, 'Termin', 'Termine')}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  )}
 </Base>
 
 <script>

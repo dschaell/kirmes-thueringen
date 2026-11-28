@@ -184,197 +184,210 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
       : `Kirmes-Termine in Thüringen ${jahr} durchsuchen: nach Ort, Band, Landkreis, Zeitraum und Art der Veranstaltung.`
   }
 >
-  <section class="einstieg">
-    <h1>{ueberschrift}</h1>
-    <form id="filter" method="get" role="search">
-      <div class="suchzeile">
-        <span class="ortssuche">
-          <input
-            name="q"
-            type="search"
-            value={q}
-            maxlength="100"
-            placeholder="Ort oder Band"
-            aria-label="Ort, Band oder Veranstaltung"
-            data-suchvorschlaege
-          />
-        </span>
-        <button class="knopf" type="submit">
-          <Icon name="suche" />
-          Suchen
+  {/* Am Desktop: Suche und Filter links, Treffer rechts (Issue #454) */}
+  <div class="suchraster">
+    <section class="einstieg">
+      <h1>{ueberschrift}</h1>
+      <form id="filter" method="get" role="search">
+        <div class="suchzeile">
+          <span class="ortssuche">
+            <input
+              name="q"
+              type="search"
+              value={q}
+              maxlength="100"
+              placeholder="Ort oder Band"
+              aria-label="Ort, Band oder Veranstaltung"
+              data-suchvorschlaege
+            />
+          </span>
+          <button class="knopf" type="submit">
+            <Icon name="suche" />
+            Suchen
+          </button>
+        </div>
+        <input
+          type="hidden"
+          name="nahe"
+          value={standort ? `${standort.lat},${standort.lon}` : ''}
+        />
+        <button class="knopf zweit nahe-knopf" type="button" id="nahe-knopf" hidden>
+          <Icon name="standort" />
+          In meiner Nähe
         </button>
-      </div>
-      <input type="hidden" name="nahe" value={standort ? `${standort.lat},${standort.lon}` : ''} />
-      <button class="knopf zweit nahe-knopf" type="button" id="nahe-knopf" hidden>
-        <Icon name="standort" />
-        In meiner Nähe
-      </button>
-      <p class="klein leise" id="nahe-info" role="status"></p>
-      {/* Offen nur bei selbst gewählten Filtern mit Treffern – sonst verdeckt er das Ergebnis (#450) */}
-      <details class="filter" open={filterOffen}>
-        <summary>
-          <Icon name="filter" />
-          Filter{' '}
-          {gewaehlt + (mitte ? 1 : 0) > 0 && <span class="zahl">{gewaehlt + (mitte ? 1 : 0)}</span>}
-        </summary>
-        <div class="filterfelder">
-          <div class="zwei">
-            <select name="kreis" aria-label="Landkreis">
-              <option value="">Alle Landkreise</option>
-              {kreisListe.map((k) => (
-                <option value={k} selected={k === kreis}>
-                  {kreisKurz(k)}
-                </option>
-              ))}
-            </select>
-            <select name="zeit" aria-label="Zeitraum">
-              <option value="kommend" selected={zeit === 'kommend'}>
-                Ab heute
-              </option>
-              <option value="wochenende" selected={zeit === 'wochenende'}>
-                Dieses Wochenende
-              </option>
-              <option value="jahr" selected={zeit === 'jahr'}>
-                Ganzes Jahr {jahr}
-              </option>
-              <option value="vergangen" selected={zeit === 'vergangen'}>
-                Vergangene Termine
-              </option>
-              <option value="alle" selected={zeit === 'alle'}>
-                Alle Termine (±1 Jahr)
-              </option>
-            </select>
-          </div>
-          <fieldset>
-            <legend>Umkreis</legend>
+        <p class="klein leise" id="nahe-info" role="status"></p>
+        {/* Offen nur bei selbst gewählten Filtern mit Treffern – sonst verdeckt er das Ergebnis (#450) */}
+        <details class="filter" open={filterOffen}>
+          <summary>
+            <Icon name="filter" />
+            Filter{' '}
+            {gewaehlt + (mitte ? 1 : 0) > 0 && (
+              <span class="zahl">{gewaehlt + (mitte ? 1 : 0)}</span>
+            )}
+          </summary>
+          <div class="filterfelder">
             <div class="zwei">
-              <label class="ortssuche">
-                <span class="sr-only">Um Ort</span>
-                <input
-                  name="um"
-                  maxlength="200"
-                  placeholder="Um Ort, z. B. Arnstadt"
-                  autocomplete="off"
-                  value={standort ? '' : um}
-                  data-ortssuche
-                />
-              </label>
-              <select name="km" aria-label="Umkreis in km">
-                {UMKREISE.map((k) => (
-                  <option value={k} selected={k === km}>
-                    bis {k} km
+              <select name="kreis" aria-label="Landkreis">
+                <option value="">Alle Landkreise</option>
+                {kreisListe.map((k) => (
+                  <option value={k} selected={k === kreis}>
+                    {kreisKurz(k)}
                   </option>
                 ))}
               </select>
+              <select name="zeit" aria-label="Zeitraum">
+                <option value="kommend" selected={zeit === 'kommend'}>
+                  Ab heute
+                </option>
+                <option value="wochenende" selected={zeit === 'wochenende'}>
+                  Dieses Wochenende
+                </option>
+                <option value="jahr" selected={zeit === 'jahr'}>
+                  Ganzes Jahr {jahr}
+                </option>
+                <option value="vergangen" selected={zeit === 'vergangen'}>
+                  Vergangene Termine
+                </option>
+                <option value="alle" selected={zeit === 'alle'}>
+                  Alle Termine (±1 Jahr)
+                </option>
+              </select>
             </div>
-          </fieldset>
-          <fieldset>
-            <legend>Art der Veranstaltung</legend>
-            <div class="marken">
-              {Object.entries(KATEGORIEN).map(([k, v]) => (
-                <label>
-                  <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
-                  {v.label}
+            <fieldset>
+              <legend>Umkreis</legend>
+              <div class="zwei">
+                <label class="ortssuche">
+                  <span class="sr-only">Um Ort</span>
+                  <input
+                    name="um"
+                    maxlength="200"
+                    placeholder="Um Ort, z. B. Arnstadt"
+                    autocomplete="off"
+                    value={standort ? '' : um}
+                    data-ortssuche
+                  />
                 </label>
-              ))}
-            </div>
-          </fieldset>
-          <label class="klein">
-            <input type="checkbox" name="best" value="1" checked={nurBest} /> Nur vom Veranstalter
-            bestätigte Termine
-          </label>
-          {aktiveFilter > 0 && (
-            <a class="klein filter-zurueck" href="/termine">
-              Alle Filter zurücksetzen
+                <select name="km" aria-label="Umkreis in km">
+                  {UMKREISE.map((k) => (
+                    <option value={k} selected={k === km}>
+                      bis {k} km
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Art der Veranstaltung</legend>
+              <div class="marken">
+                {Object.entries(KATEGORIEN).map(([k, v]) => (
+                  <label>
+                    <input type="checkbox" name="kat" value={k} checked={kat.includes(k)} />
+                    {v.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label class="klein">
+              <input type="checkbox" name="best" value="1" checked={nurBest} /> Nur vom Veranstalter
+              bestätigte Termine
+            </label>
+            {aktiveFilter > 0 && (
+              <a class="klein filter-zurueck" href="/termine">
+                Alle Filter zurücksetzen
+              </a>
+            )}
+            <button class="knopf" type="submit" data-ohne-js>
+              Filter anwenden
+            </button>
+          </div>
+        </details>
+      </form>
+    </section>
+    <div class="treffer">
+      {fehler && (
+        <p class="meldung" role="alert">
+          {fehler}
+        </p>
+      )}
+      {chips.length > 0 && (
+        <ul class="chips" aria-label="Aktive Filter">
+          {chips.map((c) => (
+            <li>
+              <a href={c.href} aria-label={`Filter entfernen: ${c.text}`}>
+                {c.text} <span aria-hidden="true">✕</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {zeit === 'wochenende' && !q && (
+        // Wochenbild zum Teilen (Issue #308)
+        <p class="klein">
+          Als Bild teilen:{' '}
+          <a href="/wochenbild.png" target="_blank" rel="noopener">
+            Instagram-Beitrag
+          </a>{' '}
+          ·{' '}
+          <a href="/wochenbild.png?format=story" target="_blank" rel="noopener">
+            WhatsApp-Status
+          </a>
+        </p>
+      )}
+      <p
+        class:list={['leise', { 'sr-only': ergebnis.gesamt === 0 }]}
+        aria-live="polite"
+        id="trefferzahl"
+      >
+        {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
+      </p>
+      <h2 class="sr-only">Gefundene Termine</h2>
+      <TerminListe
+        termine={ergebnis.termine}
+        leer={false}
+        entfernung={mitte ? entfernung : undefined}
+      />
+      {!fehler && ergebnis.gesamt === 0 && (
+        <KeineTreffer
+          text={
+            q
+              ? `Nichts zu „${q}“ gefunden.`
+              : chips.length > 0
+                ? 'Mit diesen Filtern gibt es keine Termine.'
+                : undefined
+          }
+          loeschen={q ? { href: ohne('q'), text: 'Suche löschen' } : null}
+          orte={ortTreffer}
+          breiter={breiter}
+          naechste={naechste}
+        />
+      )}
+
+      {seiten > 1 && (
+        <nav class="seiten" aria-label="Seiten">
+          {aktuell > 1 && (
+            <a class="knopf zweit" href={seitenLink(aktuell - 1)}>
+              Zurück
             </a>
           )}
-          <button class="knopf" type="submit" data-ohne-js>
-            Filter anwenden
-          </button>
-        </div>
-      </details>
-    </form>
-  </section>
-
-  {fehler && (
-    <p class="meldung" role="alert">
-      {fehler}
-    </p>
-  )}
-  {chips.length > 0 && (
-    <ul class="chips" aria-label="Aktive Filter">
-      {chips.map((c) => (
-        <li>
-          <a href={c.href} aria-label={`Filter entfernen: ${c.text}`}>
-            {c.text} <span aria-hidden="true">✕</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  )}
-  {zeit === 'wochenende' && !q && (
-    // Wochenbild zum Teilen (Issue #308)
-    <p class="klein">
-      Als Bild teilen:{' '}
-      <a href="/wochenbild.png" target="_blank" rel="noopener">
-        Instagram-Beitrag
-      </a>{' '}
-      ·{' '}
-      <a href="/wochenbild.png?format=story" target="_blank" rel="noopener">
-        WhatsApp-Status
-      </a>
-    </p>
-  )}
-  <p
-    class:list={['leise', { 'sr-only': ergebnis.gesamt === 0 }]}
-    aria-live="polite"
-    id="trefferzahl"
-  >
-    {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
-  </p>
-  <h2 class="sr-only">Gefundene Termine</h2>
-  <TerminListe
-    termine={ergebnis.termine}
-    leer={false}
-    entfernung={mitte ? entfernung : undefined}
-  />
-  {!fehler && ergebnis.gesamt === 0 && (
-    <KeineTreffer
-      text={
-        q
-          ? `Nichts zu „${q}“ gefunden.`
-          : chips.length > 0
-            ? 'Mit diesen Filtern gibt es keine Termine.'
-            : undefined
-      }
-      loeschen={q ? { href: ohne('q'), text: 'Suche löschen' } : null}
-      orte={ortTreffer}
-      breiter={breiter}
-      naechste={naechste}
-    />
-  )}
-
-  {seiten > 1 && (
-    <nav class="seiten" aria-label="Seiten">
-      {aktuell > 1 && (
-        <a class="knopf zweit" href={seitenLink(aktuell - 1)}>
-          Zurück
-        </a>
+          <span class="leise">
+            Seite {aktuell} von {seiten}
+          </span>
+          {aktuell < seiten && (
+            <a class="knopf zweit" href={seitenLink(aktuell + 1)}>
+              Weiter
+            </a>
+          )}
+        </nav>
       )}
-      <span class="leise">
-        Seite {aktuell} von {seiten}
-      </span>
-      {aktuell < seiten && (
-        <a class="knopf zweit" href={seitenLink(aktuell + 1)}>
-          Weiter
-        </a>
-      )}
-    </nav>
-  )}
+    </div>
+  </div>
 </Base>
 <script>
   import '../scripts/ortssuche';
   import '../scripts/suchvorschlaege';
+  // Neben den Treffern verdeckt der Filter nichts – am Desktop gleich offen (Issue #454)
+  const filter = document.querySelector<HTMLDetailsElement>('details.filter');
+  if (filter && matchMedia('(min-width: 901px)').matches) filter.open = true;
   // In meiner Nähe (Issue #296): Standort nur auf Knopfdruck, gerundet (~1 km), nie gespeichert
   const naheKnopf = document.querySelector<HTMLButtonElement>('#nahe-knopf');
   const naheInfo = document.querySelector('#nahe-info');

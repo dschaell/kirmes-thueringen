@@ -2529,3 +2529,75 @@ main:has(> .muttizettel) {
     --breite: 1200px;
   }
 }
+
+/* ── Unterseiten im Desktop-Browser (Issue #454) ─────────────────────────────────────── */
+@media (min-width: 901px) {
+  main.wrap.lesespalte {
+    max-width: 780px;
+  }
+  .spalten,
+  .suchraster,
+  .termin-kopf {
+    display: grid;
+    gap: 0 24px;
+    align-items: start;
+  }
+  .spalten,
+  .termin-kopf {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .suchraster {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+  .spalte-haupt,
+  .spalte-seite > *,
+  .termin-haupt,
+  .termin-seite,
+  .suchraster form,
+  .treffer {
+    padding: 24px;
+    background: var(--flaeche);
+    border: 1px solid var(--linie);
+    border-radius: 16px;
+  }
+  :is(.spalte-haupt, .spalte-seite > *, .termin-haupt, .termin-seite, .treffer) > :first-child,
+  .termin-seite > .sr-only + * {
+    margin-top: 0;
+  }
+  .spalte-seite {
+    display: grid;
+    gap: 24px;
+  }
+  .spalte-seite > .kasten.abstand {
+    margin-top: 0;
+  }
+  /* Suche */
+  .suchraster > .einstieg {
+    display: contents;
+  }
+  .suchraster h1 {
+    grid-column: 1 / -1;
+    margin: 40px 0 20px;
+  }
+  .suchraster form {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+  .suchraster .filterfelder .zwei {
+    grid-template-columns: 1fr;
+  }
+  .suchraster .nahe-knopf {
+    width: 100%;
+    justify-content: center;
+  }
+  /* Termin: Karte „einstieg“ wird zum Raster aus zwei Flächen */
+  .termin-seite .termin-aktionen {
+    display: grid;
+    gap: 8px;
+  }
+  .termin-seite .termin-aktionen > .knopf {
+    justify-content: center;
+  }
+}
