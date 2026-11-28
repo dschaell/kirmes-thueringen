@@ -24,3 +24,16 @@
 | **Least Privilege**         | Jede Komponente bekommt nur die Rechte, die sie braucht – die API z. B. keine DDL-Rechte (Rolle `kirmes_app`).                       |
 | **ADR / MADR**              | Architecture Decision Record im Format „Markdown Any Decision Records“, je Entscheidung eine Datei.                                  |
 | **Rate-Limit**              | Obergrenze für Anfragen je Client-IP und Zeitfenster; darüber Antwort 429 mit `Retry-After`.                                         |
+| **Festplatz**               | Ort der Veranstaltung (Festzelt, Saal, Platz) mit Kartenpunkt; Termine verweisen darauf.                                             |
+| **Ortsprofil**              | Vereinsprofil einer Kirmesgesellschaft (Beschreibung, Kontakt) zu einem Ort.                                                         |
+| **Mitmach-Anfrage**         | Anfrage über `/redaktion-mitmachen`, die ein Admin annimmt (Einladungslink) oder ablehnt.                                            |
+| **Einladung**               | Einmal-Token (256 Bit, nur als SHA-256 gespeichert, 7 Tage) zum Anlegen eines Kontos mit Passkey.                                    |
+| **Wochenbild**              | Automatisch erzeugtes Bild der Termine der Woche für Instagram und WhatsApp-Status.                                                  |
+| **VAPID**                   | Schlüsselpaar, mit dem der Server sich gegenüber den Push-Diensten der Browser ausweist (Web Push).                                  |
+| **GitOps**                  | Betrieb, bei dem der Server den gewünschten Zustand selbst aus Git holt und anwendet (hier: `gitops-agent`, alle 2 Minuten).         |
+| **SOPS / age**              | Werkzeug zum Verschlüsseln von Secret-Dateien im Git-Repo bzw. das Verschlüsselungsprogramm für Sicherungen und Schlüssel.           |
+| **Quality Gate**            | Sammelprüfung der CI (Lint, Tests, Sicherheit); nur bei grün ist ein Merge in `main` möglich.                                        |
+| **Coverage-Ratchet**        | Regel, dass die Testabdeckung gegenüber dem Basis-Branch nie sinken darf.                                                            |
+| **Upgrade-Test**            | Test, der einen Bestand mit Testdaten auf den neuen Stand migriert und prüft, dass keine Nutzerdaten verändert werden.               |
+| **Werkzeug-Container**      | Container `tools`/`dev`/`check` für Entwicklung und Prüfung; ersetzt jede Installation auf dem Rechner (ADR 025).                    |
+| **Offsite**                 | Verschlüsselte Kopie der Datenbanksicherung außerhalb des Servers.                                                                   |

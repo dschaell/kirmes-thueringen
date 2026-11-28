@@ -16,26 +16,33 @@ docs/           arc42-Architektur, ADRs, Betrieb, Reviews
 
 Abhängigkeiten zeigen nur nach innen (`apps → core`); dependency-cruiser prüft das bei jedem Lint.
 
-## Lokal starten
+## Lokal starten (nur Docker)
 
-Voraussetzungen: **Node.js ≥ 26**, Docker (z. B. Rancher Desktop).
+Voraussetzung: Docker (z. B. Rancher Desktop). **Kein Node.js nötig**, alles läuft in Containern
+([ADR 025](architecture/adr/025-docker-only-entwicklung-und-pruefung.md)).
 
 ```bash
-npm install
-npm run dev          # PostgreSQL im Container, Migrationen, API (3100) + Website (4321)
-npm run db:orte      # einmalig: 3.000+ Thüringer Orte aus OpenStreetMap
-npm run db:beispiele # erfundene Beispieltermine (nie auf dem Server)
+docker compose --profile dev up                         # PostgreSQL, Migrationen, API (3100) + Website (4321)
+docker compose run --rm tools npm run db:orte           # einmalig: 3.000+ Thüringer Orte aus OpenStreetMap
+docker compose run --rm tools npm run db:beispiele      # erfundene Beispieltermine (nie auf dem Server)
 ```
 
-| Befehl                                        | Zweck                                                       |
-| --------------------------------------------- | ----------------------------------------------------------- |
-| `npm run lint`                                | ESLint, Prettier, Migrationssperre, Schichtenregeln         |
-| `npm run typecheck`                           | TypeScript (Core, API, Web)                                 |
-| `npm run test:db`                             | eigene Test-Datenbank `kirmes_test` anlegen und migrieren   |
-| `npm test` / `npm run test:coverage`          | Unit-, HTTP- und Integrationstests (`TEST_DATABASE_URL`)    |
-| `node scripts/upgrade-test.mjs main`          | Update-Test: Migrationen dürfen keine Nutzerdaten verändern |
-| `node scripts/website-pruefen.mjs [url]`      | Live-Prüfung (Seiten, Kalender, Sitemap, SEO, Kacheln)      |
-| `npm run termine:import -- datei.csv --probe` | Recherche-Tabelle prüfen bzw. einspielen                    |
+Der erste Start installiert die Abhängigkeiten in Docker-Volumes und dauert einige Minuten.
+
+| Befehl                                                                      | Zweck                                                              |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `docker compose run --rm check`                                             | Quality Gate lokal: Lint, Typen, Build, Tests mit Mindestabdeckung |
+| `docker compose run --rm tools npm run lint`                                | ESLint, Prettier, Migrationssperre, Schichtenregeln                |
+| `docker compose run --rm tools npm run format`                              | Prettier schreibt die Formatierung                                 |
+| `docker compose run --rm tools npm run typecheck`                           | TypeScript (Core, API, Web)                                        |
+| `docker compose run --rm tools node scripts/upgrade-test.mjs main`          | Update-Test: Migrationen dürfen keine Nutzerdaten verändern        |
+| `docker compose run --rm tools node scripts/website-pruefen.mjs [url]`      | Live-Prüfung (Seiten, Kalender, Sitemap, SEO, Kacheln)             |
+| `docker compose run --rm tools npm run termine:import -- datei.csv --probe` | Recherche-Tabelle prüfen bzw. einspielen                           |
+| `docker compose run --rm tools npm run admin -- …`                          | Redaktionskonten per Kommandozeile                                 |
+
+`check` läuft nie gegen die Arbeitsdatenbank, sondern gegen die Wegwerf-Datenbank `kirmes_test`
+(Dienst `db-test`, im Arbeitsspeicher). Der Upgrade-Test legt seine Datenbank `kirmes_upgrade` in der
+Arbeitsdatenbank-Instanz an, nie in `kirmes`.
 
 ## Regeln
 
