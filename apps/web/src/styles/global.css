@@ -2466,3 +2466,66 @@ main:has(> .muttizettel) {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* ── Startseite im Desktop-Browser (Issue #452) – Flächen statt loser Spalte ─────────── */
+@media (min-width: 901px) {
+  main:has(.app-kacheln) .einstieg {
+    margin: 28px 0 24px;
+    padding: 48px 40px;
+    text-align: center;
+    background: var(--flaeche);
+    border: 1px solid var(--linie);
+    border-radius: 20px;
+  }
+  main:has(.app-kacheln) .einstieg h1 {
+    margin-top: 0;
+    font-size: 3.2rem;
+  }
+  main:has(.app-kacheln) .einstieg :is(p.unterzeile, .suchzeile) {
+    margin-inline: auto;
+  }
+  main:has(.app-kacheln) .einstieg .suchzeile {
+    text-align: left;
+  }
+  main:has(.app-kacheln) .app-kacheln {
+    justify-content: center;
+    margin-top: 16px;
+  }
+  main:has(.app-kacheln) .app-kacheln a {
+    background: var(--papier);
+  }
+  main:has(.app-kacheln) .zweispaltig {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+  }
+  main:has(.app-kacheln) .hauptspalte,
+  main:has(.app-kacheln) .seitenleiste > * {
+    padding: 24px;
+    background: var(--flaeche);
+    border: 1px solid var(--linie);
+    border-radius: 16px;
+  }
+  main:has(.app-kacheln) .seitenleiste {
+    display: grid;
+    gap: 24px;
+  }
+  main:has(.app-kacheln) .seitenleiste > .kasten.abstand {
+    margin-top: 0;
+  }
+  main:has(.app-kacheln) :is(.hauptspalte, .seitenleiste > *) > :first-child,
+  main:has(.app-kacheln) .seitenleiste h2:first-child {
+    margin-top: 0;
+  }
+  main:has(.app-kacheln) .seitenleiste > section > :last-child {
+    margin-bottom: 0;
+  }
+  main:has(.app-kacheln) .hauptspalte .kirmespause {
+    background: var(--papier);
+  }
+}
+/* Große Bildschirme: breitere Inhaltsspalte */
+@media (min-width: 1400px) {
+  :root {
+    --breite: 1200px;
+  }
+}
