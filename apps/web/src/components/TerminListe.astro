@@ -5,6 +5,7 @@
  */
 import type { TerminDto } from '../lib/api';
 import {
+  heute,
   monatName,
   eigenerPlatz,
   platzText,
@@ -16,6 +17,7 @@ import {
   plakatPfad,
   bandsAus,
 } from '../lib/anzeige';
+import { brauchtJahre } from '../lib/terminliste';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -42,8 +44,14 @@ const {
 
 type Tag = { datum: string; termine: TerminDto[]; jahr?: string };
 const gruppen: { monat: string; tage: Tag[] }[] = [];
-// Jahres-Banner (Startseite ohne Monatsüberschriften): bei mehreren Jahren vor jedem neuen Jahr
-const mehrereJahre = !monate && new Set(termine.map((t) => t.datum.slice(0, 4))).size > 1;
+// Jahres-Banner (Listen ohne Monatsüberschriften): vor jedem neuen Jahr, wenn nicht alles aus
+// dem laufenden Jahr ist
+const mitJahren =
+  !monate &&
+  brauchtJahre(
+    termine.map((t) => t.datum),
+    heute(),
+  );
 let letztesJahr = '';
 for (const t of termine) {
   const monat = monate ? monatName(t.datum) : '';
@@ -56,7 +64,7 @@ for (const t of termine) {
       (tag = {
         datum: t.datum,
         termine: [],
-        jahr: mehrereJahre && jahr !== letztesJahr ? jahr : undefined,
+        jahr: mitJahren && jahr !== letztesJahr ? jahr : undefined,
       }),
     );
     letztesJahr = jahr;
