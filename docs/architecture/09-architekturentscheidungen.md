@@ -26,3 +26,4 @@ umgeschrieben, sondern über ihren **Status** abgelöst. Die Nummern 010–013 s
 | [022](adr/022-rate-limit-in-der-website-statt-caddy-modul.md)                  | Rate-Limit in der Website statt Caddy-Modul                       | angenommen    |
 | [023](adr/023-redaktion-nur-mit-passkey-rollen-und-einladungen.md)             | Redaktion nur mit Passkey, Rollen und Einladungen                 | angenommen    |
 | [024](adr/024-push-mit-web-push-und-vapid.md)                                  | Push-Benachrichtigungen mit Web Push (VAPID) und `web-push`       | angenommen    |
+| [025](adr/025-docker-only-entwicklung-und-pruefung.md)                         | Docker-only für Entwicklung und Prüfung                           | angenommen    |

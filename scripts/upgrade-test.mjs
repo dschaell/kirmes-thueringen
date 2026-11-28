@@ -90,6 +90,8 @@ console.log(`✔ Basis ${basis.slice(0, 12)}: ${dateien.length} Migrationen + Te
 const vorher = await mitVerbindung(ziel, schnappschuss);
 
 // 4. Update mit dem aktuellen Stand
+// migrate importiert das gebaute Core-Paket – im frischen Werkzeug-Container fehlt es sonst (#445)
+execFileSync('npm', ['run', '-s', 'build', '-w', '@kirmes/core'], { stdio: 'inherit' });
 execFileSync('npm', ['run', '-s', 'db:migrate'], {
   env: { ...process.env, DATABASE_URL: ziel.toString(), APP_DB_PASSWORD: '', ORTE_LADEN: '' },
   stdio: 'inherit',

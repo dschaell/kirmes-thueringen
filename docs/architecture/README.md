@@ -6,13 +6,13 @@ in der passenden Datei nachgezogen (siehe Definition of Done in den Issues).
 
 | Nr. | Kapitel                                                                  | Status          |
 | --- | ------------------------------------------------------------------------ | --------------- |
-| 1   | [Einführung und Ziele](01-einfuehrung-und-ziele.md)                      | vollständig     |
-| 2   | [Randbedingungen](02-randbedingungen.md)                                 | vollständig     |
+| 1   | [Einführung und Ziele](01-einfuehrung-und-ziele.md)                      | **detailliert** |
+| 2   | [Randbedingungen](02-randbedingungen.md)                                 | **detailliert** |
 | 3   | [Kontextabgrenzung](03-kontextabgrenzung.md)                             | **detailliert** |
 | 4   | [Lösungsstrategie](04-loesungsstrategie.md)                              | vollständig     |
 | 5   | [Bausteinsicht](05-bausteinsicht.md)                                     | **detailliert** |
 | 6   | [Laufzeitsicht](06-laufzeitsicht.md)                                     | vollständig     |
-| 7   | [Verteilungssicht](07-verteilungssicht.md)                               | vollständig     |
+| 7   | [Verteilungssicht](07-verteilungssicht.md)                               | **detailliert** |
 | 8   | [Querschnittliche Konzepte](08-querschnittliche-konzepte.md)             | **detailliert** |
 | 9   | [Architekturentscheidungen](09-architekturentscheidungen.md)             | vollständig     |
 | 10  | [Qualitätsanforderungen](10-qualitaetsanforderungen.md)                  | vollständig     |

@@ -91,5 +91,86 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
     ports: ['127.0.0.1:8025:8025', '127.0.0.1:1025:1025']
 
+  # ── Entwicklung und Prüfung, ebenfalls nur in Docker (nie auf dem Server, Issue #445) ─────────────
+  # Auf dem Rechner ist kein Node.js nötig. Abhängigkeiten liegen in benannten Volumes, nicht im Ordner.
+  #   docker compose --profile dev up           API (3100) + Website (4321) mit Neuladen
+  #   docker compose run --rm check             Lint, Typen, Build, Tests mit Mindestabdeckung (eigene Wegwerf-DB)
+  #   docker compose run --rm tools <befehl>    z. B. `npm run db:orte`, `npm run admin -- …`, `node scripts/…`
+  tools:
+    profiles: [tools, dev, check]
+    build: { context: docker, dockerfile: werkzeug.Dockerfile }
+    image: kirmes-werkzeug:latest
+    working_dir: /app
+    init: true
+    entrypoint: ['sh', 'scripts/docker-werkzeug.sh']
+    environment: &werkzeug-env
+      DATABASE_URL: postgres://kirmes:${POSTGRES_PASSWORD:-kirmes_dev_only}@db:5432/kirmes
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-kirmes_app_dev_only_pw}
+      API_URL: http://127.0.0.1:3100
+      WEBSITE_URL: http://localhost:4321
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_OHNE_TLS: ${SMTP_OHNE_TLS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_AN: ${MAIL_AN:-}
+    volumes: &werkzeug-volumes
+      - .:/app
+      - werkzeug-modules:/app/node_modules
+      - werkzeug-modules-api:/app/apps/api/node_modules
+      - werkzeug-modules-web:/app/apps/web/node_modules
+      - werkzeug-modules-core:/app/packages/core/node_modules
+    depends_on: { db: { condition: service_healthy } }
+
+  dev:
+    profiles: [dev]
+    build: { context: docker, dockerfile: werkzeug.Dockerfile }
+    image: kirmes-werkzeug:latest
+    working_dir: /app
+    init: true
+    entrypoint: ['sh', 'scripts/docker-werkzeug.sh']
+    command: ['sh', 'scripts/docker-entwicklung.sh']
+    environment: *werkzeug-env
+    volumes: *werkzeug-volumes
+    ports: ['127.0.0.1:3100:3100', '127.0.0.1:4321:4321']
+    depends_on: { db: { condition: service_healthy } }
+
+  # Eigene PostGIS-Datenbank nur für die Tests (im Arbeitsspeicher, nach dem Lauf weg)
+  db-test:
+    profiles: [check]
+    image: postgis/postgis:17-3.5-alpine
+    platform: ${DB_PLATFORM:-linux/amd64}
+    environment:
+      POSTGRES_DB: kirmes_test
+      POSTGRES_USER: kirmes
+      # Ohne Passwort: nur im Compose-Netz erreichbar, Daten nur im Arbeitsspeicher
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U kirmes -d kirmes_test']
+      interval: 2s
+      retries: 60
+
+  check:
+    profiles: [check]
+    build: { context: docker, dockerfile: werkzeug.Dockerfile }
+    image: kirmes-werkzeug:latest
+    working_dir: /app
+    init: true
+    entrypoint: ['sh', 'scripts/docker-werkzeug.sh']
+    command: ['sh', 'scripts/docker-pruefen.sh']
+    environment:
+      <<: *werkzeug-env
+      # Die Prüfung läuft nie gegen die Arbeitsdatenbank, nur gegen db-test
+      DATABASE_URL: postgres://kirmes@db-test:5432/kirmes_test
+      TEST_DATABASE_URL: postgres://kirmes@db-test:5432/kirmes_test
+    volumes: *werkzeug-volumes
+    depends_on: { db-test: { condition: service_healthy } }
+
 volumes:
   db-daten:
+  werkzeug-modules:
+  werkzeug-modules-api:
+  werkzeug-modules-web:
+  werkzeug-modules-core:
