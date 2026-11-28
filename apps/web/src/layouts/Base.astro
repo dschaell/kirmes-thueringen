@@ -14,6 +14,8 @@ interface Props {
   bild?: string;
   /** Redaktion: schlanker Kopf ohne öffentliche Navigation (Issue #91) */
   kompakt?: boolean;
+  /** Textseiten: am Desktop eine mittige Lesespalte (Issue #454) */
+  lesespalte?: boolean;
 }
 const {
   title,
@@ -21,6 +23,7 @@ const {
   jsonLd = [],
   noindex = false,
   kompakt = false,
+  lesespalte = false,
   bild = '/og.png',
 } = Astro.props;
 const pfad = ohneSchraegstrich(Astro.url.pathname);
@@ -147,7 +150,7 @@ const alsJsonLd = (j: unknown) => JSON.stringify(j).replace(/</g, '\\u003c');
     {/* Eigene Leiste, z. B. in der Redaktion (Issue #383) – außerhalb von main, sonst klebt sie am
         Glas-Kasten statt am Bildschirm */}
     <slot name="leiste" />
-    <main id="inhalt" class="wrap">
+    <main id="inhalt" class:list={['wrap', { lesespalte }]}>
       <slot />
     </main>
     {/* Drei ruhige Spalten, Kleinkram in der Rechtszeile (Issue #401) */}

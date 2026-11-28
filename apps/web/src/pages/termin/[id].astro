@@ -73,214 +73,219 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   </p>
 
   <article class="einstieg termin-kopf">
-    <p class="datum">
-      {relativ && <>{relativ}, </>}
-      {datum}
-      {vorbei && <span class="leise"> · bereits vorbei</span>}
-    </p>
-    <h1>{t.titel}</h1>
-    {vorbei && (
-      <p class="kasten vorbei-hinweis" role="note">
-        <strong>Dieser Termin ist vorbei.</strong>{' '}
-        {naechster ? (
+    {/* Am Desktop: Angaben links, Anfahrt und Teilen rechts (Issue #454) */}
+    <div class="termin-haupt">
+      <p class="datum">
+        {relativ && <>{relativ}, </>}
+        {datum}
+        {vorbei && <span class="leise"> · bereits vorbei</span>}
+      </p>
+      <h1>{t.titel}</h1>
+      {vorbei && (
+        <p class="kasten vorbei-hinweis" role="note">
+          <strong>Dieser Termin ist vorbei.</strong>{' '}
+          {naechster ? (
+            <>
+              Als Nächstes in {t.ort.name}:{' '}
+              <a href={`/termin/${naechster.id}`}>
+                {naechster.titel} am {datumLangJahr(naechster.datum)}
+              </a>
+            </>
+          ) : (
+            <>
+              Neue Termine aus {t.ort.name} findest du unter{' '}
+              <a href={`/orte/${t.ort.slug}`}>Kirmes {t.ort.name}</a>.
+            </>
+          )}
+        </p>
+      )}
+
+      <dl class="fakten">
+        <dt>
+          <Icon name="uhr" />
+          <span class="sr-only">Uhrzeit</span>
+        </dt>
+        <dd>{uhrzeit ? `${uhrzeit} Uhr` : 'Uhrzeit noch offen'}</dd>
+        <dt>
+          <Icon name="ort" />
+          <span class="sr-only">Ort</span>
+        </dt>
+        <dd>
+          {platzText(t) && <>{platzText(t)}, </>}
+          <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
+        </dd>
+        {t.band && (
           <>
-            Als Nächstes in {t.ort.name}:{' '}
-            <a href={`/termin/${naechster.id}`}>
-              {naechster.titel} am {datumLangJahr(naechster.datum)}
+            <dt>
+              <Icon name="musik" />
+              <span class="sr-only">Musik</span>
+            </dt>
+            <dd>
+              <ul class="bands">
+                {bandsAus(t.band).map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
+        {t.pfarrer && (
+          <>
+            <dt>
+              <Icon name="kirche" />
+              <span class="sr-only">Pfarrer/in</span>
+            </dt>
+            <dd>Pfarrer/in: {t.pfarrer}</dd>
+          </>
+        )}
+        <dt>
+          <Icon name="zelt" />
+          <span class="sr-only">Art</span>
+        </dt>
+        <dd>
+          {artName(t.kategorie)}
+          {t.bestaetigt ? (
+            <span class="bestaetigt">
+              <Icon name="haken" groesse={14} />
+              vom Veranstalter bestätigt
+            </span>
+          ) : (
+            <span class="leise klein">
+              {' '}
+              · aus einer öffentlichen Ankündigung, noch nicht vom Veranstalter bestätigt
+            </span>
+          )}
+        </dd>
+        {(veranstalterVon(t) || t.eintrittCent != null) && (
+          <>
+            <dt>
+              <Icon name="info" />
+              <span class="sr-only">Veranstalter und Eintritt</span>
+            </dt>
+            <dd>
+              {[
+                veranstalterVon(t) && `Veranstalter: ${veranstalterVon(t)}`,
+                t.eintrittCent != null && `Eintritt ${eintrittText(t.eintrittCent)}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </dd>
+          </>
+        )}
+      </dl>
+      {t.plakat && (
+        <figure class="plakat">
+          <a href={plakatPfad(t.id, t.plakat, 'gross')} target="_blank" rel="noopener">
+            <img
+              src={plakatPfad(t.id, t.plakat, 'gross')}
+              alt={`Plakat / Flyer: ${t.titel} in ${t.ort.name}`}
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+        </figure>
+      )}
+      {t.info && (
+        <p class="hinweise">
+          <Icon name="info" />
+          <span>{t.info}</span>
+        </p>
+      )}
+
+      {t.speisen && t.speisen.length > 0 && (
+        <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
+          <h2 id="mittagstisch-kopf">Essen & Getränke</h2>
+          <ul>
+            {t.speisen.map((s) => (
+              <li>
+                <span>{s.name}</span>
+                {s.preisCent != null && <span class="preis">{preisText(s.preisCent)}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {t.muttizettel && (
+        <div class="kasten muttizettel-hinweis">
+          <p>
+            <strong>Muttizettel nötig.</strong> Unter 16 – und mit 16 oder 17 nach Mitternacht – nur
+            mit Eltern oder einer erziehungsbeauftragten Person.
+          </p>
+          <a class="knopf zweit" href={`/termin/${t.id}/muttizettel`}>
+            <Icon name="dokument" />
+            Vorlage herunterladen
+          </a>
+        </div>
+      )}
+    </div>
+
+    <div class="termin-seite">
+      <h2 class="sr-only">Anfahrt und Teilen</h2>
+      <div class="knopfreihe termin-aktionen">
+        {route && (
+          <>
+            <a class="knopf" href={route.google} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Route mit Google Maps
+            </a>
+            <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
+              <Icon name="route" />
+              Apple Karten
             </a>
           </>
-        ) : (
-          <>
-            Neue Termine aus {t.ort.name} findest du unter{' '}
-            <a href={`/orte/${t.ort.slug}`}>Kirmes {t.ort.name}</a>.
-          </>
         )}
-      </p>
-    )}
-
-    <dl class="fakten">
-      <dt>
-        <Icon name="uhr" />
-        <span class="sr-only">Uhrzeit</span>
-      </dt>
-      <dd>{uhrzeit ? `${uhrzeit} Uhr` : 'Uhrzeit noch offen'}</dd>
-      <dt>
-        <Icon name="ort" />
-        <span class="sr-only">Ort</span>
-      </dt>
-      <dd>
-        {platzText(t) && <>{platzText(t)}, </>}
-        <a href={`/orte/${t.ort.slug}`}>{t.ort.name}</a> ({kreisName(t.ort.landkreis)})
-      </dd>
-      {t.band && (
-        <>
-          <dt>
-            <Icon name="musik" />
-            <span class="sr-only">Musik</span>
-          </dt>
-          <dd>
-            <ul class="bands">
-              {bandsAus(t.band).map((b) => (
-                <li>{b}</li>
-              ))}
-            </ul>
-          </dd>
-        </>
-      )}
-      {t.pfarrer && (
-        <>
-          <dt>
-            <Icon name="kirche" />
-            <span class="sr-only">Pfarrer/in</span>
-          </dt>
-          <dd>Pfarrer/in: {t.pfarrer}</dd>
-        </>
-      )}
-      <dt>
-        <Icon name="zelt" />
-        <span class="sr-only">Art</span>
-      </dt>
-      <dd>
-        {artName(t.kategorie)}
-        {t.bestaetigt ? (
-          <span class="bestaetigt">
-            <Icon name="haken" groesse={14} />
-            vom Veranstalter bestätigt
-          </span>
-        ) : (
-          <span class="leise klein">
-            {' '}
-            · aus einer öffentlichen Ankündigung, noch nicht vom Veranstalter bestätigt
-          </span>
-        )}
-      </dd>
-      {(veranstalterVon(t) || t.eintrittCent != null) && (
-        <>
-          <dt>
-            <Icon name="info" />
-            <span class="sr-only">Veranstalter und Eintritt</span>
-          </dt>
-          <dd>
-            {[
-              veranstalterVon(t) && `Veranstalter: ${veranstalterVon(t)}`,
-              t.eintrittCent != null && `Eintritt ${eintrittText(t.eintrittCent)}`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </dd>
-        </>
-      )}
-    </dl>
-    {t.plakat && (
-      <figure class="plakat">
-        <a href={plakatPfad(t.id, t.plakat, 'gross')} target="_blank" rel="noopener">
-          <img
-            src={plakatPfad(t.id, t.plakat, 'gross')}
-            alt={`Plakat / Flyer: ${t.titel} in ${t.ort.name}`}
-            loading="lazy"
-            decoding="async"
-          />
+        <a class="knopf zweit" href={`/termin/${t.id}.ics`}>
+          <Icon name="kalender" />
+          In Kalender eintragen
         </a>
-      </figure>
-    )}
-    {t.info && (
-      <p class="hinweise">
-        <Icon name="info" />
-        <span>{t.info}</span>
-      </p>
-    )}
-
-    {t.speisen && t.speisen.length > 0 && (
-      <section class="mittagstisch" aria-labelledby="mittagstisch-kopf">
-        <h2 id="mittagstisch-kopf">Essen & Getränke</h2>
-        <ul>
-          {t.speisen.map((s) => (
-            <li>
-              <span>{s.name}</span>
-              {s.preisCent != null && <span class="preis">{preisText(s.preisCent)}</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
-
-    {t.muttizettel && (
-      <div class="kasten muttizettel-hinweis">
-        <p>
-          <strong>Muttizettel nötig.</strong> Unter 16 – und mit 16 oder 17 nach Mitternacht – nur
-          mit Eltern oder einer erziehungsbeauftragten Person.
-        </p>
-        <a class="knopf zweit" href={`/termin/${t.id}/muttizettel`}>
-          <Icon name="dokument" />
-          Vorlage herunterladen
+        <a
+          class="knopf zweit"
+          id="teilen"
+          data-titel={teilenText}
+          data-url={url}
+          href={`https://wa.me/?text=${encodeURIComponent(`${teilenText}\n${url}`)}`}
+          target="_blank"
+          rel="noopener"
+        >
+          <Icon name="teilen" />
+          Teilen
         </a>
+        <button
+          type="button"
+          class="knopf zweit merken"
+          data-merken={t.id}
+          aria-pressed="false"
+          hidden
+        >
+          <Icon name="stern" />
+          <span class="merken-text">Merken</span>
+        </button>
       </div>
-    )}
-
-    <h2 class="sr-only">Anfahrt und Teilen</h2>
-    <div class="knopfreihe termin-aktionen">
-      {route && (
-        <>
-          <a class="knopf" href={route.google} target="_blank" rel="noopener">
-            <Icon name="route" />
-            Route mit Google Maps
-          </a>
-          <a class="knopf zweit" href={route.apple} target="_blank" rel="noopener">
-            <Icon name="route" />
-            Apple Karten
-          </a>
-        </>
+      <p class="genau">
+        {!route
+          ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
+          : route.art === 'genau'
+            ? 'Die Route führt genau zum Veranstaltungsort.'
+            : t.kategorie === 'staendchen'
+              ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
+              : 'Die Route führt in den Ort.'}
+      </p>
+      {(t.festplatz ?? t.ort.koordinate) && (
+        // Eingeklappt (Issue #294): Route-Knöpfe reichen meist, Karte auf Wunsch
+        <details class="karte-auf">
+          <summary>
+            <Icon name="karte" /> Karte anzeigen
+          </summary>
+          <GoogleKarte
+            lat={(t.festplatz ?? t.ort.koordinate)!.lat}
+            lon={(t.festplatz ?? t.ort.koordinate)!.lon}
+            titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
+            genau={Boolean(t.festplatz)}
+          />
+        </details>
       )}
-      <a class="knopf zweit" href={`/termin/${t.id}.ics`}>
-        <Icon name="kalender" />
-        In Kalender eintragen
-      </a>
-      <a
-        class="knopf zweit"
-        id="teilen"
-        data-titel={teilenText}
-        data-url={url}
-        href={`https://wa.me/?text=${encodeURIComponent(`${teilenText}\n${url}`)}`}
-        target="_blank"
-        rel="noopener"
-      >
-        <Icon name="teilen" />
-        Teilen
-      </a>
-      <button
-        type="button"
-        class="knopf zweit merken"
-        data-merken={t.id}
-        aria-pressed="false"
-        hidden
-      >
-        <Icon name="stern" />
-        <span class="merken-text">Merken</span>
-      </button>
     </div>
-    <p class="genau">
-      {!route
-        ? `„${t.veranstaltungsort}“ ist noch nicht auf der Karte hinterlegt – deshalb keine Route.`
-        : route.art === 'genau'
-          ? 'Die Route führt genau zum Veranstaltungsort.'
-          : t.kategorie === 'staendchen'
-            ? 'Das Ständchen zieht durch den ganzen Ort – die Route führt in den Ort.'
-            : 'Die Route führt in den Ort.'}
-    </p>
-    {(t.festplatz ?? t.ort.koordinate) && (
-      // Eingeklappt (Issue #294): Route-Knöpfe reichen meist, Karte auf Wunsch
-      <details class="karte-auf">
-        <summary>
-          <Icon name="karte" /> Karte anzeigen
-        </summary>
-        <GoogleKarte
-          lat={(t.festplatz ?? t.ort.koordinate)!.lat}
-          lon={(t.festplatz ?? t.ort.koordinate)!.lon}
-          titel={`Karte: ${eigenerPlatz(t) ?? t.ort.name}`}
-          genau={Boolean(t.festplatz)}
-        />
-      </details>
-    )}
   </article>
 
   {rundherum.length > 0 && (
