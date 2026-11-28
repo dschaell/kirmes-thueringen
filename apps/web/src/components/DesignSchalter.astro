@@ -18,11 +18,22 @@ const designs = [
 <div class="design-schalter" role="group" aria-labelledby={id} hidden>
   <span id={id}>Design</span>
   <div>
-    {designs.map(([wert, name]) => (
+    {designs.slice(0, 2).map(([wert, name]) => (
       <button type="button" data-design={wert} aria-pressed="false">
         <span class="muster" aria-hidden="true" />
         {name}
       </button>
     ))}
   </div>
+  <details>
+    <summary>Weitere Designs</summary>
+    <div>
+      {designs.slice(2).map(([wert, name]) => (
+        <button type="button" data-design={wert} aria-pressed="false">
+          <span class="muster" aria-hidden="true" />
+          {name}
+        </button>
+      ))}
+    </div>
+  </details>
 </div>

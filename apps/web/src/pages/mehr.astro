@@ -40,7 +40,7 @@ const gruppen: { titel: string; eintraege: Eintrag[] }[] = [
       { href: '/termin-melden', text: 'Termin melden', icon: 'stift' },
       {
         href: '/redaktion-mitmachen',
-        text: 'Mitmachen (Kirmesgesellschaften & Redaktion)',
+        text: 'Mitmachen & Zugang',
         icon: 'glocke',
       },
     ],
@@ -69,7 +69,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
   <section class="mehr-anmelden" aria-labelledby="mehr-anmelden">
     <h2 id="mehr-anmelden">Kirmesgesellschaft oder Redaktion?</h2>
     <p>Termine, Beiträge und Fotos für euren Ort pflegen.</p>
-    <a class="knopf" href="/admin/anmelden" rel="nofollow">
+    <a class="knopf zweit" href="/admin/anmelden" rel="nofollow">
       Anmelden
     </a>
   </section>

@@ -69,5 +69,8 @@ for (const gruppe of document.querySelectorAll<HTMLElement>('.design-schalter'))
   });
 }
 zeigeDesign();
+// Gewähltes Design liegt unter „Weitere Designs“? Dann dort offen zeigen (Issue #450)
+for (const k of document.querySelectorAll('.design-schalter details [aria-pressed="true"]'))
+  k.closest('details')?.setAttribute('open', '');
 
 export {};

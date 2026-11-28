@@ -11,6 +11,10 @@ const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
     return { k, n: imKreis.reduce((s, o) => s + o.anzahlKommend, 0), orte: imKreis.length };
   })
   .sort((a, b) => kreisKurz(a.k).localeCompare(kreisKurz(b.k), 'de'));
+const mit = kreise.filter((x) => x.n > 0);
+const ohne = kreise.filter((x) => x.n === 0);
+// Gibt es gar keine Termine, alle offen zeigen (Issue #450)
+const gruppen = mit.length ? [mit, ohne] : [kreise, []];
 Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 ---
 
@@ -25,11 +29,23 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
     </p>
   </section>
   <nav class="kreisraster" aria-label="Landkreise">
-    {kreise.map((x) => (
+    {gruppen[0]!.map((x) => (
       <a href={`/kreise/${kreisSlug(x.k)}`}>
         <strong>{kreisKurz(x.k)}</strong>
         <span>{anzahl(x.n, 'Termin', 'Termine', 'derzeit keine')}</span>
       </a>
     ))}
   </nav>
+  {gruppen[1]!.length > 0 && (
+    <details class="weitere-kreise">
+      <summary>{gruppen[1]!.length} Landkreise ohne Termine</summary>
+      <nav class="kreisraster" aria-label="Landkreise ohne Termine">
+        {gruppen[1]!.map((x) => (
+          <a href={`/kreise/${kreisSlug(x.k)}`}>
+            <strong>{kreisKurz(x.k)}</strong>
+          </a>
+        ))}
+      </nav>
+    </details>
+  )}
 </Base>

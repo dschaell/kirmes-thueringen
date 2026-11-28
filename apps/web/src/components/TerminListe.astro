@@ -71,12 +71,11 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
 )}
 {hinweis && unbestaetigt && (
   <p class="hinweis-liste">
-    Termine ohne{' '}
     <span class="bestaetigt">
       <Icon name="haken" groesse={14} />
       bestätigt
-    </span>{' '}
-    stammen aus öffentlichen Ankündigungen und sind noch nicht vom Veranstalter bestätigt.
+    </span>
+    : vom Veranstalter. Sonst aus öffentlichen Ankündigungen.
   </p>
 )}
 {gruppen.map((g) => (
@@ -120,7 +119,10 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                       {t.titel}
                     </a>{' '}
                     {/* Leerzeichen: sonst darf iOS-Safari nicht vor dem Etikett umbrechen (Issue #366) */}
-                    <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
+                    {/* Art nicht doppelt, wenn sie schon im Titel steht (Issue #450) */}
+                    {!t.titel.toLowerCase().includes(artName(t.kategorie, true).toLowerCase()) && (
+                      <span class={`kat kat-${t.kategorie}`}>{artName(t.kategorie, true)}</span>
+                    )}
                     {t.muttizettel && <span class="mutti">U18 nur mit Muttizettel</span>}
                     {t.bestaetigt && (
                       <span class="bestaetigt" title="Vom Veranstalter bestätigt">
@@ -128,22 +130,31 @@ const unbestaetigt = termine.some((t) => !t.bestaetigt);
                         bestätigt
                       </span>
                     )}
-                    <div class="wo">
-                      {ortLinks ? (
-                        <a class="ortname" href={`/orte/${t.ort.slug}`}>
-                          {t.ort.name}
-                        </a>
-                      ) : (
-                        <span class="ortname">{t.ort.name}</span>
-                      )}
-                      {platzText(t) && <> · {platzText(t)}</>}
-                      {entfernung?.[t.id] !== undefined && (
-                        <span class="entfernung">
-                          {' '}
-                          · {Math.max(1, Math.round(entfernung[t.id]!))} km
-                        </span>
-                      )}
-                    </div>
+                    {(ortLinks || platzText(t) || entfernung?.[t.id] !== undefined) && (
+                      <div class="wo">
+                        {/* Auf der Ortsseite steht der Ort schon in der Überschrift (#450) */}
+                        {[
+                          ortLinks && (
+                            <a class="ortname" href={`/orte/${t.ort.slug}`}>
+                              {t.ort.name}
+                            </a>
+                          ),
+                          platzText(t),
+                          entfernung?.[t.id] !== undefined && (
+                            <span class="entfernung">
+                              {Math.max(1, Math.round(entfernung[t.id]!))} km
+                            </span>
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .map((teil, i) => (
+                            <>
+                              {i > 0 && ' · '}
+                              {teil}
+                            </>
+                          ))}
+                      </div>
+                    )}
                     {t.band && (
                       <div class="band">
                         <Icon name="musik" groesse={14} />

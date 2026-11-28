@@ -265,6 +265,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     border-color: var(--knopf);
     color: var(--auf-knopf);
   }
+  /* Schmal: eine wischbare Zeile, damit die Karte früh beginnt (Issue #450) */
+  @media (max-width: 600px) {
+    .zeitwahl {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      width: 100%;
+      min-width: 0;
+      padding: 4px;
+      scrollbar-width: none;
+    }
+    .zeitwahl a {
+      flex: none;
+    }
+  }
   .nach-entfernung {
     columns: 1;
   }

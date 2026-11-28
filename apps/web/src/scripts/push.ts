@@ -131,6 +131,8 @@ async function einrichten(box: HTMLElement) {
   // iPhone in Safari: Push gibt es nur in der Home-Bildschirm-App
   if (!unterstuetzt() || (iPhone() && !alsApp())) {
     knopf.hidden = true;
+    // Ohne Knopf auch keine Beschreibung eines Knopfs (Issue #450)
+    box.querySelector<HTMLElement>('.push-info')?.setAttribute('hidden', '');
     if (ios) ios.hidden = !iPhone();
     if (!iPhone()) status.textContent = 'Dieser Browser kann keine Benachrichtigungen empfangen.';
     return;

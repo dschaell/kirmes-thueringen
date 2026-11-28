@@ -113,6 +113,9 @@ if (!fehler && ergebnis.gesamt === 0) {
 
 const aktiveFilter =
   (kreis ? 1 : 0) + (zeit !== 'kommend' ? 1 : 0) + kat.length + (nurBest ? 1 : 0) + (mitte ? 1 : 0);
+const gewaehlt =
+  (kreis ? 1 : 0) + (zeitParam && zeit !== 'kommend' ? 1 : 0) + kat.length + (nurBest ? 1 : 0);
+const filterOffen = gewaehlt > 0 && ergebnis.gesamt > 0;
 const seiten = Math.ceil(ergebnis.gesamt / SEITE);
 const aktuell = offset / SEITE + 1;
 const seitenLink = (n: number) => {
@@ -207,10 +210,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
         In meiner Nähe
       </button>
       <p class="klein leise" id="nahe-info" role="status"></p>
-      <details class="filter" open={aktiveFilter - (mitte ? 1 : 0) > 0}>
+      {/* Offen nur bei selbst gewählten Filtern mit Treffern – sonst verdeckt er das Ergebnis (#450) */}
+      <details class="filter" open={filterOffen}>
         <summary>
           <Icon name="filter" />
-          Filter {aktiveFilter > 0 && <span class="zahl">{aktiveFilter}</span>}
+          Filter{' '}
+          {gewaehlt + (mitte ? 1 : 0) > 0 && <span class="zahl">{gewaehlt + (mitte ? 1 : 0)}</span>}
         </summary>
         <div class="filterfelder">
           <div class="zwei">
@@ -320,7 +325,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
       </a>
     </p>
   )}
-  <p class="leise" aria-live="polite" id="trefferzahl">
+  <p
+    class:list={['leise', { 'sr-only': ergebnis.gesamt === 0 }]}
+    aria-live="polite"
+    id="trefferzahl"
+  >
     {anzahl(ergebnis.gesamt, 'Termin', 'Termine')}
   </p>
   <h2 class="sr-only">Gefundene Termine</h2>
@@ -330,7 +339,19 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     entfernung={mitte ? entfernung : undefined}
   />
   {!fehler && ergebnis.gesamt === 0 && (
-    <KeineTreffer orte={ortTreffer} breiter={breiter} naechste={naechste} />
+    <KeineTreffer
+      text={
+        q
+          ? `Nichts zu „${q}“ gefunden.`
+          : chips.length > 0
+            ? 'Mit diesen Filtern gibt es keine Termine.'
+            : undefined
+      }
+      loeschen={q ? { href: ohne('q'), text: 'Suche löschen' } : null}
+      orte={ortTreffer}
+      breiter={breiter}
+      naechste={naechste}
+    />
   )}
 
   {seiten > 1 && (
