@@ -35,6 +35,11 @@ const spaeter =
   jetzt.termine.length === 0
     ? (await sucheTermine({ von: plusTage(we.bis, 1), limit: 5 })).termine
     : [];
+// Nur wenig am Wochenende? Dann füllt „Demnächst“ die Hauptspalte (Issue #452)
+const demnaechst =
+  jetzt.termine.length > 0 && jetzt.termine.length < 5
+    ? (await sucheTermine({ von: plusTage(we.bis, 1), limit: 5 })).termine
+    : [];
 const kreise = (Object.keys(LANDKREISE) as LandkreisKuerzel[])
   .map((k) => ({
     k,
@@ -102,7 +107,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   </section>
 
   <div class="zweispaltig">
-    <div>
+    <div class="hauptspalte">
       {pause && (
         <aside class="kirmespause" aria-label="Kirmespause">
           <p>
@@ -126,6 +131,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
           naechste={spaeter}
         />
       )}
+      {demnaechst.length > 0 && (
+        <section class="demnaechst" aria-labelledby="demnaechst-titel">
+          <h2 id="demnaechst-titel">Demnächst</h2>
+          <TerminListe
+            termine={demnaechst}
+            monate={false}
+            leer={false}
+            hinweis={jetzt.termine.every((t) => t.bestaetigt)}
+          />
+        </section>
+      )}
       <a class="knopf alle-termine" href="/termine">
         Alle Termine <Icon name="pfeil" />
       </a>
@@ -141,31 +157,35 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
     </div>
 
     <aside class="seitenleiste">
-      <h2>Nach Landkreis</h2>
-      <ul class="kreisliste">
-        {kreise
-          .filter((x) => x.n > 0)
-          .map((x) => (
-            <li>
-              <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
-              <span class="n">{x.n}</span>
-            </li>
-          ))}
-      </ul>
-      {/* Nur Kreise mit Terminen – alle 23 unter „Landkreise“ (Issue #265/#450) */}
-      <a class="mehr alle-kreise" href="/kreise">
-        Alle {kreise.length} Landkreise <Icon name="pfeil" />
-      </a>
+      <section>
+        <h2>Nach Landkreis</h2>
+        <ul class="kreisliste">
+          {kreise
+            .filter((x) => x.n > 0)
+            .map((x) => (
+              <li>
+                <a href={`/kreise/${kreisSlug(x.k)}`}>{kreisKurz(x.k)}</a>
+                <span class="n">{x.n}</span>
+              </li>
+            ))}
+        </ul>
+        {/* Nur Kreise mit Terminen – alle 23 unter „Landkreise“ (Issue #265/#450) */}
+        <a class="mehr alle-kreise" href="/kreise">
+          Alle {kreise.length} Landkreise <Icon name="pfeil" />
+        </a>
+      </section>
 
-      <h2>Immer aktuell im eigenen Kalender</h2>
-      <p>
-        Alle kommenden Termine als Kalender-Abo für Handy, Outlook oder Google Kalender – neue
-        Termine erscheinen automatisch.
-      </p>
-      <a class="knopf zweit" href="/kalender-abonnieren">
-        <Icon name="abo" />
-        Kalender abonnieren
-      </a>
+      <section>
+        <h2>Immer aktuell im eigenen Kalender</h2>
+        <p>
+          Alle kommenden Termine als Kalender-Abo für Handy, Outlook oder Google Kalender – neue
+          Termine erscheinen automatisch.
+        </p>
+        <a class="knopf zweit" href="/kalender-abonnieren">
+          <Icon name="abo" />
+          Kalender abonnieren
+        </a>
+      </section>
 
       <div class="kasten abstand">
         <h2>Ihr seid Kirmesgesellschaft?</h2>
